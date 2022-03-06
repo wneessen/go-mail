@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	c, err := mail.NewClient("192.168.178.60", mail.WithTimeout(time.Millisecond*500), mail.WithSSL())
+	c, err := mail.NewClient("localhost", mail.WithTimeout(time.Millisecond*500))
 	if err != nil {
 		fmt.Printf("failed to create new client: %s\n", err)
 		os.Exit(1)

@@ -103,6 +103,13 @@ func WithSSL() Option {
 	}
 }
 
+// WithHELO tells the client to use the provided string as HELO/EHLO greeting host
+func WithHELO(h string) Option {
+	return func(c *Client) {
+		c.helo = h
+	}
+}
+
 // Dial establishes a connection cto the SMTP server with a default context.Background
 func (c *Client) Dial() error {
 	ctx := context.Background()
@@ -146,15 +153,6 @@ func (c *Client) Send() error {
 
 // Close closes the connection cto the SMTP server
 func (c *Client) Close() error {
-	if err := c.sc.Close(); err != nil {
-		fmt.Printf("failed close: %s\n", err)
-		return err
-	}
-	if ok, auth := c.sc.Extension("PIPELINING"); ok {
-		fmt.Printf("PIPELINING Support: %s\n", auth)
-	} else {
-		fmt.Println("No PIPELINING")
-	}
 	return c.sc.Close()
 }
 
