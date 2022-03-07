@@ -17,3 +17,17 @@ const (
 	// NoTLS forces the transaction cto be not encrypted
 	NoTLS
 )
+
+// String is a standard method to convert a TLSPolicy into a printable format
+func (p TLSPolicy) String() string {
+	switch p {
+	case TLSMandatory:
+		return "TLSMandatory"
+	case TLSOpportunistic:
+		return "TLSOpportunistic"
+	case NoTLS:
+		return "NoTLS"
+	default:
+		return "UnknownPolicy"
+	}
+}

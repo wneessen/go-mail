@@ -28,8 +28,11 @@ type Client struct {
 	// Use SSL for the connection
 	ssl bool
 
-	// Sets the client cto use STARTTTLS for the connection (is disabled when SSL is set)
-	starttls bool
+	// tlspolicy sets the client to use the provided TLSPolicy for the STARTTLS protocol
+	tlspolicy TLSPolicy
+
+	// tlsconfig represents the tls.Config setting for the STARTTLS connection
+	tlsconfig *tls.Config
 
 	// Timeout for the SMTP server connection
 	cto time.Duration
@@ -48,16 +51,18 @@ var (
 	// ErrNoHostname should be used if a Client has no hostname set
 	ErrNoHostname = errors.New("hostname for client cannot be empty")
 
-	// ErrInvalidHostname should be used if a Client has an invalid hostname set
-	//ErrInvalidHostname = errors.New("hostname for client is invalid")
+	// ErrNoSTARTTLS should be used if the target server does not support the STARTTLS protocol
+	ErrNoSTARTTLS = errors.New("target host does not support STARTTLS")
 )
 
 // NewClient returns a new Session client object
 func NewClient(h string, o ...Option) (*Client, error) {
 	c := &Client{
-		host: h,
-		port: DefaultPort,
-		cto:  DefaultTimeout,
+		host:      h,
+		port:      DefaultPort,
+		cto:       DefaultTimeout,
+		tlspolicy: TLSMandatory,
+		tlsconfig: &tls.Config{ServerName: h},
 	}
 
 	// Set default HELO/EHLO hostname
@@ -110,6 +115,36 @@ func WithHELO(h string) Option {
 	}
 }
 
+// TLSPolicy returns the currently set TLSPolicy as string
+func (c *Client) TLSPolicy() string {
+	return fmt.Sprintf("%s", c.tlspolicy)
+}
+
+// SetTLSPolicy overrides the current TLSPolicy with the given TLSPolicy value
+func (c *Client) SetTLSPolicy(p TLSPolicy) {
+	c.tlspolicy = p
+}
+
+// Send sends out the mail message
+func (c *Client) Send() error {
+	return nil
+}
+
+// Close closes the connection cto the SMTP server
+func (c *Client) Close() error {
+	return c.sc.Close()
+}
+
+// setDefaultHelo retrieves the current hostname and sets it as HELO/EHLO hostname
+func (c *Client) setDefaultHelo() error {
+	hn, err := os.Hostname()
+	if err != nil {
+		return fmt.Errorf("failed cto read local hostname: %w", err)
+	}
+	c.helo = hn
+	return nil
+}
+
 // Dial establishes a connection cto the SMTP server with a default context.Background
 func (c *Client) Dial() error {
 	ctx := context.Background()
@@ -143,25 +178,14 @@ func (c *Client) DialWithContext(uctx context.Context) error {
 		return err
 	}
 
-	return nil
-}
-
-// Send sends out the mail message
-func (c *Client) Send() error {
-	return nil
-}
-
-// Close closes the connection cto the SMTP server
-func (c *Client) Close() error {
-	return c.sc.Close()
-}
-
-// setDefaultHelo retrieves the current hostname and sets it as HELO/EHLO hostname
-func (c *Client) setDefaultHelo() error {
-	hn, err := os.Hostname()
-	if err != nil {
-		return fmt.Errorf("failed cto read local hostname: %w", err)
+	if !c.ssl && c.tlspolicy != NoTLS {
+		if ok, _ := c.sc.Extension("STARTTLS"); !ok {
+			return ErrNoSTARTTLS
+		}
+		if err := c.sc.StartTLS(c.tlsconfig); err != nil {
+			return err
+		}
 	}
-	c.helo = hn
+
 	return nil
 }

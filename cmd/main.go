@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	c, err := mail.NewClient("localhost", mail.WithTimeout(time.Millisecond*500))
+	c, err := mail.NewClient("manjaro-vm.fritz.box", mail.WithTimeout(time.Millisecond*500))
 	if err != nil {
 		fmt.Printf("failed to create new client: %s\n", err)
 		os.Exit(1)
@@ -23,9 +23,5 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("Client: %+v\n", c)
-	time.Sleep(time.Millisecond * 1500)
-	if err := c.Close(); err != nil {
-		fmt.Printf("failed to close SMTP connection: %s\n", err)
-		os.Exit(1)
-	}
+	fmt.Printf("StartTLS policy: %s\n", c.TLSPolicy())
 }
