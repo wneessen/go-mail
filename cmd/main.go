@@ -9,7 +9,8 @@ import (
 )
 
 func main() {
-	c, err := mail.NewClient("manjaro-vm.fritz.box", mail.WithTimeout(time.Millisecond*500))
+	th := os.Getenv("TEST_HOST")
+	c, err := mail.NewClient(th, mail.WithTimeout(time.Millisecond*500))
 	if err != nil {
 		fmt.Printf("failed to create new client: %s\n", err)
 		os.Exit(1)

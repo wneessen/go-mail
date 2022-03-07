@@ -50,9 +50,6 @@ type Option func(*Client)
 var (
 	// ErrNoHostname should be used if a Client has no hostname set
 	ErrNoHostname = errors.New("hostname for client cannot be empty")
-
-	// ErrNoSTARTTLS should be used if the target server does not support the STARTTLS protocol
-	ErrNoSTARTTLS = errors.New("target host does not support STARTTLS")
 )
 
 // NewClient returns a new Session client object
@@ -120,6 +117,11 @@ func (c *Client) TLSPolicy() string {
 	return fmt.Sprintf("%s", c.tlspolicy)
 }
 
+// ServerAddr returns the currently set combination of hostname and port
+func (c *Client) ServerAddr() string {
+	return fmt.Sprintf("%s:%d", c.host, c.port)
+}
+
 // SetTLSPolicy overrides the current TLSPolicy with the given TLSPolicy value
 func (c *Client) SetTLSPolicy(p TLSPolicy) {
 	c.tlspolicy = p
@@ -161,10 +163,10 @@ func (c *Client) DialWithContext(uctx context.Context) error {
 	var co net.Conn
 	var err error
 	if c.ssl {
-		co, err = td.DialContext(ctx, "tcp", fmt.Sprintf("%s:%d", c.host, c.port))
+		co, err = td.DialContext(ctx, "tcp", c.ServerAddr())
 	}
 	if !c.ssl {
-		co, err = nd.DialContext(ctx, "tcp", fmt.Sprintf("%s:%d", c.host, c.port))
+		co, err = nd.DialContext(ctx, "tcp", c.ServerAddr())
 	}
 	if err != nil {
 		return err
@@ -180,7 +182,8 @@ func (c *Client) DialWithContext(uctx context.Context) error {
 
 	if !c.ssl && c.tlspolicy != NoTLS {
 		if ok, _ := c.sc.Extension("STARTTLS"); !ok {
-			return ErrNoSTARTTLS
+			return fmt.Errorf("STARTTLS mode set to: %q, but target host does not support STARTTLS",
+				c.tlspolicy)
 		}
 		if err := c.sc.StartTLS(c.tlsconfig); err != nil {
 			return err
