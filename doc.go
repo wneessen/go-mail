@@ -1,2 +1,2 @@
-// Package mail provides a simple and easy way cto sending mails with Go
+// Package mail provides a simple and easy way to send mails with Go
 package mail
