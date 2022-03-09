@@ -40,6 +40,9 @@ type Client struct {
 	// HELO/EHLO string for the greeting the target SMTP server
 	helo string
 
+	// enc indicates if a Client connection is encrypted or not
+	enc bool
+
 	// The SMTP client that is set up when using the Dial*() methods
 	sc *smtp.Client
 }
@@ -55,9 +58,9 @@ var (
 // NewClient returns a new Session client object
 func NewClient(h string, o ...Option) (*Client, error) {
 	c := &Client{
+		cto:       DefaultTimeout,
 		host:      h,
 		port:      DefaultPort,
-		cto:       DefaultTimeout,
 		tlspolicy: TLSMandatory,
 		tlsconfig: &tls.Config{ServerName: h},
 	}
@@ -112,6 +115,20 @@ func WithHELO(h string) Option {
 	}
 }
 
+// WithTLSPolicy tells the client to use the provided TLSPolicy
+func WithTLSPolicy(p TLSPolicy) Option {
+	return func(c *Client) {
+		c.tlspolicy = p
+	}
+}
+
+// WithTLSConfig tells the client to use the provided *tls.Config
+func WithTLSConfig(co *tls.Config) Option {
+	return func(c *Client) {
+		c.tlsconfig = co
+	}
+}
+
 // TLSPolicy returns the currently set TLSPolicy as string
 func (c *Client) TLSPolicy() string {
 	return fmt.Sprintf("%s", c.tlspolicy)
@@ -125,6 +142,11 @@ func (c *Client) ServerAddr() string {
 // SetTLSPolicy overrides the current TLSPolicy with the given TLSPolicy value
 func (c *Client) SetTLSPolicy(p TLSPolicy) {
 	c.tlspolicy = p
+}
+
+// SetTLSConfig overrides the current *tls.Config with the given *tls.Config value
+func (c *Client) SetTLSConfig(co *tls.Config) {
+	c.tlsconfig = co
 }
 
 // Send sends out the mail message
@@ -163,6 +185,7 @@ func (c *Client) DialWithContext(uctx context.Context) error {
 	var co net.Conn
 	var err error
 	if c.ssl {
+		c.enc = true
 		co, err = td.DialContext(ctx, "tcp", c.ServerAddr())
 	}
 	if !c.ssl {
@@ -181,13 +204,26 @@ func (c *Client) DialWithContext(uctx context.Context) error {
 	}
 
 	if !c.ssl && c.tlspolicy != NoTLS {
-		if ok, _ := c.sc.Extension("STARTTLS"); !ok {
-			return fmt.Errorf("STARTTLS mode set to: %q, but target host does not support STARTTLS",
-				c.tlspolicy)
+		est := false
+		st, _ := c.sc.Extension("STARTTLS")
+		if c.tlspolicy == TLSMandatory {
+			est = true
+			if !st {
+				return fmt.Errorf("STARTTLS mode set to: %q, but target host does not support STARTTLS",
+					c.tlspolicy)
+			}
 		}
-		if err := c.sc.StartTLS(c.tlsconfig); err != nil {
-			return err
+		if c.tlspolicy == TLSOpportunistic {
+			if st {
+				est = true
+			}
 		}
+		if est {
+			if err := c.sc.StartTLS(c.tlsconfig); err != nil {
+				return err
+			}
+		}
+		_, c.enc = c.sc.TLSConnectionState()
 	}
 
 	return nil
