@@ -101,3 +101,54 @@ func TestWithSSL(t *testing.T) {
 		})
 	}
 }
+
+// TestWithTLSPolicy tests the WithTLSPolicy() option for the NewClient() method
+func TestWithTLSPolicy(t *testing.T) {
+	tests := []struct {
+		name  string
+		value TLSPolicy
+		want  TLSPolicy
+	}{
+		{"Policy: TLSMandatory", TLSMandatory, TLSMandatory},
+		{"Policy: TLSOpportunistic", TLSOpportunistic, TLSOpportunistic},
+		{"Policy: NoTLS", NoTLS, NoTLS},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := NewClient(DefaultHost, WithTLSPolicy(tt.value))
+			if err != nil {
+				t.Errorf("failed to create new client: %s", err)
+				return
+			}
+			if c.tlspolicy != tt.want {
+				t.Errorf("failed to set TLSPolicy. Want: %s, got: %s", tt.want, c.tlspolicy)
+			}
+		})
+	}
+}
+
+// TestSetTLSPolicy tests the SetTLSPolicy() method for the Client object
+func TestSetTLSPolicy(t *testing.T) {
+	tests := []struct {
+		name  string
+		value TLSPolicy
+		want  TLSPolicy
+	}{
+		{"Policy: TLSMandatory", TLSMandatory, TLSMandatory},
+		{"Policy: TLSOpportunistic", TLSOpportunistic, TLSOpportunistic},
+		{"Policy: NoTLS", NoTLS, NoTLS},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS))
+			if err != nil {
+				t.Errorf("failed to create new client: %s", err)
+				return
+			}
+			c.SetTLSPolicy(tt.value)
+			if c.tlspolicy != tt.want {
+				t.Errorf("failed to set TLSPolicy. Want: %s, got: %s", tt.want, c.tlspolicy)
+			}
+		})
+	}
+}

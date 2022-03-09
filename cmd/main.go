@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"github.com/wneessen/go-mail"
 	"os"
@@ -15,18 +14,12 @@ func main() {
 		fmt.Printf("$TEST_HOST env variable cannot be empty\n")
 		os.Exit(1)
 	}
-	c, err := mail.NewClient(th, mail.WithTimeout(time.Millisecond*500), mail.WithTLSPolicy(mail.TLSOpportunistic))
+	c, err := mail.NewClient(th, mail.WithTimeout(time.Millisecond*500))
 	if err != nil {
 		fmt.Printf("failed to create new client: %s\n", err)
 		os.Exit(1)
 	}
 	//c.SetTLSPolicy(mail.TLSMandatory)
-	tc := &tls.Config{
-		ServerName: th,
-		MinVersion: tls.VersionTLS10,
-		MaxVersion: tls.VersionTLS10,
-	}
-	c.SetTLSConfig(tc)
 
 	ctx, cfn := context.WithCancel(context.Background())
 	defer cfn()
@@ -35,6 +28,13 @@ func main() {
 		fmt.Printf("failed to dial: %s\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("Client: %+v\n", c)
-	fmt.Printf("StartTLS policy: %s\n", c.TLSPolicy())
+
+	m := mail.NewMsg()
+	m.From("wn@neessen.net")
+	m.To("test@test.de", "foo@bar.de", "blubb@blah.com")
+	m.Cc("cc@test.de", "cc@bar.de", "cc@blah.com")
+	m.SetMessageID()
+	m.SetBulk()
+	m.Header()
+
 }
