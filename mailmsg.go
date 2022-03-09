@@ -3,7 +3,6 @@ package mail
 import (
 	"fmt"
 	"math/rand"
-	"mime"
 	"os"
 	"time"
 )
@@ -14,7 +13,7 @@ type Msg struct {
 	charset string
 
 	// encoder represents a mime.WordEncoder from the std lib
-	encoder mime.WordEncoder
+	//encoder mime.WordEncoder
 
 	// header is a slice of strings that the different mail header fields
 	header map[Header][]string

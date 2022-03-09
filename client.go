@@ -131,7 +131,7 @@ func WithTLSConfig(co *tls.Config) Option {
 
 // TLSPolicy returns the currently set TLSPolicy as string
 func (c *Client) TLSPolicy() string {
-	return fmt.Sprintf("%s", c.tlspolicy)
+	return c.tlspolicy.String()
 }
 
 // ServerAddr returns the currently set combination of hostname and port

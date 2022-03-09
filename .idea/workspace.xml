@@ -4,12 +4,10 @@
     <option name="autoReloadType" value="ALL" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b7733b42-c5ae-46b3-8a96-8b973d69a11d" name="Changes" comment="Calling it a day...">
-      <change afterPath="$PROJECT_DIR$/encoding.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/header.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/mailmsg.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/client_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cmd/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/cmd/main.go" afterDir="false" />
+    <list default="true" id="b7733b42-c5ae-46b3-8a96-8b973d69a11d" name="Changes" comment="More progress... calling it a day.">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client.go" beforeDir="false" afterPath="$PROJECT_DIR$/client.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mailmsg.go" beforeDir="false" afterPath="$PROJECT_DIR$/mailmsg.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -104,7 +102,8 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Makeing some progress..." />
     <MESSAGE value="Calling it a day..." />
-    <option name="LAST_COMMIT_MESSAGE" value="Calling it a day..." />
+    <MESSAGE value="More progress... calling it a day." />
+    <option name="LAST_COMMIT_MESSAGE" value="More progress... calling it a day." />
   </component>
   <component name="VgoProject">
     <integration-enabled>true</integration-enabled>
