@@ -16,6 +16,7 @@ mail and SMTP related tasks.
 Some of the features of this library:
 * [X] Only Standard Library dependant
 * [X] Modern, idiotmatic Go
+* [X] Sane and secure defaults
 * [X] SSL/TLS support
 * [X] StartTLS support with different policies
 * [X] Makes use of contexts for a better control flow and timeout/cancelation handling

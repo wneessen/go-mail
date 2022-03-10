@@ -12,11 +12,17 @@ import (
 	"time"
 )
 
-// DefaultPort is the default connection port cto the SMTP server
-const DefaultPort = 25
+// Defaults
+const (
+	// DefaultPort is the default connection port cto the SMTP server
+	DefaultPort = 25
 
-// DefaultTimeout is the default connection timeout
-const DefaultTimeout = time.Second * 30
+	// DefaultTimeout is the default connection timeout
+	DefaultTimeout = time.Second * 15
+
+	// DefaultTLSPolicy is the default STARTTLS policy
+	DefaultTLSPolicy = TLSMandatory
+)
 
 // Client is the SMTP client struct
 type Client struct {
@@ -84,8 +90,8 @@ func NewClient(h string, o ...Option) (*Client, error) {
 		cto:       DefaultTimeout,
 		host:      h,
 		port:      DefaultPort,
-		tlspolicy: TLSMandatory,
 		tlsconfig: &tls.Config{ServerName: h},
+		tlspolicy: DefaultTLSPolicy,
 	}
 
 	// Set default HELO/EHLO hostname
@@ -257,27 +263,8 @@ func (c *Client) DialWithContext(pc context.Context) error {
 		return err
 	}
 
-	if !c.ssl && c.tlspolicy != NoTLS {
-		est := false
-		st, _ := c.sc.Extension("STARTTLS")
-		if c.tlspolicy == TLSMandatory {
-			est = true
-			if !st {
-				return fmt.Errorf("STARTTLS mode set to: %q, but target host does not support STARTTLS",
-					c.tlspolicy)
-			}
-		}
-		if c.tlspolicy == TLSOpportunistic {
-			if st {
-				est = true
-			}
-		}
-		if est {
-			if err := c.sc.StartTLS(c.tlsconfig); err != nil {
-				return err
-			}
-		}
-		_, c.enc = c.sc.TLSConnectionState()
+	if err := c.tls(); err != nil {
+		return err
 	}
 
 	if err := c.auth(); err != nil {
@@ -329,6 +316,33 @@ func (c *Client) checkConn() error {
 	}
 	if err := c.co.SetDeadline(time.Now().Add(c.cto)); err != nil {
 		return ErrDeadlineExtendFailed
+	}
+	return nil
+}
+
+// tls tries to make sure that the STARTTLS requirements are satisfied
+func (c *Client) tls() error {
+	if !c.ssl && c.tlspolicy != NoTLS {
+		est := false
+		st, _ := c.sc.Extension("STARTTLS")
+		if c.tlspolicy == TLSMandatory {
+			est = true
+			if !st {
+				return fmt.Errorf("STARTTLS mode set to: %q, but target host does not support STARTTLS",
+					c.tlspolicy)
+			}
+		}
+		if c.tlspolicy == TLSOpportunistic {
+			if st {
+				est = true
+			}
+		}
+		if est {
+			if err := c.sc.StartTLS(c.tlsconfig); err != nil {
+				return err
+			}
+		}
+		_, c.enc = c.sc.TLSConnectionState()
 	}
 	return nil
 }

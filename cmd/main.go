@@ -24,6 +24,7 @@ func main() {
 	m.ToIgnoreInvalid("test@test.de", "foo@bar.de", "blubb@blah.com")
 	m.CcIgnoreInvalid("cc@test.de", "bar.de", "cc@blah.com")
 	m.BccIgnoreInvalid("bcc@test.de", "bcc@blah.com")
+	m.SetHeader("Foo", "bar")
 	m.SetMessageID()
 	m.SetDate()
 	m.SetBulk()
