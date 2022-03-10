@@ -14,7 +14,11 @@ func main() {
 		fmt.Printf("$TEST_HOST env variable cannot be empty\n")
 		os.Exit(1)
 	}
-	c, err := mail.NewClient(th, mail.WithTimeout(time.Millisecond*500))
+
+	tu := os.Getenv("TEST_USER")
+	tp := os.Getenv("TEST_PASS")
+	c, err := mail.NewClient(th, mail.WithTimeout(time.Millisecond*500), mail.WithTLSPolicy(mail.TLSMandatory),
+		mail.WithSMTPAuth(mail.SMTPAuthDigestMD5), mail.WithUsername(tu), mail.WithPassword(tp))
 	if err != nil {
 		fmt.Printf("failed to create new client: %s\n", err)
 		os.Exit(1)

@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/smtp"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -42,6 +43,18 @@ type Client struct {
 
 	// enc indicates if a Client connection is encrypted or not
 	enc bool
+
+	// user is the SMTP AUTH username
+	user string
+
+	// pass is the corresponding SMTP AUTH password
+	pass string
+
+	// satype represents the authentication type for SMTP AUTH
+	satype SMTPAuthType
+
+	// smtpauth is a pointer to smtp.Auth
+	sa smtp.Auth
 
 	// The SMTP client that is set up when using the Dial*() methods
 	sc *smtp.Client
@@ -126,6 +139,34 @@ func WithTLSPolicy(p TLSPolicy) Option {
 func WithTLSConfig(co *tls.Config) Option {
 	return func(c *Client) {
 		c.tlsconfig = co
+	}
+}
+
+// WithSMTPAuth tells the client to use the provided SMTPAuthType for authentication
+func WithSMTPAuth(t SMTPAuthType) Option {
+	return func(c *Client) {
+		c.satype = t
+	}
+}
+
+// WithSMTPAuthCustom tells the client to use the provided smtp.Auth for SMTP authentication
+func WithSMTPAuthCustom(a smtp.Auth) Option {
+	return func(c *Client) {
+		c.sa = a
+	}
+}
+
+// WithUsername tells the client to use the provided string as username for authentication
+func WithUsername(u string) Option {
+	return func(c *Client) {
+		c.user = u
+	}
+}
+
+// WithPassword tells the client to use the provided string as password/secret for authentication
+func WithPassword(p string) Option {
+	return func(c *Client) {
+		c.pass = p
 	}
 }
 
@@ -226,5 +267,51 @@ func (c *Client) DialWithContext(uctx context.Context) error {
 		_, c.enc = c.sc.TLSConnectionState()
 	}
 
+	if err := c.auth(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// auth will try to perform SMTP AUTH if requested
+func (c *Client) auth() error {
+	if c.sa == nil && c.satype != "" {
+		sa, sat := c.sc.Extension("AUTH")
+		if !sa {
+			return fmt.Errorf("server does not support SMTP AUTH")
+		}
+
+		switch c.satype {
+		case SMTPAuthPlain:
+			if !strings.Contains(sat, string(SMTPAuthPlain)) {
+				return ErrPlainAuthNotSupported
+			}
+			c.sa = smtp.PlainAuth("", c.user, c.pass, c.host)
+		case SMTPAuthLogin:
+			if !strings.Contains(sat, string(SMTPAuthLogin)) {
+				return ErrLoginAuthNotSupported
+			}
+			c.sa = smtp.PlainAuth("", c.user, c.pass, c.host)
+		case SMTPAuthCramMD5:
+			if !strings.Contains(sat, string(SMTPAuthCramMD5)) {
+				return ErrCramMD5AuthNotSupported
+			}
+			c.sa = smtp.CRAMMD5Auth(c.user, c.pass)
+		case SMTPAuthDigestMD5:
+			if !strings.Contains(sat, string(SMTPAuthDigestMD5)) {
+				return ErrDigestMD5AuthNotSupported
+			}
+			c.sa = smtp.CRAMMD5Auth(c.user, c.pass)
+		default:
+			return fmt.Errorf("unsupported SMTP AUTH type %q", c.satype)
+		}
+	}
+
+	if c.sa != nil {
+		if err := c.sc.Auth(c.sa); err != nil {
+			return fmt.Errorf("SMTP AUTH failed: %w", err)
+		}
+	}
 	return nil
 }
