@@ -1,22 +1,13 @@
 package mail
 
-// Header represents a mail header field name
+// Header represents a generic mail header field name
 type Header string
 
-// List of common header field names
+// AddrHeader represents a address related mail Header field name
+type AddrHeader string
+
+// List of common generic header field names
 const (
-	// HeaderFrom is the "From" header field
-	HeaderFrom Header = "From"
-
-	// HeaderTo is the "Receipient" header field
-	HeaderTo Header = "To"
-
-	// HeaderCc is the "Carbon Copy" header field
-	HeaderCc Header = "Cc"
-
-	// HeaderPrecedence is the "Precedence" header field
-	HeaderPrecedence Header = "Precedence"
-
 	// HeaderDate represents the "Date" field
 	// See: https://www.rfc-editor.org/rfc/rfc822#section-5.1
 	HeaderDate Header = "Date"
@@ -24,4 +15,25 @@ const (
 	// HeaderMessageID represents the "Message-ID" field for message identification
 	// See: https://www.rfc-editor.org/rfc/rfc1036#section-2.1.5
 	HeaderMessageID Header = "Message-ID"
+
+	// HeaderPrecedence is the "Precedence" genHeader field
+	HeaderPrecedence Header = "Precedence"
+
+	// HeaderSubject is the "Subject" genHeader field
+	HeaderSubject Header = "Subject"
+)
+
+// List of common generic header field names
+const (
+	// HeaderBcc is the "Blind Carbon Copy" genHeader field
+	HeaderBcc AddrHeader = "Bcc"
+
+	// HeaderCc is the "Carbon Copy" genHeader field
+	HeaderCc AddrHeader = "Cc"
+
+	// HeaderFrom is the "From" genHeader field
+	HeaderFrom AddrHeader = "From"
+
+	// HeaderTo is the "Receipient" genHeader field
+	HeaderTo AddrHeader = "To"
 )

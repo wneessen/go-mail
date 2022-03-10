@@ -8,7 +8,24 @@ full-fledged mail library.
 
 **This library is "WIP" an should not be considered "production ready", yet.**
 
-go-mail follows idiomatic Go style and best practice.
+go-mail follows idiomatic Go style and best practice. It's only dependency is the Go Standard Library.
+It combines a lot of functionality from the standard library to give easy and convenient access to
+mail and SMTP related tasks.
+
+## Features
+Some of the features of this library:
+* [X] Only Standard Library dependant
+* [X] Modern, idiotmatic Go
+* [X] SSL/TLS support
+* [X] StartTLS support with different policies
+* [X] Makes use of contexts for a better control flow and timeout/cancelation handling
+* [X] SMTP Auth support (LOGIN, PLAIN, CRAM-MD5, DIGEST-MD5)
+* [X] RFC5322 compliant mail address validation
+* [X] Support for common mail header field generation (Message-ID, Date, Bulk-Precedence, etc.)
+* [X] Reusing the same SMTP connection to send multiple mails
+* [ ] Support for different encodings
+* [ ] Support for attachments
+* [ ] Go template support
 
 ## Example
 ```go
@@ -30,17 +47,11 @@ func main() {
 		fmt.Printf("failed to create new client: %s\n", err)
 		os.Exit(1)
 	}
+	defer c.Close()
 
-	ctx, cfn := context.WithCancel(context.Background())
-	defer cfn()
-
-	if err := c.DialWithContext(ctx); err != nil {
+	if err := c.DialAndSend(); err != nil {
 		fmt.Printf("failed to dial: %s\n", err)
 		os.Exit(1)
 	}
-	if err := c.Send(); err != nil {
-		fmt.Printf("failed to send: %s\n", err)
-		os.Exit(1)
-    }
 }
 ```

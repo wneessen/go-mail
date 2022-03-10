@@ -220,11 +220,6 @@ func (c *Client) SetSMTPAuthCustom(sa smtp.Auth) {
 	c.sa = sa
 }
 
-// Close closes the connection cto the SMTP server
-func (c *Client) Close() error {
-	return c.sc.Close()
-}
-
 // setDefaultHelo retrieves the current hostname and sets it as HELO/EHLO hostname
 func (c *Client) setDefaultHelo() error {
 	hn, err := os.Hostname()
@@ -296,6 +291,18 @@ func (c *Client) DialWithContext(pc context.Context) error {
 func (c *Client) Send() error {
 	if err := c.checkConn(); err != nil {
 		return fmt.Errorf("failed to send mail: %w", err)
+	}
+
+	return nil
+}
+
+// Close closes the Client connection
+func (c *Client) Close() error {
+	if err := c.checkConn(); err != nil {
+		return err
+	}
+	if err := c.sc.Close(); err != nil {
+		return fmt.Errorf("failed to close SMTP client: %w", err)
 	}
 
 	return nil
