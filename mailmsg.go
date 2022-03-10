@@ -73,14 +73,15 @@ func (m *Msg) SetMessageIDWithValue(v string) {
 	m.SetHeader(HeaderMessageID, v)
 }
 
-// SetBulk sets the "Precedense: bulk" header which is recommended for
+// SetBulk sets the "Precedence: bulk" header which is recommended for
 // automated mails like OOO replies
 // See: https://www.rfc-editor.org/rfc/rfc2076#section-3.9
 func (m *Msg) SetBulk() {
 	m.SetHeader(HeaderPrecedence, "bulk")
 }
 
-// Header FixMe
+// Header does something
+// FIXME: This is only here to quickly show the set headers for debugging purpose. Remove me later
 func (m *Msg) Header() {
 	fmt.Printf("%+v\n", m.header)
 

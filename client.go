@@ -53,10 +53,13 @@ type Client struct {
 	// satype represents the authentication type for SMTP AUTH
 	satype SMTPAuthType
 
-	// smtpauth is a pointer to smtp.Auth
+	// co is the net.Conn that the smtp.Client is based on
+	co net.Conn
+
+	// sa is a pointer to smtp.Auth
 	sa smtp.Auth
 
-	// The SMTP client that is set up when using the Dial*() methods
+	// sc is the smtp.Client that is set up when using the Dial*() methods
 	sc *smtp.Client
 }
 
@@ -66,6 +69,13 @@ type Option func(*Client)
 var (
 	// ErrNoHostname should be used if a Client has no hostname set
 	ErrNoHostname = errors.New("hostname for client cannot be empty")
+
+	// ErrDeadlineExtendFailed should be used if the extension of the connection deadline fails
+	ErrDeadlineExtendFailed = errors.New("connection deadline extension failed")
+
+	// ErrNoActiveConnection should be used when a method is used that requies a server connection
+	// but is not yet connected
+	ErrNoActiveConnection = errors.New("not connected to SMTP server")
 )
 
 // NewClient returns a new Session client object
@@ -190,9 +200,24 @@ func (c *Client) SetTLSConfig(co *tls.Config) {
 	c.tlsconfig = co
 }
 
-// Send sends out the mail message
-func (c *Client) Send() error {
-	return nil
+// SetUsername overrides the current username string with the given value
+func (c *Client) SetUsername(u string) {
+	c.user = u
+}
+
+// SetPassword overrides the current password string with the given value
+func (c *Client) SetPassword(p string) {
+	c.pass = p
+}
+
+// SetSMTPAuth overrides the current SMTP AUTH type setting with the given value
+func (c *Client) SetSMTPAuth(a SMTPAuthType) {
+	c.satype = a
+}
+
+// SetSMTPAuthCustom overrides the current SMTP AUTH setting with the given custom smtp.Auth
+func (c *Client) SetSMTPAuthCustom(sa smtp.Auth) {
+	c.sa = sa
 }
 
 // Close closes the connection cto the SMTP server
@@ -210,33 +235,26 @@ func (c *Client) setDefaultHelo() error {
 	return nil
 }
 
-// Dial establishes a connection cto the SMTP server with a default context.Background
-func (c *Client) Dial() error {
-	ctx := context.Background()
-	return c.DialWithContext(ctx)
-}
-
 // DialWithContext establishes a connection cto the SMTP server with a given context.Context
-func (c *Client) DialWithContext(uctx context.Context) error {
-	ctx, cfn := context.WithTimeout(uctx, c.cto)
+func (c *Client) DialWithContext(pc context.Context) error {
+	ctx, cfn := context.WithDeadline(pc, time.Now().Add(c.cto))
 	defer cfn()
 
 	nd := net.Dialer{}
 	td := tls.Dialer{}
-	var co net.Conn
 	var err error
 	if c.ssl {
 		c.enc = true
-		co, err = td.DialContext(ctx, "tcp", c.ServerAddr())
+		c.co, err = td.DialContext(ctx, "tcp", c.ServerAddr())
 	}
 	if !c.ssl {
-		co, err = nd.DialContext(ctx, "tcp", c.ServerAddr())
+		c.co, err = nd.DialContext(ctx, "tcp", c.ServerAddr())
 	}
 	if err != nil {
 		return err
 	}
 
-	c.sc, err = smtp.NewClient(co, c.host)
+	c.sc, err = smtp.NewClient(c.co, c.host)
 	if err != nil {
 		return err
 	}
@@ -274,8 +292,45 @@ func (c *Client) DialWithContext(uctx context.Context) error {
 	return nil
 }
 
+// Send sends out the mail message
+func (c *Client) Send() error {
+	if err := c.checkConn(); err != nil {
+		return fmt.Errorf("failed to send mail: %w", err)
+	}
+
+	return nil
+}
+
+// DialAndSend establishes a connection to the SMTP server with a
+// default context.Background and sends the mail
+func (c *Client) DialAndSend() error {
+	ctx := context.Background()
+	if err := c.DialWithContext(ctx); err != nil {
+		return fmt.Errorf("dial failed: %w", err)
+	}
+	if err := c.Send(); err != nil {
+		return fmt.Errorf("send failed: %w", err)
+	}
+	return nil
+}
+
+// checkConn makes sure that a required server connection is available and extends the
+// connection deadline
+func (c *Client) checkConn() error {
+	if c.co == nil {
+		return ErrNoActiveConnection
+	}
+	if err := c.co.SetDeadline(time.Now().Add(c.cto)); err != nil {
+		return ErrDeadlineExtendFailed
+	}
+	return nil
+}
+
 // auth will try to perform SMTP AUTH if requested
 func (c *Client) auth() error {
+	if err := c.checkConn(); err != nil {
+		return fmt.Errorf("failed to authenticate: %w", err)
+	}
 	if c.sa == nil && c.satype != "" {
 		sa, sat := c.sc.Extension("AUTH")
 		if !sa {

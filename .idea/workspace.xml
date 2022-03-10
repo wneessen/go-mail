@@ -4,10 +4,8 @@
     <option name="autoReloadType" value="ALL" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b79e8e7a-d892-4ce4-8bf4-f9e45415b803" name="Changes" comment="Progress">
-      <change afterPath="$PROJECT_DIR$/auth.go" afterDir="false" />
+    <list default="true" id="b79e8e7a-d892-4ce4-8bf4-f9e45415b803" name="Changes" comment="Implemented SMTP AUTH">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/client.go" beforeDir="false" afterPath="$PROJECT_DIR$/client.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cmd/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/cmd/main.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/mailmsg.go" beforeDir="false" afterPath="$PROJECT_DIR$/mailmsg.go" afterDir="false" />
@@ -95,7 +93,8 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Progress" />
-    <option name="LAST_COMMIT_MESSAGE" value="Progress" />
+    <MESSAGE value="Implemented SMTP AUTH" />
+    <option name="LAST_COMMIT_MESSAGE" value="Implemented SMTP AUTH" />
   </component>
   <component name="VgoProject">
     <integration-enabled>true</integration-enabled>
