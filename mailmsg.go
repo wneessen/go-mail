@@ -197,9 +197,15 @@ func (m *Msg) SetDate() {
 // Header does something
 // FIXME: This is only here to quickly show the set headers for debugging purpose. Remove me later
 func (m *Msg) Header() {
-	fmt.Printf("Address header: %+v\n", m.addrHeader)
-	fmt.Printf("Generic header: %+v\n", m.genHeader)
-
+	fmt.Println("Address header:")
+	for k, v := range m.addrHeader {
+		fmt.Printf(" - %s: %s\n", k, v)
+	}
+	fmt.Println("\nGeneric header:")
+	for k, v := range m.genHeader {
+		fmt.Printf(" - %s: %s\n", k, v)
+	}
+	fmt.Println()
 }
 
 // setEncoder creates a new mime.WordEncoder based on the encoding setting of the message
