@@ -41,6 +41,10 @@ func main() {
 		os.Exit(1)
 	}
 	defer func() {
+		if err := c.Reset(); err != nil {
+			fmt.Printf("failed to reset: %s\n", err)
+			os.Exit(1)
+		}
 		if err := c.Close(); err != nil {
 			fmt.Printf("failed to close: %s\n", err)
 			os.Exit(1)

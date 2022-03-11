@@ -295,6 +295,18 @@ func (c *Client) Close() error {
 	return nil
 }
 
+// Reset sends the RSET command to the SMTP client
+func (c *Client) Reset() error {
+	if err := c.checkConn(); err != nil {
+		return err
+	}
+	if err := c.sc.Reset(); err != nil {
+		return fmt.Errorf("failed to send RSET to SMTP client: %w", err)
+	}
+
+	return nil
+}
+
 // DialAndSend establishes a connection to the SMTP server with a
 // default context.Background and sends the mail
 func (c *Client) DialAndSend() error {
@@ -312,6 +324,9 @@ func (c *Client) DialAndSend() error {
 // connection deadline
 func (c *Client) checkConn() error {
 	if c.co == nil {
+		return ErrNoActiveConnection
+	}
+	if err := c.sc.Noop(); err != nil {
 		return ErrNoActiveConnection
 	}
 	if err := c.co.SetDeadline(time.Now().Add(c.cto)); err != nil {
