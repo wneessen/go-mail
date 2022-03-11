@@ -4,12 +4,12 @@
     <option name="autoReloadType" value="ALL" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b79e8e7a-d892-4ce4-8bf4-f9e45415b803" name="Changes" comment="Lots of cleanups and refactoring">
+    <list default="true" id="b79e8e7a-d892-4ce4-8bf4-f9e45415b803" name="Changes" comment="Calling it a day...">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client.go" beforeDir="false" afterPath="$PROJECT_DIR$/client.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cmd/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/cmd/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/encoding.go" beforeDir="false" afterPath="$PROJECT_DIR$/encoding.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/header.go" beforeDir="false" afterPath="$PROJECT_DIR$/header.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mailmsg.go" beforeDir="false" afterPath="$PROJECT_DIR$/mailmsg.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -97,7 +97,8 @@
     <MESSAGE value="Implemented SMTP AUTH" />
     <MESSAGE value="Better context and connection handling" />
     <MESSAGE value="Lots of cleanups and refactoring" />
-    <option name="LAST_COMMIT_MESSAGE" value="Lots of cleanups and refactoring" />
+    <MESSAGE value="Calling it a day..." />
+    <option name="LAST_COMMIT_MESSAGE" value="Calling it a day..." />
   </component>
   <component name="VgoProject">
     <integration-enabled>true</integration-enabled>

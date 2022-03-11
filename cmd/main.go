@@ -21,10 +21,14 @@ func main() {
 		fmt.Printf("failed to set FROM addres: %s", err)
 		os.Exit(1)
 	}
-	m.ToIgnoreInvalid("test@test.de", "foo@bar.de", "blubb@blah.com")
+	if err := m.To("t1+2941@test.de", "foo@bar.de", "blubb@blah.com"); err != nil {
+		fmt.Printf("failed to set TO address: %s", err)
+		os.Exit(1)
+	}
 	m.CcIgnoreInvalid("cc@test.de", "bar.de", "cc@blah.com")
 	m.BccIgnoreInvalid("bcc@test.de", "bcc@blah.com")
-	m.SetHeader("Foo", "bar")
+	m.Subject("This is the Subject with Umlauts: üöäß")
+	m.SetHeader(mail.HeaderContentLang, "en")
 	m.SetMessageID()
 	m.SetDate()
 	m.SetBulk()

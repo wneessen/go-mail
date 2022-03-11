@@ -3,6 +3,7 @@ package mail
 import (
 	"fmt"
 	"math/rand"
+	"mime"
 	"net/mail"
 	"os"
 	"time"
@@ -11,10 +12,13 @@ import (
 // Msg is the mail message struct
 type Msg struct {
 	// charset represents the charset of the mail (defaults to UTF-8)
-	charset string
+	charset Charset
+
+	// encoding represents the message encoding (the encoder will be a corresponding WordEncoder)
+	encoding Encoding
 
 	// encoder represents a mime.WordEncoder from the std lib
-	//encoder mime.WordEncoder
+	encoder mime.WordEncoder
 
 	// genHeader is a slice of strings that the different generic mail Header fields
 	genHeader map[Header][]string
@@ -23,18 +27,61 @@ type Msg struct {
 	addrHeader map[AddrHeader][]*mail.Address
 }
 
+// MsgOption returns a function that can be used for grouping Msg options
+type MsgOption func(*Msg)
+
 // NewMsg returns a new Msg pointer
-func NewMsg() *Msg {
+func NewMsg(o ...MsgOption) *Msg {
 	m := &Msg{
-		charset:    "UTF-8",
+		encoding:   EncodingQP,
+		charset:    CharsetUTF8,
 		genHeader:  make(map[Header][]string),
 		addrHeader: make(map[AddrHeader][]*mail.Address),
 	}
+
+	// Override defaults with optionally provided MsgOption functions
+	for _, co := range o {
+		if co == nil {
+			continue
+		}
+		co(m)
+	}
+
+	// Set the matcing mime.WordEncoder for the Msg
+	m.setEncoder()
+
 	return m
+}
+
+// WithCharset overrides the default message charset
+func WithCharset(c Charset) MsgOption {
+	return func(m *Msg) {
+		m.charset = c
+	}
+}
+
+// WithEncoding overrides the default message encoding
+func WithEncoding(e Encoding) MsgOption {
+	return func(m *Msg) {
+		m.encoding = e
+	}
+}
+
+// SetCharset sets the encoding charset of the Msg
+func (m *Msg) SetCharset(c Charset) {
+	m.charset = c
+}
+
+// SetEncoding sets the encoding of the Msg
+func (m *Msg) SetEncoding(e Encoding) {
+	m.encoding = e
 }
 
 // SetHeader sets a generic header field of the Msg
 func (m *Msg) SetHeader(h Header, v ...string) {
+	for i, hv := range v {
+		v[i] = m.encodeString(hv)
+	}
 	m.genHeader[h] = v
 }
 
@@ -42,7 +89,7 @@ func (m *Msg) SetHeader(h Header, v ...string) {
 func (m *Msg) SetAddrHeader(h AddrHeader, v ...string) error {
 	var al []*mail.Address
 	for _, av := range v {
-		a, err := mail.ParseAddress(av)
+		a, err := mail.ParseAddress(m.encodeString(av))
 		if err != nil {
 			return fmt.Errorf("failed to parse mail address header %q: %w", av, err)
 		}
@@ -62,7 +109,7 @@ func (m *Msg) SetAddrHeader(h AddrHeader, v ...string) error {
 func (m *Msg) SetAddrHeaderIgnoreInvalid(h AddrHeader, v ...string) {
 	var al []*mail.Address
 	for _, av := range v {
-		a, err := mail.ParseAddress(av)
+		a, err := mail.ParseAddress(m.encodeString(av))
 		if err != nil {
 			continue
 		}
@@ -79,6 +126,11 @@ func (m *Msg) From(f string) error {
 // To takes and validates a given mail address list sets the To: addresses of the Msg
 func (m *Msg) To(t ...string) error {
 	return m.SetAddrHeader(HeaderTo, t...)
+}
+
+// Subject sets the "Subject" header field of the Msg
+func (m *Msg) Subject(s string) {
+	m.SetHeader(HeaderSubject, s)
 }
 
 // ToIgnoreInvalid takes and validates a given mail address list sets the To: addresses of the Msg
@@ -126,7 +178,7 @@ func (m *Msg) SetMessageID() {
 
 // SetMessageIDWithValue sets the message id for the mail
 func (m *Msg) SetMessageIDWithValue(v string) {
-	m.SetHeader(HeaderMessageID, v)
+	m.SetHeader(HeaderMessageID, fmt.Sprintf("<%s>", v))
 }
 
 // SetBulk sets the "Precedence: bulk" genHeader which is recommended for
@@ -148,4 +200,22 @@ func (m *Msg) Header() {
 	fmt.Printf("Address header: %+v\n", m.addrHeader)
 	fmt.Printf("Generic header: %+v\n", m.genHeader)
 
+}
+
+// setEncoder creates a new mime.WordEncoder based on the encoding setting of the message
+func (m *Msg) setEncoder() {
+	switch m.encoding {
+	case EncodingQP:
+		m.encoder = mime.QEncoding
+	case EncodingB64:
+		m.encoder = mime.BEncoding
+	default:
+		m.encoder = mime.QEncoding
+	}
+}
+
+// encodeString encodes a string based on the configured message encoder and the corresponding
+// charset for the Msg
+func (m *Msg) encodeString(s string) string {
+	return m.encoder.Encode(string(m.charset), s)
 }
