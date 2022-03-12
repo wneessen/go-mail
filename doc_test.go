@@ -6,6 +6,28 @@ import (
 	"os"
 )
 
+// Code example for the NewClient method
+func ExampleNewClient() {
+	c, err := mail.NewClient("mail.example.com")
+	if err != nil {
+		panic(err)
+	}
+	_ = c
+	// Output:
+}
+
+// Code example for the Client.SetTLSPolicy method
+func ExampleClient_SetTLSPolicy() {
+	c, err := mail.NewClient("mail.example.com")
+	if err != nil {
+		panic(err)
+	}
+	c.SetTLSPolicy(mail.TLSMandatory)
+	fmt.Println(c.TLSPolicy())
+	// Output: TLSMandatory
+}
+
+// Code example for the Client.DialAndSend method
 func ExampleClient_DialAndSend() {
 	from := "Toni Tester <toni@example.com>"
 	to := "Alice <alice@example.com>"
