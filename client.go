@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/wneessen/go-mail/auth"
 	"net"
 	"net/smtp"
 	"os"
@@ -275,9 +276,53 @@ func (c *Client) DialWithContext(pc context.Context) error {
 }
 
 // Send sends out the mail message
-func (c *Client) Send() error {
+func (c *Client) Send(ml ...*Msg) error {
 	if err := c.checkConn(); err != nil {
 		return fmt.Errorf("failed to send mail: %w", err)
+	}
+	for _, m := range ml {
+		f, err := m.GetSender(false)
+		if err != nil {
+			return err
+		}
+		rl, err := m.GetRecipients()
+		if err != nil {
+			return err
+		}
+
+		if err := c.sc.Mail(f); err != nil {
+			return fmt.Errorf("sending MAIL FROM command failed: %w", err)
+		}
+		for _, r := range rl {
+			if err := c.sc.Rcpt(r); err != nil {
+				return fmt.Errorf("sending RCPT TO command failed: %w", err)
+			}
+		}
+		w := os.Stderr
+
+		/*
+			w, err := c.sc.Data()
+			if err != nil {
+				return fmt.Errorf("sending DATA command failed: %w", err)
+			}
+
+		*/
+
+		_, err = m.Write(w)
+		if err != nil {
+			return fmt.Errorf("sending mail content failed: %w", err)
+		}
+
+		if err := w.Close(); err != nil {
+			return fmt.Errorf("failed to close DATA writer: %w", err)
+		}
+
+		if err := c.Reset(); err != nil {
+			return fmt.Errorf("sending RSET command failed: %s", err)
+		}
+		if err := c.checkConn(); err != nil {
+			return fmt.Errorf("failed to check server connection: %w", err)
+		}
 	}
 
 	return nil
@@ -288,7 +333,7 @@ func (c *Client) Close() error {
 	if err := c.checkConn(); err != nil {
 		return err
 	}
-	if err := c.sc.Close(); err != nil {
+	if err := c.sc.Quit(); err != nil {
 		return fmt.Errorf("failed to close SMTP client: %w", err)
 	}
 
@@ -309,13 +354,16 @@ func (c *Client) Reset() error {
 
 // DialAndSend establishes a connection to the SMTP server with a
 // default context.Background and sends the mail
-func (c *Client) DialAndSend() error {
+func (c *Client) DialAndSend(ml ...*Msg) error {
 	ctx := context.Background()
 	if err := c.DialWithContext(ctx); err != nil {
 		return fmt.Errorf("dial failed: %w", err)
 	}
-	if err := c.Send(); err != nil {
+	if err := c.Send(ml...); err != nil {
 		return fmt.Errorf("send failed: %w", err)
+	}
+	if err := c.Close(); err != nil {
+		return fmt.Errorf("failed to close connction: %s", err)
 	}
 	return nil
 }
@@ -383,15 +431,10 @@ func (c *Client) auth() error {
 			if !strings.Contains(sat, string(SMTPAuthLogin)) {
 				return ErrLoginAuthNotSupported
 			}
-			c.sa = smtp.PlainAuth("", c.user, c.pass, c.host)
+			c.sa = auth.LoginAuth(c.user, c.pass, c.host)
 		case SMTPAuthCramMD5:
 			if !strings.Contains(sat, string(SMTPAuthCramMD5)) {
 				return ErrCramMD5AuthNotSupported
-			}
-			c.sa = smtp.CRAMMD5Auth(c.user, c.pass)
-		case SMTPAuthDigestMD5:
-			if !strings.Contains(sat, string(SMTPAuthDigestMD5)) {
-				return ErrDigestMD5AuthNotSupported
 			}
 			c.sa = smtp.CRAMMD5Auth(c.user, c.pass)
 		default:

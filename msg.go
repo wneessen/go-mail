@@ -1,12 +1,22 @@
 package mail
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"mime"
 	"net/mail"
 	"os"
 	"time"
+)
+
+var (
+	// ErrNoFromAddress should be used when a FROM address is requrested but not set
+	ErrNoFromAddress = errors.New("no FROM address set")
+
+	// ErrNoRcptAddresses should be used when the list of RCPTs is empty
+	ErrNoRcptAddresses = errors.New("no recipient addresses set")
 )
 
 // Msg is the mail message struct
@@ -167,7 +177,7 @@ func (m *Msg) SetMessageID() {
 	if err != nil {
 		hn = "localhost.localdomain"
 	}
-	ct := time.Now().UnixMicro()
+	ct := time.Now().Unix()
 	r := rand.New(rand.NewSource(ct))
 	rn := r.Int()
 	pid := os.Getpid()
@@ -194,18 +204,40 @@ func (m *Msg) SetDate() {
 	m.SetHeader(HeaderDate, ts)
 }
 
-// Header does something
-// FIXME: This is only here to quickly show the set headers for debugging purpose. Remove me later
-func (m *Msg) Header() {
-	fmt.Println("Address header:")
-	for k, v := range m.addrHeader {
-		fmt.Printf(" - %s: %s\n", k, v)
+// GetSender returns the currently set FROM address. If f is true, it will return the full
+// address string including the address name, if set
+func (m *Msg) GetSender(ff bool) (string, error) {
+	f, ok := m.addrHeader[HeaderFrom]
+	if !ok || len(f) == 0 {
+		return "", ErrNoFromAddress
 	}
-	fmt.Println("\nGeneric header:")
-	for k, v := range m.genHeader {
-		fmt.Printf(" - %s: %s\n", k, v)
+	if ff {
+		return f[0].String(), nil
 	}
-	fmt.Println()
+	return f[0].Address, nil
+}
+
+// GetRecipients returns a list of the currently set TO/CC/BCC addresses.
+func (m *Msg) GetRecipients() ([]string, error) {
+	var rl []string
+	for _, t := range []AddrHeader{HeaderTo, HeaderCc, HeaderBcc} {
+		al, ok := m.addrHeader[t]
+		if !ok || len(al) == 0 {
+			continue
+		}
+		for _, r := range al {
+			rl = append(rl, r.Address)
+		}
+	}
+	if len(rl) <= 0 {
+		return rl, ErrNoRcptAddresses
+	}
+	return rl, nil
+}
+func (m *Msg) Write(w io.Writer) (int64, error) {
+	mw := &msgWriter{w: w}
+	mw.writeMsg(m)
+	return mw.n, mw.err
 }
 
 // setEncoder creates a new mime.WordEncoder based on the encoding setting of the message
