@@ -15,7 +15,7 @@ mail and SMTP related tasks.
 ## Features
 Some of the features of this library:
 * [X] Only Standard Library dependant
-* [X] Modern, idiotmatic Go
+* [X] Modern, idiomatic Go
 * [X] Sane and secure defaults
 * [X] SSL/TLS support
 * [X] StartTLS support with different policies
@@ -28,31 +28,5 @@ Some of the features of this library:
 * [ ] Support for attachments
 * [ ] Go template support
 
-## Example
-```go
-package main
-
-import (
-	"context"
-	"fmt"
-	"github.com/wneessen/go-mail"
-	"os"
-	"time"
-)
-
-func main() {
-	c, err := mail.NewClient("mail.example.com", mail.WithTimeout(time.Millisecond*500),
-		mail.WithTLSPolicy(mail.TLSMandatory), mail.WithSMTPAuth(mail.SMTPAuthDigestMD5),
-		mail.WithUsername("tester@example.com"), mail.WithPassword("secureP4ssW0rd!"))
-	if err != nil {
-		fmt.Printf("failed to create new client: %s\n", err)
-		os.Exit(1)
-	}
-	defer c.Close()
-
-	if err := c.DialAndSend(); err != nil {
-		fmt.Printf("failed to dial: %s\n", err)
-		os.Exit(1)
-	}
-}
-```
+## Examples
+The [package](https://pkg.go.dev/github.com/wneessen/go-mail) is shipped with example code.
