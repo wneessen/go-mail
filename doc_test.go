@@ -1,7 +1,8 @@
-package mail
+package mail_test
 
 import (
 	"fmt"
+	"github.com/wneessen/go-mail"
 	"os"
 )
 
@@ -10,7 +11,7 @@ func ExampleClient_DialAndSend() {
 	to := "Alice <alice@example.com>"
 	server := "mail.example.com"
 
-	m := NewMsg()
+	m := mail.NewMsg()
 	if err := m.From(from); err != nil {
 		fmt.Printf("failed to set FROM address: %s", err)
 		os.Exit(1)
@@ -21,7 +22,7 @@ func ExampleClient_DialAndSend() {
 	}
 	m.Subject("This is a great subject")
 
-	c, err := NewClient(server)
+	c, err := mail.NewClient(server)
 	if err != nil {
 		fmt.Printf("failed to create mail client: %s", err)
 		os.Exit(1)
