@@ -29,4 +29,5 @@ Some of the features of this library:
 * [ ] Go template support
 
 ## Examples
-The [package](https://pkg.go.dev/github.com/wneessen/go-mail) is shipped with example code.
+The packageis shipped with example code. Check it out on the packages 
+[GoDoc page](https://pkg.go.dev/github.com/wneessen/go-mail#pkg-examples) 
