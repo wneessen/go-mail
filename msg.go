@@ -133,9 +133,25 @@ func (m *Msg) From(f string) error {
 	return m.SetAddrHeader(HeaderFrom, f)
 }
 
+// FromFormat takes a name and address, formats them RFC5322 compliant and stores them as
+// the From address header field
+func (m *Msg) FromFormat(n, a string) error {
+	return m.SetAddrHeader(HeaderFrom, fmt.Sprintf(`"%s" <%s>`, n, a))
+}
+
 // To takes and validates a given mail address list sets the To: addresses of the Msg
 func (m *Msg) To(t ...string) error {
 	return m.SetAddrHeader(HeaderTo, t...)
+}
+
+// AddTo adds an additional address to the To address header field
+func (m *Msg) AddTo(t string) error {
+	var tl []string
+	for _, ct := range m.addrHeader[HeaderTo] {
+		tl = append(tl, ct.String())
+	}
+	tl = append(tl, t)
+	return m.To(tl...)
 }
 
 // Subject sets the "Subject" header field of the Msg
