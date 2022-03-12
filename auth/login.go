@@ -1,4 +1,4 @@
-// Package auth implements the LOGIN and MD5-DIGEST smtp authentication mechansims
+// Package auth implements the LOGIN and MD5-DIGEST smtp authentication mechanisms
 package auth
 
 import (

@@ -21,7 +21,7 @@ func main() {
 
 	m := mail.NewMsg()
 	if err := m.From(fa); err != nil {
-		fmt.Printf("failed to set FROM addres: %s", err)
+		fmt.Printf("failed to set FROM address: %s", err)
 		os.Exit(1)
 	}
 	if err := m.To(toa); err != nil {
