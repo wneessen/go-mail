@@ -8,8 +8,14 @@ type AddrHeader string
 
 // List of common generic header field names
 const (
+	// HeaderContentDisposition is the "Content-Disposition" header
+	HeaderContentDisposition Header = "Content-Disposition"
+
 	// HeaderContentLang is the "Content-Language" header
 	HeaderContentLang Header = "Content-Language"
+
+	// HeaderContentTransferEnc is the "Content-Transfer-Encoding" header
+	HeaderContentTransferEnc Header = "Content-Transfer-Encoding"
 
 	// HeaderContentType is the "Content-Type" header
 	HeaderContentType Header = "Content-Type"

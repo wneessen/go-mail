@@ -1,7 +1,12 @@
 package mail
 
 import (
+	"encoding/base64"
+	"fmt"
 	"io"
+	"mime/multipart"
+	"mime/quotedprintable"
+	"net/textproto"
 	"strings"
 )
 
@@ -11,17 +16,29 @@ const MaxHeaderLength = 76
 
 // msgWriter handles the I/O to the io.WriteCloser of the SMTP client
 type msgWriter struct {
-	w io.Writer
-	n int64
-	//writers    [3]*multipart.Writer
-	//partWriter io.Writer
-	//depth      uint8
+	d   int8
 	err error
+	mpw [3]*multipart.Writer
+	n   int64
+	pw  io.Writer
+	w   io.Writer
+}
+
+// Write implements the io.Writer interface for msgWriter
+func (mw *msgWriter) Write(p []byte) (int, error) {
+	if mw.err != nil {
+		return 0, fmt.Errorf("failed to write due to previous error: %w", mw.err)
+	}
+
+	var n int
+	n, mw.err = mw.w.Write(p)
+	mw.n += int64(n)
+	return n, mw.err
 }
 
 // writeMsg formats the message and sends it to its io.Writer
 func (mw *msgWriter) writeMsg(m *Msg) {
-	if _, ok := m.genHeader["Date"]; !ok {
+	if _, ok := m.genHeader[HeaderDate]; !ok {
 		m.SetDate()
 	}
 	for k, v := range m.genHeader {
@@ -36,8 +53,72 @@ func (mw *msgWriter) writeMsg(m *Msg) {
 			mw.writeHeader(Header(t), v...)
 		}
 	}
-	mw.writeString("\r\n")
-	mw.writeString("This is a test mail")
+	mw.writeHeader(HeaderMIMEVersion, string(m.mimever))
+
+	if m.hasAlt() {
+		mw.startMP(MIMEAlternative, m.boundary)
+		mw.writeString("\r\n\r\n")
+	}
+	for _, p := range m.parts {
+		mw.writePart(p, m.charset)
+	}
+	if m.hasAlt() {
+		mw.stopMP()
+	}
+}
+
+// startMP writes a multipart beginning
+func (mw *msgWriter) startMP(mt MIMEType, b string) {
+	mp := multipart.NewWriter(mw)
+	if b != "" {
+		mw.err = mp.SetBoundary(b)
+	}
+
+	ct := fmt.Sprintf("multipart/%s;\r\n boundary=%s", mt, mp.Boundary())
+	mw.mpw[mw.d] = mp
+
+	if mw.d == 0 {
+		mw.writeString(fmt.Sprintf("%s: %s", HeaderContentType, ct))
+	}
+	if mw.d > 0 {
+		mw.newPart(map[string][]string{"Content-Type": {ct}})
+	}
+	mw.d++
+}
+
+// stopMP closes the multipart
+func (mw *msgWriter) stopMP() {
+	if mw.d > 0 {
+		mw.err = mw.mpw[mw.d-1].Close()
+		mw.d--
+	}
+}
+
+// newPart creates a new MIME multipart io.Writer and sets the partwriter to it
+func (mw *msgWriter) newPart(h map[string][]string) {
+	mw.pw, mw.err = mw.mpw[mw.d-1].CreatePart(h)
+}
+
+// writePart writes the corresponding part to the Msg body
+func (mw *msgWriter) writePart(p *Part, cs Charset) {
+	mh := textproto.MIMEHeader{}
+	mh.Add(string(HeaderContentType), fmt.Sprintf("%s; charset=%s",
+		p.ctype, cs))
+	mh.Add(string(HeaderContentTransferEnc), string(p.enc))
+	if mw.d > 0 {
+		mw.newPart(mh)
+	}
+	mw.writeBody(p.w, p.enc)
+}
+
+// writeString writes a string into the msgWriter's io.Writer interface
+func (mw *msgWriter) writeString(s string) {
+	if mw.err != nil {
+		return
+	}
+	var n int
+	n, mw.err = io.WriteString(mw.w, s)
+	mw.n += int64(n)
 }
 
 // writeHeader writes a header into the msgWriter's io.Writer
@@ -85,12 +166,29 @@ func (mw *msgWriter) writeHeader(k Header, v ...string) {
 	mw.writeString("\r\n")
 }
 
-// writeString writes a string into the msgWriter's io.Writer interface
-func (mw *msgWriter) writeString(s string) {
-	if mw.err != nil {
-		return
+// writeBody writes an io.Reader into an io.Writer using provided Encoding
+func (mw *msgWriter) writeBody(f func(io.Writer) error, e Encoding) {
+	var w io.Writer
+	var ew io.WriteCloser
+	if mw.d == 0 {
+		w = mw.w
 	}
-	var n int
-	n, mw.err = io.WriteString(mw.w, s)
-	mw.n += int64(n)
+	if mw.d > 0 {
+		w = mw.pw
+	}
+
+	switch e {
+	case EncodingQP:
+		ew = quotedprintable.NewWriter(w)
+	case EncodingB64:
+		ew = base64.NewEncoder(base64.StdEncoding, w)
+	case NoEncoding:
+		mw.err = f(w)
+		return
+	default:
+		ew = quotedprintable.NewWriter(w)
+	}
+
+	mw.err = f(ew)
+	mw.err = ew.Close()
 }

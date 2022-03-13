@@ -1,10 +1,19 @@
 package mail
 
+// Charset represents a character set for the encoding
+type Charset string
+
+// ContentType represents a content type for the Msg
+type ContentType string
+
 // Encoding represents a MIME encoding scheme like quoted-printable or Base64.
 type Encoding string
 
-// Charset represents a character set for the encodingA
-type Charset string
+// MIMEVersion represents the MIME version for the mail
+type MIMEVersion string
+
+// MIMEType represents the MIME type for the mail
+type MIMEType string
 
 // List of supported encodings
 const (
@@ -115,6 +124,26 @@ const (
 
 	// CharsetGBK represents the "GBK" charset
 	CharsetGBK Charset = "GBK"
+)
+
+// List of MIME versions
+const (
+	//Mime10 is the MIME Version 1.0
+	Mime10 MIMEVersion = "1.0"
+)
+
+// List of common content types
+const (
+	TypeTextPlain      ContentType = "text/plain"
+	TypeTextHTML       ContentType = "text/html"
+	TypeAppOctetStream ContentType = "application/octet-stream"
+)
+
+// List of MIMETypes
+const (
+	MIMEAlternative MIMEType = "alternative"
+	MIMEMixed       MIMEType = "mixed"
+	MIMERelated     MIMEType = "related"
 )
 
 // String is a standard method to convert an Encoding into a printable format

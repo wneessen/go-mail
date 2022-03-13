@@ -1,6 +1,7 @@
 package mail
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -21,6 +22,12 @@ var (
 
 // Msg is the mail message struct
 type Msg struct {
+	// addrHeader is a slice of strings that the different mail AddrHeader fields
+	addrHeader map[AddrHeader][]*mail.Address
+
+	// boundary is the MIME content boundary
+	boundary string
+
 	// charset represents the charset of the mail (defaults to UTF-8)
 	charset Charset
 
@@ -33,9 +40,23 @@ type Msg struct {
 	// genHeader is a slice of strings that the different generic mail Header fields
 	genHeader map[Header][]string
 
-	// addrHeader is a slice of strings that the different mail AddrHeader fields
-	addrHeader map[AddrHeader][]*mail.Address
+	// mimever represents the MIME version
+	mimever MIMEVersion
+
+	// parts represent the different parts of the Msg
+	parts []*Part
 }
+
+// Part is a part of the Msg
+type Part struct {
+	w     func(io.Writer) error
+	x     io.Writer
+	ctype ContentType
+	enc   Encoding
+}
+
+// PartOption returns a function that can be used for grouping Part options
+type PartOption func(*Part)
 
 // MsgOption returns a function that can be used for grouping Msg options
 type MsgOption func(*Msg)
@@ -43,10 +64,11 @@ type MsgOption func(*Msg)
 // NewMsg returns a new Msg pointer
 func NewMsg(o ...MsgOption) *Msg {
 	m := &Msg{
-		encoding:   EncodingQP,
-		charset:    CharsetUTF8,
-		genHeader:  make(map[Header][]string),
 		addrHeader: make(map[AddrHeader][]*mail.Address),
+		charset:    CharsetUTF8,
+		encoding:   EncodingQP,
+		genHeader:  make(map[Header][]string),
+		mimever:    Mime10,
 	}
 
 	// Override defaults with optionally provided MsgOption functions
@@ -77,6 +99,13 @@ func WithEncoding(e Encoding) MsgOption {
 	}
 }
 
+// WithMIMEVersion overrides the default MIME version
+func WithMIMEVersion(mv MIMEVersion) MsgOption {
+	return func(m *Msg) {
+		m.mimever = mv
+	}
+}
+
 // SetCharset sets the encoding charset of the Msg
 func (m *Msg) SetCharset(c Charset) {
 	m.charset = c
@@ -85,6 +114,16 @@ func (m *Msg) SetCharset(c Charset) {
 // SetEncoding sets the encoding of the Msg
 func (m *Msg) SetEncoding(e Encoding) {
 	m.encoding = e
+}
+
+// SetBoundary sets the boundary of the Msg
+func (m *Msg) SetBoundary(b string) {
+	m.boundary = b
+}
+
+// SetMIMEVersion sets the MIME version of the Msg
+func (m *Msg) SetMIMEVersion(mv MIMEVersion) {
+	m.mimever = mv
 }
 
 // Encoding returns the currently set encoding of the Msg
@@ -294,6 +333,40 @@ func (m *Msg) GetRecipients() ([]string, error) {
 	return rl, nil
 }
 
+// SetBodyString sets the body of the message.
+func (m *Msg) SetBodyString(ct ContentType, b string, o ...PartOption) {
+	buf := bytes.NewBufferString(b)
+	w := func(w io.Writer) error {
+		_, err := io.Copy(w, buf)
+		return err
+	}
+	m.SetBodyWriter(ct, w, o...)
+}
+
+// SetBodyWriter sets the body of the message.
+func (m *Msg) SetBodyWriter(ct ContentType, w func(io.Writer) error, o ...PartOption) {
+	p := m.NewPart(ct, o...)
+	p.w = w
+	m.parts = []*Part{p}
+}
+
+// AddAlternativeString sets the alternative body of the message.
+func (m *Msg) AddAlternativeString(ct ContentType, b string, o ...PartOption) {
+	buf := bytes.NewBufferString(b)
+	w := func(w io.Writer) error {
+		_, err := io.Copy(w, buf)
+		return err
+	}
+	m.AddAlternativeWriter(ct, w, o...)
+}
+
+// AddAlternativeWriter sets the body of the message.
+func (m *Msg) AddAlternativeWriter(ct ContentType, w func(io.Writer) error, o ...PartOption) {
+	p := m.NewPart(ct, o...)
+	p.w = w
+	m.parts = append(m.parts, p)
+}
+
 // Write writes the formated Msg into a give io.Writer
 func (m *Msg) Write(w io.Writer) (int64, error) {
 	mw := &msgWriter{w: w}
@@ -301,15 +374,50 @@ func (m *Msg) Write(w io.Writer) (int64, error) {
 	return mw.n, mw.err
 }
 
+// NewPart returns a new Part for the Msg
+func (m *Msg) NewPart(ct ContentType, o ...PartOption) *Part {
+	p := &Part{
+		ctype: ct,
+		enc:   m.encoding,
+	}
+
+	// Override defaults with optionally provided MsgOption functions
+	for _, co := range o {
+		if co == nil {
+			continue
+		}
+		co(p)
+	}
+
+	return p
+}
+
+// WithPartEncoding overrides the default Part encoding
+func WithPartEncoding(e Encoding) PartOption {
+	return func(p *Part) {
+		p.enc = e
+	}
+}
+
+// SetEncoding creates a new mime.WordEncoder based on the encoding setting of the message
+func (p *Part) SetEncoding(e Encoding) {
+	p.enc = e
+}
+
 // setEncoder creates a new mime.WordEncoder based on the encoding setting of the message
 func (m *Msg) setEncoder() {
-	switch m.encoding {
+	m.encoder = getEncoder(m.encoding)
+}
+
+// getEncoder creates a new mime.WordEncoder based on the encoding setting of the message
+func getEncoder(e Encoding) mime.WordEncoder {
+	switch e {
 	case EncodingQP:
-		m.encoder = mime.QEncoding
+		return mime.QEncoding
 	case EncodingB64:
-		m.encoder = mime.BEncoding
+		return mime.BEncoding
 	default:
-		m.encoder = mime.QEncoding
+		return mime.QEncoding
 	}
 }
 
@@ -317,4 +425,9 @@ func (m *Msg) setEncoder() {
 // charset for the Msg
 func (m *Msg) encodeString(s string) string {
 	return m.encoder.Encode(string(m.charset), s)
+}
+
+// hasAlt returns true if the Msg has more than one part
+func (m *Msg) hasAlt() bool {
+	return len(m.parts) > 1
 }

@@ -6,6 +6,9 @@ The main idea of this library was to provide a simple interface to sending mails
 my [JS-Mailer](https://github.com/wneessen/js-mailer) project. It quickly evolved into a 
 full-fledged mail library.
 
+Parts (especially the msgWriter) of this library have been ported from the [GoMail](https://github.com/go-mail/mail)
+which seems to not be maintained anymore.
+
 **This library is "WIP" an should not be considered "production ready", yet.**
 
 go-mail follows idiomatic Go style and best practice. It's only dependency is the Go Standard Library.

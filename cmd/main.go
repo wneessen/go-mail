@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/wneessen/go-mail"
+	"io"
 	"os"
 )
 
@@ -12,8 +13,6 @@ func main() {
 		fmt.Printf("$TEST_HOST env variable cannot be empty\n")
 		os.Exit(1)
 	}
-	tu := os.Getenv("TEST_USER")
-	tp := os.Getenv("TEST_PASS")
 
 	fa := "Winni Neessen <wn@neessen.cloud>"
 	toa := "Winfried Neessen <wn@neessen.net>"
@@ -37,6 +36,15 @@ func main() {
 	m.SetDate()
 	m.SetBulk()
 
+	m.SetBodyWriter(mail.TypeTextPlain, func(fw io.Writer) error {
+		_, err := io.WriteString(fw, "This is a writer test")
+		return err
+	})
+	m.AddAlternativeString(mail.TypeTextHTML, "This is HTML content")
+	//m.Write(os.Stdout)
+
+	tu := os.Getenv("TEST_USER")
+	tp := os.Getenv("TEST_PASS")
 	c, err := mail.NewClient(th, mail.WithTLSPolicy(mail.TLSMandatory),
 		mail.WithSMTPAuth(mail.SMTPAuthLogin), mail.WithUsername(tu),
 		mail.WithPassword(tp))
@@ -48,4 +56,5 @@ func main() {
 		fmt.Printf("failed to dial: %s\n", err)
 		os.Exit(1)
 	}
+
 }

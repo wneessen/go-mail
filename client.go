@@ -298,16 +298,10 @@ func (c *Client) Send(ml ...*Msg) error {
 				return fmt.Errorf("sending RCPT TO command failed: %w", err)
 			}
 		}
-		w := os.Stderr
-
-		/*
-			w, err := c.sc.Data()
-			if err != nil {
-				return fmt.Errorf("sending DATA command failed: %w", err)
-			}
-
-		*/
-
+		w, err := c.sc.Data()
+		if err != nil {
+			return fmt.Errorf("sending DATA command failed: %w", err)
+		}
 		_, err = m.Write(w)
 		if err != nil {
 			return fmt.Errorf("sending mail content failed: %w", err)
