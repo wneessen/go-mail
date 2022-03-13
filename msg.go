@@ -253,6 +253,22 @@ func (m *Msg) BccIgnoreInvalid(b ...string) {
 	m.SetAddrHeaderIgnoreInvalid(HeaderBcc, b...)
 }
 
+// ReplyTo takes and validates a given mail address and sets it as "Reply-To" addrHeader of the Msg
+func (m *Msg) ReplyTo(r string) error {
+	rt, err := mail.ParseAddress(m.encodeString(r))
+	if err != nil {
+		return fmt.Errorf("failed to parse reply-to address: %w", err)
+	}
+	m.SetHeader(HeaderReplyTo, rt.String())
+	return nil
+}
+
+// ReplyToFormat takes a name and address, formats them RFC5322 compliant and stores them as
+// the Reply-To header field
+func (m *Msg) ReplyToFormat(n, a string) error {
+	return m.ReplyTo(fmt.Sprintf(`"%s" <%s>`, n, a))
+}
+
 // addAddr adds an additional address to the given addrHeader of the Msg
 func (m *Msg) addAddr(h AddrHeader, a string) error {
 	var al []string
