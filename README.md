@@ -6,8 +6,8 @@ The main idea of this library was to provide a simple interface to sending mails
 my [JS-Mailer](https://github.com/wneessen/js-mailer) project. It quickly evolved into a 
 full-fledged mail library.
 
-Parts (especially the msgWriter) of this library have been ported from the [GoMail](https://github.com/go-mail/mail)
-which seems to not be maintained anymore.
+Parts of this library (especially some parts of [msgwriter.go]) have been forked/ported from the 
+[GoMail](https://github.com/go-mail/mail) which seems to not be maintained anymore.
 
 **This library is "WIP" an should not be considered "production ready", yet.**
 
@@ -29,7 +29,6 @@ Some of the features of this library:
 * [X] Reusing the same SMTP connection to send multiple mails
 * [ ] Support for different encodings
 * [ ] Support for attachments
-* [ ] Go template support
 
 ## Examples
 The packageis shipped with example code. Check it out on the packages 
