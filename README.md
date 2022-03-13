@@ -6,7 +6,7 @@ The main idea of this library was to provide a simple interface to sending mails
 my [JS-Mailer](https://github.com/wneessen/js-mailer) project. It quickly evolved into a 
 full-fledged mail library.
 
-Parts of this library (especially some parts of [msgwriter.go]) have been forked/ported from the 
+Parts of this library (especially some parts of [msgwriter.go](msgwriter.go)) have been forked/ported from the 
 [GoMail](https://github.com/go-mail/mail) which seems to not be maintained anymore.
 
 **This library is "WIP" an should not be considered "production ready", yet.**
