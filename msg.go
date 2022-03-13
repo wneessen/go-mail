@@ -301,6 +301,17 @@ func (m *Msg) SetDate() {
 	m.SetHeader(HeaderDate, ts)
 }
 
+// SetImportance sets the Msg Importance/Priority header to given Importance
+func (m *Msg) SetImportance(i Importance) {
+	if i == ImportanceNormal {
+		return
+	}
+	m.SetHeader(HeaderImportance, i.String())
+	m.SetHeader(HeaderPriority, i.NumString())
+	m.SetHeader(HeaderXPriority, i.NumString())
+	m.SetHeader(HeaderXMSMailPriority, i.NumString())
+}
+
 // GetSender returns the currently set FROM address. If f is true, it will return the full
 // address string including the address name, if set
 func (m *Msg) GetSender(ff bool) (string, error) {

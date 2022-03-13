@@ -6,6 +6,9 @@ type Header string
 // AddrHeader represents a address related mail Header field name
 type AddrHeader string
 
+// Importance represents a Importance/Priority value string
+type Importance int
+
 // List of common generic header field names
 const (
 	// HeaderContentDisposition is the "Content-Disposition" header
@@ -23,6 +26,9 @@ const (
 	// HeaderDate represents the "Date" field
 	// See: https://www.rfc-editor.org/rfc/rfc822#section-5.1
 	HeaderDate Header = "Date"
+
+	// HeaderImportance represents the "Importance" field
+	HeaderImportance Header = "Importance"
 
 	// HeaderInReplyTo represents the "In-Reply-To" field
 	HeaderInReplyTo Header = "In-Reply-To"
@@ -44,11 +50,20 @@ const (
 	// HeaderPrecedence is the "Precedence" header field
 	HeaderPrecedence Header = "Precedence"
 
+	// HeaderPriority represents the "Priority" field
+	HeaderPriority Header = "Priority"
+
 	// HeaderReplyTo is the "Reply-To" header field
 	HeaderReplyTo Header = "Reply-To"
 
 	// HeaderSubject is the "Subject" header field
 	HeaderSubject Header = "Subject"
+
+	// HeaderXMSMailPriority is the "X-MSMail-Priority" header field
+	HeaderXMSMailPriority Header = "X-MSMail-Priority"
+
+	// HeaderXPriority is the "X-Priority" header field
+	HeaderXPriority Header = "X-Priority"
 )
 
 // List of common generic header field names
@@ -65,3 +80,44 @@ const (
 	// HeaderTo is the "Receipient" header field
 	HeaderTo AddrHeader = "To"
 )
+
+// List of Importance values
+const (
+	ImportanceLow Importance = iota
+	ImportanceNormal
+	ImportanceHigh
+	ImportanceNonUrgent
+	ImportanceUrgent
+)
+
+// NumString returns the importance number string based on the Importance
+func (i Importance) NumString() string {
+	switch i {
+	case ImportanceNonUrgent:
+		return "0"
+	case ImportanceLow:
+		return "0"
+	case ImportanceHigh:
+		return "1"
+	case ImportanceUrgent:
+		return "1"
+	default:
+		return ""
+	}
+}
+
+// String returns the importance string based on the Importance
+func (i Importance) String() string {
+	switch i {
+	case ImportanceNonUrgent:
+		return "non-urgent"
+	case ImportanceLow:
+		return "low"
+	case ImportanceHigh:
+		return "high"
+	case ImportanceUrgent:
+		return "urgent"
+	default:
+		return ""
+	}
+}
