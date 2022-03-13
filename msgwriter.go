@@ -101,11 +101,17 @@ func (mw *msgWriter) newPart(h map[string][]string) {
 
 // writePart writes the corresponding part to the Msg body
 func (mw *msgWriter) writePart(p *Part, cs Charset) {
-	mh := textproto.MIMEHeader{}
-	mh.Add(string(HeaderContentType), fmt.Sprintf("%s; charset=%s",
-		p.ctype, cs))
-	mh.Add(string(HeaderContentTransferEnc), string(p.enc))
+	ct := fmt.Sprintf("%s; charset=%s", p.ctype, cs)
+	cte := fmt.Sprintf("%s", p.enc)
+	if mw.d == 0 {
+		mw.writeHeader(HeaderContentType, ct)
+		mw.writeHeader(HeaderContentTransferEnc, cte)
+		mw.writeString("\r\n")
+	}
 	if mw.d > 0 {
+		mh := textproto.MIMEHeader{}
+		mh.Add(string(HeaderContentType), ct)
+		mh.Add(string(HeaderContentTransferEnc), cte)
 		mw.newPart(mh)
 	}
 	mw.writeBody(p.w, p.enc)
