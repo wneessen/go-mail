@@ -87,6 +87,16 @@ func (m *Msg) SetEncoding(e Encoding) {
 	m.encoding = e
 }
 
+// Encoding returns the currently set encoding of the Msg
+func (m *Msg) Encoding() string {
+	return m.encoding.String()
+}
+
+// Charset returns the currently set charset of the Msg
+func (m *Msg) Charset() string {
+	return m.charset.String()
+}
+
 // SetHeader sets a generic header field of the Msg
 func (m *Msg) SetHeader(h Header, v ...string) {
 	for i, hv := range v {
@@ -146,17 +156,13 @@ func (m *Msg) To(t ...string) error {
 
 // AddTo adds an additional address to the To address header field
 func (m *Msg) AddTo(t string) error {
-	var tl []string
-	for _, ct := range m.addrHeader[HeaderTo] {
-		tl = append(tl, ct.String())
-	}
-	tl = append(tl, t)
-	return m.To(tl...)
+	return m.addAddr(HeaderTo, t)
 }
 
-// Subject sets the "Subject" header field of the Msg
-func (m *Msg) Subject(s string) {
-	m.SetHeader(HeaderSubject, s)
+// AddToFormat takes a name and address, formats them RFC5322 compliant and stores them as
+// as additional To address header field
+func (m *Msg) AddToFormat(n, a string) error {
+	return m.addAddr(HeaderTo, fmt.Sprintf(`"%s" <%s>`, n, a))
 }
 
 // ToIgnoreInvalid takes and validates a given mail address list sets the To: addresses of the Msg
@@ -170,6 +176,17 @@ func (m *Msg) Cc(c ...string) error {
 	return m.SetAddrHeader(HeaderCc, c...)
 }
 
+// AddCc adds an additional address to the Cc address header field
+func (m *Msg) AddCc(t string) error {
+	return m.addAddr(HeaderCc, t)
+}
+
+// AddCcFormat takes a name and address, formats them RFC5322 compliant and stores them as
+// as additional Cc address header field
+func (m *Msg) AddCcFormat(n, a string) error {
+	return m.addAddr(HeaderCc, fmt.Sprintf(`"%s" <%s>`, n, a))
+}
+
 // CcIgnoreInvalid takes and validates a given mail address list sets the Cc: addresses of the Msg
 // Any provided address that is not RFC5322 compliant, will be ignored
 func (m *Msg) CcIgnoreInvalid(c ...string) {
@@ -181,10 +198,36 @@ func (m *Msg) Bcc(b ...string) error {
 	return m.SetAddrHeader(HeaderBcc, b...)
 }
 
+// AddBcc adds an additional address to the Bcc address header field
+func (m *Msg) AddBcc(t string) error {
+	return m.addAddr(HeaderBcc, t)
+}
+
+// AddBccFormat takes a name and address, formats them RFC5322 compliant and stores them as
+// as additional Bcc address header field
+func (m *Msg) AddBccFormat(n, a string) error {
+	return m.addAddr(HeaderBcc, fmt.Sprintf(`"%s" <%s>`, n, a))
+}
+
 // BccIgnoreInvalid takes and validates a given mail address list sets the Bcc: addresses of the Msg
 // Any provided address that is not RFC5322 compliant, will be ignored
 func (m *Msg) BccIgnoreInvalid(b ...string) {
 	m.SetAddrHeaderIgnoreInvalid(HeaderBcc, b...)
+}
+
+// addAddr adds an additional address to the given addrHeader of the Msg
+func (m *Msg) addAddr(h AddrHeader, a string) error {
+	var al []string
+	for _, ca := range m.addrHeader[h] {
+		al = append(al, ca.String())
+	}
+	al = append(al, a)
+	return m.SetAddrHeader(h, al...)
+}
+
+// Subject sets the "Subject" header field of the Msg
+func (m *Msg) Subject(s string) {
+	m.SetHeader(HeaderSubject, s)
 }
 
 // SetMessageID generates a random message id for the mail

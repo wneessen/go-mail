@@ -27,6 +27,13 @@ func ExampleClient_SetTLSPolicy() {
 	// Output: TLSMandatory
 }
 
+// Code example for the NewMsg method
+func ExampleNewMsg() {
+	m := mail.NewMsg(mail.WithEncoding(mail.EncodingQP), mail.WithCharset(mail.CharsetASCII))
+	fmt.Printf("%s // %s\n", m.Encoding(), m.Charset())
+	// Output: quoted-printable // US-ASCII
+}
+
 // Code example for the Client.DialAndSend method
 func ExampleClient_DialAndSend() {
 	from := "Toni Tester <toni@example.com>"
