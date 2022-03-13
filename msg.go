@@ -308,7 +308,7 @@ func (m *Msg) SetImportance(i Importance) {
 	}
 	m.SetHeader(HeaderImportance, i.String())
 	m.SetHeader(HeaderPriority, i.NumString())
-	m.SetHeader(HeaderXPriority, i.NumString())
+	m.SetHeader(HeaderXPriority, i.XPrioString())
 	m.SetHeader(HeaderXMSMailPriority, i.NumString())
 }
 

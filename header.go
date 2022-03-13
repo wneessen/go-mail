@@ -106,6 +106,22 @@ func (i Importance) NumString() string {
 	}
 }
 
+// XPrioString returns the X-Priority number string based on the Importance
+func (i Importance) XPrioString() string {
+	switch i {
+	case ImportanceNonUrgent:
+		return "5"
+	case ImportanceLow:
+		return "5"
+	case ImportanceHigh:
+		return "1"
+	case ImportanceUrgent:
+		return "1"
+	default:
+		return ""
+	}
+}
+
 // String returns the importance string based on the Importance
 func (i Importance) String() string {
 	switch i {
