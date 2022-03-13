@@ -113,6 +113,7 @@ func (m *Msg) SetCharset(c Charset) {
 // SetEncoding sets the encoding of the Msg
 func (m *Msg) SetEncoding(e Encoding) {
 	m.encoding = e
+	m.setEncoder()
 }
 
 // SetBoundary sets the boundary of the Msg
