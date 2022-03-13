@@ -293,6 +293,8 @@ func (m *Msg) GetRecipients() ([]string, error) {
 	}
 	return rl, nil
 }
+
+// Write writes the formated Msg into a give io.Writer
 func (m *Msg) Write(w io.Writer) (int64, error) {
 	mw := &msgWriter{w: w}
 	mw.writeMsg(m)

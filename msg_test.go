@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/mail"
 	"testing"
+	"time"
 )
 
 // TestNewMsg tests the NewMsg method
@@ -171,6 +172,89 @@ func TestMsg_AddTo(t *testing.T) {
 	}
 }
 
+// TestMsg_From tests the Msg.From and Msg.GetSender methods
+func TestMsg_From(t *testing.T) {
+	a := "toni@example.com"
+	n := "Toni Tester"
+	na := fmt.Sprintf(`"%s" <%s>`, n, a)
+	m := NewMsg()
+
+	gs, err := m.GetSender(false)
+	if err == nil {
+		t.Errorf("GetSender(false) without a set From address succeeded but was expected to fail")
+		return
+	}
+
+	if err := m.From(na); err != nil {
+		t.Errorf("failed to set FROM addresses: %s", err)
+		return
+	}
+	gs, err = m.GetSender(false)
+	if err != nil {
+		t.Errorf("GetSender(false) failed: %s", err)
+		return
+	}
+	if gs != a {
+		t.Errorf("From() failed. Expected: %s, got: %s", a, gs)
+		return
+	}
+
+	gs, err = m.GetSender(true)
+	if err != nil {
+		t.Errorf("GetSender(true) failed: %s", err)
+		return
+	}
+	if gs != na {
+		t.Errorf("From() failed. Expected: %s, got: %s", na, gs)
+		return
+	}
+}
+
+// TestMsg_AddToFormat tests the Msg.AddToFormat method
+func TestMsg_AddToFormat(t *testing.T) {
+	a := []string{"address1@example.com", "address2@example.com"}
+	nn := "Toni Tester"
+	na := "address3@example.com"
+	w := `"Toni Tester" <address3@example.com>`
+	m := NewMsg()
+	if err := m.To(a...); err != nil {
+		t.Errorf("failed to set TO addresses: %s", err)
+		return
+	}
+	if err := m.AddToFormat(nn, na); err != nil {
+		t.Errorf("AddToFormat failed: %s", err)
+		return
+	}
+
+	atf := false
+	for _, v := range m.addrHeader[HeaderTo] {
+		if v.String() == w {
+			atf = true
+		}
+	}
+	if !atf {
+		t.Errorf("AddToFormat() failed. Address %q not found in TO address slice.", w)
+	}
+}
+
+// TestMsg_ToIgnoreInvalid tests the Msg.ToIgnoreInvalid method
+func TestMsg_ToIgnoreInvalid(t *testing.T) {
+	a := []string{"address1@example.com", "address2@example.com"}
+	fa := []string{"address1@example.com", "address2@example.com", "failedaddress.com"}
+	m := NewMsg()
+
+	m.ToIgnoreInvalid(a...)
+	l := len(m.addrHeader[HeaderTo])
+	if l != len(a) {
+		t.Errorf("ToIgnoreInvalid() failed. Expected %d addresses, got: %d", len(a), l)
+	}
+	m.ToIgnoreInvalid(fa...)
+	l = len(m.addrHeader[HeaderTo])
+	if l != len(fa)-1 {
+		t.Errorf("ToIgnoreInvalid() failed. Expected %d addresses, got: %d", len(fa)-1, l)
+	}
+}
+
 // TestMsg_AddCc tests the Msg.AddCc method
 func TestMsg_AddCc(t *testing.T) {
 	a := []string{"address1@example.com", "address2@example.com"}
@@ -196,6 +280,51 @@ func TestMsg_AddCc(t *testing.T) {
 	}
 }
 
+// TestMsg_AddCcFormat tests the Msg.AddCcFormat method
+func TestMsg_AddCcFormat(t *testing.T) {
+	a := []string{"address1@example.com", "address2@example.com"}
+	nn := "Toni Tester"
+	na := "address3@example.com"
+	w := `"Toni Tester" <address3@example.com>`
+	m := NewMsg()
+	if err := m.Cc(a...); err != nil {
+		t.Errorf("failed to set CC addresses: %s", err)
+		return
+	}
+	if err := m.AddCcFormat(nn, na); err != nil {
+		t.Errorf("AddCcFormat failed: %s", err)
+		return
+	}
+
+	atf := false
+	for _, v := range m.addrHeader[HeaderCc] {
+		if v.String() == w {
+			atf = true
+		}
+	}
+	if !atf {
+		t.Errorf("AddCcFormat() failed. Address %q not found in CC address slice.", w)
+	}
+}
+
+// TestMsg_CcIgnoreInvalid tests the Msg.CcIgnoreInvalid method
+func TestMsg_CcIgnoreInvalid(t *testing.T) {
+	a := []string{"address1@example.com", "address2@example.com"}
+	fa := []string{"address1@example.com", "address2@example.com", "failedaddress.com"}
+	m := NewMsg()
+
+	m.CcIgnoreInvalid(a...)
+	l := len(m.addrHeader[HeaderCc])
+	if l != len(a) {
+		t.Errorf("CcIgnoreInvalid() failed. Expected %d addresses, got: %d", len(a), l)
+	}
+	m.CcIgnoreInvalid(fa...)
+	l = len(m.addrHeader[HeaderCc])
+	if l != len(fa)-1 {
+		t.Errorf("CcIgnoreInvalid() failed. Expected %d addresses, got: %d", len(fa)-1, l)
+	}
+}
+
 // TestMsg_AddBcc tests the Msg.AddBcc method
 func TestMsg_AddBcc(t *testing.T) {
 	a := []string{"address1@example.com", "address2@example.com"}
@@ -218,6 +347,109 @@ func TestMsg_AddBcc(t *testing.T) {
 	}
 	if !atf {
 		t.Errorf("AddBcc() failed. Address %q not found in BCC address slice.", na)
+	}
+}
+
+// TestMsg_AddBccFormat tests the Msg.AddBccFormat method
+func TestMsg_AddBccFormat(t *testing.T) {
+	a := []string{"address1@example.com", "address2@example.com"}
+	nn := "Toni Tester"
+	na := "address3@example.com"
+	w := `"Toni Tester" <address3@example.com>`
+	m := NewMsg()
+	if err := m.Bcc(a...); err != nil {
+		t.Errorf("failed to set BCC addresses: %s", err)
+		return
+	}
+	if err := m.AddBccFormat(nn, na); err != nil {
+		t.Errorf("AddBccFormat failed: %s", err)
+		return
+	}
+
+	atf := false
+	for _, v := range m.addrHeader[HeaderBcc] {
+		if v.String() == w {
+			atf = true
+		}
+	}
+	if !atf {
+		t.Errorf("AddBccFormat() failed. Address %q not found in BCC address slice.", w)
+	}
+}
+
+// TestMsg_BccIgnoreInvalid tests the Msg.BccIgnoreInvalid method
+func TestMsg_BccIgnoreInvalid(t *testing.T) {
+	a := []string{"address1@example.com", "address2@example.com"}
+	fa := []string{"address1@example.com", "address2@example.com", "failedaddress.com"}
+	m := NewMsg()
+
+	m.BccIgnoreInvalid(a...)
+	l := len(m.addrHeader[HeaderBcc])
+	if l != len(a) {
+		t.Errorf("BccIgnoreInvalid() failed. Expected %d addresses, got: %d", len(a), l)
+	}
+	m.BccIgnoreInvalid(fa...)
+	l = len(m.addrHeader[HeaderBcc])
+	if l != len(fa)-1 {
+		t.Errorf("BccIgnoreInvalid() failed. Expected %d addresses, got: %d", len(fa)-1, l)
+	}
+}
+
+// TestMsg_SetBulk tests the Msg.SetBulk method
+func TestMsg_SetBulk(t *testing.T) {
+	m := NewMsg()
+	m.SetBulk()
+	if m.genHeader[HeaderPrecedence] == nil {
+		t.Errorf("SetBulk() failed. Precedence header is nil")
+		return
+	}
+	if m.genHeader[HeaderPrecedence][0] != "bulk" {
+		t.Errorf("SetBulk() failed. Expected %q, got: %q", "bulk", m.genHeader[HeaderPrecedence][0])
+	}
+}
+
+// TestMsg_SetDate tests the Msg.SetDate method
+func TestMsg_SetDate(t *testing.T) {
+	m := NewMsg()
+	m.SetDate()
+	if m.genHeader[HeaderDate] == nil {
+		t.Errorf("SetDate() failed. Date header is nil")
+		return
+	}
+	d, ok := m.genHeader[HeaderDate]
+	if !ok {
+		t.Errorf("failed to get date header")
+		return
+	}
+	_, err := time.Parse(time.RFC1123Z, d[0])
+	if err != nil {
+		t.Errorf("failed to parse time in date header: %s", err)
+	}
+}
+
+// TestMsg_SetMessageIDWIthValue tests the Msg.SetMessageIDWithValue and Msg.SetMessageID methods
+func TestMsg_SetMessageIDWithValue(t *testing.T) {
+	m := NewMsg()
+	m.SetMessageID()
+	if m.genHeader[HeaderMessageID] == nil {
+		t.Errorf("SetMessageID() failed. MessageID header is nil")
+		return
+	}
+	if m.genHeader[HeaderMessageID][0] == "" {
+		t.Errorf("SetMessageID() failed. Expected value, got: empty")
+		return
+	}
+	m.genHeader[HeaderMessageID] = nil
+	v := "This.is.a.message.id"
+	vf := "<This.is.a.message.id>"
+	m.SetMessageIDWithValue(v)
+	if m.genHeader[HeaderMessageID] == nil {
+		t.Errorf("SetMessageIDWithValue() failed. MessageID header is nil")
+		return
+	}
+	if m.genHeader[HeaderMessageID][0] != vf {
+		t.Errorf("SetMessageIDWithValue() failed. Expected: %s, got: %s", vf, m.genHeader[HeaderMessageID][0])
+		return
 	}
 }
 
@@ -265,5 +497,60 @@ func TestMsg_FromFormat(t *testing.T) {
 			}
 			m.addrHeader[HeaderFrom] = nil
 		})
+	}
+}
+
+func TestMsg_GetRecipients(t *testing.T) {
+	a := []string{"to@example.com", "cc@example.com", "bcc@example.com"}
+	m := NewMsg()
+
+	al, err := m.GetRecipients()
+	if err == nil {
+		t.Errorf("GetRecipients() succeeded but was expected to fail")
+		return
+	}
+
+	if err := m.AddTo(a[0]); err != nil {
+		t.Errorf("AddTo() failed: %s", err)
+		return
+	}
+	if err := m.AddCc(a[1]); err != nil {
+		t.Errorf("AddCc() failed: %s", err)
+		return
+	}
+	if err := m.AddBcc(a[2]); err != nil {
+		t.Errorf("AddBcc() failed: %s", err)
+		return
+	}
+
+	al, err = m.GetRecipients()
+	if err != nil {
+		t.Errorf("GetRecipients() failed: %s", err)
+		return
+	}
+
+	var tf, cf, bf = false, false, false
+	for _, r := range al {
+		if r == a[0] {
+			tf = true
+		}
+		if r == a[1] {
+			cf = true
+		}
+		if r == a[2] {
+			bf = true
+		}
+	}
+	if !tf {
+		t.Errorf("GetRecipients() failed. Expected to address %s but was not found", a[0])
+		return
+	}
+	if !cf {
+		t.Errorf("GetRecipients() failed. Expected cc address %s but was not found", a[1])
+		return
+	}
+	if !bf {
+		t.Errorf("GetRecipients() failed. Expected bcc address %s but was not found", a[2])
+		return
 	}
 }
