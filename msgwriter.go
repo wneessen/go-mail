@@ -102,7 +102,7 @@ func (mw *msgWriter) newPart(h map[string][]string) {
 // writePart writes the corresponding part to the Msg body
 func (mw *msgWriter) writePart(p *Part, cs Charset) {
 	ct := fmt.Sprintf("%s; charset=%s", p.ctype, cs)
-	cte := fmt.Sprintf("%s", p.enc)
+	cte := p.enc.String()
 	if mw.d == 0 {
 		mw.writeHeader(HeaderContentType, ct)
 		mw.writeHeader(HeaderContentTransferEnc, cte)
