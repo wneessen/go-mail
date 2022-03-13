@@ -50,7 +50,6 @@ type Msg struct {
 // Part is a part of the Msg
 type Part struct {
 	w     func(io.Writer) error
-	x     io.Writer
 	ctype ContentType
 	enc   Encoding
 }

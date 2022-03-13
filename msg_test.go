@@ -179,7 +179,7 @@ func TestMsg_From(t *testing.T) {
 	na := fmt.Sprintf(`"%s" <%s>`, n, a)
 	m := NewMsg()
 
-	gs, err := m.GetSender(false)
+	_, err := m.GetSender(false)
 	if err == nil {
 		t.Errorf("GetSender(false) without a set From address succeeded but was expected to fail")
 		return
@@ -189,7 +189,7 @@ func TestMsg_From(t *testing.T) {
 		t.Errorf("failed to set FROM addresses: %s", err)
 		return
 	}
-	gs, err = m.GetSender(false)
+	gs, err := m.GetSender(false)
 	if err != nil {
 		t.Errorf("GetSender(false) failed: %s", err)
 		return
@@ -504,7 +504,7 @@ func TestMsg_GetRecipients(t *testing.T) {
 	a := []string{"to@example.com", "cc@example.com", "bcc@example.com"}
 	m := NewMsg()
 
-	al, err := m.GetRecipients()
+	_, err := m.GetRecipients()
 	if err == nil {
 		t.Errorf("GetRecipients() succeeded but was expected to fail")
 		return
@@ -523,7 +523,7 @@ func TestMsg_GetRecipients(t *testing.T) {
 		return
 	}
 
-	al, err = m.GetRecipients()
+	al, err := m.GetRecipients()
 	if err != nil {
 		t.Errorf("GetRecipients() failed: %s", err)
 		return
