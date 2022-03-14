@@ -6,14 +6,13 @@ The main idea of this library was to provide a simple interface to sending mails
 my [JS-Mailer](https://github.com/wneessen/js-mailer) project. It quickly evolved into a 
 full-fledged mail library.
 
-Parts of this library (especially some parts of [msgwriter.go](msgwriter.go)) have been forked/ported from the 
-[GoMail](https://github.com/go-mail/mail) which seems to not be maintained anymore.
-
-**This library is "WIP" an should not be considered "production ready", yet.**
-
 go-mail follows idiomatic Go style and best practice. It's only dependency is the Go Standard Library.
 It combines a lot of functionality from the standard library to give easy and convenient access to
 mail and SMTP related tasks.
+
+Parts of this library (especially some parts of [msgwriter.go](msgwriter.go)) have been forked/ported from the 
+[go-mail/mail](https://github.com/go-mail/mail) respectively [go-gomail/gomail](https://github.com/go-gomail/gomail) 
+which both seems to not be maintained anymore.
 
 ## Features
 Some of the features of this library:
@@ -31,5 +30,5 @@ Some of the features of this library:
 * [ ] Support for different encodings
 
 ## Examples
-The packageis shipped with example code. Check it out on the packages 
+The package is shipped with example code. Check it out on the packages 
 [GoDoc page](https://pkg.go.dev/github.com/wneessen/go-mail#pkg-examples) 
