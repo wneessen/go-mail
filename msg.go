@@ -315,6 +315,11 @@ func (m *Msg) SetDate() {
 	m.SetHeader(HeaderDate, ts)
 }
 
+// SetDateWithValue sets the Date genHeader field to the provided time in a valid format
+func (m *Msg) SetDateWithValue(t time.Time) {
+	m.SetHeader(HeaderDate, t.Format(time.RFC1123Z))
+}
+
 // SetImportance sets the Msg Importance/Priority header to given Importance
 func (m *Msg) SetImportance(i Importance) {
 	if i == ImportanceNormal {
@@ -409,6 +414,16 @@ func (m *Msg) EmbedFile(n string, o ...FileOption) {
 // EmbedReader adds an embedded File from an io.Reader to the Msg
 func (m *Msg) EmbedReader(n string, r io.Reader, o ...FileOption) {
 	m.embeds = m.appendFile(m.embeds, fileFromReader(n, r), o...)
+}
+
+// Reset resets all headers, body parts and attachments/embeds of the Msg
+// It leaves already set encodings, charsets, boundaries, etc. as is
+func (m *Msg) Reset() {
+	m.addrHeader = make(map[AddrHeader][]*mail.Address)
+	m.attachments = nil
+	m.embeds = nil
+	m.genHeader = make(map[Header][]string)
+	m.parts = nil
 }
 
 // Write writes the formated Msg into a give io.Writer
