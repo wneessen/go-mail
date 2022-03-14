@@ -485,7 +485,6 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...st
 		return fmt.Errorf("could not start sendmail execution: %w", err)
 	}
 	_, err = m.Write(si)
-	_, err = si.Write([]byte(".\r\n"))
 	if err != nil {
 		_ = si.Close()
 		return fmt.Errorf("failed to write mail to buffer: %w", err)
