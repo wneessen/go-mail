@@ -14,6 +14,9 @@ const (
 	// HeaderContentDisposition is the "Content-Disposition" header
 	HeaderContentDisposition Header = "Content-Disposition"
 
+	// HeaderContentID is the "Content-ID" header
+	HeaderContentID Header = "Content-ID"
+
 	// HeaderContentLang is the "Content-Language" header
 	HeaderContentLang Header = "Content-Language"
 

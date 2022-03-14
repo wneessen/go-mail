@@ -27,8 +27,8 @@ Some of the features of this library:
 * [X] RFC5322 compliant mail address validation
 * [X] Support for common mail header field generation (Message-ID, Date, Bulk-Precedence, etc.)
 * [X] Reusing the same SMTP connection to send multiple mails
+* [X] Support for attachments and inline embeds
 * [ ] Support for different encodings
-* [ ] Support for attachments
 
 ## Examples
 The packageis shipped with example code. Check it out on the packages 

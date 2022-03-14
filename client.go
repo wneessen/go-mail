@@ -83,6 +83,10 @@ var (
 	// ErrNoActiveConnection should be used when a method is used that requies a server connection
 	// but is not yet connected
 	ErrNoActiveConnection = errors.New("not connected to SMTP server")
+
+	// ErrServerNoUnencoded should be used when 8BIT encoding is selected for a message, but
+	// the server does not offer 8BITMIME mode
+	ErrServerNoUnencoded = errors.New("message is 8bit unencoded, but server does not support 8BITMIME")
 )
 
 // NewClient returns a new Session client object
@@ -281,6 +285,11 @@ func (c *Client) Send(ml ...*Msg) error {
 		return fmt.Errorf("failed to send mail: %w", err)
 	}
 	for _, m := range ml {
+		if m.encoding == NoEncoding {
+			if ok, _ := c.sc.Extension("8BITMIME"); !ok {
+				return ErrServerNoUnencoded
+			}
+		}
 		f, err := m.GetSender(false)
 		if err != nil {
 			return err

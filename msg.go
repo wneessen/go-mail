@@ -9,6 +9,7 @@ import (
 	"mime"
 	"net/mail"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -45,17 +46,13 @@ type Msg struct {
 
 	// parts represent the different parts of the Msg
 	parts []*Part
-}
 
-// Part is a part of the Msg
-type Part struct {
-	w     func(io.Writer) error
-	ctype ContentType
-	enc   Encoding
-}
+	// attachments represent the different attachment File of the Msg
+	attachments []*File
 
-// PartOption returns a function that can be used for grouping Part options
-type PartOption func(*Part)
+	// embeds represent the different embedded File of the Msg
+	embeds []*File
+}
 
 // MsgOption returns a function that can be used for grouping Msg options
 type MsgOption func(*Msg)
@@ -372,7 +369,7 @@ func (m *Msg) SetBodyString(ct ContentType, b string, o ...PartOption) {
 
 // SetBodyWriter sets the body of the message.
 func (m *Msg) SetBodyWriter(ct ContentType, w func(io.Writer) error, o ...PartOption) {
-	p := m.NewPart(ct, o...)
+	p := m.newPart(ct, o...)
 	p.w = w
 	m.parts = []*Part{p}
 }
@@ -389,9 +386,29 @@ func (m *Msg) AddAlternativeString(ct ContentType, b string, o ...PartOption) {
 
 // AddAlternativeWriter sets the body of the message.
 func (m *Msg) AddAlternativeWriter(ct ContentType, w func(io.Writer) error, o ...PartOption) {
-	p := m.NewPart(ct, o...)
+	p := m.newPart(ct, o...)
 	p.w = w
 	m.parts = append(m.parts, p)
+}
+
+// AttachFile adds an attachment File to the Msg
+func (m *Msg) AttachFile(n string, o ...FileOption) {
+	m.attachments = m.appendFile(m.attachments, fileFromFS(n), o...)
+}
+
+// AttachReader adds an attachment File via io.Reader to the Msg
+func (m *Msg) AttachReader(n string, r io.Reader, o ...FileOption) {
+	m.attachments = m.appendFile(m.attachments, fileFromReader(n, r), o...)
+}
+
+// EmbedFile adds an embedded File to the Msg
+func (m *Msg) EmbedFile(n string, o ...FileOption) {
+	m.embeds = m.appendFile(m.embeds, fileFromFS(n), o...)
+}
+
+// EmbedReader adds an embedded File from an io.Reader to the Msg
+func (m *Msg) EmbedReader(n string, r io.Reader, o ...FileOption) {
+	m.embeds = m.appendFile(m.embeds, fileFromReader(n, r), o...)
 }
 
 // Write writes the formated Msg into a give io.Writer
@@ -401,8 +418,46 @@ func (m *Msg) Write(w io.Writer) (int64, error) {
 	return mw.n, mw.err
 }
 
-// NewPart returns a new Part for the Msg
-func (m *Msg) NewPart(ct ContentType, o ...PartOption) *Part {
+// appendFile adds a File to the Msg (as attachment or embed)
+func (m *Msg) appendFile(c []*File, f *File, o ...FileOption) []*File {
+	// Override defaults with optionally provided FileOption functions
+	for _, co := range o {
+		if co == nil {
+			continue
+		}
+		co(f)
+	}
+
+	if c == nil {
+		return []*File{f}
+	}
+
+	return append(c, f)
+}
+
+// encodeString encodes a string based on the configured message encoder and the corresponding
+// charset for the Msg
+func (m *Msg) encodeString(s string) string {
+	return m.encoder.Encode(string(m.charset), s)
+}
+
+// hasAlt returns true if the Msg has more than one part
+func (m *Msg) hasAlt() bool {
+	return len(m.parts) > 1
+}
+
+// hasMixed returns true if the Msg has mixed parts
+func (m *Msg) hasMixed() bool {
+	return (len(m.parts) > 0 && len(m.attachments) > 0) || len(m.attachments) > 1
+}
+
+// hasRelated returns true if the Msg has related parts
+func (m *Msg) hasRelated() bool {
+	return (len(m.parts) > 0 && len(m.embeds) > 0) || len(m.embeds) > 1
+}
+
+// newPart returns a new Part for the Msg
+func (m *Msg) newPart(ct ContentType, o ...PartOption) *Part {
 	p := &Part{
 		ctype: ct,
 		enc:   m.encoding,
@@ -419,21 +474,42 @@ func (m *Msg) NewPart(ct ContentType, o ...PartOption) *Part {
 	return p
 }
 
-// WithPartEncoding overrides the default Part encoding
-func WithPartEncoding(e Encoding) PartOption {
-	return func(p *Part) {
-		p.enc = e
-	}
-}
-
-// SetEncoding creates a new mime.WordEncoder based on the encoding setting of the message
-func (p *Part) SetEncoding(e Encoding) {
-	p.enc = e
-}
-
 // setEncoder creates a new mime.WordEncoder based on the encoding setting of the message
 func (m *Msg) setEncoder() {
 	m.encoder = getEncoder(m.encoding)
+}
+
+// fileFromFS returns a File pointer from a given file in the system's file system
+func fileFromFS(n string) *File {
+	return &File{
+		Name:   filepath.Base(n),
+		Header: make(map[string][]string),
+		Writer: func(w io.Writer) error {
+			h, err := os.Open(n)
+			if err != nil {
+				return err
+			}
+			if _, err := io.Copy(w, h); err != nil {
+				_ = h.Close()
+				return fmt.Errorf("failed to copy file to io.Writer: %w", err)
+			}
+			return h.Close()
+		},
+	}
+}
+
+// fileFromReader returns a File pointer from a given io.Reader
+func fileFromReader(n string, r io.Reader) *File {
+	return &File{
+		Name:   filepath.Base(n),
+		Header: make(map[string][]string),
+		Writer: func(w io.Writer) error {
+			if _, err := io.Copy(w, r); err != nil {
+				return err
+			}
+			return nil
+		},
+	}
 }
 
 // getEncoder creates a new mime.WordEncoder based on the encoding setting of the message
@@ -446,15 +522,4 @@ func getEncoder(e Encoding) mime.WordEncoder {
 	default:
 		return mime.QEncoding
 	}
-}
-
-// encodeString encodes a string based on the configured message encoder and the corresponding
-// charset for the Msg
-func (m *Msg) encodeString(s string) string {
-	return m.encoder.Encode(string(m.charset), s)
-}
-
-// hasAlt returns true if the Msg has more than one part
-func (m *Msg) hasAlt() bool {
-	return len(m.parts) > 1
 }

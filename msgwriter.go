@@ -4,9 +4,11 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"mime"
 	"mime/multipart"
 	"mime/quotedprintable"
 	"net/textproto"
+	"path/filepath"
 	"strings"
 )
 
@@ -55,14 +57,35 @@ func (mw *msgWriter) writeMsg(m *Msg) {
 	}
 	mw.writeHeader(HeaderMIMEVersion, string(m.mimever))
 
+	if m.hasMixed() {
+		mw.startMP("mixed", m.boundary)
+		mw.writeString("\r\n\r\n")
+	}
+	if m.hasRelated() {
+		mw.startMP("related", m.boundary)
+		mw.writeString("\r\n\r\n")
+	}
 	if m.hasAlt() {
 		mw.startMP(MIMEAlternative, m.boundary)
 		mw.writeString("\r\n\r\n")
 	}
+
 	for _, p := range m.parts {
 		mw.writePart(p, m.charset)
 	}
 	if m.hasAlt() {
+		mw.stopMP()
+	}
+
+	// Add embeds
+	mw.addFiles(m.embeds, false)
+	if m.hasRelated() {
+		mw.stopMP()
+	}
+
+	// Add attachments
+	mw.addFiles(m.attachments, true)
+	if m.hasMixed() {
 		mw.stopMP()
 	}
 }
@@ -91,6 +114,47 @@ func (mw *msgWriter) stopMP() {
 	if mw.d > 0 {
 		mw.err = mw.mpw[mw.d-1].Close()
 		mw.d--
+	}
+}
+
+// addFiles adds the attachments/embeds file content to the mail body
+func (mw *msgWriter) addFiles(fl []*File, a bool) {
+	for _, f := range fl {
+		if _, ok := f.getHeader(HeaderContentType); !ok {
+			mt := mime.TypeByExtension(filepath.Ext(f.Name))
+			if mt == "" {
+				mt = "application/octet-stream"
+			}
+			f.setHeader(HeaderContentType, fmt.Sprintf(`%s; name="%s"`, mt, f.Name))
+		}
+
+		if _, ok := f.getHeader(HeaderContentTransferEnc); !ok {
+			f.setHeader(HeaderContentTransferEnc, string(EncodingB64))
+		}
+
+		if _, ok := f.getHeader(HeaderContentDisposition); !ok {
+			d := "inline"
+			if a {
+				d = "attachment"
+			}
+			f.setHeader(HeaderContentDisposition, fmt.Sprintf(`%s; filename="%s"`, d, f.Name))
+		}
+
+		if !a {
+			if _, ok := f.getHeader(HeaderContentID); !ok {
+				f.setHeader(HeaderContentID, fmt.Sprintf("<%s>", f.Name))
+			}
+		}
+		if mw.d == 0 {
+			for h, v := range f.Header {
+				mw.writeHeader(Header(h), v...)
+			}
+			mw.writeString("\r\n")
+		}
+		if mw.d > 0 {
+			mw.newPart(f.Header)
+		}
+		mw.writeBody(f.Writer, EncodingB64)
 	}
 }
 

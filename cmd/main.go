@@ -1,9 +1,9 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/wneessen/go-mail"
-	"io"
 	"os"
 )
 
@@ -27,34 +27,46 @@ func main() {
 		fmt.Printf("failed to set TO address: %s", err)
 		os.Exit(1)
 	}
-	m.Subject("This is the Subject with Umlauts: üöäß")
-	m.SetHeader(mail.HeaderContentLang, "de", "en", "fr", "sp", "de", "en", "fr", "sp", "de", "en", "fr",
-		"sp", "de", "en", "fr", "sp")
-	m.SetHeader(mail.HeaderListUnsubscribePost, "üüüüüüüü", "aaaaääää", "ßßßßßßßßß", "XXXXXX", "ZZZZZ", "XXXXXXXX",
-		"äää äää", "YYYYYY", "XXXXXX", "ZZZZZ", "üäö´")
+	m.Subject("This is a mail with attachments")
 	m.SetMessageID()
 	m.SetDate()
 	m.SetBulk()
+	m.SetBodyString(mail.TypeTextPlain, "This should have an attachment.")
 
-	m.SetBodyWriter(mail.TypeTextPlain, func(fw io.Writer) error {
-		_, err := io.WriteString(fw, "This is a writer test")
-		return err
-	})
-	m.AddAlternativeString(mail.TypeTextHTML, "This is HTML content")
-	//m.Write(os.Stdout)
-
-	tu := os.Getenv("TEST_USER")
-	tp := os.Getenv("TEST_PASS")
-	c, err := mail.NewClient(th, mail.WithTLSPolicy(mail.TLSMandatory),
-		mail.WithSMTPAuth(mail.SMTPAuthLogin), mail.WithUsername(tu),
-		mail.WithPassword(tp))
+	f, err := os.Open("/home/wneessen/certs.csv")
 	if err != nil {
-		fmt.Printf("failed to create new client: %s\n", err)
+		fmt.Printf("failed to open file for reading: %s\n", err)
 		os.Exit(1)
 	}
-	if err := c.DialAndSend(m); err != nil {
-		fmt.Printf("failed to dial: %s\n", err)
-		os.Exit(1)
-	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			fmt.Printf("failed to close file: %s\n", err)
+			os.Exit(1)
+		}
+	}()
+	m.AttachReader("certs.csv", f, mail.WithFileName("test.txt"))
 
+	sendMail := flag.Bool("send", false, "wether to send mail or output to STDOUT")
+	flag.Parse()
+	if !*sendMail {
+		_, err := m.Write(os.Stdout)
+		if err != nil {
+			fmt.Printf("failed to write mail: %s\n", err)
+			os.Exit(1)
+		}
+	} else {
+		tu := os.Getenv("TEST_USER")
+		tp := os.Getenv("TEST_PASS")
+		c, err := mail.NewClient(th, mail.WithTLSPolicy(mail.TLSMandatory),
+			mail.WithSMTPAuth(mail.SMTPAuthLogin), mail.WithUsername(tu),
+			mail.WithPassword(tp))
+		if err != nil {
+			fmt.Printf("failed to create new client: %s\n", err)
+			os.Exit(1)
+		}
+		if err := c.DialAndSend(m); err != nil {
+			fmt.Printf("failed to dial: %s\n", err)
+			os.Exit(1)
+		}
+	}
 }
