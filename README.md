@@ -69,10 +69,20 @@ func main() {
 	// Set a subject line
 	m.Subject("This is a great email")
 
-	// And some other common headers
-	m.SetDate()      // Sets a valid "Date" header field with the current time
-	m.SetMessageID() // Generates a valid and unique "Message-ID"
-	m.SetBulk()      // Sets the "Precedence"-Header to "bulk" to indicate a "bulk mail"
+	// And some other common headers...
+	//
+	// Sets a valid "Date" header field with the current time
+	m.SetDate()
+	//
+	// Generates a valid and unique "Message-ID"
+	m.SetMessageID()
+	//
+	// Sets the "Precedence"-Header to "bulk" to indicate a "bulk mail"
+	m.SetBulk()
+	//
+	// Set a "high" importance to the mail (this sets several Header fields to 
+	// satisfy the different common mail clients like Mail.app and Outlook)
+	m.SetImportance(mail.ImportanceHigh)
 
 	// Add your mail message to body
 	m.SetBodyString(mail.TypeTextPlain, "This is a great message body text.")
