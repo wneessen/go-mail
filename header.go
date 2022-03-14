@@ -20,6 +20,9 @@ const (
 	// HeaderContentLang is the "Content-Language" header
 	HeaderContentLang Header = "Content-Language"
 
+	// HeaderContentLocation is the "Content-Location" header (RFC 2110)
+	HeaderContentLocation Header = "Content-Location"
+
 	// HeaderContentTransferEnc is the "Content-Transfer-Encoding" header
 	HeaderContentTransferEnc Header = "Content-Transfer-Encoding"
 
@@ -50,6 +53,9 @@ const (
 	// See: https://datatracker.ietf.org/doc/html/rfc2045#section-4
 	HeaderMIMEVersion Header = "MIME-Version"
 
+	// HeaderOrganization is the "Organization" header field
+	HeaderOrganization Header = "Organization"
+
 	// HeaderPrecedence is the "Precedence" header field
 	HeaderPrecedence Header = "Precedence"
 
@@ -61,6 +67,12 @@ const (
 
 	// HeaderSubject is the "Subject" header field
 	HeaderSubject Header = "Subject"
+
+	// HeaderUserAgent is the "User-Agent" header field
+	HeaderUserAgent Header = "User-Agent"
+
+	// HeaderXMailer is the "X-Mailer" header field
+	HeaderXMailer Header = "X-Mailer"
 
 	// HeaderXMSMailPriority is the "X-MSMail-Priority" header field
 	HeaderXMSMailPriority Header = "X-MSMail-Priority"

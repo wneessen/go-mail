@@ -151,7 +151,7 @@ func (m *Msg) SetHeader(h Header, v ...string) {
 func (m *Msg) SetAddrHeader(h AddrHeader, v ...string) error {
 	var al []*mail.Address
 	for _, av := range v {
-		a, err := mail.ParseAddress(m.encodeString(av))
+		a, err := mail.ParseAddress(av)
 		if err != nil {
 			return fmt.Errorf("failed to parse mail address header %q: %w", av, err)
 		}
@@ -335,6 +335,17 @@ func (m *Msg) SetImportance(i Importance) {
 	m.SetHeader(HeaderPriority, i.NumString())
 	m.SetHeader(HeaderXPriority, i.XPrioString())
 	m.SetHeader(HeaderXMSMailPriority, i.NumString())
+}
+
+// SetOrganization sets the provided string as Organization header for the Msg
+func (m *Msg) SetOrganization(o string) {
+	m.SetHeader(HeaderOrganization, o)
+}
+
+// SetUserAgent sets the User-Agent/X-Mailer header for the Msg
+func (m *Msg) SetUserAgent(a string) {
+	m.SetHeader(HeaderUserAgent, a)
+	m.SetHeader(HeaderXMailer, a)
 }
 
 // GetSender returns the currently set FROM address. If f is true, it will return the full
