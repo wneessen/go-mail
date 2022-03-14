@@ -22,12 +22,12 @@ Some of the features of this library:
 * [X] SSL/TLS support
 * [X] StartTLS support with different policies
 * [X] Makes use of contexts for a better control flow and timeout/cancelation handling
-* [X] SMTP Auth support (LOGIN, PLAIN, CRAM-MD5, DIGEST-MD5)
+* [X] SMTP Auth support (LOGIN, PLAIN, CRAM-MD)
 * [X] RFC5322 compliant mail address validation
 * [X] Support for common mail header field generation (Message-ID, Date, Bulk-Precedence, etc.)
 * [X] Reusing the same SMTP connection to send multiple mails
 * [X] Support for attachments and inline embeds
-* [ ] Support for different encodings
+* [ ] Support for different encodings (existing but not fully tested)
 
 ## Examples
 The package is shipped with example code. Check it out on the packages 
