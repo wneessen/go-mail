@@ -64,7 +64,7 @@ func main() {
 		fmt.Printf("failed to set TO address: %s\n", err)
 		os.Exit(1)
 	}
-	m.CcIgnoreInvalid("cc@example.com")
+	m.CcIgnoreInvalid("cc@example.com", "invalidaddress+example.com")
 
 	// Set a subject line
 	m.Subject("This is a great email")
