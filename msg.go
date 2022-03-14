@@ -1,7 +1,9 @@
 package mail
 
 import (
+	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -9,6 +11,7 @@ import (
 	"mime"
 	"net/mail"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 )
@@ -53,6 +56,9 @@ type Msg struct {
 	// embeds represent the different embedded File of the Msg
 	embeds []*File
 }
+
+// SendmailPath is the default system path to the sendmail binary
+const SendmailPath = "/usr/bin/sendmail"
 
 // MsgOption returns a function that can be used for grouping Msg options
 type MsgOption func(*Msg)
@@ -448,6 +454,64 @@ func (m *Msg) appendFile(c []*File, f *File, o ...FileOption) []*File {
 	}
 
 	return append(c, f)
+}
+
+// WriteToSendmail returns WriteToSendmailWithContext with a default timeout of 5 seconds
+func (m *Msg) WriteToSendmail() error {
+	tctx, tcfn := context.WithTimeout(context.Background(), time.Second*5)
+	defer tcfn()
+	return m.WriteToSendmailWithContext(tctx, SendmailPath)
+}
+
+// WriteToSendmailWithContext opens an pipe to the local sendmail binary and tries to send the
+// mail though that. It takes a context.Context, the path to the sendmail binary and additional
+// arguments for the sendmail binary as parameters
+func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...string) error {
+	ec := exec.CommandContext(ctx, sp)
+	ec.Args = append(ec.Args, "-oi", "-t")
+	ec.Args = append(ec.Args, a...)
+
+	var ebuf bytes.Buffer
+	ec.Stderr = &ebuf
+	ses := bufio.NewScanner(&ebuf)
+
+	si, err := ec.StdinPipe()
+	if err != nil {
+		return fmt.Errorf("failed to set STDIN pipe: %w", err)
+	}
+
+	// Start the execution and write to STDIN
+	if err := ec.Start(); err != nil {
+		return fmt.Errorf("could not start sendmail execution: %w", err)
+	}
+	_, err = m.Write(si)
+	_, err = si.Write([]byte(".\r\n"))
+	if err != nil {
+		_ = si.Close()
+		return fmt.Errorf("failed to write mail to buffer: %w", err)
+	}
+	if err := si.Close(); err != nil {
+		return fmt.Errorf("failed to close STDIN pipe: %w", err)
+	}
+
+	// Read the stderr buffer for possible errors
+	var serr string
+	for ses.Scan() {
+		serr += ses.Text()
+	}
+	if err := ses.Err(); err != nil {
+		return fmt.Errorf("failed to read STDERR pipe: %w", err)
+	}
+	if serr != "" {
+		return fmt.Errorf("sendmail execution failed: %s", serr)
+	}
+
+	// Wait for completion or cancellation of the sendmail executable
+	if err := ec.Wait(); err != nil {
+		return fmt.Errorf("sendmail command execution failed: %w", err)
+	}
+
+	return nil
 }
 
 // encodeString encodes a string based on the configured message encoder and the corresponding
