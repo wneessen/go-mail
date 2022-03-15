@@ -25,14 +25,10 @@ jobs:
     steps:
     - name: Checkout Code
       uses: actions/checkout@master
-    
-    - name: Install Dependencies
-      run: go get -v golang.org/x/lint/golint
 
     - name: Run Tests
       run: |
-          golint -set_exit_status ./...
-          go test -race --coverprofile=coverage.coverprofile --covermode=atomic ./...
+        go test -race --coverprofile=coverage.coverprofile --covermode=atomic ./...
     
     - name: Upload coverage to Codecov
       if: success() && matrix.go == 1.17 && matrix.os == 'ubuntu-latest'
