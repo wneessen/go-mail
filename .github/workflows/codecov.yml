@@ -1,8 +1,8 @@
-name: Example workflow for Codecov
+name: Codecov workflow
 on:
   push:
     branches:
-      - master
+      - main
     paths:
       - '**.go'
       - 'go.*'
@@ -10,7 +10,7 @@ on:
       - 'codecov.yml'
   pull_request:
     branches:
-      - master
+      - main
     paths:
       - '**.go'
       - 'go.*'
@@ -22,8 +22,17 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+        go: [1.14, 1.15, 1.16, 1.17]
     steps:
-    - uses: actions/checkout@master
-    - uses: codecov/codecov-action@v2
+    - name: Checkout Code
+      uses: actions/checkout@master
+
+    - name: Run Tests
+      run: |
+        go test -race --coverprofile=coverage.coverprofile --covermode=atomic ./...
+    
+    - name: Upload coverage to Codecov
+      if: success() && matrix.go == 1.17 && matrix.os == 'ubuntu-latest'
+      uses: codecov/codecov-action@v2
       with:
         token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
