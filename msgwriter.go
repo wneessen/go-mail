@@ -18,7 +18,9 @@ const MaxHeaderLength = 76
 
 // msgWriter handles the I/O to the io.WriteCloser of the SMTP client
 type msgWriter struct {
+	c   Charset
 	d   int8
+	en  mime.WordEncoder
 	err error
 	mpw [3]*multipart.Writer
 	n   int64
@@ -125,7 +127,8 @@ func (mw *msgWriter) addFiles(fl []*File, a bool) {
 			if mt == "" {
 				mt = "application/octet-stream"
 			}
-			f.setHeader(HeaderContentType, fmt.Sprintf(`%s; name="%s"`, mt, f.Name))
+			f.setHeader(HeaderContentType, fmt.Sprintf(`%s; name="%s"`, mt,
+				mw.en.Encode(mw.c.String(), f.Name)))
 		}
 
 		if _, ok := f.getHeader(HeaderContentTransferEnc); !ok {
@@ -137,7 +140,8 @@ func (mw *msgWriter) addFiles(fl []*File, a bool) {
 			if a {
 				d = "attachment"
 			}
-			f.setHeader(HeaderContentDisposition, fmt.Sprintf(`%s; filename="%s"`, d, f.Name))
+			f.setHeader(HeaderContentDisposition, fmt.Sprintf(`%s; filename="%s"`, d,
+				mw.en.Encode(mw.c.String(), f.Name)))
 		}
 
 		if !a {

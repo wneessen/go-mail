@@ -461,7 +461,7 @@ func (m *Msg) Reset() {
 
 // Write writes the formated Msg into a give io.Writer
 func (m *Msg) Write(w io.Writer) (int64, error) {
-	mw := &msgWriter{w: w}
+	mw := &msgWriter{w: w, c: m.charset, en: m.encoder}
 	mw.writeMsg(m)
 	return mw.n, mw.err
 }
