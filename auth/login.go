@@ -61,9 +61,7 @@ func (a *loginAuth) Next(fromServer []byte, more bool) ([]byte, error) {
 			return []byte(a.username), nil
 		case ServerRespPassword:
 			return []byte(a.password), nil
-		default:
-			return nil, fmt.Errorf("unexpected server response: %s", string(fromServer))
 		}
 	}
-	return nil, nil
+	return nil, fmt.Errorf("unexpected server response: %s", string(fromServer))
 }
