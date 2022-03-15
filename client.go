@@ -246,8 +246,12 @@ func (c *Client) SetTLSPolicy(p TLSPolicy) {
 }
 
 // SetTLSConfig overrides the current *tls.Config with the given *tls.Config value
-func (c *Client) SetTLSConfig(co *tls.Config) {
+func (c *Client) SetTLSConfig(co *tls.Config) error {
+	if co == nil {
+		return ErrInvalidTLSConfig
+	}
 	c.tlsconfig = co
+	return nil
 }
 
 // SetUsername overrides the current username string with the given value
