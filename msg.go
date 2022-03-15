@@ -415,22 +415,38 @@ func (m *Msg) AddAlternativeWriter(ct ContentType, w func(io.Writer) error, o ..
 
 // AttachFile adds an attachment File to the Msg
 func (m *Msg) AttachFile(n string, o ...FileOption) {
-	m.attachments = m.appendFile(m.attachments, fileFromFS(n), o...)
+	f := fileFromFS(n)
+	if f == nil {
+		return
+	}
+	m.attachments = m.appendFile(m.attachments, f, o...)
 }
 
 // AttachReader adds an attachment File via io.Reader to the Msg
 func (m *Msg) AttachReader(n string, r io.Reader, o ...FileOption) {
-	m.attachments = m.appendFile(m.attachments, fileFromReader(n, r), o...)
+	f := fileFromReader(n, r)
+	if f == nil {
+		return
+	}
+	m.attachments = m.appendFile(m.attachments, f, o...)
 }
 
 // EmbedFile adds an embedded File to the Msg
 func (m *Msg) EmbedFile(n string, o ...FileOption) {
-	m.embeds = m.appendFile(m.embeds, fileFromFS(n), o...)
+	f := fileFromFS(n)
+	if f == nil {
+		return
+	}
+	m.embeds = m.appendFile(m.embeds, f, o...)
 }
 
 // EmbedReader adds an embedded File from an io.Reader to the Msg
 func (m *Msg) EmbedReader(n string, r io.Reader, o ...FileOption) {
-	m.embeds = m.appendFile(m.embeds, fileFromReader(n, r), o...)
+	f := fileFromReader(n, r)
+	if f == nil {
+		return
+	}
+	m.embeds = m.appendFile(m.embeds, f, o...)
 }
 
 // Reset resets all headers, body parts and attachments/embeds of the Msg
@@ -570,6 +586,11 @@ func (m *Msg) setEncoder() {
 
 // fileFromFS returns a File pointer from a given file in the system's file system
 func fileFromFS(n string) *File {
+	_, err := os.Stat(n)
+	if err != nil {
+		return nil
+	}
+
 	return &File{
 		Name:   filepath.Base(n),
 		Header: make(map[string][]string),
