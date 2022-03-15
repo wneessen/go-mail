@@ -13,31 +13,44 @@ const DefaultHost = "localhost"
 // TestNewClient tests the NewClient() method with its default options
 func TestNewClient(t *testing.T) {
 	host := "mail.example.com"
-	c, err := NewClient(host)
-	if err != nil {
-		t.Errorf("failed to create new client: %s", err)
-		return
+	tests := []struct {
+		name       string
+		host       string
+		shouldfail bool
+	}{
+		{"Default", "mail.example.com", false},
+		{"Empty host should fail", "", true},
 	}
-	if c.host != host {
-		t.Errorf("failed to create new client. Host expected: %s, got: %s", host, c.host)
-	}
-	if c.cto != DefaultTimeout {
-		t.Errorf("failed to create new client. Timeout expected: %s, got: %s", DefaultTimeout.String(),
-			c.cto.String())
-	}
-	if c.port != DefaultPort {
-		t.Errorf("failed to create new client. Port expected: %d, got: %d", DefaultPort, c.port)
-	}
-	if c.tlspolicy != TLSMandatory {
-		t.Errorf("failed to create new client. TLS policy expected: %d, got: %d", TLSMandatory, c.tlspolicy)
-	}
-	if c.tlsconfig.ServerName != host {
-		t.Errorf("failed to create new client. TLS config host expected: %s, got: %s",
-			host, c.tlsconfig.ServerName)
-	}
-	if c.tlsconfig.MinVersion != DefaultTLSMinVersion {
-		t.Errorf("failed to create new client. TLS config min versino expected: %d, got: %d",
-			DefaultTLSMinVersion, c.tlsconfig.MinVersion)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := NewClient(tt.host)
+			if err != nil && !tt.shouldfail {
+				t.Errorf("failed to create new client: %s", err)
+				return
+			}
+			if c.host != host {
+				t.Errorf("failed to create new client. Host expected: %s, got: %s", host, c.host)
+			}
+			if c.cto != DefaultTimeout {
+				t.Errorf("failed to create new client. Timeout expected: %s, got: %s", DefaultTimeout.String(),
+					c.cto.String())
+			}
+			if c.port != DefaultPort {
+				t.Errorf("failed to create new client. Port expected: %d, got: %d", DefaultPort, c.port)
+			}
+			if c.tlspolicy != TLSMandatory {
+				t.Errorf("failed to create new client. TLS policy expected: %d, got: %d", TLSMandatory, c.tlspolicy)
+			}
+			if c.tlsconfig.ServerName != host {
+				t.Errorf("failed to create new client. TLS config host expected: %s, got: %s",
+					host, c.tlsconfig.ServerName)
+			}
+			if c.tlsconfig.MinVersion != DefaultTLSMinVersion {
+				t.Errorf("failed to create new client. TLS config min versino expected: %d, got: %d",
+					DefaultTLSMinVersion, c.tlsconfig.MinVersion)
+			}
+		})
 	}
 }
 

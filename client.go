@@ -133,7 +133,6 @@ func NewClient(h string, o ...Option) (*Client, error) {
 	// Some settings in a Client cannot be empty/unset
 	if c.host == "" {
 		return c, ErrNoHostname
-
 	}
 
 	return c, nil
