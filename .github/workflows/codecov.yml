@@ -2,7 +2,7 @@ name: Example workflow for Codecov
 on:
   push:
     branches:
-      - master
+      - main
     paths:
       - '**.go'
       - 'go.*'
@@ -10,7 +10,7 @@ on:
       - 'codecov.yml'
   pull_request:
     branches:
-      - master
+      - main
     paths:
       - '**.go'
       - 'go.*'
