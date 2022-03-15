@@ -1,12 +1,82 @@
 package mail
 
 import (
+	"crypto/tls"
+	"net/smtp"
 	"testing"
 	"time"
 )
 
 // DefaultHost is used as default hostname for the Client
 const DefaultHost = "localhost"
+
+// TestNewClient tests the NewClient() method with its default options
+func TestNewClient(t *testing.T) {
+	host := "mail.example.com"
+	c, err := NewClient(host)
+	if err != nil {
+		t.Errorf("failed to create new client: %s", err)
+		return
+	}
+	if c.host != host {
+		t.Errorf("failed to create new client. Host expected: %s, got: %s", host, c.host)
+	}
+	if c.cto != DefaultTimeout {
+		t.Errorf("failed to create new client. Timeout expected: %s, got: %s", DefaultTimeout.String(),
+			c.cto.String())
+	}
+	if c.port != DefaultPort {
+		t.Errorf("failed to create new client. Port expected: %d, got: %d", DefaultPort, c.port)
+	}
+	if c.tlspolicy != TLSMandatory {
+		t.Errorf("failed to create new client. TLS policy expected: %d, got: %d", TLSMandatory, c.tlspolicy)
+	}
+	if c.tlsconfig.ServerName != host {
+		t.Errorf("failed to create new client. TLS config host expected: %s, got: %s",
+			host, c.tlsconfig.ServerName)
+	}
+	if c.tlsconfig.MinVersion != DefaultTLSMinVersion {
+		t.Errorf("failed to create new client. TLS config min versino expected: %d, got: %d",
+			DefaultTLSMinVersion, c.tlsconfig.MinVersion)
+	}
+}
+
+// TestNewClient tests the NewClient() method with its custom options
+func TestNewClientWithOptions(t *testing.T) {
+	host := "mail.example.com"
+	tests := []struct {
+		name       string
+		option     Option
+		shouldfail bool
+	}{
+		{"nil option", nil, true},
+		{"WithPort()", WithPort(465), false},
+		{"WithPort(); port is too high", WithPort(100000), true},
+		{"WithTimeout()", WithTimeout(time.Second * 5), false},
+		{"WithTimeout()", WithTimeout(-10), true},
+		{"WithSSL()", WithSSL(), false},
+		{"WithHELO()", WithHELO(host), false},
+		{"WithTLSPolicy()", WithTLSPolicy(TLSOpportunistic), false},
+		{"WithTLSConfig()", WithTLSConfig(&tls.Config{}), false},
+		{"WithTLSConfig(); config is nil", WithTLSConfig(nil), true},
+		{"WithSMTPAuth()", WithSMTPAuth(SMTPAuthLogin), false},
+		{"WithSMTPAuthCustom()",
+			WithSMTPAuthCustom(smtp.PlainAuth("", "", "", "")),
+			false},
+		{"WithUsername()", WithUsername("test"), false},
+		{"WithPassword()", WithPassword("test"), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := NewClient(DefaultHost, tt.option)
+			if err != nil && !tt.shouldfail {
+				t.Errorf("failed to create new client: %s", err)
+				return
+			}
+			_ = c
+		})
+	}
+}
 
 // TestWithHELO tests the WithHELO() option for the NewClient() method
 func TestWithHELO(t *testing.T) {
