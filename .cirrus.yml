@@ -21,4 +21,4 @@ build_task:
     folder: $GOPATH/pkg/mod
   get_script: go get github.com/wneessen/go-mail
   build_script: go build github.com/wneessen/go-mail
-  test_script: go test github.com/wneessen/go-mail
+  test_script: go test github.com/wneessen/go-mail/...
