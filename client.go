@@ -23,6 +23,10 @@ const (
 
 	// DefaultTLSPolicy is the default STARTTLS policy
 	DefaultTLSPolicy = TLSMandatory
+
+	// DefaultTLSMinVersion is the minimum TLS version required for the connection
+	// Nowadays TLS1.2 should be the sane default
+	DefaultTLSMinVersion = tls.VersionTLS12
 )
 
 // Client is the SMTP client struct
@@ -71,9 +75,21 @@ type Client struct {
 }
 
 // Option returns a function that can be used for grouping Client options
-type Option func(*Client)
+type Option func(*Client) error
 
 var (
+	// ErrInvalidPort should be used if a port is specified that is not valid
+	ErrInvalidPort = errors.New("invalid port number")
+
+	// ErrInvalidTimeout should be used if a timeout is set that is zero or negative
+	ErrInvalidTimeout = errors.New("timeout cannot be zero or negative")
+
+	// ErrInvalidHELO should be used if an empty HELO sting is provided
+	ErrInvalidHELO = errors.New("invalid HELO/EHLO value - must not be empty")
+
+	// ErrInvalidTLSConfig should be used if an empty tls.Config is provided
+	ErrInvalidTLSConfig = errors.New("invalid TLS config")
+
 	// ErrNoHostname should be used if a Client has no hostname set
 	ErrNoHostname = errors.New("hostname for client cannot be empty")
 
@@ -95,7 +111,7 @@ func NewClient(h string, o ...Option) (*Client, error) {
 		cto:       DefaultTimeout,
 		host:      h,
 		port:      DefaultPort,
-		tlsconfig: &tls.Config{ServerName: h},
+		tlsconfig: &tls.Config{ServerName: h, MinVersion: DefaultTLSMinVersion},
 		tlspolicy: DefaultTLSPolicy,
 	}
 
@@ -109,7 +125,9 @@ func NewClient(h string, o ...Option) (*Client, error) {
 		if co == nil {
 			continue
 		}
-		co(c)
+		if err := co(c); err != nil {
+			return c, fmt.Errorf("failed to apply option: %w", err)
+		}
 	}
 
 	// Some settings in a Client cannot be empty/unset
@@ -123,71 +141,93 @@ func NewClient(h string, o ...Option) (*Client, error) {
 
 // WithPort overrides the default connection port
 func WithPort(p int) Option {
-	return func(c *Client) {
+	return func(c *Client) error {
+		if p < 1 || p > 65535 {
+			return ErrInvalidPort
+		}
 		c.port = p
+		return nil
 	}
 }
 
 // WithTimeout overrides the default connection timeout
 func WithTimeout(t time.Duration) Option {
-	return func(c *Client) {
+	return func(c *Client) error {
+		if t <= 0 {
+			return ErrInvalidTimeout
+		}
 		c.cto = t
+		return nil
 	}
 }
 
 // WithSSL tells the client to use a SSL/TLS connection
 func WithSSL() Option {
-	return func(c *Client) {
+	return func(c *Client) error {
 		c.ssl = true
+		return nil
 	}
 }
 
 // WithHELO tells the client to use the provided string as HELO/EHLO greeting host
 func WithHELO(h string) Option {
-	return func(c *Client) {
+	return func(c *Client) error {
+		if h == "" {
+			return ErrInvalidHELO
+		}
 		c.helo = h
+		return nil
 	}
 }
 
 // WithTLSPolicy tells the client to use the provided TLSPolicy
 func WithTLSPolicy(p TLSPolicy) Option {
-	return func(c *Client) {
+	return func(c *Client) error {
 		c.tlspolicy = p
+		return nil
 	}
 }
 
 // WithTLSConfig tells the client to use the provided *tls.Config
 func WithTLSConfig(co *tls.Config) Option {
-	return func(c *Client) {
+	return func(c *Client) error {
+		if co == nil {
+			return ErrInvalidTLSConfig
+		}
 		c.tlsconfig = co
+		return nil
 	}
 }
 
 // WithSMTPAuth tells the client to use the provided SMTPAuthType for authentication
 func WithSMTPAuth(t SMTPAuthType) Option {
-	return func(c *Client) {
+	return func(c *Client) error {
 		c.satype = t
+		return nil
 	}
 }
 
 // WithSMTPAuthCustom tells the client to use the provided smtp.Auth for SMTP authentication
 func WithSMTPAuthCustom(a smtp.Auth) Option {
-	return func(c *Client) {
+	return func(c *Client) error {
 		c.sa = a
+		return nil
 	}
 }
 
 // WithUsername tells the client to use the provided string as username for authentication
 func WithUsername(u string) Option {
-	return func(c *Client) {
+	return func(c *Client) error {
 		c.user = u
+		return nil
 	}
 }
 
 // WithPassword tells the client to use the provided string as password/secret for authentication
 func WithPassword(p string) Option {
-	return func(c *Client) {
+	return func(c *Client) error {
 		c.pass = p
+		return nil
 	}
 }
 
