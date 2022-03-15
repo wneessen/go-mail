@@ -29,7 +29,7 @@ func TestNewClient(t *testing.T) {
 				t.Errorf("failed to create new client: %s", err)
 				return
 			}
-			if c.host != host {
+			if c.host != tt.host {
 				t.Errorf("failed to create new client. Host expected: %s, got: %s", host, c.host)
 			}
 			if c.cto != DefaultTimeout {
@@ -42,7 +42,7 @@ func TestNewClient(t *testing.T) {
 			if c.tlspolicy != TLSMandatory {
 				t.Errorf("failed to create new client. TLS policy expected: %d, got: %d", TLSMandatory, c.tlspolicy)
 			}
-			if c.tlsconfig.ServerName != host {
+			if c.tlsconfig.ServerName != tt.host {
 				t.Errorf("failed to create new client. TLS config host expected: %s, got: %s",
 					host, c.tlsconfig.ServerName)
 			}
