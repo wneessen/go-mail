@@ -395,13 +395,39 @@ func TestSetSMTPAuthCustom(t *testing.T) {
 	}
 }
 
-// Test_tls tests the tls method for the Client object
-func Test_tls(t *testing.T) {
+// TestClient_DialWithContext tests the DialWithContext method for the Client object
+func TestClient_DialWithContext(t *testing.T) {
+	c, err := getTestConnection(true)
+	if err != nil {
+		t.Skipf("failed to create test client: %s. Skipping tests", err)
+	}
+	ctx := context.Background()
+	if err := c.DialWithContext(ctx); err != nil {
+		t.Errorf("failed to dial with context: %s", err)
+		return
+	}
+	if c.co == nil {
+		t.Errorf("DialWithContext didn't fail but no connection found.")
+	}
+	if c.sc == nil {
+		t.Errorf("DialWithContext didn't fail but no SMTP client found.")
+	}
+	if err := c.Close(); err != nil {
+		t.Errorf("failed to close connection: %s", err)
+	}
+}
+
+// TestClient_DiealWithContextOptions tests the DialWithContext method plus different options
+// for the Client object
+func TestClient_DialWithContextOptions(t *testing.T) {
 	tests := []struct {
-		name   string
-		policy TLSPolicy
+		name    string
+		wantssl bool
+		wanttls TLSPolicy
+		sf      bool
 	}{
-		{"Mandatory", TLSMandatory},
+		{"Want SSL (should fail)", true, NoTLS, true},
+		{"Want Mandatory TLS", false, TLSMandatory, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -409,8 +435,31 @@ func Test_tls(t *testing.T) {
 			if err != nil {
 				t.Skipf("failed to create test client: %s. Skipping tests", err)
 			}
-			if err := c.tls(); err != nil {
-				t.Errorf("failed to set TLS/SSL config in client: %s", err)
+			if tt.wantssl {
+				c.SetSSL(true)
+			}
+			if tt.wanttls != NoTLS {
+				c.SetTLSPolicy(tt.wanttls)
+			}
+
+			ctx := context.Background()
+			if err := c.DialWithContext(ctx); err != nil && !tt.sf {
+				t.Errorf("failed to dial with context: %s", err)
+				return
+			}
+			if !tt.sf {
+				if c.co == nil && !tt.sf {
+					t.Errorf("DialWithContext didn't fail but no connection found.")
+				}
+				if c.sc == nil && !tt.sf {
+					t.Errorf("DialWithContext didn't fail but no SMTP client found.")
+				}
+				if err := c.Reset(); err != nil {
+					t.Errorf("failed to reset connection: %s", err)
+				}
+				if err := c.Close(); err != nil {
+					t.Errorf("failed to close connection: %s", err)
+				}
 			}
 		})
 	}
