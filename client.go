@@ -245,6 +245,11 @@ func (c *Client) SetTLSPolicy(p TLSPolicy) {
 	c.tlspolicy = p
 }
 
+// SetSSL tells the Client wether to use SSL or not
+func (c *Client) SetSSL(s bool) {
+	c.ssl = s
+}
+
 // SetTLSConfig overrides the current *tls.Config with the given *tls.Config value
 func (c *Client) SetTLSConfig(co *tls.Config) error {
 	if co == nil {
@@ -431,6 +436,9 @@ func (c *Client) checkConn() error {
 
 // tls tries to make sure that the STARTTLS requirements are satisfied
 func (c *Client) tls() error {
+	if c.co == nil {
+		return ErrNoActiveConnection
+	}
 	if !c.ssl && c.tlspolicy != NoTLS {
 		est := false
 		st, _ := c.sc.Extension("STARTTLS")

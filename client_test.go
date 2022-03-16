@@ -1,10 +1,12 @@
 package mail
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"github.com/wneessen/go-mail/auth"
 	"net/smtp"
+	"os"
 	"testing"
 	"time"
 )
@@ -255,6 +257,30 @@ func TestSetTLSConfig(t *testing.T) {
 	}
 }
 
+// TestSetSSL tests the SetSSL() method for the Client object
+func TestSetSSL(t *testing.T) {
+	tests := []struct {
+		name  string
+		value bool
+	}{
+		{"SSL: on", true},
+		{"SSL: off", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := NewClient(DefaultHost)
+			if err != nil {
+				t.Errorf("failed to create new client: %s", err)
+				return
+			}
+			c.SetSSL(tt.value)
+			if c.ssl != tt.value {
+				t.Errorf("failed to set SSL setting. Got: %t, want: %t", c.ssl, tt.value)
+			}
+		})
+	}
+}
+
 // TestSetUsername tests the SetUsername method for the Client object
 func TestSetUsername(t *testing.T) {
 	tests := []struct {
@@ -367,4 +393,59 @@ func TestSetSMTPAuthCustom(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Test_tls tests the tls method for the Client object
+func Test_tls(t *testing.T) {
+	tests := []struct {
+		name   string
+		policy TLSPolicy
+	}{
+		{"Mandatory", TLSMandatory},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := getTestConnection(true)
+			if err != nil {
+				t.Skipf("failed to create test client: %s. Skipping tests", err)
+			}
+			if err := c.tls(); err != nil {
+				t.Errorf("failed to set TLS/SSL config in client: %s", err)
+			}
+		})
+	}
+}
+
+// getTestConnection takes environment variables to establish a connection to a real
+// SMTP server to test all functionality that requires a connection
+func getTestConnection(auth bool) (*Client, error) {
+	th := os.Getenv("TEST_HOST")
+	if th == "" {
+		return nil, fmt.Errorf("no TEST_HOST set")
+	}
+	c, err := NewClient(th)
+	if err != nil {
+		return c, err
+	}
+	if auth {
+		st := os.Getenv("TEST_SMTPAUTH_TYPE")
+		if st != "" {
+			c.SetSMTPAuth(SMTPAuthType(st))
+		}
+		u := os.Getenv("TEST_SMTPAUTH_USER")
+		if u != "" {
+			c.SetUsername(u)
+		}
+		p := os.Getenv("TEST_SMTPAUTH_PASS")
+		if p != "" {
+			c.SetPassword(p)
+		}
+	}
+	if err := c.DialWithContext(context.Background()); err != nil {
+		return c, fmt.Errorf("connection to test server failed: %s", err)
+	}
+	if err := c.Close(); err != nil {
+		return c, fmt.Errorf("disconnect from test server failed: %s", err)
+	}
+	return c, nil
 }
