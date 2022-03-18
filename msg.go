@@ -108,6 +108,13 @@ func WithMIMEVersion(mv MIMEVersion) MsgOption {
 	}
 }
 
+// WithBoundary overrides the default MIME boundary
+func WithBoundary(b string) MsgOption {
+	return func(m *Msg) {
+		m.boundary = b
+	}
+}
+
 // SetCharset sets the encoding charset of the Msg
 func (m *Msg) SetCharset(c Charset) {
 	m.charset = c

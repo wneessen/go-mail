@@ -113,6 +113,55 @@ func TestNewMsgWithEncoding(t *testing.T) {
 	}
 }
 
+// TestNewMsgWithMIMEVersion tests WithMIMEVersion and Msg.SetMIMEVersion
+func TestNewMsgWithMIMEVersion(t *testing.T) {
+	tests := []struct {
+		name  string
+		value MIMEVersion
+		want  MIMEVersion
+	}{
+		{"MIME version is 1.0", Mime10, "1.0"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := NewMsg(WithMIMEVersion(tt.value))
+			if m.mimever != tt.want {
+				t.Errorf("WithMIMEVersion() failed. Expected: %s, got: %s", tt.want, m.mimever)
+			}
+			m.mimever = ""
+			m.SetMIMEVersion(tt.value)
+			if m.mimever != tt.want {
+				t.Errorf("SetMIMEVersion() failed. Expected: %s, got: %s", tt.want, m.mimever)
+			}
+		})
+	}
+}
+
+// TestNewMsgWithBoundary tests WithBoundary and Msg.SetBoundary
+func TestNewMsgWithBoundary(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+	}{
+		{"boundary is test123", "test123"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := NewMsg(WithBoundary(tt.value))
+			if m.boundary != tt.value {
+				t.Errorf("WithBoundary() failed. Expected: %s, got: %s", tt.value, m.boundary)
+			}
+			m.boundary = ""
+			m.SetBoundary(tt.value)
+			if m.boundary != tt.value {
+				t.Errorf("SetBoundary() failed. Expected: %s, got: %s", tt.value, m.boundary)
+			}
+		})
+	}
+}
+
 // TestMsg_SetHEader tests Msg.SetHeader
 func TestMsg_SetHeader(t *testing.T) {
 	tests := []struct {
@@ -408,7 +457,7 @@ func TestMsg_SetBulk(t *testing.T) {
 	}
 }
 
-// TestMsg_SetDate tests the Msg.SetDate method
+// TestMsg_SetDate tests the Msg.SetDate and Msg.SetDateWithValue method
 func TestMsg_SetDate(t *testing.T) {
 	m := NewMsg()
 	m.SetDate()
@@ -424,6 +473,28 @@ func TestMsg_SetDate(t *testing.T) {
 	_, err := time.Parse(time.RFC1123Z, d[0])
 	if err != nil {
 		t.Errorf("failed to parse time in date header: %s", err)
+	}
+	m.genHeader = nil
+	m.genHeader = make(map[Header][]string)
+
+	now := time.Now()
+	m.SetDateWithValue(now)
+	if m.genHeader[HeaderDate] == nil {
+		t.Errorf("SetDateWithValue() failed. Date header is nil")
+		return
+	}
+	d, ok = m.genHeader[HeaderDate]
+	if !ok {
+		t.Errorf("failed to get date header")
+		return
+	}
+	pt, err := time.Parse(time.RFC1123Z, d[0])
+	if err != nil {
+		t.Errorf("failed to parse time in date header: %s", err)
+	}
+	if pt.Unix() != now.Unix() {
+		t.Errorf("SetDateWithValue() failed. Expected time: %d, got: %d", now.Unix(),
+			pt.Unix())
 	}
 }
 
@@ -553,4 +624,95 @@ func TestMsg_GetRecipients(t *testing.T) {
 		t.Errorf("GetRecipients() failed. Expected bcc address %s but was not found", a[2])
 		return
 	}
+}
+
+// TestMsg_ReplyTo tests the Msg.ReplyTo and Msg.ReplyToFormat methods
+func TestMsg_ReplyTo(t *testing.T) {
+	tests := []struct {
+		tname string
+		name  string
+		addr  string
+		want  string
+		sf    bool
+	}{
+		{"valid name and addr", "Toni Tester", "tester@example.com",
+			`"Toni Tester" <tester@example.com>`, false},
+		{"no name with valid addr", "", "tester@example.com",
+			`<tester@example.com>`, false},
+		{"valid name with invalid addr", "Toni Tester", "@example.com",
+			``, true},
+	}
+	m := NewMsg()
+	for _, tt := range tests {
+		t.Run(tt.tname, func(t *testing.T) {
+			if err := m.ReplyTo(tt.want); err != nil && !tt.sf {
+				t.Errorf("ReplyTo() method failed: %s", err)
+			}
+			if !tt.sf {
+				rt, ok := m.genHeader[HeaderReplyTo]
+				if !ok {
+					t.Errorf("ReplyTo() failed: ReplyTo generic header not set")
+					return
+				}
+				if len(rt) <= 0 {
+					t.Errorf("ReplyTo() failed: length of generic ReplyTo header is zero or less than zero")
+					return
+				}
+				if rt[0] != tt.want {
+					t.Errorf("ReplyTo() failed: expected value: %s, got: %s", tt.want, rt[0])
+				}
+			}
+			m.genHeader = nil
+			m.genHeader = make(map[Header][]string)
+			if err := m.ReplyToFormat(tt.name, tt.addr); err != nil && !tt.sf {
+				t.Errorf("ReplyToFormat() method failed: %s", err)
+			}
+			if !tt.sf {
+				rt, ok := m.genHeader[HeaderReplyTo]
+				if !ok {
+					t.Errorf("ReplyTo() failed: ReplyTo generic header not set")
+					return
+				}
+				if len(rt) <= 0 {
+					t.Errorf("ReplyTo() failed: length of generic ReplyTo header is zero or less than zero")
+					return
+				}
+				if rt[0] != tt.want {
+					t.Errorf("ReplyTo() failed: expected value: %s, got: %s", tt.want, rt[0])
+				}
+			}
+			m.genHeader = nil
+			m.genHeader = make(map[Header][]string)
+		})
+	}
+}
+
+// TestMsg_Subject tests the Msg.Subject method
+func TestMsg_Subject(t *testing.T) {
+	tests := []struct {
+		name string
+		sub  string
+		want string
+	}{
+		{"normal subject", "This is a test subject", "This is a test subject"},
+		{"subject with umlauts", "This is a test subject with umlauts: üäöß",
+			"=?UTF-8?q?This_is_a_test_subject_with_umlauts:_=C3=BC=C3=A4=C3=B6=C3=9F?="},
+		{"subject with emoji", "This is a test subject with emoji: 📧",
+			"=?UTF-8?q?This_is_a_test_subject_with_emoji:_=F0=9F=93=A7?="},
+	}
+	m := NewMsg()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m.Subject(tt.sub)
+			s, ok := m.genHeader[HeaderSubject]
+			if !ok || len(s) <= 0 {
+				t.Errorf("Subject() method failed. Generic header for Subject is empty")
+				return
+			}
+			if s[0] != tt.want {
+				t.Errorf("Subject() method failed. Expected: %s, got: %s", tt.want, s[0])
+			}
+		})
+	}
+
 }
