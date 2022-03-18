@@ -152,3 +152,13 @@ func (i Importance) String() string {
 		return ""
 	}
 }
+
+// String returns the header string based on the given Header
+func (h Header) String() string {
+	return string(h)
+}
+
+// String returns the address header string based on the given AddrHeader
+func (a AddrHeader) String() string {
+	return string(a)
+}
