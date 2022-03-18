@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 	"time"
 )
 
@@ -532,7 +533,9 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...st
 	}
 	_, err = m.Write(si)
 	if err != nil {
-		return fmt.Errorf("failed to write mail to buffer: %w", err)
+		if !errors.Is(err, syscall.EPIPE) {
+			return fmt.Errorf("failed to write mail to buffer: %w", err)
+		}
 	}
 
 	// Read the stderr pipe for possible errors
