@@ -1,6 +1,7 @@
 package mail
 
 import (
+	"bytes"
 	"fmt"
 	"net/mail"
 	"testing"
@@ -826,6 +827,111 @@ func TestMsg_SetUserAgent(t *testing.T) {
 			if ua[0] != tt.ua {
 				t.Errorf("SetUserAgent() method failed. Expected User-Agent: %s, got: %s", tt.ua, ua[0])
 			}
+		})
+	}
+}
+
+// TestMsg_SetBodyString tests the Msg.SetBodyString method
+func TestMsg_SetBodyString(t *testing.T) {
+	tests := []struct {
+		name  string
+		ct    ContentType
+		value string
+		want  string
+		sf    bool
+	}{
+		{"Body: test", TypeTextPlain, "test", "test", false},
+		{"Body: with Umlauts", TypeTextHTML, "<strong>üäöß</strong>",
+			"<strong>üäöß</strong>", false},
+		{"Body: with emoji", TypeTextPlain, "📧", "📧", false},
+	}
+	m := NewMsg()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m.SetBodyString(tt.ct, tt.value)
+			if len(m.parts) != 1 {
+				t.Errorf("SetBodyString() failed: no mail parts found")
+			}
+			part := m.parts[0]
+			res := bytes.Buffer{}
+			if err := part.w(&res); err != nil && !tt.sf {
+				t.Errorf("WriteFunc of part failed: %s", err)
+			}
+			if res.String() != tt.want {
+				t.Errorf("SetBodyString() failed. Expecteding: %s, got: %s", tt.want, res.String())
+			}
+		})
+	}
+}
+
+// TestMsg_AddAlternativeString tests the Msg.AddAlternativeString method
+func TestMsg_AddAlternativeString(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  string
+		sf    bool
+	}{
+		{"Body: test", "test", "test", false},
+		{"Body: with Umlauts", "<strong>üäöß</strong>", "<strong>üäöß</strong>", false},
+		{"Body: with emoji", "📧", "📧", false},
+	}
+	m := NewMsg()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m.SetBodyString(TypeTextPlain, tt.value)
+			if len(m.parts) != 1 {
+				t.Errorf("AddAlternativeString() => SetBodyString() failed: no mail parts found")
+			}
+			m.AddAlternativeString(TypeTextHTML, tt.value)
+			if len(m.parts) != 2 {
+				t.Errorf("AddAlternativeString() failed: no alternative mail parts found")
+			}
+			apart := m.parts[1]
+			res := bytes.Buffer{}
+			if err := apart.w(&res); err != nil && !tt.sf {
+				t.Errorf("WriteFunc of part failed: %s", err)
+			}
+			if res.String() != tt.want {
+				t.Errorf("AddAlternativeString() failed. Expecteding: %s, got: %s", tt.want, res.String())
+			}
+		})
+	}
+}
+
+// TestMsg_AttachFile tests the Msg.AttachFile and the WithFilename FileOption method
+func TestMsg_AttachFile(t *testing.T) {
+	tests := []struct {
+		name string
+		file string
+		fn   string
+		sf   bool
+	}{
+		{"File: README.md", "README.md", "README.md", false},
+		{"File: doc.go", "doc.go", "foo.go", false},
+		{"File: nonexisting", "", "invalid.file", true},
+	}
+	m := NewMsg()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m.AttachFile(tt.file, WithFileName(tt.fn))
+			if len(m.attachments) != 1 && !tt.sf {
+				t.Errorf("AttachFile() failed. Number of attachments expected: %d, got: %d", 1,
+					len(m.attachments))
+				return
+			}
+			if !tt.sf {
+				file := m.attachments[0]
+				if file == nil {
+					t.Errorf("AttachFile() failed. Attachment file pointer is nil")
+					return
+				}
+				if file.Name != tt.fn {
+					t.Errorf("AttachFile() failed. Filename of attachment expected: %s, got: %s", tt.fn,
+						file.Name)
+				}
+			}
+			m.Reset()
 		})
 	}
 }
