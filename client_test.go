@@ -90,7 +90,7 @@ func TestNewClientWithOptions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, err := NewClient(DefaultHost, tt.option)
+			c, err := NewClient(DefaultHost, tt.option, nil)
 			if err != nil && !tt.shouldfail {
 				t.Errorf("failed to create new client: %s", err)
 				return

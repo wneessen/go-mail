@@ -3,6 +3,7 @@ package mail
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"net/mail"
 	"testing"
 	"time"
@@ -68,7 +69,7 @@ func TestNewMsgCharset(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := NewMsg(WithCharset(tt.value))
+			m := NewMsg(WithCharset(tt.value), nil)
 			if m.charset != tt.want {
 				t.Errorf("WithCharset() failed. Expected: %s, got: %s", tt.want, m.charset)
 			}
@@ -914,7 +915,7 @@ func TestMsg_AttachFile(t *testing.T) {
 	m := NewMsg()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m.AttachFile(tt.file, WithFileName(tt.fn))
+			m.AttachFile(tt.file, WithFileName(tt.fn), nil)
 			if len(m.attachments) != 1 && !tt.sf {
 				t.Errorf("AttachFile() failed. Number of attachments expected: %d, got: %d", 1,
 					len(m.attachments))
@@ -930,8 +931,36 @@ func TestMsg_AttachFile(t *testing.T) {
 					t.Errorf("AttachFile() failed. Filename of attachment expected: %s, got: %s", tt.fn,
 						file.Name)
 				}
+				buf := bytes.Buffer{}
+				if err := file.Writer(&buf); err != nil {
+					t.Errorf("failed to execute WriterFunc: %s", err)
+					return
+				}
 			}
 			m.Reset()
 		})
+	}
+}
+
+// TestMsg_AttachFileBrokenFunc tests WriterFunc of the Msg.AttachFile  method
+func TestMsg_AttachFileBrokenFunc(t *testing.T) {
+	m := NewMsg()
+	m.AttachFile("README.md")
+	if len(m.attachments) != 1 {
+		t.Errorf("AttachFile() failed. Number of attachments expected: %d, got: %d", 1,
+			len(m.attachments))
+		return
+	}
+	file := m.attachments[0]
+	if file == nil {
+		t.Errorf("AttachFile() failed. Attachment file pointer is nil")
+		return
+	}
+	file.Writer = func(io.Writer) error {
+		return fmt.Errorf("failing intentionally")
+	}
+	buf := bytes.Buffer{}
+	if err := file.Writer(&buf); err == nil {
+		t.Errorf("execute WriterFunc did not fail, but was expected to fail")
 	}
 }
