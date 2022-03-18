@@ -3,10 +3,14 @@
 
 package mail
 
-import "testing"
+import (
+	"context"
+	"testing"
+	"time"
+)
 
-// TestMsg_WriteToSendmailWithCommand tests the WriteToSendmailWithCommand() method of the Msg
-func TestMsg_WriteToSendmailWithCommand(t *testing.T) {
+// TestMsg_WriteToSendmailWithContext tests the WriteToSendmailWithContext() method of the Msg
+func TestMsg_WriteToSendmailWithContext(t *testing.T) {
 	tests := []struct {
 		name string
 		sp   string
@@ -20,8 +24,10 @@ func TestMsg_WriteToSendmailWithCommand(t *testing.T) {
 	m := NewMsg()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx, cfn := context.WithTimeout(context.Background(), time.Second*10)
+			defer cfn()
 			m.SetBodyString(TypeTextPlain, "Plain")
-			if err := m.WriteToSendmailWithCommand(tt.sp); err != nil && !tt.sf {
+			if err := m.WriteToSendmailWithContext(ctx, tt.sp); err != nil && !tt.sf {
 				t.Errorf("WriteToSendmailWithCommand() failed: %s", err)
 			}
 			m.Reset()
