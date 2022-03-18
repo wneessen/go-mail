@@ -490,11 +490,17 @@ func (m *Msg) appendFile(c []*File, f *File, o ...FileOption) []*File {
 	return append(c, f)
 }
 
-// WriteToSendmail returns WriteToSendmailWithContext with a default timeout of 5 seconds
+// WriteToSendmail returns WriteToSendmailWithCommand with a default sendmail path
 func (m *Msg) WriteToSendmail() error {
+	return m.WriteToSendmailWithCommand(SendmailPath)
+}
+
+// WriteToSendmailWithCommand returns WriteToSendmailWithContext with a default timeout
+// of 5 seconds and a given sendmail path
+func (m *Msg) WriteToSendmailWithCommand(sp string) error {
 	tctx, tcfn := context.WithTimeout(context.Background(), time.Second*5)
 	defer tcfn()
-	return m.WriteToSendmailWithContext(tctx, SendmailPath)
+	return m.WriteToSendmailWithContext(tctx, sp)
 }
 
 // WriteToSendmailWithContext opens an pipe to the local sendmail binary and tries to send the
