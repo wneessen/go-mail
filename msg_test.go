@@ -1149,7 +1149,7 @@ func TestMsg_WriteToSendmailWithCommand(t *testing.T) {
 		{"Sendmail path: /dev/null", "/dev/null", true},
 		{"Sendmail path: /bin/cat", "/bin/cat", true},
 		{"Sendmail path: /is/invalid", "/is/invalid", true},
-		{"Sendmail path: /usr/bin/true", "/usr/bin/true", false},
+		{"Sendmail path: /bin/echo", "/bin/echo", false},
 	}
 	m := NewMsg()
 	for _, tt := range tests {
