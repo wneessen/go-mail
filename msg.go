@@ -1,7 +1,6 @@
 package mail
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -29,17 +28,23 @@ type Msg struct {
 	// addrHeader is a slice of strings that the different mail AddrHeader fields
 	addrHeader map[AddrHeader][]*mail.Address
 
+	// attachments represent the different attachment File of the Msg
+	attachments []*File
+
 	// boundary is the MIME content boundary
 	boundary string
 
 	// charset represents the charset of the mail (defaults to UTF-8)
 	charset Charset
 
-	// encoding represents the message encoding (the encoder will be a corresponding WordEncoder)
-	encoding Encoding
+	// embeds represent the different embedded File of the Msg
+	embeds []*File
 
 	// encoder represents a mime.WordEncoder from the std lib
 	encoder mime.WordEncoder
+
+	// encoding represents the message encoding (the encoder will be a corresponding WordEncoder)
+	encoding Encoding
 
 	// genHeader is a slice of strings that the different generic mail Header fields
 	genHeader map[Header][]string
@@ -49,12 +54,6 @@ type Msg struct {
 
 	// parts represent the different parts of the Msg
 	parts []*Part
-
-	// attachments represent the different attachment File of the Msg
-	attachments []*File
-
-	// embeds represent the different embedded File of the Msg
-	embeds []*File
 }
 
 // SendmailPath is the default system path to the sendmail binary
@@ -511,14 +510,21 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...st
 	ec.Args = append(ec.Args, "-oi", "-t")
 	ec.Args = append(ec.Args, a...)
 
-	var ebuf bytes.Buffer
-	ec.Stderr = &ebuf
-	ses := bufio.NewScanner(&ebuf)
+	se, err := ec.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("failed to set STDERR pipe: %w", err)
+	}
+	defer func() {
+		_ = se.Close()
+	}()
 
 	si, err := ec.StdinPipe()
 	if err != nil {
 		return fmt.Errorf("failed to set STDIN pipe: %w", err)
 	}
+	defer func() {
+		_ = si.Close()
+	}()
 
 	// Start the execution and write to STDIN
 	if err := ec.Start(); err != nil {
@@ -526,23 +532,17 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...st
 	}
 	_, err = m.Write(si)
 	if err != nil {
-		_ = si.Close()
 		return fmt.Errorf("failed to write mail to buffer: %w", err)
 	}
-	if err := si.Close(); err != nil {
-		return fmt.Errorf("failed to close STDIN pipe: %w", err)
-	}
 
-	// Read the stderr buffer for possible errors
-	var serr string
-	for ses.Scan() {
-		serr += ses.Text()
-	}
-	if err := ses.Err(); err != nil {
+	// Read the stderr pipe for possible errors
+	var serr []byte
+	en, err := se.Read(serr)
+	if err != nil {
 		return fmt.Errorf("failed to read STDERR pipe: %w", err)
 	}
-	if serr != "" {
-		return fmt.Errorf("sendmail execution failed: %s", serr)
+	if en > 0 {
+		return fmt.Errorf("sendmail command failed: %s", serr)
 	}
 
 	// Wait for completion or cancellation of the sendmail executable
