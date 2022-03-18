@@ -714,5 +714,118 @@ func TestMsg_Subject(t *testing.T) {
 			}
 		})
 	}
+}
 
+// TestMsg_SetImportance tests the Msg.SetImportance method
+func TestMsg_SetImportance(t *testing.T) {
+	tests := []struct {
+		name   string
+		imp    Importance
+		wantns string
+		xprio  string
+		want   string
+		sf     bool
+	}{
+		{"Importance: Non-Urgent", ImportanceNonUrgent, "0", "5", "non-urgent", false},
+		{"Importance: Low", ImportanceLow, "0", "5", "low", false},
+		{"Importance: Normal", ImportanceNormal, "", "", "", true},
+		{"Importance: High", ImportanceHigh, "1", "1", "high", false},
+		{"Importance: Urgent", ImportanceUrgent, "1", "1", "urgent", false},
+		{"Importance: Unknown", 9, "", "", "", true},
+	}
+	m := NewMsg()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m.SetImportance(tt.imp)
+			hi, ok := m.genHeader[HeaderImportance]
+			if (!ok || len(hi) <= 0) && !tt.sf {
+				t.Errorf("SetImportance() method failed. Generic header for Importance is empty")
+			}
+			hp, ok := m.genHeader[HeaderPriority]
+			if (!ok || len(hp) <= 0) && !tt.sf {
+				t.Errorf("SetImportance() method failed. Generic header for Priority is empty")
+			}
+			hx, ok := m.genHeader[HeaderXPriority]
+			if (!ok || len(hx) <= 0) && !tt.sf {
+				t.Errorf("SetImportance() method failed. Generic header for X-Priority is empty")
+			}
+			hm, ok := m.genHeader[HeaderXMSMailPriority]
+			if (!ok || len(hm) <= 0) && !tt.sf {
+				t.Errorf("SetImportance() method failed. Generic header for X-MS-XPriority is empty")
+			}
+			if !tt.sf {
+				if hi[0] != tt.want {
+					t.Errorf("SetImportance() method failed. Expected Imporance: %s, got: %s", tt.want, hi[0])
+				}
+				if hp[0] != tt.wantns {
+					t.Errorf("SetImportance() method failed. Expected Priority: %s, got: %s", tt.want, hp[0])
+				}
+				if hx[0] != tt.xprio {
+					t.Errorf("SetImportance() method failed. Expected X-Priority: %s, got: %s", tt.want, hx[0])
+				}
+				if hm[0] != tt.wantns {
+					t.Errorf("SetImportance() method failed. Expected X-MS-Priority: %s, got: %s", tt.wantns, hm[0])
+				}
+			}
+			m.genHeader = nil
+			m.genHeader = make(map[Header][]string)
+		})
+	}
+
+}
+
+// TestMsg_SetOrganization tests the Msg.SetOrganization method
+func TestMsg_SetOrganization(t *testing.T) {
+	tests := []struct {
+		name string
+		org  string
+	}{
+		{"Org: testcorp", "testcorp"},
+	}
+	m := NewMsg()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m.SetOrganization(tt.org)
+			o, ok := m.genHeader[HeaderOrganization]
+			if !ok || len(o) <= 0 {
+				t.Errorf("SetOrganization() method failed. Generic header for Organization is empty")
+				return
+			}
+			if o[0] != tt.org {
+				t.Errorf("SetOrganization() method failed. Expected: %s, got: %s", tt.org, o[0])
+			}
+		})
+	}
+}
+
+// TestMsg_SetUserAgent tests the Msg.SetUserAgent method
+func TestMsg_SetUserAgent(t *testing.T) {
+	tests := []struct {
+		name string
+		ua   string
+	}{
+		{"UA: Testmail 1.0", "Testmailer 1.0"},
+	}
+	m := NewMsg()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m.SetUserAgent(tt.ua)
+			xm, ok := m.genHeader[HeaderXMailer]
+			if !ok || len(xm) <= 0 {
+				t.Errorf("SetUserAgent() method failed. Generic header for X-Mailer is empty")
+				return
+			}
+			ua, ok := m.genHeader[HeaderUserAgent]
+			if !ok || len(ua) <= 0 {
+				t.Errorf("SetUserAgent() method failed. Generic header for UserAgent is empty")
+				return
+			}
+			if xm[0] != tt.ua {
+				t.Errorf("SetUserAgent() method failed. Expected X-Mailer: %s, got: %s", tt.ua, xm[0])
+			}
+			if ua[0] != tt.ua {
+				t.Errorf("SetUserAgent() method failed. Expected User-Agent: %s, got: %s", tt.ua, ua[0])
+			}
+		})
+	}
 }
