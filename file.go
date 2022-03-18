@@ -12,7 +12,7 @@ type FileOption func(*File)
 type File struct {
 	Name   string
 	Header textproto.MIMEHeader
-	Writer func(w io.Writer) error
+	Writer func(w io.Writer) (int64, error)
 }
 
 // WithFileName sets the filename of the File

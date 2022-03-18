@@ -389,15 +389,15 @@ func (m *Msg) GetRecipients() ([]string, error) {
 // SetBodyString sets the body of the message.
 func (m *Msg) SetBodyString(ct ContentType, b string, o ...PartOption) {
 	buf := bytes.NewBufferString(b)
-	w := func(w io.Writer) error {
-		_, err := io.Copy(w, buf)
-		return err
+	w := func(w io.Writer) (int64, error) {
+		nb, err := io.Copy(w, buf)
+		return nb, err
 	}
 	m.SetBodyWriter(ct, w, o...)
 }
 
 // SetBodyWriter sets the body of the message.
-func (m *Msg) SetBodyWriter(ct ContentType, w func(io.Writer) error, o ...PartOption) {
+func (m *Msg) SetBodyWriter(ct ContentType, w func(io.Writer) (int64, error), o ...PartOption) {
 	p := m.newPart(ct, o...)
 	p.w = w
 	m.parts = []*Part{p}
@@ -406,15 +406,15 @@ func (m *Msg) SetBodyWriter(ct ContentType, w func(io.Writer) error, o ...PartOp
 // AddAlternativeString sets the alternative body of the message.
 func (m *Msg) AddAlternativeString(ct ContentType, b string, o ...PartOption) {
 	buf := bytes.NewBufferString(b)
-	w := func(w io.Writer) error {
-		_, err := io.Copy(w, buf)
-		return err
+	w := func(w io.Writer) (int64, error) {
+		nb, err := io.Copy(w, buf)
+		return nb, err
 	}
 	m.AddAlternativeWriter(ct, w, o...)
 }
 
 // AddAlternativeWriter sets the body of the message.
-func (m *Msg) AddAlternativeWriter(ct ContentType, w func(io.Writer) error, o ...PartOption) {
+func (m *Msg) AddAlternativeWriter(ct ContentType, w func(io.Writer) (int64, error), o ...PartOption) {
 	p := m.newPart(ct, o...)
 	p.w = w
 	m.parts = append(m.parts, p)
@@ -601,16 +601,17 @@ func fileFromFS(n string) *File {
 	return &File{
 		Name:   filepath.Base(n),
 		Header: make(map[string][]string),
-		Writer: func(w io.Writer) error {
+		Writer: func(w io.Writer) (int64, error) {
 			h, err := os.Open(n)
 			if err != nil {
-				return err
+				return 0, err
 			}
-			if _, err := io.Copy(w, h); err != nil {
+			nb, err := io.Copy(w, h)
+			if err != nil {
 				_ = h.Close()
-				return fmt.Errorf("failed to copy file to io.Writer: %w", err)
+				return nb, fmt.Errorf("failed to copy file to io.Writer: %w", err)
 			}
-			return h.Close()
+			return nb, h.Close()
 		},
 	}
 }
@@ -620,11 +621,12 @@ func fileFromReader(n string, r io.Reader) *File {
 	return &File{
 		Name:   filepath.Base(n),
 		Header: make(map[string][]string),
-		Writer: func(w io.Writer) error {
-			if _, err := io.Copy(w, r); err != nil {
-				return err
+		Writer: func(w io.Writer) (int64, error) {
+			nb, err := io.Copy(w, r)
+			if err != nil {
+				return nb, err
 			}
-			return nil
+			return nb, nil
 		},
 	}
 }

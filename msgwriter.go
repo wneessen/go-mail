@@ -241,9 +241,10 @@ func (mw *msgWriter) writeHeader(k Header, v ...string) {
 }
 
 // writeBody writes an io.Reader into an io.Writer using provided Encoding
-func (mw *msgWriter) writeBody(f func(io.Writer) error, e Encoding) {
+func (mw *msgWriter) writeBody(f func(io.Writer) (int64, error), e Encoding) {
 	var w io.Writer
 	var ew io.WriteCloser
+	var n int64
 	if mw.d == 0 {
 		w = mw.w
 	}
@@ -257,12 +258,14 @@ func (mw *msgWriter) writeBody(f func(io.Writer) error, e Encoding) {
 	case EncodingB64:
 		ew = base64.NewEncoder(base64.StdEncoding, w)
 	case NoEncoding:
-		mw.err = f(w)
+		n, mw.err = f(w)
+		mw.n += n
 		return
 	default:
 		ew = quotedprintable.NewWriter(w)
 	}
 
-	mw.err = f(ew)
+	n, mw.err = f(ew)
+	mw.n += int64(n)
 	mw.err = ew.Close()
 }

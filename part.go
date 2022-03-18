@@ -9,7 +9,7 @@ type PartOption func(*Part)
 type Part struct {
 	ctype ContentType
 	enc   Encoding
-	w     func(io.Writer) error
+	w     func(io.Writer) (int64, error)
 }
 
 // SetEncoding creates a new mime.WordEncoder based on the encoding setting of the message

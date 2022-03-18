@@ -1,6 +1,7 @@
 package mail
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -855,7 +856,7 @@ func TestMsg_SetBodyString(t *testing.T) {
 			}
 			part := m.parts[0]
 			res := bytes.Buffer{}
-			if err := part.w(&res); err != nil && !tt.sf {
+			if _, err := part.w(&res); err != nil && !tt.sf {
 				t.Errorf("WriteFunc of part failed: %s", err)
 			}
 			if res.String() != tt.want {
@@ -890,7 +891,7 @@ func TestMsg_AddAlternativeString(t *testing.T) {
 			}
 			apart := m.parts[1]
 			res := bytes.Buffer{}
-			if err := apart.w(&res); err != nil && !tt.sf {
+			if _, err := apart.w(&res); err != nil && !tt.sf {
 				t.Errorf("WriteFunc of part failed: %s", err)
 			}
 			if res.String() != tt.want {
@@ -932,7 +933,7 @@ func TestMsg_AttachFile(t *testing.T) {
 						file.Name)
 				}
 				buf := bytes.Buffer{}
-				if err := file.Writer(&buf); err != nil {
+				if _, err := file.Writer(&buf); err != nil {
 					t.Errorf("failed to execute WriterFunc: %s", err)
 					return
 				}
@@ -956,11 +957,185 @@ func TestMsg_AttachFileBrokenFunc(t *testing.T) {
 		t.Errorf("AttachFile() failed. Attachment file pointer is nil")
 		return
 	}
-	file.Writer = func(io.Writer) error {
-		return fmt.Errorf("failing intentionally")
+	file.Writer = func(io.Writer) (int64, error) {
+		return 0, fmt.Errorf("failing intentionally")
 	}
 	buf := bytes.Buffer{}
-	if err := file.Writer(&buf); err == nil {
+	if _, err := file.Writer(&buf); err == nil {
 		t.Errorf("execute WriterFunc did not fail, but was expected to fail")
 	}
+}
+
+// TestMsg_AttachReader tests the Msg.AttachReader method
+func TestMsg_AttachReader(t *testing.T) {
+	m := NewMsg()
+	ts := "This is a test string"
+	rbuf := bytes.Buffer{}
+	rbuf.WriteString(ts)
+	r := bufio.NewReader(&rbuf)
+	m.AttachReader("testfile.txt", r)
+	if len(m.attachments) != 1 {
+		t.Errorf("AttachReader() failed. Number of attachments expected: %d, got: %d", 1,
+			len(m.attachments))
+		return
+	}
+	file := m.attachments[0]
+	if file == nil {
+		t.Errorf("AttachReader() failed. Attachment file pointer is nil")
+		return
+	}
+	if file.Name != "testfile.txt" {
+		t.Errorf("AttachReader() failed. Expected file name: %s, got: %s", "testfile.txt",
+			file.Name)
+	}
+	wbuf := bytes.Buffer{}
+	if _, err := file.Writer(&wbuf); err != nil {
+		t.Errorf("execute WriterFunc failed: %s", err)
+	}
+	if wbuf.String() != ts {
+		t.Errorf("AttachReader() failed. Expected string: %q, got: %q", ts, wbuf.String())
+	}
+}
+
+// TestMsg_EmbedFile tests the Msg.EmbedFile and the WithFilename FileOption method
+func TestMsg_EmbedFile(t *testing.T) {
+	tests := []struct {
+		name string
+		file string
+		fn   string
+		sf   bool
+	}{
+		{"File: README.md", "README.md", "README.md", false},
+		{"File: doc.go", "doc.go", "foo.go", false},
+		{"File: nonexisting", "", "invalid.file", true},
+	}
+	m := NewMsg()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m.EmbedFile(tt.file, WithFileName(tt.fn), nil)
+			if len(m.embeds) != 1 && !tt.sf {
+				t.Errorf("EmbedFile() failed. Number of embeds expected: %d, got: %d", 1,
+					len(m.embeds))
+				return
+			}
+			if !tt.sf {
+				file := m.embeds[0]
+				if file == nil {
+					t.Errorf("EmbedFile() failed. Embedded file pointer is nil")
+					return
+				}
+				if file.Name != tt.fn {
+					t.Errorf("EmbedFile() failed. Filename of embeds expected: %s, got: %s", tt.fn,
+						file.Name)
+				}
+				buf := bytes.Buffer{}
+				if _, err := file.Writer(&buf); err != nil {
+					t.Errorf("failed to execute WriterFunc: %s", err)
+					return
+				}
+			}
+			m.Reset()
+		})
+	}
+}
+
+// TestMsg_EmbedFileBrokenFunc tests WriterFunc of the Msg.EmbedFile  method
+func TestMsg_EmbedFileBrokenFunc(t *testing.T) {
+	m := NewMsg()
+	m.EmbedFile("README.md")
+	if len(m.embeds) != 1 {
+		t.Errorf("EmbedFile() failed. Number of embeds expected: %d, got: %d", 1,
+			len(m.embeds))
+		return
+	}
+	file := m.embeds[0]
+	if file == nil {
+		t.Errorf("EmbedFile() failed. Embedded file pointer is nil")
+		return
+	}
+	file.Writer = func(io.Writer) (int64, error) {
+		return 0, fmt.Errorf("failing intentionally")
+	}
+	buf := bytes.Buffer{}
+	if _, err := file.Writer(&buf); err == nil {
+		t.Errorf("execute WriterFunc did not fail, but was expected to fail")
+	}
+}
+
+// TestMsg_EmbedReader tests the Msg.EmbedReader method
+func TestMsg_EmbedReader(t *testing.T) {
+	m := NewMsg()
+	ts := "This is a test string"
+	rbuf := bytes.Buffer{}
+	rbuf.WriteString(ts)
+	r := bufio.NewReader(&rbuf)
+	m.EmbedReader("testfile.txt", r)
+	if len(m.embeds) != 1 {
+		t.Errorf("EmbedReader() failed. Number of embeds expected: %d, got: %d", 1,
+			len(m.embeds))
+		return
+	}
+	file := m.embeds[0]
+	if file == nil {
+		t.Errorf("EmbedReader() failed. Embedded file pointer is nil")
+		return
+	}
+	if file.Name != "testfile.txt" {
+		t.Errorf("EmbedReader() failed. Expected file name: %s, got: %s", "testfile.txt",
+			file.Name)
+	}
+	wbuf := bytes.Buffer{}
+	if _, err := file.Writer(&wbuf); err != nil {
+		t.Errorf("execute WriterFunc failed: %s", err)
+	}
+	if wbuf.String() != ts {
+		t.Errorf("EmbedReader() failed. Expected string: %q, got: %q", ts, wbuf.String())
+	}
+}
+
+// TestMsg_hasAlt tests the hasAlt() method of the Msg
+func TestMsg_hasAlt(t *testing.T) {
+	m := NewMsg()
+	m.SetBodyString(TypeTextPlain, "Plain")
+	m.AddAlternativeString(TypeTextHTML, "<b>HTML</b>")
+	if !m.hasAlt() {
+		t.Errorf("mail has alternative parts but hasAlt() returned true")
+	}
+}
+
+// TestMsg_hasRelated tests the hasRelated() method of the Msg
+func TestMsg_hasRelated(t *testing.T) {
+	m := NewMsg()
+	m.SetBodyString(TypeTextPlain, "Plain")
+	m.EmbedFile("README.md")
+	if !m.hasRelated() {
+		t.Errorf("mail has related parts but hasRelated() returned true")
+	}
+}
+
+// TestMsg_hasMixed tests the hasMixed() method of the Msg
+func TestMsg_hasMixed(t *testing.T) {
+	m := NewMsg()
+	m.SetBodyString(TypeTextPlain, "Plain")
+	m.AttachFile("README.md")
+	if !m.hasMixed() {
+		t.Errorf("mail has mixed parts but hasMixed() returned true")
+	}
+}
+
+// TestMsg_Write tests the Write() method of the Msg
+func TestMsg_Write(t *testing.T) {
+	m := NewMsg()
+	m.SetBodyString(TypeTextPlain, "Plain")
+	wbuf := bytes.Buffer{}
+	n, err := m.Write(&wbuf)
+	if err != nil {
+		t.Errorf("Write() failed: %s", err)
+		return
+	}
+	if n != int64(wbuf.Len()) {
+		t.Errorf("Write() failed: expected written byte length: %d, got: %d", n, wbuf.Len())
+		fmt.Printf("%s", wbuf.String())
+	}
+
 }
