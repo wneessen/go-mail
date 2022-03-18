@@ -417,6 +417,67 @@ func TestClient_DialWithContext(t *testing.T) {
 	}
 }
 
+// TestClient_DialWithContextInvalidHost tests the DialWithContext method with intentional breaking
+// for the Client object
+func TestClient_DialWithContextInvalidHost(t *testing.T) {
+	c, err := getTestConnection(true)
+	if err != nil {
+		t.Skipf("failed to create test client: %s. Skipping tests", err)
+	}
+	c.co = nil
+	c.host = "invalid.addr"
+	ctx := context.Background()
+	if err := c.DialWithContext(ctx); err == nil {
+		t.Errorf("dial succeeded but was supposed to fail")
+		return
+	}
+}
+
+// TestClient_DialWithContextInvalidHELO tests the DialWithContext method with intentional breaking
+// for the Client object
+func TestClient_DialWithContextInvalidHELO(t *testing.T) {
+	c, err := getTestConnection(true)
+	if err != nil {
+		t.Skipf("failed to create test client: %s. Skipping tests", err)
+	}
+	c.co = nil
+	c.helo = ""
+	ctx := context.Background()
+	if err := c.DialWithContext(ctx); err == nil {
+		t.Errorf("dial succeeded but was supposed to fail")
+		return
+	}
+}
+
+// TestClient_DialWithContextInvalidAuth tests the DialWithContext method with intentional breaking
+// for the Client object
+func TestClient_DialWithContextInvalidAuth(t *testing.T) {
+	c, err := getTestConnection(true)
+	if err != nil {
+		t.Skipf("failed to create test client: %s. Skipping tests", err)
+	}
+	c.user = "invalid"
+	c.pass = "invalid"
+	c.SetSMTPAuthCustom(auth.LoginAuth("invalid", "invalid", "invalid"))
+	ctx := context.Background()
+	if err := c.DialWithContext(ctx); err == nil {
+		t.Errorf("dial succeeded but was supposed to fail")
+		return
+	}
+}
+
+// TestClient_checkConn tests the checkConn method with intentional breaking for the Client object
+func TestClient_checkConn(t *testing.T) {
+	c, err := getTestConnection(true)
+	if err != nil {
+		t.Skipf("failed to create test client: %s. Skipping tests", err)
+	}
+	c.co = nil
+	if err := c.checkConn(); err == nil {
+		t.Errorf("connCheck() should fail but succeeded")
+	}
+}
+
 // TestClient_DiealWithContextOptions tests the DialWithContext method plus different options
 // for the Client object
 func TestClient_DialWithContextOptions(t *testing.T) {
@@ -468,6 +529,9 @@ func TestClient_DialWithContextOptions(t *testing.T) {
 // getTestConnection takes environment variables to establish a connection to a real
 // SMTP server to test all functionality that requires a connection
 func getTestConnection(auth bool) (*Client, error) {
+	if os.Getenv("TEST_SKIP_ONLINE") != "" {
+		return nil, fmt.Errorf("env variable TEST_SKIP_ONLINE is set. Skipping online tests")
+	}
 	th := os.Getenv("TEST_HOST")
 	if th == "" {
 		return nil, fmt.Errorf("no TEST_HOST set")
