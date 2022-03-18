@@ -12,7 +12,7 @@ coverage:
         target: auto
         base: auto
         if_ci_failed: error
-        threshold: 1%
+        threshold: 5%
 
 comment:
   require_changes: true
