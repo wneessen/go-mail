@@ -19,6 +19,7 @@ func TestPartEncoding(t *testing.T) {
 			part := m.newPart(TypeTextPlain, WithPartEncoding(tt.enc), nil)
 			if part == nil {
 				t.Errorf("newPart() WithPartEncoding() failed: no part returned")
+				return
 			}
 			if part.enc.String() != tt.want {
 				t.Errorf("newPart() WithPartEncoding() failed: expected encoding: %s, got: %s", tt.want,
