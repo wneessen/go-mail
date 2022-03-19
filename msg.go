@@ -432,9 +432,6 @@ func (m *Msg) AttachFile(n string, o ...FileOption) {
 // AttachReader adds an attachment File via io.Reader to the Msg
 func (m *Msg) AttachReader(n string, r io.Reader, o ...FileOption) {
 	f := fileFromReader(n, r)
-	if f == nil {
-		return
-	}
 	m.attachments = m.appendFile(m.attachments, f, o...)
 }
 
@@ -450,9 +447,6 @@ func (m *Msg) EmbedFile(n string, o ...FileOption) {
 // EmbedReader adds an embedded File from an io.Reader to the Msg
 func (m *Msg) EmbedReader(n string, r io.Reader, o ...FileOption) {
 	f := fileFromReader(n, r)
-	if f == nil {
-		return
-	}
 	m.embeds = m.appendFile(m.embeds, f, o...)
 }
 
