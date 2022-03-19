@@ -1,6 +1,7 @@
 package mail
 
 import (
+	"bytes"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -251,12 +252,13 @@ func (mw *msgWriter) writeBody(f func(io.Writer) (int64, error), e Encoding) {
 	if mw.d > 0 {
 		w = mw.pw
 	}
+	wbuf := bytes.Buffer{}
 
 	switch e {
 	case EncodingQP:
-		ew = quotedprintable.NewWriter(w)
+		ew = quotedprintable.NewWriter(&wbuf)
 	case EncodingB64:
-		ew = base64.NewEncoder(base64.StdEncoding, w)
+		ew = base64.NewEncoder(base64.StdEncoding, &wbuf)
 	case NoEncoding:
 		n, mw.err = f(w)
 		mw.n += n
@@ -265,7 +267,8 @@ func (mw *msgWriter) writeBody(f func(io.Writer) (int64, error), e Encoding) {
 		ew = quotedprintable.NewWriter(w)
 	}
 
-	n, mw.err = f(ew)
-	mw.n += int64(n)
+	_, mw.err = f(ew)
 	mw.err = ew.Close()
+	n, mw.err = io.Copy(w, &wbuf)
+	mw.n += n
 }
