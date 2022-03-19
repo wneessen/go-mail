@@ -260,8 +260,11 @@ func (mw *msgWriter) writeBody(f func(io.Writer) (int64, error), e Encoding) {
 	case EncodingB64:
 		ew = base64.NewEncoder(base64.StdEncoding, &wbuf)
 	case NoEncoding:
-		n, mw.err = f(w)
-		mw.n += n
+		_, mw.err = f(&wbuf)
+		n, mw.err = io.Copy(w, &wbuf)
+		if mw.d == 0 {
+			mw.n += n
+		}
 		return
 	default:
 		ew = quotedprintable.NewWriter(w)
@@ -270,5 +273,10 @@ func (mw *msgWriter) writeBody(f func(io.Writer) (int64, error), e Encoding) {
 	_, mw.err = f(ew)
 	mw.err = ew.Close()
 	n, mw.err = io.Copy(w, &wbuf)
-	mw.n += n
+
+	// Since the part writer uses the Write() method, we don't need to add the
+	// bytes twice
+	if mw.d == 0 {
+		mw.n += n
+	}
 }
