@@ -1138,6 +1138,25 @@ func TestMsg_Write(t *testing.T) {
 	}
 }
 
+// TestMsg_WriteWithLongHeader tests the Write() method of the Msg with a long header
+func TestMsg_WriteWithLongHeader(t *testing.T) {
+	m := NewMsg()
+	m.SetBodyString(TypeTextPlain, "Plain")
+	m.SetHeader(HeaderContentLang, "de", "en", "fr", "es", "xxxx", "yyyy", "de", "en", "fr",
+		"es", "xxxx", "yyyy", "de", "en", "fr", "es", "xxxx", "yyyy", "de", "en", "fr")
+	m.SetHeader(HeaderContentID, "XXXXXXXXXXXXXXX XXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXX",
+		"XXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXX")
+	wbuf := bytes.Buffer{}
+	n, err := m.Write(&wbuf)
+	if err != nil {
+		t.Errorf("Write() failed: %s", err)
+		return
+	}
+	if n != int64(wbuf.Len()) {
+		t.Errorf("Write() failed: expected written byte length: %d, got: %d", n, wbuf.Len())
+	}
+}
+
 // TestMsg_WriteDiffEncoding tests the Write() method of the Msg with different Encoding
 func TestMsg_WriteDiffEncoding(t *testing.T) {
 	tests := []struct {
@@ -1147,26 +1166,25 @@ func TestMsg_WriteDiffEncoding(t *testing.T) {
 		alt  bool
 		wa   bool
 		we   bool
-		sf   bool
 	}{
-		{"Plain/QP/NoAlt/NoAttach/NoEmbed", TypeTextPlain, EncodingQP, false, false, false, false},
-		{"Plain/B64/NoAlt/NoAttach/NoEmbed", TypeTextPlain, EncodingB64, false, false, false, false},
-		{"Plain/No/NoAlt/NoAttach/NoEmbed", TypeTextPlain, NoEncoding, false, false, false, false},
-		{"HTML/QP/NoAlt/NoAttach/NoEmbed", TypeTextHTML, EncodingQP, false, false, false, false},
-		{"HTML/B64/NoAlt/NoAttach/NoEmbed", TypeTextHTML, EncodingB64, false, false, false, false},
-		{"HTML/No/NoAlt/NoAttach/NoEmbed", TypeTextHTML, NoEncoding, false, false, false, false},
-		{"Plain/QP/HTML/NoAttach/NoEmbed", TypeTextPlain, EncodingQP, true, false, false, false},
-		{"Plain/B64/HTML/NoAttach/NoEmbed", TypeTextPlain, EncodingB64, true, false, false, false},
-		{"Plain/No/HTML/NoAttach/NoEmbed", TypeTextPlain, NoEncoding, true, false, false, false},
-		{"Plain/QP/NoAlt/Attach/NoEmbed", TypeTextPlain, EncodingQP, false, true, false, false},
-		{"Plain/B64/NoAlt/Attach/NoEmbed", TypeTextPlain, EncodingB64, false, true, false, false},
-		{"Plain/No/NoAlt/Attach/NoEmbed", TypeTextPlain, NoEncoding, false, true, false, false},
-		{"Plain/QP/NoAlt/NoAttach/Embed", TypeTextPlain, EncodingQP, false, false, true, false},
-		{"Plain/B64/NoAlt/NoAttach/Embed", TypeTextPlain, EncodingB64, false, false, true, false},
-		{"Plain/No/NoAlt/NoAttach/Embed", TypeTextPlain, NoEncoding, false, false, true, false},
-		{"Plain/QP/HTML/Attach/Embed", TypeTextPlain, EncodingQP, true, true, true, false},
-		{"Plain/B64/HTML/Attach/Embed", TypeTextPlain, EncodingB64, true, true, true, false},
-		{"Plain/No/HTML/Attach/Embed", TypeTextPlain, NoEncoding, true, true, true, false},
+		{"Plain/QP/NoAlt/NoAttach/NoEmbed", TypeTextPlain, EncodingQP, false, false, false},
+		{"Plain/B64/NoAlt/NoAttach/NoEmbed", TypeTextPlain, EncodingB64, false, false, false},
+		{"Plain/No/NoAlt/NoAttach/NoEmbed", TypeTextPlain, NoEncoding, false, false, false},
+		{"HTML/QP/NoAlt/NoAttach/NoEmbed", TypeTextHTML, EncodingQP, false, false, false},
+		{"HTML/B64/NoAlt/NoAttach/NoEmbed", TypeTextHTML, EncodingB64, false, false, false},
+		{"HTML/No/NoAlt/NoAttach/NoEmbed", TypeTextHTML, NoEncoding, false, false, false},
+		{"Plain/QP/HTML/NoAttach/NoEmbed", TypeTextPlain, EncodingQP, true, false, false},
+		{"Plain/B64/HTML/NoAttach/NoEmbed", TypeTextPlain, EncodingB64, true, false, false},
+		{"Plain/No/HTML/NoAttach/NoEmbed", TypeTextPlain, NoEncoding, true, false, false},
+		{"Plain/QP/NoAlt/Attach/NoEmbed", TypeTextPlain, EncodingQP, false, true, false},
+		{"Plain/B64/NoAlt/Attach/NoEmbed", TypeTextPlain, EncodingB64, false, true, false},
+		{"Plain/No/NoAlt/Attach/NoEmbed", TypeTextPlain, NoEncoding, false, true, false},
+		{"Plain/QP/NoAlt/NoAttach/Embed", TypeTextPlain, EncodingQP, false, false, true},
+		{"Plain/B64/NoAlt/NoAttach/Embed", TypeTextPlain, EncodingB64, false, false, true},
+		{"Plain/No/NoAlt/NoAttach/Embed", TypeTextPlain, NoEncoding, false, false, true},
+		{"Plain/QP/HTML/Attach/Embed", TypeTextPlain, EncodingQP, true, true, true},
+		{"Plain/B64/HTML/Attach/Embed", TypeTextPlain, EncodingB64, true, true, true},
+		{"Plain/No/HTML/Attach/Embed", TypeTextPlain, NoEncoding, true, true, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
