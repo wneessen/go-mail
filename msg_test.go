@@ -1144,16 +1144,43 @@ func TestMsg_WriteDiffEncoding(t *testing.T) {
 		name string
 		ct   ContentType
 		en   Encoding
+		alt  bool
+		wa   bool
+		we   bool
 		sf   bool
 	}{
-		{"Plain/QP", TypeTextPlain, EncodingQP, false},
-		{"Plain/B64", TypeTextPlain, EncodingB64, false},
-		{"Plain/No", TypeTextPlain, NoEncoding, false},
+		{"Plain/QP/NoAlt/NoAttach/NoEmbed", TypeTextPlain, EncodingQP, false, false, false, false},
+		{"Plain/B64/NoAlt/NoAttach/NoEmbed", TypeTextPlain, EncodingB64, false, false, false, false},
+		{"Plain/No/NoAlt/NoAttach/NoEmbed", TypeTextPlain, NoEncoding, false, false, false, false},
+		{"HTML/QP/NoAlt/NoAttach/NoEmbed", TypeTextHTML, EncodingQP, false, false, false, false},
+		{"HTML/B64/NoAlt/NoAttach/NoEmbed", TypeTextHTML, EncodingB64, false, false, false, false},
+		{"HTML/No/NoAlt/NoAttach/NoEmbed", TypeTextHTML, NoEncoding, false, false, false, false},
+		{"Plain/QP/HTML/NoAttach/NoEmbed", TypeTextPlain, EncodingQP, true, false, false, false},
+		{"Plain/B64/HTML/NoAttach/NoEmbed", TypeTextPlain, EncodingB64, true, false, false, false},
+		{"Plain/No/HTML/NoAttach/NoEmbed", TypeTextPlain, NoEncoding, true, false, false, false},
+		{"Plain/QP/NoAlt/Attach/NoEmbed", TypeTextPlain, EncodingQP, false, true, false, false},
+		{"Plain/B64/NoAlt/Attach/NoEmbed", TypeTextPlain, EncodingB64, false, true, false, false},
+		{"Plain/No/NoAlt/Attach/NoEmbed", TypeTextPlain, NoEncoding, false, true, false, false},
+		{"Plain/QP/NoAlt/NoAttach/Embed", TypeTextPlain, EncodingQP, false, false, true, false},
+		{"Plain/B64/NoAlt/NoAttach/Embed", TypeTextPlain, EncodingB64, false, false, true, false},
+		{"Plain/No/NoAlt/NoAttach/Embed", TypeTextPlain, NoEncoding, false, false, true, false},
+		{"Plain/QP/HTML/Attach/Embed", TypeTextPlain, EncodingQP, true, true, true, false},
+		{"Plain/B64/HTML/Attach/Embed", TypeTextPlain, EncodingB64, true, true, true, false},
+		{"Plain/No/HTML/Attach/Embed", TypeTextPlain, NoEncoding, true, true, true, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := NewMsg(WithEncoding(tt.en))
 			m.SetBodyString(tt.ct, tt.name)
+			if tt.alt {
+				m.AddAlternativeString(TypeTextHTML, fmt.Sprintf("<p>%s</p>", tt.name))
+			}
+			if tt.wa {
+				m.AttachFile("README.md")
+			}
+			if tt.we {
+				m.EmbedFile("README.md")
+			}
 			wbuf := bytes.Buffer{}
 			n, err := m.Write(&wbuf)
 			if err != nil {
@@ -1162,7 +1189,6 @@ func TestMsg_WriteDiffEncoding(t *testing.T) {
 			}
 			if n != int64(wbuf.Len()) {
 				t.Errorf("Write() failed: expected written byte length: %d, got: %d", n, wbuf.Len())
-				fmt.Printf("%s\n", wbuf.String())
 			}
 			wbuf.Reset()
 		})
