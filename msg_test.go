@@ -1135,6 +1135,53 @@ func TestMsg_Write(t *testing.T) {
 	}
 	if n != int64(wbuf.Len()) {
 		t.Errorf("Write() failed: expected written byte length: %d, got: %d", n, wbuf.Len())
-		fmt.Printf("%s", wbuf.String())
+	}
+}
+
+// TestMsg_WriteDiffEncoding tests the Write() method of the Msg with different Encoding
+func TestMsg_WriteDiffEncoding(t *testing.T) {
+	tests := []struct {
+		name string
+		ct   ContentType
+		en   Encoding
+		sf   bool
+	}{
+		{"Plain/QP", TypeTextPlain, EncodingQP, false},
+		{"Plain/B64", TypeTextPlain, EncodingB64, false},
+		{"Plain/No", TypeTextPlain, NoEncoding, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := NewMsg(WithEncoding(tt.en))
+			m.SetBodyString(tt.ct, tt.name)
+			wbuf := bytes.Buffer{}
+			n, err := m.Write(&wbuf)
+			if err != nil {
+				t.Errorf("Write() failed: %s", err)
+				return
+			}
+			if n != int64(wbuf.Len()) {
+				t.Errorf("Write() failed: expected written byte length: %d, got: %d", n, wbuf.Len())
+				fmt.Printf("%s\n", wbuf.String())
+			}
+			wbuf.Reset()
+		})
+	}
+}
+
+// TestMsg_appendFile tests the appendFile() method of the Msg
+func TestMsg_appendFile(t *testing.T) {
+	m := NewMsg()
+	var fl []*File
+	f := &File{
+		Name: "file.txt",
+	}
+	fl = m.appendFile(fl, f, nil)
+	if len(fl) != 1 {
+		t.Errorf("appendFile() failed. Expected lenght: %d, got: %d", 1, len(fl))
+	}
+	fl = m.appendFile(fl, f, nil)
+	if len(fl) != 2 {
+		t.Errorf("appendFile() failed. Expected lenght: %d, got: %d", 2, len(fl))
 	}
 }
