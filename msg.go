@@ -594,6 +594,17 @@ func (m *Msg) setEncoder() {
 	m.encoder = getEncoder(m.encoding)
 }
 
+// checkUserAgent checks if a useragent/x-mailer is set and if not will set a default
+// version string
+func (m *Msg) checkUserAgent() {
+	_, uaok := m.genHeader[HeaderUserAgent]
+	_, xmok := m.genHeader[HeaderXMailer]
+	if !uaok && !xmok {
+		m.SetUserAgent(fmt.Sprintf("go-mail v%s // https://github.com/wneessen/go-mail",
+			VERSION))
+	}
+}
+
 // fileFromFS returns a File pointer from a given file in the system's file system
 func fileFromFS(n string) *File {
 	_, err := os.Stat(n)

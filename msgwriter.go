@@ -46,6 +46,7 @@ func (mw *msgWriter) writeMsg(m *Msg) {
 	if _, ok := m.genHeader[HeaderDate]; !ok {
 		m.SetDate()
 	}
+	m.checkUserAgent()
 	for k, v := range m.genHeader {
 		mw.writeHeader(k, v...)
 	}
@@ -197,46 +198,31 @@ func (mw *msgWriter) writeString(s string) {
 }
 
 // writeHeader writes a header into the msgWriter's io.Writer
-func (mw *msgWriter) writeHeader(k Header, v ...string) {
+func (mw *msgWriter) writeHeader(k Header, vl ...string) {
+	// Chars left: MaxHeaderLength - "<Headername>: " - "CRLF"
+	cl := MaxHeaderLength - 2
 	mw.writeString(string(k))
-	if len(v) == 0 {
+	cl -= len(k)
+	if len(vl) == 0 {
 		mw.writeString(":\r\n")
 		return
 	}
 	mw.writeString(": ")
+	cl -= 2
 
-	// Chars left: MaxHeaderLength - "<Headername>: " - "CRLF"
-	cl := MaxHeaderLength - len(k) - 4
-	for i, s := range v {
-		nfl := 0
-		if i < len(v) {
-			nfl = len(v[i])
+	fs := strings.Join(vl, ", ")
+	sfs := strings.Split(fs, " ")
+	for i, v := range sfs {
+		if cl-len(v) <= 1 {
+			mw.writeString("\r\n ")
+			cl = MaxHeaderLength - 3
 		}
-		if cl-len(s) < 1 {
-			if p := strings.IndexByte(s, ' '); p != -1 {
-				mw.writeString(s[:p])
-				mw.writeString("\r\n ")
-				mw.writeString(s[p:])
-				cl -= len(s[p:])
-				continue
-			}
+		mw.writeString(v)
+		if i < len(sfs) {
+			mw.writeString(" ")
+			cl -= 1
 		}
-		if cl < 1 || cl-nfl < 1 {
-			mw.writeString("\r\n")
-			cl = MaxHeaderLength - 4
-			if i != len(v) {
-				mw.writeString(" ")
-				cl -= 1
-			}
-		}
-		mw.writeString(s)
-		cl -= len(s)
-
-		if i != len(v)-1 {
-			mw.writeString(", ")
-			cl -= 2
-		}
-
+		cl -= len(v)
 	}
 	mw.writeString("\r\n")
 }
