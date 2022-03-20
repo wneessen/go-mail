@@ -199,31 +199,35 @@ func (mw *msgWriter) writeString(s string) {
 
 // writeHeader writes a header into the msgWriter's io.Writer
 func (mw *msgWriter) writeHeader(k Header, vl ...string) {
-	// Chars left: MaxHeaderLength - "<Headername>: " - "CRLF"
+	wbuf := bytes.Buffer{}
 	cl := MaxHeaderLength - 2
-	mw.writeString(string(k))
+	wbuf.WriteString(string(k))
 	cl -= len(k)
 	if len(vl) == 0 {
-		mw.writeString(":\r\n")
+		wbuf.WriteString(":\r\n")
 		return
 	}
-	mw.writeString(": ")
+	wbuf.WriteString(": ")
 	cl -= 2
 
 	fs := strings.Join(vl, ", ")
 	sfs := strings.Split(fs, " ")
 	for i, v := range sfs {
 		if cl-len(v) <= 1 {
-			mw.writeString("\r\n ")
+			wbuf.WriteString("\r\n ")
 			cl = MaxHeaderLength - 3
 		}
-		mw.writeString(v)
-		if i < len(sfs) {
-			mw.writeString(" ")
+		wbuf.WriteString(v)
+		if i < len(sfs)-1 {
+			wbuf.WriteString(" ")
 			cl -= 1
 		}
 		cl -= len(v)
 	}
+
+	bufs := wbuf.String()
+	bufs = strings.ReplaceAll(bufs, " \r\n", "\r\n")
+	mw.writeString(bufs)
 	mw.writeString("\r\n")
 }
 
