@@ -605,6 +605,17 @@ func (m *Msg) checkUserAgent() {
 	}
 }
 
+// addDefaultHeader sets some default headers, if they haven't been set before
+func (m *Msg) addDefaultHeader() {
+	if _, ok := m.genHeader[HeaderDate]; !ok {
+		m.SetDate()
+	}
+	if _, ok := m.genHeader[HeaderMessageID]; !ok {
+		m.SetMessageID()
+	}
+	m.SetHeader(HeaderMIMEVersion, string(m.mimever))
+}
+
 // fileFromFS returns a File pointer from a given file in the system's file system
 func fileFromFS(n string) *File {
 	_, err := os.Stat(n)

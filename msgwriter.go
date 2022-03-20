@@ -10,6 +10,7 @@ import (
 	"mime/quotedprintable"
 	"net/textproto"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -43,13 +44,9 @@ func (mw *msgWriter) Write(p []byte) (int, error) {
 
 // writeMsg formats the message and sends it to its io.Writer
 func (mw *msgWriter) writeMsg(m *Msg) {
-	if _, ok := m.genHeader[HeaderDate]; !ok {
-		m.SetDate()
-	}
+	m.addDefaultHeader()
 	m.checkUserAgent()
-	for k, v := range m.genHeader {
-		mw.writeHeader(k, v...)
-	}
+	mw.writeGenHeader(m)
 	for _, t := range []AddrHeader{HeaderFrom, HeaderTo, HeaderCc} {
 		if al, ok := m.addrHeader[t]; ok {
 			var v []string
@@ -59,7 +56,6 @@ func (mw *msgWriter) writeMsg(m *Msg) {
 			mw.writeHeader(Header(t), v...)
 		}
 	}
-	mw.writeHeader(HeaderMIMEVersion, string(m.mimever))
 
 	if m.hasMixed() {
 		mw.startMP("mixed", m.boundary)
@@ -91,6 +87,18 @@ func (mw *msgWriter) writeMsg(m *Msg) {
 	mw.addFiles(m.attachments, true)
 	if m.hasMixed() {
 		mw.stopMP()
+	}
+}
+
+// writeGenHeader writes out all generic headers to the msgWriter
+func (mw *msgWriter) writeGenHeader(m *Msg) {
+	gk := make([]string, 0, len(m.genHeader))
+	for k := range m.genHeader {
+		gk = append(gk, string(k))
+	}
+	sort.Strings(gk)
+	for _, k := range gk {
+		mw.writeHeader(Header(k), m.genHeader[Header(k)]...)
 	}
 }
 
