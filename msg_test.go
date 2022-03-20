@@ -1222,10 +1222,10 @@ func TestMsg_appendFile(t *testing.T) {
 	}
 	fl = m.appendFile(fl, f, nil)
 	if len(fl) != 1 {
-		t.Errorf("appendFile() failed. Expected lenght: %d, got: %d", 1, len(fl))
+		t.Errorf("appendFile() failed. Expected length: %d, got: %d", 1, len(fl))
 	}
 	fl = m.appendFile(fl, f, nil)
 	if len(fl) != 2 {
-		t.Errorf("appendFile() failed. Expected lenght: %d, got: %d", 2, len(fl))
+		t.Errorf("appendFile() failed. Expected length: %d, got: %d", 2, len(fl))
 	}
 }
