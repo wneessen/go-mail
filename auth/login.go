@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/smtp"
+	"strings"
 )
 
 type loginAuth struct {
@@ -18,6 +19,10 @@ const (
 
 	// ServerRespPassword represents the "Password:" response by the SMTP server
 	ServerRespPassword = "Password:"
+
+	// ServerRespAuthSuccess represents the "Authentication successful:" response that is
+	// by sent by some SMTP servers
+	ServerRespAuthSuccess = "Authentication successful"
 )
 
 // LoginAuth returns an Auth that implements the LOGIN authentication
@@ -62,6 +67,9 @@ func (a *loginAuth) Next(fromServer []byte, more bool) ([]byte, error) {
 		case ServerRespPassword:
 			return []byte(a.password), nil
 		}
+	}
+	if strings.HasSuffix(string(fromServer), ServerRespAuthSuccess) {
+		return nil, nil
 	}
 	return nil, fmt.Errorf("unexpected server response: %s", string(fromServer))
 }
