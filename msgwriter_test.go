@@ -92,7 +92,7 @@ func TestMsgWriter_writeMsg(t *testing.T) {
 		ea = append(ea, "Message body")
 	}
 	if len(ea) > 0 {
-		em := fmt.Sprint("writeMsg() failed. The following errors occured:\n")
+		em := "writeMsg() failed. The following errors occured:\n"
 		for e := range ea {
 			em += fmt.Sprintf("* incorrect %q field", ea[e])
 		}
