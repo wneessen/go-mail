@@ -18,8 +18,11 @@ on:
       - 'codecov.yml'
 env:
   TEST_HOST: ${{ secrets.TEST_HOST }}
+  TEST_FROM: ${{ secrets.TEST_USER }}
+  TEST_ALLOW_SEND: 1
   TEST_SMTPAUTH_USER: ${{ secrets.TEST_USER }}
   TEST_SMTPAUTH_PASS: ${{ secrets.TEST_PASS }}
+  TEST_SMTPAUTH_TYPE: "LOGIN"
 jobs:
   run:
     runs-on: ${{ matrix.os }}
