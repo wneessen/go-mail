@@ -529,7 +529,7 @@ func TestClient_DialWithContextOptions(t *testing.T) {
 	}
 }
 
-// TestClient_Send tests the Dial(), Send() and Close() method of Client
+// TestClient_DialSendClose tests the Dial(), Send() and Close() method of Client
 func TestClient_DialSendClose(t *testing.T) {
 	if os.Getenv("TEST_ALLOW_SEND") == "" {
 		t.Skipf("TEST_ALLOW_SEND is not set. Skipping mail sending test")
@@ -552,7 +552,7 @@ func TestClient_DialSendClose(t *testing.T) {
 	ctx, cfn := context.WithTimeout(context.Background(), time.Second*10)
 	defer cfn()
 	if err := c.DialWithContext(ctx); err != nil {
-		t.Errorf("Dail() failed: %s", err)
+		t.Errorf("Dial() failed: %s", err)
 	}
 	if err := c.Send(m); err != nil {
 		t.Errorf("Send() failed: %s", err)
@@ -560,6 +560,92 @@ func TestClient_DialSendClose(t *testing.T) {
 	if err := c.Close(); err != nil {
 		t.Errorf("Close() failed: %s", err)
 	}
+}
+
+// TestClient_DialAndSend tests the DialAndSend() method of Client
+func TestClient_DialAndSend(t *testing.T) {
+	if os.Getenv("TEST_ALLOW_SEND") == "" {
+		t.Skipf("TEST_ALLOW_SEND is not set. Skipping mail sending test")
+	}
+	m := NewMsg()
+	_ = m.FromFormat("go-mail Test Mailer", os.Getenv("TEST_FROM"))
+	_ = m.To(TestRcpt)
+	m.Subject(fmt.Sprintf("This is a test mail from go-mail/v%s", VERSION))
+	m.SetBulk()
+	m.SetDate()
+	m.SetMessageID()
+	m.SetBodyString(TypeTextPlain, "This is a test mail from the go-mail library")
+
+	c, err := getTestConnection(true)
+	if err != nil {
+		t.Errorf("Send() failed: could not get new client connection: %s", err)
+		return
+	}
+
+	if err := c.DialAndSend(m); err != nil {
+		t.Errorf("DialAndSend() failed: %s", err)
+	}
+}
+
+// TestClient_Send tests the Dial(), Send() and Close() method of Client with broken settings
+func TestClient_DialSendCloseBroken(t *testing.T) {
+	if os.Getenv("TEST_ALLOW_SEND") == "" {
+		t.Skipf("TEST_ALLOW_SEND is not set. Skipping mail sending test")
+	}
+	tests := []struct {
+		name       string
+		from       string
+		to         string
+		closestart bool
+		closeearly bool
+		sf         bool
+	}{
+		{"Invalid FROM", "foo@foo", TestRcpt, false, false, true},
+		{"Invalid TO", os.Getenv("TEST_FROM"), "foo@foo", false, false, true},
+		{"No FROM", "", TestRcpt, false, false, true},
+		{"No TO", os.Getenv("TEST_FROM"), "", false, false, true},
+		{"Close early", os.Getenv("TEST_FROM"), TestRcpt, false, true, true},
+		{"Close start", os.Getenv("TEST_FROM"), TestRcpt, true, false, true},
+		{"Close start/early", os.Getenv("TEST_FROM"), TestRcpt, true, true, true},
+	}
+
+	m := NewMsg(WithEncoding(NoEncoding))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m.SetAddrHeaderIgnoreInvalid(HeaderFrom, tt.from)
+			m.SetAddrHeaderIgnoreInvalid(HeaderTo, tt.to)
+
+			c, err := getTestConnection(true)
+			if err != nil {
+				t.Errorf("Send() failed: could not get new client connection: %s", err)
+				return
+			}
+
+			ctx, cfn := context.WithTimeout(context.Background(), time.Second*10)
+			defer cfn()
+			if err := c.DialWithContext(ctx); err != nil && !tt.sf {
+				t.Errorf("Dail() failed: %s", err)
+				return
+			}
+			if tt.closestart {
+				_ = c.sc.Close()
+				_ = c.co.Close()
+			}
+			if err := c.Send(m); err != nil && !tt.sf {
+				t.Errorf("Send() failed: %s", err)
+				return
+			}
+			if tt.closeearly {
+				_ = c.sc.Close()
+				_ = c.co.Close()
+			}
+			if err := c.Close(); err != nil && !tt.sf {
+				t.Errorf("Close() failed: %s", err)
+				return
+			}
+		})
+	}
+
 }
 
 // getTestConnection takes environment variables to establish a connection to a real
