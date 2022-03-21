@@ -30,7 +30,7 @@ func TestMsgWriter_Write(t *testing.T) {
 		t.Errorf("msgWriter Write() with brokenWriter should fail, but didn't")
 	}
 
-	// Also test the part when a previous error happend
+	// Also test the part when a previous error happened
 	mw.err = fmt.Errorf("broken")
 	_, err = mw.Write([]byte("test"))
 	if err == nil {
@@ -92,7 +92,7 @@ func TestMsgWriter_writeMsg(t *testing.T) {
 		ea = append(ea, "Message body")
 	}
 	if len(ea) > 0 {
-		em := "writeMsg() failed. The following errors occured:\n"
+		em := "writeMsg() failed. The following errors occurred:\n"
 		for e := range ea {
 			em += fmt.Sprintf("* incorrect %q field", ea[e])
 		}
