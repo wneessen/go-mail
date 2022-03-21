@@ -545,8 +545,7 @@ func TestClient_DialSendClose(t *testing.T) {
 
 	c, err := getTestConnection(true)
 	if err != nil {
-		t.Errorf("Send() failed: could not get new client connection: %s", err)
-		return
+		t.Skipf("failed to create test client: %s. Skipping tests", err)
 	}
 
 	ctx, cfn := context.WithTimeout(context.Background(), time.Second*10)
@@ -578,8 +577,7 @@ func TestClient_DialAndSend(t *testing.T) {
 
 	c, err := getTestConnection(true)
 	if err != nil {
-		t.Errorf("Send() failed: could not get new client connection: %s", err)
-		return
+		t.Skipf("failed to create test client: %s. Skipping tests", err)
 	}
 
 	if err := c.DialAndSend(m); err != nil {
@@ -587,7 +585,7 @@ func TestClient_DialAndSend(t *testing.T) {
 	}
 }
 
-// TestClient_Send tests the Dial(), Send() and Close() method of Client with broken settings
+// TestClient_DialSendCloseBroken tests the Dial(), Send() and Close() method of Client with broken settings
 func TestClient_DialSendCloseBroken(t *testing.T) {
 	if os.Getenv("TEST_ALLOW_SEND") == "" {
 		t.Skipf("TEST_ALLOW_SEND is not set. Skipping mail sending test")
@@ -617,8 +615,7 @@ func TestClient_DialSendCloseBroken(t *testing.T) {
 
 			c, err := getTestConnection(true)
 			if err != nil {
-				t.Errorf("Send() failed: could not get new client connection: %s", err)
-				return
+				t.Skipf("failed to create test client: %s. Skipping tests", err)
 			}
 
 			ctx, cfn := context.WithTimeout(context.Background(), time.Second*10)
@@ -646,6 +643,44 @@ func TestClient_DialSendCloseBroken(t *testing.T) {
 		})
 	}
 
+}
+
+// TestClient_auth tests the Dial(), Send() and Close() method of Client with broken settings
+func TestClient_auth(t *testing.T) {
+	tests := []struct {
+		name string
+		auth SMTPAuthType
+		sf   bool
+	}{
+		{"SMTP AUTH: PLAIN", SMTPAuthPlain, false},
+		{"SMTP AUTH: LOGIN", SMTPAuthLogin, false},
+		{"SMTP AUTH: CRAM-MD5", SMTPAuthCramMD5, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := getTestConnection(false)
+			if err != nil {
+				t.Skipf("failed to create test client: %s. Skipping tests", err)
+			}
+
+			ctx, cfn := context.WithTimeout(context.Background(), time.Second*5)
+			defer cfn()
+			if err := c.DialWithContext(ctx); err != nil {
+				t.Errorf("auth() failed: could not Dial() => %s", err)
+				return
+			}
+			c.SetSMTPAuth(tt.auth)
+			c.SetUsername(os.Getenv("TEST_SMTPAUTH_USER"))
+			c.SetPassword(os.Getenv("TEST_SMTPAUTH_PASS"))
+			if err := c.auth(); err != nil && !tt.sf {
+				t.Errorf("auth() failed: %s", err)
+			}
+			if err := c.Close(); err != nil {
+				t.Errorf("auth() failed: could not Close() => %s", err)
+			}
+		})
+	}
 }
 
 // getTestConnection takes environment variables to establish a connection to a real
