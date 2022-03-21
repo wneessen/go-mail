@@ -14,6 +14,9 @@ import (
 // DefaultHost is used as default hostname for the Client
 const DefaultHost = "localhost"
 
+// TestRcpt
+const TestRcpt = "go-mail@mytrashmailer.com"
+
 // TestNewClient tests the NewClient() method with its default options
 func TestNewClient(t *testing.T) {
 	host := "mail.example.com"
@@ -523,6 +526,39 @@ func TestClient_DialWithContextOptions(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestClient_Send tests the Dial(), Send() and Close() method of Client
+func TestClient_DialSendClose(t *testing.T) {
+	if os.Getenv("TEST_ALLOW_SEND") == "" {
+		t.Skipf("TEST_ALLOW_SEND is not set. Skipping mail sending test")
+	}
+	m := NewMsg()
+	_ = m.FromFormat("go-mail Test Mailer", os.Getenv("TEST_FROM"))
+	_ = m.To(TestRcpt)
+	m.Subject(fmt.Sprintf("This is a test mail from go-mail/v%s", VERSION))
+	m.SetBulk()
+	m.SetDate()
+	m.SetMessageID()
+	m.SetBodyString(TypeTextPlain, "This is a test mail from the go-mail library")
+
+	c, err := getTestConnection(true)
+	if err != nil {
+		t.Errorf("Send() failed: could not get new client connection: %s", err)
+		return
+	}
+
+	ctx, cfn := context.WithTimeout(context.Background(), time.Second*10)
+	defer cfn()
+	if err := c.DialWithContext(ctx); err != nil {
+		t.Errorf("Dail() failed: %s", err)
+	}
+	if err := c.Send(m); err != nil {
+		t.Errorf("Send() failed: %s", err)
+	}
+	if err := c.Close(); err != nil {
+		t.Errorf("Close() failed: %s", err)
 	}
 }
 
