@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-source ./.sonar
-${SONAR_BIN} \
-		-Dsonar.projectKey=go-mail \
-		-Dsonar.sources=. \
-		-Dsonar.host.url=https://sonar.fritz.box \
-		-Dsonar.login="$SONAR_TOKEN"
