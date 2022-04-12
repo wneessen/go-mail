@@ -18,6 +18,13 @@ import (
 // RFC 2047 suggests 76 characters
 const MaxHeaderLength = 76
 
+// SingleNewLine represents a new line that can be used by the msgWriter to issue a carriage return
+const SingleNewLine = "\r\n"
+
+// DoubleNewLine represents a double new line that can be used by the msgWriter to
+// indicate a new segement of the mail
+const DoubleNewLine = "\r\n\r\n"
+
 // msgWriter handles the I/O to the io.WriteCloser of the SMTP client
 type msgWriter struct {
 	c   Charset
@@ -59,15 +66,15 @@ func (mw *msgWriter) writeMsg(m *Msg) {
 
 	if m.hasMixed() {
 		mw.startMP("mixed", m.boundary)
-		mw.writeString("\r\n\r\n")
+		mw.writeString(DoubleNewLine)
 	}
 	if m.hasRelated() {
 		mw.startMP("related", m.boundary)
-		mw.writeString("\r\n\r\n")
+		mw.writeString(DoubleNewLine)
 	}
 	if m.hasAlt() {
 		mw.startMP(MIMEAlternative, m.boundary)
-		mw.writeString("\r\n\r\n")
+		mw.writeString(DoubleNewLine)
 	}
 
 	for _, p := range m.parts {
@@ -163,7 +170,7 @@ func (mw *msgWriter) addFiles(fl []*File, a bool) {
 			for h, v := range f.Header {
 				mw.writeHeader(Header(h), v...)
 			}
-			mw.writeString("\r\n")
+			mw.writeString(SingleNewLine)
 		}
 		if mw.d > 0 {
 			mw.newPart(f.Header)
@@ -184,7 +191,7 @@ func (mw *msgWriter) writePart(p *Part, cs Charset) {
 	if mw.d == 0 {
 		mw.writeHeader(HeaderContentType, ct)
 		mw.writeHeader(HeaderContentTransferEnc, cte)
-		mw.writeString("\r\n")
+		mw.writeString(SingleNewLine)
 	}
 	if mw.d > 0 {
 		mh := textproto.MIMEHeader{}
@@ -222,7 +229,7 @@ func (mw *msgWriter) writeHeader(k Header, vl ...string) {
 	sfs := strings.Split(fs, " ")
 	for i, v := range sfs {
 		if cl-len(v) <= 1 {
-			wbuf.WriteString("\r\n ")
+			wbuf.WriteString(fmt.Sprintf("%s ", SingleNewLine))
 			cl = MaxHeaderLength - 3
 		}
 		wbuf.WriteString(v)
@@ -234,7 +241,7 @@ func (mw *msgWriter) writeHeader(k Header, vl ...string) {
 	}
 
 	bufs := wbuf.String()
-	bufs = strings.ReplaceAll(bufs, " \r\n", "\r\n")
+	bufs = strings.ReplaceAll(bufs, fmt.Sprintf(" %s", SingleNewLine), SingleNewLine)
 	mw.writeString(bufs)
 	mw.writeString("\r\n")
 }
