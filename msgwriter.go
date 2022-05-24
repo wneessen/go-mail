@@ -279,7 +279,7 @@ func (mw *msgWriter) writeBody(f func(io.Writer) (int64, error), e Encoding) {
 	mw.err = ew.Close()
 	n, mw.err = io.Copy(w, &wbuf)
 
-	// Since the part writer uses the Write() method, we don't need to add the
+	// Since the part writer uses the WriteTo() method, we don't need to add the
 	// bytes twice
 	if mw.d == 0 {
 		mw.n += n

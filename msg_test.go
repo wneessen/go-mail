@@ -1123,6 +1123,21 @@ func TestMsg_hasMixed(t *testing.T) {
 	}
 }
 
+// TestMsg_WriteTo tests the WriteTo() method of the Msg
+func TestMsg_WriteTo(t *testing.T) {
+	m := NewMsg()
+	m.SetBodyString(TypeTextPlain, "Plain")
+	wbuf := bytes.Buffer{}
+	n, err := m.WriteTo(&wbuf)
+	if err != nil {
+		t.Errorf("WriteTo() failed: %s", err)
+		return
+	}
+	if n != int64(wbuf.Len()) {
+		t.Errorf("WriteTo() failed: expected written byte length: %d, got: %d", n, wbuf.Len())
+	}
+}
+
 // TestMsg_Write tests the Write() method of the Msg
 func TestMsg_Write(t *testing.T) {
 	m := NewMsg()
@@ -1130,15 +1145,15 @@ func TestMsg_Write(t *testing.T) {
 	wbuf := bytes.Buffer{}
 	n, err := m.Write(&wbuf)
 	if err != nil {
-		t.Errorf("Write() failed: %s", err)
+		t.Errorf("WriteTo() failed: %s", err)
 		return
 	}
 	if n != int64(wbuf.Len()) {
-		t.Errorf("Write() failed: expected written byte length: %d, got: %d", n, wbuf.Len())
+		t.Errorf("WriteTo() failed: expected written byte length: %d, got: %d", n, wbuf.Len())
 	}
 }
 
-// TestMsg_WriteWithLongHeader tests the Write() method of the Msg with a long header
+// TestMsg_WriteWithLongHeader tests the WriteTo() method of the Msg with a long header
 func TestMsg_WriteWithLongHeader(t *testing.T) {
 	m := NewMsg()
 	m.SetBodyString(TypeTextPlain, "Plain")
@@ -1147,17 +1162,17 @@ func TestMsg_WriteWithLongHeader(t *testing.T) {
 	m.SetHeader(HeaderContentID, "XXXXXXXXXXXXXXX XXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXX",
 		"XXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXX")
 	wbuf := bytes.Buffer{}
-	n, err := m.Write(&wbuf)
+	n, err := m.WriteTo(&wbuf)
 	if err != nil {
-		t.Errorf("Write() failed: %s", err)
+		t.Errorf("WriteTo() failed: %s", err)
 		return
 	}
 	if n != int64(wbuf.Len()) {
-		t.Errorf("Write() failed: expected written byte length: %d, got: %d", n, wbuf.Len())
+		t.Errorf("WriteTo() failed: expected written byte length: %d, got: %d", n, wbuf.Len())
 	}
 }
 
-// TestMsg_WriteDiffEncoding tests the Write() method of the Msg with different Encoding
+// TestMsg_WriteDiffEncoding tests the WriteTo() method of the Msg with different Encoding
 func TestMsg_WriteDiffEncoding(t *testing.T) {
 	tests := []struct {
 		name string
@@ -1200,13 +1215,13 @@ func TestMsg_WriteDiffEncoding(t *testing.T) {
 				m.EmbedFile("README.md")
 			}
 			wbuf := bytes.Buffer{}
-			n, err := m.Write(&wbuf)
+			n, err := m.WriteTo(&wbuf)
 			if err != nil {
-				t.Errorf("Write() failed: %s", err)
+				t.Errorf("WriteTo() failed: %s", err)
 				return
 			}
 			if n != int64(wbuf.Len()) {
-				t.Errorf("Write() failed: expected written byte length: %d, got: %d", n, wbuf.Len())
+				t.Errorf("WriteTo() failed: expected written byte length: %d, got: %d", n, wbuf.Len())
 			}
 			wbuf.Reset()
 		})

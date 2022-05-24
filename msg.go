@@ -460,11 +460,16 @@ func (m *Msg) Reset() {
 	m.parts = nil
 }
 
-// Write writes the formated Msg into a give io.Writer
-func (m *Msg) Write(w io.Writer) (int64, error) {
+// WriteTo writes the formated Msg into a give io.Writer and satisfies the io.WriteTo interface
+func (m *Msg) WriteTo(w io.Writer) (int64, error) {
 	mw := &msgWriter{w: w, c: m.charset, en: m.encoder}
 	mw.writeMsg(m)
 	return mw.n, mw.err
+}
+
+// Write is an alias method to WriteTo due to compatiblity reasons
+func (m *Msg) Write(w io.Writer) (int64, error) {
+	return m.WriteTo(w)
 }
 
 // appendFile adds a File to the Msg (as attachment or embed)
@@ -525,7 +530,7 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...st
 	if err := ec.Start(); err != nil {
 		return fmt.Errorf("could not start sendmail execution: %w", err)
 	}
-	_, err = m.Write(si)
+	_, err = m.WriteTo(si)
 	if err != nil {
 		if !errors.Is(err, syscall.EPIPE) {
 			return fmt.Errorf("failed to write mail to buffer: %w", err)
