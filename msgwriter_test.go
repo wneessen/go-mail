@@ -21,20 +21,20 @@ func (bw *brokenWriter) Write([]byte) (int, error) {
 	return 0, fmt.Errorf("intentionally failed")
 }
 
-// TestMsgWriter_Write tests the Write() method of the msgWriter
+// TestMsgWriter_Write tests the WriteTo() method of the msgWriter
 func TestMsgWriter_Write(t *testing.T) {
 	bw := &brokenWriter{}
 	mw := &msgWriter{w: bw, c: CharsetUTF8, en: mime.QEncoding}
 	_, err := mw.Write([]byte("test"))
 	if err == nil {
-		t.Errorf("msgWriter Write() with brokenWriter should fail, but didn't")
+		t.Errorf("msgWriter WriteTo() with brokenWriter should fail, but didn't")
 	}
 
 	// Also test the part when a previous error happened
 	mw.err = fmt.Errorf("broken")
 	_, err = mw.Write([]byte("test"))
 	if err == nil {
-		t.Errorf("msgWriter Write() with brokenWriter should fail, but didn't")
+		t.Errorf("msgWriter WriteTo() with brokenWriter should fail, but didn't")
 	}
 }
 
