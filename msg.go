@@ -58,7 +58,7 @@ type Msg struct {
 }
 
 // SendmailPath is the default system path to the sendmail binary
-const SendmailPath = "/usr/bin/sendmail"
+const SendmailPath = "/usr/sbin/sendmail"
 
 // MsgOption returns a function that can be used for grouping Msg options
 type MsgOption func(*Msg)
@@ -547,7 +547,10 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...st
 		return fmt.Errorf("sendmail command failed: %s", serr)
 	}
 
-	// Wait for completion or cancellation of the sendmail executable
+	// Close STDIN and wait for completion or cancellation of the sendmail executable
+	if err := si.Close(); err != nil {
+		return fmt.Errorf("failed to close STDIN pipe: %w", err)
+	}
 	if err := ec.Wait(); err != nil {
 		return fmt.Errorf("sendmail command execution failed: %w", err)
 	}
