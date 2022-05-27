@@ -390,8 +390,8 @@ func (m *Msg) GetRecipients() ([]string, error) {
 func (m *Msg) SetBodyString(ct ContentType, b string, o ...PartOption) {
 	buf := bytes.NewBufferString(b)
 	w := func(w io.Writer) (int64, error) {
-		nb, err := io.Copy(w, buf)
-		return nb, err
+		nb, err := w.Write(buf.Bytes())
+		return int64(nb), err
 	}
 	m.SetBodyWriter(ct, w, o...)
 }
@@ -407,8 +407,8 @@ func (m *Msg) SetBodyWriter(ct ContentType, w func(io.Writer) (int64, error), o 
 func (m *Msg) AddAlternativeString(ct ContentType, b string, o ...PartOption) {
 	buf := bytes.NewBufferString(b)
 	w := func(w io.Writer) (int64, error) {
-		nb, err := io.Copy(w, buf)
-		return nb, err
+		nb, err := w.Write(buf.Bytes())
+		return int64(nb), err
 	}
 	m.AddAlternativeWriter(ct, w, o...)
 }

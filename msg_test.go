@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/mail"
+	"strings"
 	"testing"
 	"time"
 )
@@ -1242,5 +1243,32 @@ func TestMsg_appendFile(t *testing.T) {
 	fl = m.appendFile(fl, f, nil)
 	if len(fl) != 2 {
 		t.Errorf("appendFile() failed. Expected length: %d, got: %d", 2, len(fl))
+	}
+}
+
+// TestMsg_multipleWrites tests multiple executions of WriteTo on the Msg
+func TestMsg_multipleWrites(t *testing.T) {
+	ts := "XXX_UNIQUE_STRING_XXX"
+	wbuf := bytes.Buffer{}
+	m := NewMsg()
+	m.SetBodyString(TypeTextPlain, ts)
+
+	// First WriteTo()
+	_, err := m.WriteTo(&wbuf)
+	if err != nil {
+		t.Errorf("failed to write body to buffer: %s", err)
+	}
+	if !strings.Contains(wbuf.String(), ts) {
+		t.Errorf("first WriteTo() body does not contain unique string: %s", ts)
+	}
+
+	// Second WriteTo()
+	wbuf.Reset()
+	_, err = m.WriteTo(&wbuf)
+	if err != nil {
+		t.Errorf("failed to write body to buffer: %s", err)
+	}
+	if !strings.Contains(wbuf.String(), ts) {
+		t.Errorf("second WriteTo() body does not contain unique string: %s", ts)
 	}
 }
