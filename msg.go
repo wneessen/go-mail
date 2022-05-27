@@ -514,17 +514,11 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...st
 	if err != nil {
 		return fmt.Errorf("failed to set STDERR pipe: %w", err)
 	}
-	defer func() {
-		_ = se.Close()
-	}()
 
 	si, err := ec.StdinPipe()
 	if err != nil {
 		return fmt.Errorf("failed to set STDIN pipe: %w", err)
 	}
-	defer func() {
-		_ = si.Close()
-	}()
 
 	// Start the execution and write to STDIN
 	if err := ec.Start(); err != nil {
@@ -537,20 +531,20 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...st
 		}
 	}
 
-	// Read the stderr pipe for possible errors
-	var serr []byte
-	en, err := se.Read(serr)
-	if err != nil {
-		return fmt.Errorf("failed to read STDERR pipe: %w", err)
-	}
-	if en > 0 {
-		return fmt.Errorf("sendmail command failed: %s", serr)
-	}
-
 	// Close STDIN and wait for completion or cancellation of the sendmail executable
 	if err := si.Close(); err != nil {
 		return fmt.Errorf("failed to close STDIN pipe: %w", err)
 	}
+
+	// Read the stderr pipe for possible errors
+	serr, err := io.ReadAll(se)
+	if err != nil {
+		return fmt.Errorf("failed to read STDERR pipe: %w", err)
+	}
+	if len(serr) > 0 {
+		return fmt.Errorf("sendmail command failed: %s", string(serr))
+	}
+
 	if err := ec.Wait(); err != nil {
 		return fmt.Errorf("sendmail command execution failed: %w", err)
 	}
