@@ -552,6 +552,16 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...st
 	return nil
 }
 
+// Read outputs the length of p into p to satisfy the io.Reader interface
+func (m *Msg) Read(p []byte) (int, error) {
+	wbuf := bytes.Buffer{}
+	_, err := m.WriteTo(&wbuf)
+	if err != nil {
+		return 0, fmt.Errorf("failed to write message to internal write buffer: %w", err)
+	}
+	return wbuf.Read(p)
+}
+
 // encodeString encodes a string based on the configured message encoder and the corresponding
 // charset for the Msg
 func (m *Msg) encodeString(s string) string {
