@@ -124,3 +124,7 @@ func main() {
 	fmt.Println("Mail successfully sent.")
 }
 ```
+
+## Contributors
+Thanks to the following people for contributing to the go-mail codebase:
+* [inliquid](https://github.com/inliquid) 
