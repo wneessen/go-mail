@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html/template"
 	"io"
 	"math/rand"
 	"mime"
@@ -435,6 +436,16 @@ func (m *Msg) AttachReader(n string, r io.Reader, o ...FileOption) {
 	m.attachments = m.appendFile(m.attachments, f, o...)
 }
 
+// AttachTemplate adds the output of a template.Template pointer as File attachment to the Msg
+func (m *Msg) AttachTemplate(n string, t *template.Template, d interface{}, o ...FileOption) error {
+	f, err := fileFromTemplate(n, t, d)
+	if err != nil {
+		return fmt.Errorf("failed to attach template: %w", err)
+	}
+	m.attachments = m.appendFile(m.attachments, f, o...)
+	return nil
+}
+
 // EmbedFile adds an embedded File to the Msg
 func (m *Msg) EmbedFile(n string, o ...FileOption) {
 	f := fileFromFS(n)
@@ -448,6 +459,16 @@ func (m *Msg) EmbedFile(n string, o ...FileOption) {
 func (m *Msg) EmbedReader(n string, r io.Reader, o ...FileOption) {
 	f := fileFromReader(n, r)
 	m.embeds = m.appendFile(m.embeds, f, o...)
+}
+
+// EmbedTemplate adds the output of a template.Template pointer as embedded File to the Msg
+func (m *Msg) EmbedTemplate(n string, t *template.Template, d interface{}, o ...FileOption) error {
+	f, err := fileFromTemplate(n, t, d)
+	if err != nil {
+		return fmt.Errorf("failed to embed template: %w", err)
+	}
+	m.embeds = m.appendFile(m.embeds, f, o...)
+	return nil
 }
 
 // Reset resets all headers, body parts and attachments/embeds of the Msg
@@ -666,6 +687,16 @@ func fileFromReader(n string, r io.Reader) *File {
 			return nb, nil
 		},
 	}
+}
+
+// fileFromTemplate returns a File pointer form a given template.Template
+func fileFromTemplate(n string, t *template.Template, d interface{}) (*File, error) {
+	buf := bytes.Buffer{}
+	if err := t.Execute(&buf, d); err != nil {
+		return nil, fmt.Errorf("failed to execute template: %w", err)
+	}
+	f := fileFromReader(n, &buf)
+	return f, nil
 }
 
 // getEncoder creates a new mime.WordEncoder based on the encoding setting of the message
