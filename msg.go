@@ -488,7 +488,7 @@ func (m *Msg) WriteTo(w io.Writer) (int64, error) {
 	return mw.n, mw.err
 }
 
-// Write is an alias method to WriteTo due to compatiblity reasons
+// Write is an alias method to WriteTo due to compatibility reasons
 func (m *Msg) Write(w io.Writer) (int64, error) {
 	return m.WriteTo(w)
 }
