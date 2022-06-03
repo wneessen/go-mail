@@ -405,6 +405,9 @@ func (m *Msg) SetBodyWriter(ct ContentType, w func(io.Writer) (int64, error), o 
 // SetBodyHTMLTemplate sets the body of the message from a given html/template.Template pointer
 // The content type will be set to text/html automatically
 func (m *Msg) SetBodyHTMLTemplate(t *ht.Template, d interface{}, o ...PartOption) error {
+	if t == nil {
+		return fmt.Errorf("template pointer is nil")
+	}
 	buf := bytes.Buffer{}
 	if err := t.Execute(&buf, d); err != nil {
 		return fmt.Errorf("failed to execute template: %w", err)
@@ -417,6 +420,9 @@ func (m *Msg) SetBodyHTMLTemplate(t *ht.Template, d interface{}, o ...PartOption
 // SetBodyTextTemplate sets the body of the message from a given text/template.Template pointer
 // The content type will be set to text/plain automatically
 func (m *Msg) SetBodyTextTemplate(t *tt.Template, d interface{}, o ...PartOption) error {
+	if t == nil {
+		return fmt.Errorf("template pointer is nil")
+	}
 	buf := bytes.Buffer{}
 	if err := t.Execute(&buf, d); err != nil {
 		return fmt.Errorf("failed to execute template: %w", err)
@@ -443,6 +449,9 @@ func (m *Msg) AddAlternativeWriter(ct ContentType, w func(io.Writer) (int64, err
 // AddAlternativeHTMLTemplate sets the alternative body of the message to a html/template.Template output
 // The content type will be set to text/html automatically
 func (m *Msg) AddAlternativeHTMLTemplate(t *ht.Template, d interface{}, o ...PartOption) error {
+	if t == nil {
+		return fmt.Errorf("template pointer is nil")
+	}
 	buf := bytes.Buffer{}
 	if err := t.Execute(&buf, d); err != nil {
 		return fmt.Errorf("failed to execute template: %w", err)
@@ -455,6 +464,9 @@ func (m *Msg) AddAlternativeHTMLTemplate(t *ht.Template, d interface{}, o ...Par
 // AddAlternativeTextTemplate sets the alternative body of the message to a text/template.Template output
 // The content type will be set to text/plain automatically
 func (m *Msg) AddAlternativeTextTemplate(t *tt.Template, d interface{}, o ...PartOption) error {
+	if t == nil {
+		return fmt.Errorf("template pointer is nil")
+	}
 	buf := bytes.Buffer{}
 	if err := t.Execute(&buf, d); err != nil {
 		return fmt.Errorf("failed to execute template: %w", err)
@@ -754,6 +766,9 @@ func fileFromReader(n string, r io.Reader) *File {
 
 // fileFromHTMLTemplate returns a File pointer form a given html/template.Template
 func fileFromHTMLTemplate(n string, t *ht.Template, d interface{}) (*File, error) {
+	if t == nil {
+		return nil, fmt.Errorf("template pointer is nil")
+	}
 	buf := bytes.Buffer{}
 	if err := t.Execute(&buf, d); err != nil {
 		return nil, fmt.Errorf("failed to execute template: %w", err)
@@ -764,6 +779,9 @@ func fileFromHTMLTemplate(n string, t *ht.Template, d interface{}) (*File, error
 
 // fileFromTextTemplate returns a File pointer form a given text/template.Template
 func fileFromTextTemplate(n string, t *tt.Template, d interface{}) (*File, error) {
+	if t == nil {
+		return nil, fmt.Errorf("template pointer is nil")
+	}
 	buf := bytes.Buffer{}
 	if err := t.Execute(&buf, d); err != nil {
 		return nil, fmt.Errorf("failed to execute template: %w", err)
