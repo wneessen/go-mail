@@ -2,4 +2,4 @@
 package mail
 
 // VERSION is used in the default user agent string
-const VERSION = "0.1.9"
+const VERSION = "0.2.2"
