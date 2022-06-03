@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	htpl "html/template"
 	"io"
 	"net/mail"
 	"strings"
 	"testing"
+	ttpl "text/template"
 	"time"
 )
 
@@ -1336,5 +1338,365 @@ func TestMsg_Read_ioCopy(t *testing.T) {
 	}
 	if wbuf1.String() != wbuf2.String() {
 		t.Errorf("message content of WriteTo and io.Copy differ")
+	}
+}
+
+// TestMsg_SetBodyTextTemplate tests the Msg.SetBodyTextTemplate method
+func TestMsg_SetBodyTextTemplate(t *testing.T) {
+	tests := []struct {
+		name string
+		tpl  string
+		ph   string
+		sf   bool
+	}{
+		{"normal text", "This is a {{.Placeholder}}", "TemplateTest", false},
+		{"invalid tpl", "This is a {{ foo .Placeholder}}", "TemplateTest", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := struct {
+				Placeholder string
+			}{Placeholder: tt.ph}
+			tpl, err := ttpl.New("test").Parse(tt.tpl)
+			if err != nil && !tt.sf {
+				t.Errorf("failed to render template: %s", err)
+				return
+			}
+			m := NewMsg()
+			if err := m.SetBodyTextTemplate(tpl, data); err != nil && !tt.sf {
+				t.Errorf("failed to set template as body: %s", err)
+			}
+
+			wbuf := bytes.Buffer{}
+			_, err = m.WriteTo(&wbuf)
+			if err != nil {
+				t.Errorf("failed to write body to buffer: %s", err)
+			}
+			if !strings.Contains(wbuf.String(), tt.ph) && !tt.sf {
+				t.Errorf("SetBodyTextTemplate failed: Body does not contain the expected tpl placeholder: %s", tt.ph)
+			}
+			m.Reset()
+		})
+	}
+}
+
+// TestMsg_SetBodyHTMLTemplate tests the Msg.SetBodyHTMLTemplate method
+func TestMsg_SetBodyHTMLTemplate(t *testing.T) {
+	tests := []struct {
+		name string
+		tpl  string
+		ph   string
+		ex   string
+		sf   bool
+	}{
+		{"normal HTML", "<p>This is a {{.Placeholder}}</p>", "TemplateTest", "TemplateTest", false},
+		{"HTML with HTML", "<p>This is a {{.Placeholder}}</p>", "<script>alert(1)</script>",
+			"&lt;script&gt;alert(1)&lt;/script&gt;", false},
+		{"invalid tpl", "<p>This is a {{ foo .Placeholder}}</p>", "TemplateTest", "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := struct {
+				Placeholder string
+			}{Placeholder: tt.ph}
+			tpl, err := htpl.New("test").Parse(tt.tpl)
+			if err != nil && !tt.sf {
+				t.Errorf("failed to render template: %s", err)
+				return
+			}
+			m := NewMsg()
+			if err := m.SetBodyHTMLTemplate(tpl, data); err != nil && !tt.sf {
+				t.Errorf("failed to set template as body: %s", err)
+			}
+
+			wbuf := bytes.Buffer{}
+			_, err = m.WriteTo(&wbuf)
+			if err != nil {
+				t.Errorf("failed to write body to buffer: %s", err)
+			}
+			if !strings.Contains(wbuf.String(), tt.ex) && !tt.sf {
+				t.Errorf("SetBodyTextTemplate failed: Body does not contain the expected tpl placeholder: %s", tt.ph)
+			}
+			m.Reset()
+		})
+	}
+}
+
+// TestMsg_AddAlternativeTextTemplate tests the Msg.AddAlternativeTextTemplate method
+func TestMsg_AddAlternativeTextTemplate(t *testing.T) {
+	tests := []struct {
+		name string
+		tpl  string
+		ph   string
+		sf   bool
+	}{
+		{"normal text", "This is a {{.Placeholder}}", "TemplateTest", false},
+		{"invalid tpl", "This is a {{ foo .Placeholder}}", "TemplateTest", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := struct {
+				Placeholder string
+			}{Placeholder: tt.ph}
+			tpl, err := ttpl.New("test").Parse(tt.tpl)
+			if err != nil && !tt.sf {
+				t.Errorf("failed to render template: %s", err)
+				return
+			}
+			m := NewMsg()
+			m.SetBodyString(TypeTextHTML, "")
+			if err := m.AddAlternativeTextTemplate(tpl, data); err != nil && !tt.sf {
+				t.Errorf("failed to set template as alternative part: %s", err)
+			}
+
+			wbuf := bytes.Buffer{}
+			_, err = m.WriteTo(&wbuf)
+			if err != nil {
+				t.Errorf("failed to write body to buffer: %s", err)
+			}
+			if !strings.Contains(wbuf.String(), tt.ph) && !tt.sf {
+				t.Errorf("SetBodyTextTemplate failed: Body does not contain the expected tpl placeholder: %s", tt.ph)
+			}
+			m.Reset()
+		})
+	}
+}
+
+// TestMsg_AddAlternativeHTMLTemplate tests the Msg.AddAlternativeHTMLTemplate method
+func TestMsg_AddAlternativeHTMLTemplate(t *testing.T) {
+	tests := []struct {
+		name string
+		tpl  string
+		ph   string
+		ex   string
+		sf   bool
+	}{
+		{"normal HTML", "<p>This is a {{.Placeholder}}</p>", "TemplateTest", "TemplateTest", false},
+		{"HTML with HTML", "<p>This is a {{.Placeholder}}</p>", "<script>alert(1)</script>",
+			"&lt;script&gt;alert(1)&lt;/script&gt;", false},
+		{"invalid tpl", "<p>This is a {{ foo .Placeholder}}</p>", "TemplateTest", "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := struct {
+				Placeholder string
+			}{Placeholder: tt.ph}
+			tpl, err := htpl.New("test").Parse(tt.tpl)
+			if err != nil && !tt.sf {
+				t.Errorf("failed to render template: %s", err)
+				return
+			}
+			m := NewMsg()
+			m.SetBodyString(TypeTextPlain, "")
+			if err := m.AddAlternativeHTMLTemplate(tpl, data); err != nil && !tt.sf {
+				t.Errorf("failed to set template as alternative part: %s", err)
+			}
+
+			wbuf := bytes.Buffer{}
+			_, err = m.WriteTo(&wbuf)
+			if err != nil {
+				t.Errorf("failed to write body to buffer: %s", err)
+			}
+			if !strings.Contains(wbuf.String(), tt.ex) && !tt.sf {
+				t.Errorf("SetBodyTextTemplate failed: Body does not contain the expected tpl placeholder: %s", tt.ph)
+			}
+			m.Reset()
+		})
+	}
+}
+
+// TestMsg_AttachTextTemplate tests the Msg.AttachTextTemplate method
+func TestMsg_AttachTextTemplate(t *testing.T) {
+	tests := []struct {
+		name string
+		tpl  string
+		ph   string
+		ex   string
+		ac   int
+		sf   bool
+	}{
+		{"normal text", "This is a {{.Placeholder}}", "TemplateTest",
+			"VGhpcyBpcyBhIFRlbXBsYXRlVGVzdA==", 1, false},
+		{"invalid tpl", "This is a {{ foo .Placeholder}}", "TemplateTest", "", 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := struct {
+				Placeholder string
+			}{Placeholder: tt.ph}
+			tpl, err := ttpl.New("test").Parse(tt.tpl)
+			if err != nil && !tt.sf {
+				t.Errorf("failed to render template: %s", err)
+				return
+			}
+			m := NewMsg()
+			m.SetBodyString(TypeTextPlain, "This is the body")
+			if err := m.AttachTextTemplate("attachment.txt", tpl, data); err != nil && !tt.sf {
+				t.Errorf("failed to attach template: %s", err)
+			}
+
+			wbuf := bytes.Buffer{}
+			_, err = m.WriteTo(&wbuf)
+			if err != nil {
+				t.Errorf("failed to write body to buffer: %s", err)
+			}
+			if !strings.Contains(wbuf.String(), tt.ex) && !tt.sf {
+				t.Errorf("SetBodyTextTemplate failed: Body does not contain the expected tpl placeholder: %s", tt.ph)
+			}
+			if len(m.attachments) != tt.ac {
+				t.Errorf("wrong number of attachments. Expected: %d, got: %d", tt.ac, len(m.attachments))
+			}
+			m.Reset()
+		})
+	}
+}
+
+// TestMsg_AttachHTMLTemplate tests the Msg.AttachHTMLTemplate method
+func TestMsg_AttachHTMLTemplate(t *testing.T) {
+	tests := []struct {
+		name string
+		tpl  string
+		ph   string
+		ex   string
+		ac   int
+		sf   bool
+	}{
+		{"normal HTML", "<p>This is a {{.Placeholder}}</p>", "TemplateTest",
+			"PHA+VGhpcyBpcyBhIFRlbXBsYXRlVGVzdDwvcD4=", 1, false},
+		{"HTML with HTML", "<p>This is a {{.Placeholder}}</p>", "<script>alert(1)</script>",
+			"PHA+VGhpcyBpcyBhICZsdDtzY3JpcHQmZ3Q7YWxlcnQoMSkmbHQ7L3NjcmlwdCZndDs8L3A+", 1, false},
+		{"invalid tpl", "<p>This is a {{ foo .Placeholder}}</p>", "TemplateTest", "", 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := struct {
+				Placeholder string
+			}{Placeholder: tt.ph}
+			tpl, err := htpl.New("test").Parse(tt.tpl)
+			if err != nil && !tt.sf {
+				t.Errorf("failed to render template: %s", err)
+				return
+			}
+			m := NewMsg()
+			m.SetBodyString(TypeTextPlain, "")
+			if err := m.AttachHTMLTemplate("attachment.html", tpl, data); err != nil && !tt.sf {
+				t.Errorf("failed to set template as alternative part: %s", err)
+			}
+
+			wbuf := bytes.Buffer{}
+			_, err = m.WriteTo(&wbuf)
+			if err != nil {
+				t.Errorf("failed to write body to buffer: %s", err)
+			}
+			if !strings.Contains(wbuf.String(), tt.ex) && !tt.sf {
+				t.Errorf("SetBodyTextTemplate failed: Body does not contain the expected tpl placeholder: %s", tt.ph)
+			}
+			if len(m.attachments) != tt.ac {
+				t.Errorf("wrong number of attachments. Expected: %d, got: %d", tt.ac, len(m.attachments))
+			}
+			m.Reset()
+		})
+	}
+}
+
+// TestMsg_EmbedTextTemplate tests the Msg.EmbedTextTemplate method
+func TestMsg_EmbedTextTemplate(t *testing.T) {
+	tests := []struct {
+		name string
+		tpl  string
+		ph   string
+		ex   string
+		ec   int
+		sf   bool
+	}{
+		{"normal text", "This is a {{.Placeholder}}", "TemplateTest",
+			"VGhpcyBpcyBhIFRlbXBsYXRlVGVzdA==", 1, false},
+		{"invalid tpl", "This is a {{ foo .Placeholder}}", "TemplateTest", "", 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := struct {
+				Placeholder string
+			}{Placeholder: tt.ph}
+			tpl, err := ttpl.New("test").Parse(tt.tpl)
+			if err != nil && !tt.sf {
+				t.Errorf("failed to render template: %s", err)
+				return
+			}
+			m := NewMsg()
+			m.SetBodyString(TypeTextPlain, "This is the body")
+			if err := m.EmbedTextTemplate("attachment.txt", tpl, data); err != nil && !tt.sf {
+				t.Errorf("failed to attach template: %s", err)
+			}
+
+			wbuf := bytes.Buffer{}
+			_, err = m.WriteTo(&wbuf)
+			if err != nil {
+				t.Errorf("failed to write body to buffer: %s", err)
+			}
+			if !strings.Contains(wbuf.String(), tt.ex) && !tt.sf {
+				t.Errorf("SetBodyTextTemplate failed: Body does not contain the expected tpl placeholder: %s", tt.ph)
+			}
+			if len(m.embeds) != tt.ec {
+				t.Errorf("wrong number of attachments. Expected: %d, got: %d", tt.ec, len(m.attachments))
+			}
+			m.Reset()
+		})
+	}
+}
+
+// TestMsg_EmbedHTMLTemplate tests the Msg.EmbedHTMLTemplate method
+func TestMsg_EmbedHTMLTemplate(t *testing.T) {
+	tests := []struct {
+		name string
+		tpl  string
+		ph   string
+		ex   string
+		ec   int
+		sf   bool
+	}{
+		{"normal HTML", "<p>This is a {{.Placeholder}}</p>", "TemplateTest",
+			"PHA+VGhpcyBpcyBhIFRlbXBsYXRlVGVzdDwvcD4=", 1, false},
+		{"HTML with HTML", "<p>This is a {{.Placeholder}}</p>", "<script>alert(1)</script>",
+			"PHA+VGhpcyBpcyBhICZsdDtzY3JpcHQmZ3Q7YWxlcnQoMSkmbHQ7L3NjcmlwdCZndDs8L3A+", 1, false},
+		{"invalid tpl", "<p>This is a {{ foo .Placeholder}}</p>", "TemplateTest", "", 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := struct {
+				Placeholder string
+			}{Placeholder: tt.ph}
+			tpl, err := htpl.New("test").Parse(tt.tpl)
+			if err != nil && !tt.sf {
+				t.Errorf("failed to render template: %s", err)
+				return
+			}
+			m := NewMsg()
+			m.SetBodyString(TypeTextPlain, "")
+			if err := m.EmbedHTMLTemplate("attachment.html", tpl, data); err != nil && !tt.sf {
+				t.Errorf("failed to set template as alternative part: %s", err)
+			}
+
+			wbuf := bytes.Buffer{}
+			_, err = m.WriteTo(&wbuf)
+			if err != nil {
+				t.Errorf("failed to write body to buffer: %s", err)
+			}
+			if !strings.Contains(wbuf.String(), tt.ex) && !tt.sf {
+				t.Errorf("SetBodyTextTemplate failed: Body does not contain the expected tpl placeholder: %s", tt.ph)
+			}
+			if len(m.embeds) != tt.ec {
+				t.Errorf("wrong number of attachments. Expected: %d, got: %d", tt.ec, len(m.attachments))
+			}
+			m.Reset()
+		})
 	}
 }
