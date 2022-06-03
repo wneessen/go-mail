@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"html/template"
+	ht "html/template"
 	"io"
 	"math/rand"
 	"mime"
@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"syscall"
+	tt "text/template"
 	"time"
 )
 
@@ -390,10 +391,7 @@ func (m *Msg) GetRecipients() ([]string, error) {
 // SetBodyString sets the body of the message.
 func (m *Msg) SetBodyString(ct ContentType, b string, o ...PartOption) {
 	buf := bytes.NewBufferString(b)
-	w := func(w io.Writer) (int64, error) {
-		nb, err := w.Write(buf.Bytes())
-		return int64(nb), err
-	}
+	w := writeFuncFromBuffer(buf)
 	m.SetBodyWriter(ct, w, o...)
 }
 
@@ -404,13 +402,34 @@ func (m *Msg) SetBodyWriter(ct ContentType, w func(io.Writer) (int64, error), o 
 	m.parts = []*Part{p}
 }
 
+// SetBodyHTMLTemplate sets the body of the message from a given html/template.Template pointer
+// The content type will be set to text/html automatically
+func (m *Msg) SetBodyHTMLTemplate(t *ht.Template, d interface{}, o ...PartOption) error {
+	buf := bytes.Buffer{}
+	if err := t.Execute(&buf, d); err != nil {
+		return fmt.Errorf("failed to execute template: %w", err)
+	}
+	w := writeFuncFromBuffer(&buf)
+	m.SetBodyWriter(TypeTextHTML, w, o...)
+	return nil
+}
+
+// SetBodyTextTemplate sets the body of the message from a given text/template.Template pointer
+// The content type will be set to text/plain automatically
+func (m *Msg) SetBodyTextTemplate(t *tt.Template, d interface{}, o ...PartOption) error {
+	buf := bytes.Buffer{}
+	if err := t.Execute(&buf, d); err != nil {
+		return fmt.Errorf("failed to execute template: %w", err)
+	}
+	w := writeFuncFromBuffer(&buf)
+	m.SetBodyWriter(TypeTextPlain, w, o...)
+	return nil
+}
+
 // AddAlternativeString sets the alternative body of the message.
 func (m *Msg) AddAlternativeString(ct ContentType, b string, o ...PartOption) {
 	buf := bytes.NewBufferString(b)
-	w := func(w io.Writer) (int64, error) {
-		nb, err := w.Write(buf.Bytes())
-		return int64(nb), err
-	}
+	w := writeFuncFromBuffer(buf)
 	m.AddAlternativeWriter(ct, w, o...)
 }
 
@@ -419,6 +438,30 @@ func (m *Msg) AddAlternativeWriter(ct ContentType, w func(io.Writer) (int64, err
 	p := m.newPart(ct, o...)
 	p.w = w
 	m.parts = append(m.parts, p)
+}
+
+// AddAlternativeHTMLTemplate sets the alternative body of the message to a html/template.Template output
+// The content type will be set to text/html automatically
+func (m *Msg) AddAlternativeHTMLTemplate(t *ht.Template, d interface{}, o ...PartOption) error {
+	buf := bytes.Buffer{}
+	if err := t.Execute(&buf, d); err != nil {
+		return fmt.Errorf("failed to execute template: %w", err)
+	}
+	w := writeFuncFromBuffer(&buf)
+	m.AddAlternativeWriter(TypeTextHTML, w, o...)
+	return nil
+}
+
+// AddAlternativeTextTemplate sets the alternative body of the message to a text/template.Template output
+// The content type will be set to text/plain automatically
+func (m *Msg) AddAlternativeTextTemplate(t *tt.Template, d interface{}, o ...PartOption) error {
+	buf := bytes.Buffer{}
+	if err := t.Execute(&buf, d); err != nil {
+		return fmt.Errorf("failed to execute template: %w", err)
+	}
+	w := writeFuncFromBuffer(&buf)
+	m.AddAlternativeWriter(TypeTextPlain, w, o...)
+	return nil
 }
 
 // AttachFile adds an attachment File to the Msg
@@ -436,9 +479,19 @@ func (m *Msg) AttachReader(n string, r io.Reader, o ...FileOption) {
 	m.attachments = m.appendFile(m.attachments, f, o...)
 }
 
-// AttachTemplate adds the output of a template.Template pointer as File attachment to the Msg
-func (m *Msg) AttachTemplate(n string, t *template.Template, d interface{}, o ...FileOption) error {
-	f, err := fileFromTemplate(n, t, d)
+// AttachHTMLTemplate adds the output of a html/template.Template pointer as File attachment to the Msg
+func (m *Msg) AttachHTMLTemplate(n string, t *ht.Template, d interface{}, o ...FileOption) error {
+	f, err := fileFromHTMLTemplate(n, t, d)
+	if err != nil {
+		return fmt.Errorf("failed to attach template: %w", err)
+	}
+	m.attachments = m.appendFile(m.attachments, f, o...)
+	return nil
+}
+
+// AttachTextTemplate adds the output of a text/template.Template pointer as File attachment to the Msg
+func (m *Msg) AttachTextTemplate(n string, t *tt.Template, d interface{}, o ...FileOption) error {
+	f, err := fileFromTextTemplate(n, t, d)
 	if err != nil {
 		return fmt.Errorf("failed to attach template: %w", err)
 	}
@@ -461,9 +514,19 @@ func (m *Msg) EmbedReader(n string, r io.Reader, o ...FileOption) {
 	m.embeds = m.appendFile(m.embeds, f, o...)
 }
 
-// EmbedTemplate adds the output of a template.Template pointer as embedded File to the Msg
-func (m *Msg) EmbedTemplate(n string, t *template.Template, d interface{}, o ...FileOption) error {
-	f, err := fileFromTemplate(n, t, d)
+// EmbedHTMLTemplate adds the output of a html/template.Template pointer as embedded File to the Msg
+func (m *Msg) EmbedHTMLTemplate(n string, t *ht.Template, d interface{}, o ...FileOption) error {
+	f, err := fileFromHTMLTemplate(n, t, d)
+	if err != nil {
+		return fmt.Errorf("failed to embed template: %w", err)
+	}
+	m.embeds = m.appendFile(m.embeds, f, o...)
+	return nil
+}
+
+// EmbedTextTemplate adds the output of a text/template.Template pointer as embedded File to the Msg
+func (m *Msg) EmbedTextTemplate(n string, t *tt.Template, d interface{}, o ...FileOption) error {
+	f, err := fileFromTextTemplate(n, t, d)
 	if err != nil {
 		return fmt.Errorf("failed to embed template: %w", err)
 	}
@@ -689,8 +752,18 @@ func fileFromReader(n string, r io.Reader) *File {
 	}
 }
 
-// fileFromTemplate returns a File pointer form a given template.Template
-func fileFromTemplate(n string, t *template.Template, d interface{}) (*File, error) {
+// fileFromHTMLTemplate returns a File pointer form a given html/template.Template
+func fileFromHTMLTemplate(n string, t *ht.Template, d interface{}) (*File, error) {
+	buf := bytes.Buffer{}
+	if err := t.Execute(&buf, d); err != nil {
+		return nil, fmt.Errorf("failed to execute template: %w", err)
+	}
+	f := fileFromReader(n, &buf)
+	return f, nil
+}
+
+// fileFromTextTemplate returns a File pointer form a given text/template.Template
+func fileFromTextTemplate(n string, t *tt.Template, d interface{}) (*File, error) {
 	buf := bytes.Buffer{}
 	if err := t.Execute(&buf, d); err != nil {
 		return nil, fmt.Errorf("failed to execute template: %w", err)
@@ -709,4 +782,14 @@ func getEncoder(e Encoding) mime.WordEncoder {
 	default:
 		return mime.QEncoding
 	}
+}
+
+// writeFuncFromBuffer is a common method to convert a byte buffer into a writeFunc as
+// often required by this library
+func writeFuncFromBuffer(buf *bytes.Buffer) func(io.Writer) (int64, error) {
+	w := func(w io.Writer) (int64, error) {
+		nb, err := w.Write(buf.Bytes())
+		return int64(nb), err
+	}
+	return w
 }
