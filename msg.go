@@ -26,6 +26,14 @@ var (
 	ErrNoRcptAddresses = errors.New("no recipient addresses set")
 )
 
+const (
+	// errTplExecuteFailed is issued when the template execution was not successful
+	errTplExecuteFailed = "failed to execute template: %w"
+
+	// errTplPointerNil is issued when a template pointer is expected but it is nil
+	errTplPointerNil = "template pointer is nil"
+)
+
 // Msg is the mail message struct
 type Msg struct {
 	// addrHeader is a slice of strings that the different mail AddrHeader fields
@@ -406,11 +414,11 @@ func (m *Msg) SetBodyWriter(ct ContentType, w func(io.Writer) (int64, error), o 
 // The content type will be set to text/html automatically
 func (m *Msg) SetBodyHTMLTemplate(t *ht.Template, d interface{}, o ...PartOption) error {
 	if t == nil {
-		return fmt.Errorf("template pointer is nil")
+		return fmt.Errorf(errTplPointerNil)
 	}
 	buf := bytes.Buffer{}
 	if err := t.Execute(&buf, d); err != nil {
-		return fmt.Errorf("failed to execute template: %w", err)
+		return fmt.Errorf(errTplExecuteFailed, err)
 	}
 	w := writeFuncFromBuffer(&buf)
 	m.SetBodyWriter(TypeTextHTML, w, o...)
@@ -421,11 +429,11 @@ func (m *Msg) SetBodyHTMLTemplate(t *ht.Template, d interface{}, o ...PartOption
 // The content type will be set to text/plain automatically
 func (m *Msg) SetBodyTextTemplate(t *tt.Template, d interface{}, o ...PartOption) error {
 	if t == nil {
-		return fmt.Errorf("template pointer is nil")
+		return fmt.Errorf(errTplPointerNil)
 	}
 	buf := bytes.Buffer{}
 	if err := t.Execute(&buf, d); err != nil {
-		return fmt.Errorf("failed to execute template: %w", err)
+		return fmt.Errorf(errTplExecuteFailed, err)
 	}
 	w := writeFuncFromBuffer(&buf)
 	m.SetBodyWriter(TypeTextPlain, w, o...)
@@ -450,11 +458,11 @@ func (m *Msg) AddAlternativeWriter(ct ContentType, w func(io.Writer) (int64, err
 // The content type will be set to text/html automatically
 func (m *Msg) AddAlternativeHTMLTemplate(t *ht.Template, d interface{}, o ...PartOption) error {
 	if t == nil {
-		return fmt.Errorf("template pointer is nil")
+		return fmt.Errorf(errTplPointerNil)
 	}
 	buf := bytes.Buffer{}
 	if err := t.Execute(&buf, d); err != nil {
-		return fmt.Errorf("failed to execute template: %w", err)
+		return fmt.Errorf(errTplExecuteFailed, err)
 	}
 	w := writeFuncFromBuffer(&buf)
 	m.AddAlternativeWriter(TypeTextHTML, w, o...)
@@ -465,11 +473,11 @@ func (m *Msg) AddAlternativeHTMLTemplate(t *ht.Template, d interface{}, o ...Par
 // The content type will be set to text/plain automatically
 func (m *Msg) AddAlternativeTextTemplate(t *tt.Template, d interface{}, o ...PartOption) error {
 	if t == nil {
-		return fmt.Errorf("template pointer is nil")
+		return fmt.Errorf(errTplPointerNil)
 	}
 	buf := bytes.Buffer{}
 	if err := t.Execute(&buf, d); err != nil {
-		return fmt.Errorf("failed to execute template: %w", err)
+		return fmt.Errorf(errTplExecuteFailed, err)
 	}
 	w := writeFuncFromBuffer(&buf)
 	m.AddAlternativeWriter(TypeTextPlain, w, o...)
@@ -767,11 +775,11 @@ func fileFromReader(n string, r io.Reader) *File {
 // fileFromHTMLTemplate returns a File pointer form a given html/template.Template
 func fileFromHTMLTemplate(n string, t *ht.Template, d interface{}) (*File, error) {
 	if t == nil {
-		return nil, fmt.Errorf("template pointer is nil")
+		return nil, fmt.Errorf(errTplPointerNil)
 	}
 	buf := bytes.Buffer{}
 	if err := t.Execute(&buf, d); err != nil {
-		return nil, fmt.Errorf("failed to execute template: %w", err)
+		return nil, fmt.Errorf(errTplExecuteFailed, err)
 	}
 	f := fileFromReader(n, &buf)
 	return f, nil
@@ -780,11 +788,11 @@ func fileFromHTMLTemplate(n string, t *ht.Template, d interface{}) (*File, error
 // fileFromTextTemplate returns a File pointer form a given text/template.Template
 func fileFromTextTemplate(n string, t *tt.Template, d interface{}) (*File, error) {
 	if t == nil {
-		return nil, fmt.Errorf("template pointer is nil")
+		return nil, fmt.Errorf(errTplPointerNil)
 	}
 	buf := bytes.Buffer{}
 	if err := t.Execute(&buf, d); err != nil {
-		return nil, fmt.Errorf("failed to execute template: %w", err)
+		return nil, fmt.Errorf(errTplExecuteFailed, err)
 	}
 	f := fileFromReader(n, &buf)
 	return f, nil
