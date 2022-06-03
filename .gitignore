@@ -14,5 +14,9 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
+# Local testfiles and auth data
+.auth
+cmd/main.go
+
 # SonarQube
 .scannerwork/
