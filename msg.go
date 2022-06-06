@@ -593,6 +593,21 @@ func (m *Msg) appendFile(c []*File, f *File, o ...FileOption) []*File {
 	return append(c, f)
 }
 
+// WriteToFile stores the Msg as file on disk. It will try to create the given filename
+// Already existing files will be overwritten
+func (m *Msg) WriteToFile(n string) error {
+	f, err := os.Create(n)
+	if err != nil {
+		return fmt.Errorf("failed to create output file: %w", err)
+	}
+	defer func() { _ = f.Close() }()
+	_, err = m.WriteTo(f)
+	if err != nil {
+		return fmt.Errorf("failed to write to output file: %w", err)
+	}
+	return f.Close()
+}
+
 // WriteToSendmail returns WriteToSendmailWithCommand with a default sendmail path
 func (m *Msg) WriteToSendmail() error {
 	return m.WriteToSendmailWithCommand(SendmailPath)
