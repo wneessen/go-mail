@@ -7,6 +7,7 @@ import (
 	htpl "html/template"
 	"io"
 	"net/mail"
+	"os"
 	"strings"
 	"testing"
 	ttpl "text/template"
@@ -1698,5 +1699,45 @@ func TestMsg_EmbedHTMLTemplate(t *testing.T) {
 			}
 			m.Reset()
 		})
+	}
+}
+
+// TestMsg_WriteToTempFile will test the output to temporary files
+func TestMsg_WriteToTempFile(t *testing.T) {
+	m := NewMsg()
+	_ = m.From("Toni Tester <tester@example.com>")
+	_ = m.To("Ellenor Tester <ellinor@example.com>")
+	m.SetBodyString(TypeTextPlain, "This is a test")
+	f, err := m.WriteToTempFile()
+	if err != nil {
+		t.Errorf("failed to write message to temporary output file: %s", err)
+	}
+	_ = os.Remove(f)
+}
+
+// TestMsg_WriteToFile will test the output to a file
+func TestMsg_WriteToFile(t *testing.T) {
+	f, err := os.CreateTemp("", "go-mail-test_*.eml")
+	if err != nil {
+		t.Errorf("failed to create temporary output file: %s", err)
+	}
+	defer func() {
+		_ = f.Close()
+		_ = os.Remove(f.Name())
+	}()
+
+	m := NewMsg()
+	_ = m.From("Toni Tester <tester@example.com>")
+	_ = m.To("Ellenor Tester <ellinor@example.com>")
+	m.SetBodyString(TypeTextPlain, "This is a test")
+	if err := m.WriteToFile(f.Name()); err != nil {
+		t.Errorf("failed to write to output file: %s", err)
+	}
+	fi, err := os.Stat(f.Name())
+	if err != nil {
+		t.Errorf("failed to stat output file: %s", err)
+	}
+	if fi.Size() <= 0 {
+		t.Errorf("output file is expected to contain data but its size is zero")
 	}
 }
