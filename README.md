@@ -36,6 +36,7 @@ Some of the features of this library:
 * [X] Support sending mails via a local sendmail command
 * [X] Message object satisfies `io.WriteTo` and `io.Reader` interfaces
 * [X] Support for Go's `html/template` and `text/template` (as message body, alternative part or attachment/emebed)
+* [X] Output to file support which allows storing mail messages as e. g. `.eml` files to disk to open them in a MUA
 
 go-mail works like a programatic email client and provides lots of methods and functionalities you would consider
 standard in a MUA.
