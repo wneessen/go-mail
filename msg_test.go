@@ -325,6 +325,10 @@ func TestMsg_EnvelopeFrom(t *testing.T) {
 		return
 	}
 	gs, err = m.GetSender(false)
+	if err != nil {
+		t.Errorf("GetSender(true) failed: %s", err)
+		return
+	}
 	if gs != a {
 		t.Errorf("From() failed. Expected: %s, got: %s", a, gs)
 		return
