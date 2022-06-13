@@ -81,13 +81,17 @@ const (
 	HeaderXPriority Header = "X-Priority"
 )
 
-// List of common generic header field names
+// List of common address header field names
 const (
 	// HeaderBcc is the "Blind Carbon Copy" header field
 	HeaderBcc AddrHeader = "Bcc"
 
 	// HeaderCc is the "Carbon Copy" header field
 	HeaderCc AddrHeader = "Cc"
+
+	// HeaderEnvelopeFrom is the envelope FROM header field
+	// It's not included in the mail body but only used by the Client for the envelope
+	HeaderEnvelopeFrom AddrHeader = "EnvelopeFrom"
 
 	// HeaderFrom is the "From" header field
 	HeaderFrom AddrHeader = "From"

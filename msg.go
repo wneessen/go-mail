@@ -197,6 +197,18 @@ func (m *Msg) SetAddrHeaderIgnoreInvalid(h AddrHeader, v ...string) {
 	m.addrHeader[h] = al
 }
 
+// EnvelopeFrom takes and validates a given mail address and sets it as envelope "FROM"
+// addrHeader of the Msg
+func (m *Msg) EnvelopeFrom(f string) error {
+	return m.SetAddrHeader(HeaderEnvelopeFrom, f)
+}
+
+// EnvelopeFromFormat takes a name and address, formats them RFC5322 compliant and stores them as
+// the envelope FROM address header field
+func (m *Msg) EnvelopeFromFormat(n, a string) error {
+	return m.SetAddrHeader(HeaderEnvelopeFrom, fmt.Sprintf(`"%s" <%s>`, n, a))
+}
+
 // From takes and validates a given mail address and sets it as "From" genHeader of the Msg
 func (m *Msg) From(f string) error {
 	return m.SetAddrHeader(HeaderFrom, f)
@@ -365,12 +377,16 @@ func (m *Msg) SetUserAgent(a string) {
 	m.SetHeader(HeaderXMailer, a)
 }
 
-// GetSender returns the currently set FROM address. If f is true, it will return the full
-// address string including the address name, if set
+// GetSender returns the currently set envelope FROM address. If no envelope FROM is set it will use
+// the first mail body FROM address. If ff is true, it will return the full address string including
+// the address name, if set
 func (m *Msg) GetSender(ff bool) (string, error) {
-	f, ok := m.addrHeader[HeaderFrom]
+	f, ok := m.addrHeader[HeaderEnvelopeFrom]
 	if !ok || len(f) == 0 {
-		return "", ErrNoFromAddress
+		f, ok = m.addrHeader[HeaderFrom]
+		if !ok || len(f) == 0 {
+			return "", ErrNoFromAddress
+		}
 	}
 	if ff {
 		return f[0].String(), nil
