@@ -266,6 +266,84 @@ func TestMsg_From(t *testing.T) {
 	}
 }
 
+// TestMsg_EnvelopeFrom tests the Msg.EnvelopeFrom and Msg.GetSender methods
+func TestMsg_EnvelopeFrom(t *testing.T) {
+	e := "envelope@example.com"
+	a := "toni@example.com"
+	n := "Toni Tester"
+	na := fmt.Sprintf(`"%s" <%s>`, n, a)
+	ne := fmt.Sprintf(`<%s>`, e)
+	m := NewMsg()
+
+	_, err := m.GetSender(false)
+	if err == nil {
+		t.Errorf("GetSender(false) without a set envelope From address succeeded but was expected to fail")
+		return
+	}
+
+	if err := m.EnvelopeFrom(e); err != nil {
+		t.Errorf("failed to set envelope FROM addresses: %s", err)
+		return
+	}
+	gs, err := m.GetSender(false)
+	if err != nil {
+		t.Errorf("GetSender(false) failed: %s", err)
+		return
+	}
+	if gs != e {
+		t.Errorf("From() failed. Expected: %s, got: %s", e, gs)
+		return
+	}
+
+	if err := m.From(na); err != nil {
+		t.Errorf("failed to set FROM addresses: %s", err)
+		return
+	}
+	gs, err = m.GetSender(false)
+	if err != nil {
+		t.Errorf("GetSender(false) failed: %s", err)
+		return
+	}
+	if gs != e {
+		t.Errorf("From() failed. Expected: %s, got: %s", e, gs)
+		return
+	}
+
+	gs, err = m.GetSender(true)
+	if err != nil {
+		t.Errorf("GetSender(true) failed: %s", err)
+		return
+	}
+	if gs != ne {
+		t.Errorf("From() failed. Expected: %s, got: %s", ne, gs)
+		return
+	}
+	m.Reset()
+
+	if err := m.From(na); err != nil {
+		t.Errorf("failed to set FROM addresses: %s", err)
+		return
+	}
+	gs, err = m.GetSender(false)
+	if err != nil {
+		t.Errorf("GetSender(true) failed: %s", err)
+		return
+	}
+	if gs != a {
+		t.Errorf("From() failed. Expected: %s, got: %s", a, gs)
+		return
+	}
+	gs, err = m.GetSender(true)
+	if err != nil {
+		t.Errorf("GetSender(true) failed: %s", err)
+		return
+	}
+	if gs != na {
+		t.Errorf("From() failed. Expected: %s, got: %s", na, gs)
+		return
+	}
+}
+
 // TestMsg_AddToFormat tests the Msg.AddToFormat method
 func TestMsg_AddToFormat(t *testing.T) {
 	a := []string{"address1@example.com", "address2@example.com"}

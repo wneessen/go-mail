@@ -54,7 +54,22 @@ func (mw *msgWriter) writeMsg(m *Msg) {
 	m.addDefaultHeader()
 	m.checkUserAgent()
 	mw.writeGenHeader(m)
-	for _, t := range []AddrHeader{HeaderFrom, HeaderTo, HeaderCc} {
+
+	// Set the FROM header (or envelope FROM if FROM is empty)
+	hf := true
+	f, ok := m.addrHeader[HeaderFrom]
+	if !ok || len(f) == 0 {
+		f, ok = m.addrHeader[HeaderEnvelopeFrom]
+		if !ok || len(f) == 0 {
+			hf = false
+		}
+	}
+	if hf {
+		mw.writeHeader(Header(HeaderFrom), f[0].String())
+	}
+
+	// Set the rest of the address headers
+	for _, t := range []AddrHeader{HeaderTo, HeaderCc} {
 		if al, ok := m.addrHeader[t]; ok {
 			var v []string
 			for _, a := range al {
