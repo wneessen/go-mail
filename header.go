@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2022 Winni Neessen <winni@neessen.dev>
+//
+// SPDX-License-Identifier: MIT
+
 package mail
 
 // Header represents a generic mail header field name

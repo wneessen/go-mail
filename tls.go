@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2022 Winni Neessen <winni@neessen.dev>
+//
+// SPDX-License-Identifier: MIT
+
 package mail
 
 // TLSPolicy type describes a int alias for the different TLS policies we allow
