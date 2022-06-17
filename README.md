@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2022 Winni Neessen <winni@neessen.dev>
+
+SPDX-License-Identifier: CC0-1.0
+-->
+
 # go-mail - Simple and easy way to send mails in Go
 
 [![GoDoc](https://godoc.org/github.com/wneessen/go-mail?status.svg)](https://pkg.go.dev/github.com/wneessen/go-mail)
