@@ -4,7 +4,10 @@
 
 package dkim
 
-import "fmt"
+import (
+	"crypto"
+	"fmt"
+)
 
 type SignerConfig struct {
 	// Signing Domain Identifier (SDID)
@@ -43,6 +46,16 @@ type SignerConfig struct {
 	//
 	// AUID is optional
 	AUID string
+
+	// DKIM Hash Algorithms
+	// See: https://datatracker.ietf.org/doc/html/rfc6376#section-7.7
+	//
+	// DKIM supports SHA1 and SHA256. Please note that SHA1 is not
+	// recommended anymore, since the SHA1 hashing algorithm has been
+	// proven to be broken
+	//
+	// If no HashAlgo is provided, it will default to SHA256
+	HashAlgo crypto.Hash
 }
 
 // SignerOption returns a function that can be used for grouping SignerConfig options
@@ -55,6 +68,7 @@ func NewConfig(d string, s string, o ...SignerOption) (*SignerConfig, error) {
 	sc := &SignerConfig{
 		Domain:   d,
 		Selector: s,
+		HashAlgo: crypto.SHA256,
 	}
 
 	// Override defaults with optionally provided Option functions
@@ -76,6 +90,37 @@ func WithAUID(a string) SignerOption {
 		sc.AUID = a
 		return nil
 	}
+}
+
+// WithHashAlgo provides the Hashing algorithm to the SignerConfig
+func WithHashAlgo(ha crypto.Hash) SignerOption {
+	return func(sc *SignerConfig) error {
+		switch ha.String() {
+		case "SHA-256":
+		case "SHA-1":
+		default:
+			return fmt.Errorf("unsupported hashing algorithm: %s", ha.String())
+		}
+		sc.HashAlgo = ha
+		return nil
+	}
+}
+
+// SetAUID sets/overrides the AUID of the SignerConfig
+func (sc *SignerConfig) SetAUID(a string) {
+	sc.AUID = a
+}
+
+// SetHashAlgo sets/override the hashing algorithm of the SignerConfig
+func (sc *SignerConfig) SetHashAlgo(ha crypto.Hash) error {
+	switch ha.String() {
+	case "SHA-256":
+	case "SHA-1":
+	default:
+		return fmt.Errorf("unsupported hashing algorithm: %s", ha.String())
+	}
+	sc.HashAlgo = ha
+	return nil
 }
 
 // Signer is a struct that represents the main object for signing mails using DKIM

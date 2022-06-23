@@ -5,6 +5,7 @@
 package dkim
 
 import (
+	"crypto"
 	"testing"
 )
 
@@ -40,9 +41,15 @@ func TestNewConfig(t *testing.T) {
 			}
 		})
 	}
+
+	// Test nil option
+	_, err := NewConfig(TestDomain, TestSelector, nil)
+	if err != nil {
+		t.Errorf("NewConfig with nil option failed: %s", err)
+	}
 }
 
-func TestNewConfig_WithAUID(t *testing.T) {
+func TestNewConfig_WithSetAUID(t *testing.T) {
 	a := "testauid"
 	c, err := NewConfig(TestDomain, TestSelector, WithAUID(a))
 	if err != nil {
@@ -50,5 +57,47 @@ func TestNewConfig_WithAUID(t *testing.T) {
 	}
 	if c.AUID != a {
 		t.Errorf("WithAUID failed. Expected: %s, got: %s", a, c.AUID)
+	}
+	c.SetAUID("auidtest")
+	if c.AUID != "auidtest" {
+		t.Errorf("SetAUID failed. Expected: %s, got: %s", "auidtest", c.AUID)
+	}
+}
+
+func TestNewConfig_WithSetHashAlgo(t *testing.T) {
+	tests := []struct {
+		n  string
+		ha crypto.Hash
+		f  bool
+	}{
+		{"SHA-256", crypto.SHA256, false},
+		{"SHA-1", crypto.SHA1, false},
+		{"MD5", crypto.MD5, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.n, func(t *testing.T) {
+			c, err := NewConfig(TestDomain, TestSelector, WithHashAlgo(tt.ha))
+			if err != nil && !tt.f {
+				t.Errorf("NewConfig WithHashAlgo failed: %s", err)
+			}
+			if c.HashAlgo.String() != tt.ha.String() && !tt.f {
+				t.Errorf("NewConfig WithHashAlgo failed. Expected algo: %s, got: %s",
+					tt.ha.String(), c.HashAlgo.String())
+			}
+
+			c = nil
+			c, err = NewConfig(TestDomain, TestSelector)
+			if err != nil && !tt.f {
+				t.Errorf("NewConfig WithHashAlgo failed: %s", err)
+			}
+			if err := c.SetHashAlgo(tt.ha); err != nil && !tt.f {
+				t.Errorf("SetHashAlgo failed: %s", err)
+			}
+			if c.HashAlgo.String() != tt.ha.String() && !tt.f {
+				t.Errorf("NewConfig WithHashAlgo failed. Expected algo: %s, got: %s",
+					tt.ha.String(), c.HashAlgo.String())
+			}
+		})
 	}
 }
