@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2022 Winni Neessen <winni@neessen.dev>
+//
+// SPDX-License-Identifier: MIT
+
 package dkim
 
 // Canonicalization implements the different Canonicalization types as described in
