@@ -7,6 +7,9 @@ on:
   push:
     branches:
       - main # or the name of your main branch
+  pull_request:
+    branches:
+      - main # or the name of your main branch
 env:
   TEST_HOST: ${{ secrets.TEST_HOST }}
   TEST_FROM: ${{ secrets.TEST_USER }}
