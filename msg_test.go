@@ -7,6 +7,7 @@ package mail
 import (
 	"bufio"
 	"bytes"
+	"embed"
 	"fmt"
 	htpl "html/template"
 	"io"
@@ -17,6 +18,9 @@ import (
 	ttpl "text/template"
 	"time"
 )
+
+//go:embed README.md
+var efs embed.FS
 
 // TestNewMsg tests the NewMsg method
 func TestNewMsg(t *testing.T) {
@@ -1029,6 +1033,50 @@ func TestMsg_AttachFile(t *testing.T) {
 	}
 }
 
+// TestMsg_AttachFromEmbedFS tests the Msg.AttachFromEmbedFS and the WithFilename FileOption method
+func TestMsg_AttachFromEmbedFS(t *testing.T) {
+	tests := []struct {
+		name string
+		file string
+		fn   string
+		sf   bool
+	}{
+		{"File: README.md", "README.md", "README.md", false},
+		{"File: nonexisting", "", "invalid.file", true},
+	}
+	m := NewMsg()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := m.AttachFromEmbedFS(tt.file, &efs, WithFileName(tt.fn)); err != nil && !tt.sf {
+				t.Errorf("AttachFromEmbedFS() failed: %s", err)
+				return
+			}
+			if len(m.attachments) != 1 && !tt.sf {
+				t.Errorf("AttachFile() failed. Number of attachments expected: %d, got: %d", 1,
+					len(m.attachments))
+				return
+			}
+			if !tt.sf {
+				file := m.attachments[0]
+				if file == nil {
+					t.Errorf("AttachFile() failed. Attachment file pointer is nil")
+					return
+				}
+				if file.Name != tt.fn {
+					t.Errorf("AttachFile() failed. Filename of attachment expected: %s, got: %s", tt.fn,
+						file.Name)
+				}
+				buf := bytes.Buffer{}
+				if _, err := file.Writer(&buf); err != nil {
+					t.Errorf("failed to execute WriterFunc: %s", err)
+					return
+				}
+			}
+			m.Reset()
+		})
+	}
+}
+
 // TestMsg_AttachFileBrokenFunc tests WriterFunc of the Msg.AttachFile  method
 func TestMsg_AttachFileBrokenFunc(t *testing.T) {
 	m := NewMsg()
@@ -1099,6 +1147,50 @@ func TestMsg_EmbedFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m.EmbedFile(tt.file, WithFileName(tt.fn), nil)
+			if len(m.embeds) != 1 && !tt.sf {
+				t.Errorf("EmbedFile() failed. Number of embeds expected: %d, got: %d", 1,
+					len(m.embeds))
+				return
+			}
+			if !tt.sf {
+				file := m.embeds[0]
+				if file == nil {
+					t.Errorf("EmbedFile() failed. Embedded file pointer is nil")
+					return
+				}
+				if file.Name != tt.fn {
+					t.Errorf("EmbedFile() failed. Filename of embeds expected: %s, got: %s", tt.fn,
+						file.Name)
+				}
+				buf := bytes.Buffer{}
+				if _, err := file.Writer(&buf); err != nil {
+					t.Errorf("failed to execute WriterFunc: %s", err)
+					return
+				}
+			}
+			m.Reset()
+		})
+	}
+}
+
+// TestMsg_EmbedFromEmbedFS tests the Msg.EmbedFromEmbedFS and the WithFilename FileOption method
+func TestMsg_EmbedFromEmbedFS(t *testing.T) {
+	tests := []struct {
+		name string
+		file string
+		fn   string
+		sf   bool
+	}{
+		{"File: README.md", "README.md", "README.md", false},
+		{"File: nonexisting", "", "invalid.file", true},
+	}
+	m := NewMsg()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := m.EmbedFromEmbedFS(tt.file, &efs, WithFileName(tt.fn)); err != nil && !tt.sf {
+				t.Errorf("EmbedFromEmbedFS() failed: %s", err)
+				return
+			}
 			if len(m.embeds) != 1 && !tt.sf {
 				t.Errorf("EmbedFile() failed. Number of embeds expected: %d, got: %d", 1,
 					len(m.embeds))

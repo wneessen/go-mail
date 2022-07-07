@@ -7,6 +7,7 @@ package mail
 import (
 	"bytes"
 	"context"
+	"embed"
 	"errors"
 	"fmt"
 	ht "html/template"
@@ -539,6 +540,19 @@ func (m *Msg) AttachTextTemplate(n string, t *tt.Template, d interface{}, o ...F
 	return nil
 }
 
+// AttachFromEmbedFS adds an attachment File from an embed.FS to the Msg
+func (m *Msg) AttachFromEmbedFS(n string, f *embed.FS, o ...FileOption) error {
+	if f == nil {
+		return fmt.Errorf("embed.FS must not be nil")
+	}
+	ef, err := fileFromEmbedFS(n, f)
+	if err != nil {
+		return err
+	}
+	m.attachments = m.appendFile(m.attachments, ef, o...)
+	return nil
+}
+
 // EmbedFile adds an embedded File to the Msg
 func (m *Msg) EmbedFile(n string, o ...FileOption) {
 	f := fileFromFS(n)
@@ -571,6 +585,19 @@ func (m *Msg) EmbedTextTemplate(n string, t *tt.Template, d interface{}, o ...Fi
 		return fmt.Errorf("failed to embed template: %w", err)
 	}
 	m.embeds = m.appendFile(m.embeds, f, o...)
+	return nil
+}
+
+// EmbedFromEmbedFS adds an embedded File from an embed.FS to the Msg
+func (m *Msg) EmbedFromEmbedFS(n string, f *embed.FS, o ...FileOption) error {
+	if f == nil {
+		return fmt.Errorf("embed.FS must not be nil")
+	}
+	ef, err := fileFromEmbedFS(n, f)
+	if err != nil {
+		return err
+	}
+	m.embeds = m.appendFile(m.embeds, ef, o...)
 	return nil
 }
 
@@ -765,6 +792,30 @@ func (m *Msg) addDefaultHeader() {
 		m.SetMessageID()
 	}
 	m.SetHeader(HeaderMIMEVersion, string(m.mimever))
+}
+
+// fileFromEmbedFS returns a File pointer from a given file in the provided embed.FS
+func fileFromEmbedFS(n string, f *embed.FS) (*File, error) {
+	_, err := f.Open(n)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file from embed.FS: %w", err)
+	}
+	return &File{
+		Name:   filepath.Base(n),
+		Header: make(map[string][]string),
+		Writer: func(w io.Writer) (int64, error) {
+			h, err := f.Open(n)
+			if err != nil {
+				return 0, err
+			}
+			nb, err := io.Copy(w, h)
+			if err != nil {
+				_ = h.Close()
+				return nb, fmt.Errorf("failed to copy file to io.Writer: %w", err)
+			}
+			return nb, h.Close()
+		},
+	}, nil
 }
 
 // fileFromFS returns a File pointer from a given file in the system's file system
