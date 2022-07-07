@@ -38,7 +38,7 @@ Some of the features of this library:
 * [X] RFC5322 compliant mail address validation
 * [X] Support for common mail header field generation (Message-ID, Date, Bulk-Precedence, Priority, etc.)
 * [X] Reusing the same SMTP connection to send multiple mails
-* [X] Support for attachments and inline embeds
+* [X] Support for attachments and inline embeds (from file system, `io.Reader` or `embed.FS`)
 * [X] Support for different encodings
 * [X] Support sending mails via a local sendmail command
 * [X] Message object satisfies `io.WriteTo` and `io.Reader` interfaces
