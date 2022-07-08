@@ -14,6 +14,8 @@ SPDX-License-Identifier: CC0-1.0
 [![REUSE status](https://api.reuse.software/badge/github.com/wneessen/go-mail)](https://api.reuse.software/info/github.com/wneessen/go-mail) 
 <a href="https://ko-fi.com/D1D24V9IX"><img src="https://uploads-ssl.webflow.com/5c14e387dab576fe667689cf/5cbed8a4ae2b88347c06c923_BuyMeACoffee_blue.png" height="20" alt="buy ma a coffee"></a>
 
+<img src="./assets/gopher2.svg" width="250" alt="go-mail logo"/>
+
 The main idea of this library was to provide a simple interface to sending mails for
 my [JS-Mailer](https://github.com/wneessen/js-mailer) project. It quickly evolved into a full-fledged mail library.
 
@@ -135,5 +137,6 @@ func main() {
 ```
 
 ## Contributors
-Thanks to the following people for contributing to the go-mail codebase:
+Thanks to the following people for contributing to the go-mail project:
 * [inliquid](https://github.com/inliquid) 
+* [Maria Letta](https://github.com/MariaLetta) (designed the go-mail logo)
