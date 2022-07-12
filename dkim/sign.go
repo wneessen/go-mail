@@ -123,6 +123,15 @@ func (sc *SignerConfig) SetHashAlgo(ha crypto.Hash) error {
 	return nil
 }
 
+// SetSelector overrides the Selector of the SignerConfig
+func (sc *SignerConfig) SetSelector(s string) error {
+	if s == "" {
+		return fmt.Errorf("DKIM selector must not be empty")
+	}
+	sc.Selector = s
+	return nil
+}
+
 // Signer is a struct that represents the main object for signing mails using DKIM
 type Signer struct {
 	c *SignerConfig

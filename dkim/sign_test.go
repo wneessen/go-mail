@@ -101,3 +101,49 @@ func TestNewConfig_WithSetHashAlgo(t *testing.T) {
 		})
 	}
 }
+
+func TestNewConfig_SetSelector(t *testing.T) {
+	s := "override_selector"
+	c, err := NewConfig(TestDomain, TestSelector)
+	if err != nil {
+		t.Errorf("NewConfig failed: %s", err)
+	}
+	if err := c.SetSelector(s); err != nil {
+		t.Errorf("SetSelector() failed: %s", err)
+	}
+	if c.Selector != s {
+		t.Errorf("SetSelector failed. Expected: %s, got: %s", s, c.Selector)
+	}
+	if err := c.SetSelector(""); err == nil {
+		t.Errorf("empty string in SetSelector() expected to fail, but did not")
+	}
+}
+
+func TestNewSigner(t *testing.T) {
+	confOk := &SignerConfig{Domain: TestDomain, Selector: TestSelector}
+	confNoDomain := &SignerConfig{Selector: TestSelector}
+	confNoSelector := &SignerConfig{Domain: TestDomain}
+	confEmpty := &SignerConfig{}
+	tests := []struct {
+		n string
+		c *SignerConfig
+		f bool
+	}{
+		{"valid domain and selector", confOk, false},
+		{"valid domain and empty selector", confNoSelector, true},
+		{"empty domain and valid selector", confNoDomain, true},
+		{"empty config", confEmpty, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.n, func(t *testing.T) {
+			s, err := NewSigner(tt.c)
+			if err != nil && !tt.f {
+				t.Errorf("NewSigner failed but was supposed to succeed: %s", err)
+			}
+			if s == nil && !tt.f {
+				t.Errorf("NewSigner response is nil")
+			}
+		})
+	}
+}
