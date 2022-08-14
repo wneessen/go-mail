@@ -22,6 +22,10 @@ import (
 // RFC 2047 suggests 76 characters
 const MaxHeaderLength = 76
 
+// MaxBodyLength defines the maximum line length for the mail body
+// RFC 2047 suggests 76 characters
+const MaxBodyLength = 76
+
 // SingleNewLine represents a new line that can be used by the msgWriter to issue a carriage return
 const SingleNewLine = "\r\n"
 
@@ -277,12 +281,14 @@ func (mw *msgWriter) writeBody(f func(io.Writer) (int64, error), e Encoding) {
 		w = mw.pw
 	}
 	wbuf := bytes.Buffer{}
+	lb := Base64LineBreaker{}
+	lb.out = &wbuf
 
 	switch e {
 	case EncodingQP:
 		ew = quotedprintable.NewWriter(&wbuf)
 	case EncodingB64:
-		ew = base64.NewEncoder(base64.StdEncoding, &wbuf)
+		ew = base64.NewEncoder(base64.StdEncoding, &lb)
 	case NoEncoding:
 		_, mw.err = f(&wbuf)
 		n, mw.err = io.Copy(w, &wbuf)
@@ -296,6 +302,7 @@ func (mw *msgWriter) writeBody(f func(io.Writer) (int64, error), e Encoding) {
 
 	_, mw.err = f(ew)
 	mw.err = ew.Close()
+	mw.err = lb.Close()
 	n, mw.err = io.Copy(w, &wbuf)
 
 	// Since the part writer uses the WriteTo() method, we don't need to add the
