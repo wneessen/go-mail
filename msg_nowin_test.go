@@ -9,6 +9,7 @@ package mail
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 )
@@ -36,5 +37,21 @@ func TestMsg_WriteToSendmailWithContext(t *testing.T) {
 			}
 			m.Reset()
 		})
+	}
+}
+
+// TestMsg_WriteToSendmail will test the output to the local sendmail command
+func TestMsg_WriteToSendmail(t *testing.T) {
+	_, err := os.Stat(SendmailPath)
+	if err != nil {
+		t.Skipf("local sendmail command not found in expected path. Skipping")
+	}
+
+	m := NewMsg()
+	_ = m.From("Toni Tester <tester@example.com>")
+	_ = m.To(TestRcpt)
+	m.SetBodyString(TypeTextPlain, "This is a test")
+	if err := m.WriteToSendmail(); err != nil {
+		t.Errorf("WriteToSendmail failed: %s", err)
 	}
 }
