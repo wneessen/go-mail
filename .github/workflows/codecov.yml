@@ -38,9 +38,14 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@master
     
+    - name: Install sendmail
+      if: matrix.go == 1.19 && matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get -y install sendmail; which sendmail
+        
     - name: Run Tests
       run: |
-        sudo apt-get install -y sendmail; go test -v -race --coverprofile=coverage.coverprofile --covermode=atomic ./...
+        go test -v -race --coverprofile=coverage.coverprofile --covermode=atomic ./...
     
     - name: Upload coverage to Codecov
       if: success() && matrix.go == 1.19 && matrix.os == 'ubuntu-latest'
