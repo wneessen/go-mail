@@ -617,7 +617,7 @@ func TestMsg_SetMessageIDWithValue(t *testing.T) {
 	}
 }
 
-// TestMsg_FromFormat tests the FromFormat() method for the Msg object
+// TestMsg_FromFormat tests the FromFormat and EnvelopeFrom methods for the Msg object
 func TestMsg_FromFormat(t *testing.T) {
 	tests := []struct {
 		tname string
@@ -639,6 +639,10 @@ func TestMsg_FromFormat(t *testing.T) {
 		t.Run(tt.tname, func(t *testing.T) {
 			if err := m.FromFormat(tt.name, tt.addr); err != nil && !tt.fail {
 				t.Errorf("failed to FromFormat(): %s", err)
+				return
+			}
+			if err := m.EnvelopeFromFormat(tt.name, tt.addr); err != nil && !tt.fail {
+				t.Errorf("failed to EnvelopeFromFormat(): %s", err)
 				return
 			}
 
