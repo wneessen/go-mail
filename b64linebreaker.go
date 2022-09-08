@@ -5,11 +5,8 @@
 package mail
 
 import (
-	"fmt"
 	"io"
 )
-
-const ErrNoOutWriter = "no io.Writer set for Base64LineBreaker"
 
 // Base64LineBreaker is a io.WriteCloser that writes Base64 encoded data streams
 // with line breaks at a given line length
@@ -25,7 +22,7 @@ var nl = []byte(SingleNewLine)
 // line length is reached
 func (l *Base64LineBreaker) Write(b []byte) (n int, err error) {
 	if l.out == nil {
-		return 0, fmt.Errorf(ErrNoOutWriter)
+		return
 	}
 	if l.used+len(b) < MaxBodyLength {
 		copy(l.line[l.used:], b)
@@ -35,19 +32,19 @@ func (l *Base64LineBreaker) Write(b []byte) (n int, err error) {
 
 	n, err = l.out.Write(l.line[0:l.used])
 	if err != nil {
-		return 0, err
+		return
 	}
 	excess := MaxBodyLength - l.used
 	l.used = 0
 
 	n, err = l.out.Write(b[0:excess])
 	if err != nil {
-		return 0, err
+		return
 	}
 
 	n, err = l.out.Write(nl)
 	if err != nil {
-		return 0, err
+		return
 	}
 
 	return l.Write(b[excess:])
@@ -59,7 +56,7 @@ func (l *Base64LineBreaker) Close() (err error) {
 	if l.used > 0 {
 		_, err = l.out.Write(l.line[0:l.used])
 		if err != nil {
-			return err
+			return
 		}
 		_, err = l.out.Write(nl)
 	}
