@@ -7,6 +7,7 @@ package mail
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"os"
 	"testing"
@@ -410,6 +411,31 @@ func TestBase64LineBreaker(t *testing.T) {
 	}
 }
 
+// TestBase64LineBreakerFailures tests the cases in which the Base64LineBreaker would fail
+func TestBase64LineBreakerFailures(t *testing.T) {
+	stt := []byte("short")
+	ltt := []byte(logoB64)
+
+	// No output writer defined
+	lb := Base64LineBreaker{}
+	if _, err := lb.Write(stt); err == nil {
+		t.Errorf("writing to Base64LineBreaker with no output io.Writer was supposed to failed, but didn't")
+	}
+	if err := lb.Close(); err != nil {
+		t.Errorf("failed to close Base64LineBreaker: %s", err)
+	}
+
+	// Closed output writer
+	wbuf := errorWriter{}
+	fb := Base64LineBreaker{out: wbuf}
+	if _, err := fb.Write(ltt); err == nil {
+		t.Errorf("writing to Base64LineBreaker with errorWriter was supposed to failed, but didn't")
+	}
+	if err := fb.Close(); err != nil {
+		t.Errorf("failed to close Base64LineBreaker: %s", err)
+	}
+}
+
 // removeNewLines removes any newline characters from the given data
 func removeNewLines(data []byte) []byte {
 	result := make([]byte, len(data))
@@ -424,4 +450,14 @@ func removeNewLines(data []byte) []byte {
 	}
 
 	return result[0:n]
+}
+
+type errorWriter struct{}
+
+func (e errorWriter) Write([]byte) (int, error) {
+	return 0, fmt.Errorf("supposed to always fail")
+}
+
+func (e errorWriter) Close() error {
+	return fmt.Errorf("supposed to always fail")
 }

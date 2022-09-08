@@ -4,7 +4,13 @@
 
 package mail
 
-import "io"
+import (
+	"fmt"
+	"io"
+)
+
+// ErrNoOutWriter is an error message that should be used if a Base64LineBreaker has no out io.Writer set
+const ErrNoOutWriter = "no io.Writer set for Base64LineBreaker"
 
 // Base64LineBreaker is a io.WriteCloser that writes Base64 encoded data streams
 // with line breaks at a given line length
@@ -19,6 +25,10 @@ var nl = []byte(SingleNewLine)
 // Write writes the data stream and inserts a SingleNewLine when the maximum
 // line length is reached
 func (l *Base64LineBreaker) Write(b []byte) (n int, err error) {
+	if l.out == nil {
+		err = fmt.Errorf(ErrNoOutWriter)
+		return
+	}
 	if l.used+len(b) < MaxBodyLength {
 		copy(l.line[l.used:], b)
 		l.used += len(b)
