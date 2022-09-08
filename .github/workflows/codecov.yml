@@ -41,7 +41,7 @@ jobs:
     - name: Install sendmail
       if: matrix.go == 1.19 && matrix.os == 'ubuntu-latest'
       run: |
-        apt install -y sendmail
+        sudo apt-get install -y sendmail
 
     - name: Run Tests
       run: |
