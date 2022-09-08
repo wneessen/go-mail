@@ -40,7 +40,7 @@ jobs:
     
     - name: Run Tests
       run: |
-        sudo apt-get install -y sendmail && go test -v -race --coverprofile=coverage.coverprofile --covermode=atomic ./...
+        sudo apt-get install -y sendmail; go test -v -race --coverprofile=coverage.coverprofile --covermode=atomic ./...
     
     - name: Upload coverage to Codecov
       if: success() && matrix.go == 1.19 && matrix.os == 'ubuntu-latest'
