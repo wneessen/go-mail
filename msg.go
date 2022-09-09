@@ -37,6 +37,9 @@ const (
 
 	// errTplPointerNil is issued when a template pointer is expected but it is nil
 	errTplPointerNil = "template pointer is nil"
+
+	// errParseMailAddr is used when a mail address could not be validated
+	errParseMailAddr = "failed to parse mail address %q: %w"
 )
 
 // Msg is the mail message struct
@@ -175,7 +178,7 @@ func (m *Msg) SetAddrHeader(h AddrHeader, v ...string) error {
 	for _, av := range v {
 		a, err := mail.ParseAddress(av)
 		if err != nil {
-			return fmt.Errorf("failed to parse mail address header %q: %w", av, err)
+			return fmt.Errorf(errParseMailAddr, av, err)
 		}
 		al = append(al, a)
 	}
@@ -380,6 +383,51 @@ func (m *Msg) SetOrganization(o string) {
 func (m *Msg) SetUserAgent(a string) {
 	m.SetHeader(HeaderUserAgent, a)
 	m.SetHeader(HeaderXMailer, a)
+}
+
+// RequestMDNTo adds the Disposition-Notification-To header to request a MDN from the receiving end
+// as described in RFC8098. It allows to provide a list recipient addresses.
+// Address validation is performed
+// See: https://www.rfc-editor.org/rfc/rfc8098.html
+func (m *Msg) RequestMDNTo(t ...string) error {
+	var tl []string
+	for _, at := range t {
+		a, err := mail.ParseAddress(at)
+		if err != nil {
+			return fmt.Errorf(errParseMailAddr, at, err)
+		}
+		tl = append(tl, a.String())
+	}
+	m.genHeader[HeaderDispositionNotificationTo] = tl
+	return nil
+}
+
+// RequestMDNToFormat adds the Disposition-Notification-To header to request a MDN from the receiving end
+// as described in RFC8098. It allows to provide a recipient address with name and address and will format
+// accordingly. Address validation is performed
+// See: https://www.rfc-editor.org/rfc/rfc8098.html
+func (m *Msg) RequestMDNToFormat(n, a string) error {
+	return m.RequestMDNTo(fmt.Sprintf(`%s <%s>`, n, a))
+}
+
+// RequestMDNAddTo adds an additional recipient to the recipient list of the MDN
+func (m *Msg) RequestMDNAddTo(t string) error {
+	a, err := mail.ParseAddress(t)
+	if err != nil {
+		return fmt.Errorf(errParseMailAddr, t, err)
+	}
+	var tl []string
+	for _, cl := range m.genHeader[HeaderDispositionNotificationTo] {
+		tl = append(tl, cl)
+	}
+	tl = append(tl, a.String())
+	m.genHeader[HeaderDispositionNotificationTo] = tl
+	return nil
+}
+
+// RequestMDNAddToFormat adds an additional formated recipient to the recipient list of the MDN
+func (m *Msg) RequestMDNAddToFormat(n, a string) error {
+	return m.RequestMDNAddTo(fmt.Sprintf(`"%s" <%s>`, n, a))
 }
 
 // GetSender returns the currently set envelope FROM address. If no envelope FROM is set it will use
