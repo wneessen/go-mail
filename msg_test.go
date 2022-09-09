@@ -927,6 +927,90 @@ func TestMsg_SetUserAgent(t *testing.T) {
 	}
 }
 
+// TestMsg_RequestMDN tests the different RequestMDN* related methods of Msg
+func TestMsg_RequestMDN(t *testing.T) {
+	n := "Toni Tester"
+	n2 := "Melanie Tester"
+	v := "toni.tester@example.com"
+	v2 := "melanie.tester@example.com"
+	iv := "testertest.tld"
+	vl := []string{v, v2}
+	m := NewMsg()
+
+	// Single valid address
+	if err := m.RequestMDNTo(v); err != nil {
+		t.Errorf("RequestMDNTo with a single valid address failed: %s", err)
+	}
+	if m.genHeader[HeaderDispositionNotificationTo][0] != fmt.Sprintf("<%s>", v) {
+		t.Errorf("RequestMDNTo with a single valid address failed. Expected: %s, got: %s", v,
+			m.genHeader[HeaderDispositionNotificationTo][0])
+	}
+	m.Reset()
+
+	// Multiples valid addresses
+	if err := m.RequestMDNTo(vl...); err != nil {
+		t.Errorf("RequestMDNTo with a multiple valid address failed: %s", err)
+	}
+	if m.genHeader[HeaderDispositionNotificationTo][0] != fmt.Sprintf("<%s>", v) {
+		t.Errorf("RequestMDNTo with a multiple valid addresses failed. Expected 0: %s, got 0: %s", v,
+			m.genHeader[HeaderDispositionNotificationTo][0])
+	}
+	if m.genHeader[HeaderDispositionNotificationTo][1] != fmt.Sprintf("<%s>", v2) {
+		t.Errorf("RequestMDNTo with a multiple valid addresses failed. Expected 1: %s, got 1: %s", v2,
+			m.genHeader[HeaderDispositionNotificationTo][1])
+	}
+	m.Reset()
+
+	// Invalid address
+	if err := m.RequestMDNTo(iv); err == nil {
+		t.Errorf("RequestMDNTo with an invalid address was supposed to failed, but didn't")
+	}
+	m.Reset()
+
+	// Single valid addresses + AddTo
+	if err := m.RequestMDNTo(v); err != nil {
+		t.Errorf("RequestMDNTo with a single valid address failed: %s", err)
+	}
+	if err := m.RequestMDNAddTo(v2); err != nil {
+		t.Errorf("RequestMDNAddTo with a valid address failed: %s", err)
+	}
+	if m.genHeader[HeaderDispositionNotificationTo][1] != fmt.Sprintf("<%s>", v2) {
+		t.Errorf("RequestMDNTo with a multiple valid addresses failed. Expected 1: %s, got 1: %s", v2,
+			m.genHeader[HeaderDispositionNotificationTo][1])
+	}
+	m.Reset()
+
+	// Single valid address formated + AddToFromat
+	if err := m.RequestMDNToFormat(n, v); err != nil {
+		t.Errorf("RequestMDNToFormat with a single valid address failed: %s", err)
+	}
+	if m.genHeader[HeaderDispositionNotificationTo][0] != fmt.Sprintf(`"%s" <%s>`, n, v) {
+		t.Errorf(`RequestMDNToFormat with a single valid address failed. Expected: "%s" <%s>, got: %s`, n, v,
+			m.genHeader[HeaderDispositionNotificationTo][0])
+	}
+	if err := m.RequestMDNAddToFormat(n2, v2); err != nil {
+		t.Errorf("RequestMDNAddToFormat with a valid address failed: %s", err)
+	}
+	if m.genHeader[HeaderDispositionNotificationTo][1] != fmt.Sprintf(`"%s" <%s>`, n2, v2) {
+		t.Errorf(`RequestMDNAddToFormat with a single valid address failed. Expected: "%s" <%s>, got: %s`, n2, v2,
+			m.genHeader[HeaderDispositionNotificationTo][1])
+	}
+	m.Reset()
+
+	// Invalid formated address
+	if err := m.RequestMDNToFormat(n, iv); err == nil {
+		t.Errorf("RequestMDNToFormat with an invalid address was supposed to failed, but didn't")
+	}
+
+	// Invalid address AddTo + AddToFormat
+	if err := m.RequestMDNAddTo(iv); err == nil {
+		t.Errorf("RequestMDNAddTo with an invalid address was supposed to failed, but didn't")
+	}
+	if err := m.RequestMDNAddToFormat(n, iv); err == nil {
+		t.Errorf("RequestMDNAddToFormat with an invalid address was supposed to failed, but didn't")
+	}
+}
+
 // TestMsg_SetBodyString tests the Msg.SetBodyString method
 func TestMsg_SetBodyString(t *testing.T) {
 	tests := []struct {

@@ -37,6 +37,10 @@ const (
 	// See: https://www.rfc-editor.org/rfc/rfc822#section-5.1
 	HeaderDate Header = "Date"
 
+	// HeaderDispositionNotificationTo is the MDN header as described in RFC8098
+	// See: https://www.rfc-editor.org/rfc/rfc8098.html#section-2.1
+	HeaderDispositionNotificationTo Header = "Disposition-Notification-To"
+
 	// HeaderImportance represents the "Importance" field
 	HeaderImportance Header = "Importance"
 
