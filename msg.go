@@ -417,9 +417,7 @@ func (m *Msg) RequestMDNAddTo(t string) error {
 		return fmt.Errorf(errParseMailAddr, t, err)
 	}
 	var tl []string
-	for _, cl := range m.genHeader[HeaderDispositionNotificationTo] {
-		tl = append(tl, cl)
-	}
+	tl = append(tl, m.genHeader[HeaderDispositionNotificationTo]...)
 	tl = append(tl, a.String())
 	m.genHeader[HeaderDispositionNotificationTo] = tl
 	return nil
