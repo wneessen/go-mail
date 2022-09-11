@@ -775,6 +775,27 @@ func TestClient_auth(t *testing.T) {
 	}
 }
 
+// TestValidateLine tests the validateLine() method
+func TestValidateLine(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		sf    bool
+	}{
+		{"valid line", "valid line", false},
+		{`invalid line: \n`, "invalid line\n", true},
+		{`invalid line: \r`, "invalid line\r", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := validateLine(tt.value); err != nil && !tt.sf {
+				t.Errorf("validateLine failed: %s", err)
+			}
+		})
+	}
+}
+
 // getTestConnection takes environment variables to establish a connection to a real
 // SMTP server to test all functionality that requires a connection
 func getTestConnection(auth bool) (*Client, error) {
