@@ -482,11 +482,11 @@ func (c *Client) Send(ml ...*Msg) error {
 			return err
 		}
 
-		if err := c.Mail(f); err != nil {
+		if err := c.mail(f); err != nil {
 			return fmt.Errorf("sending MAIL FROM command failed: %w", err)
 		}
 		for _, r := range rl {
-			if err := c.Rcpt(r); err != nil {
+			if err := c.rcpt(r); err != nil {
 				return fmt.Errorf("sending RCPT TO command failed: %w", err)
 			}
 		}
@@ -639,35 +639,35 @@ func (c *Client) auth() error {
 	return nil
 }
 
-// Mail is an extension to the Go std library Mail method. It decideds wether to call the
-// original Mail method from the std library or in case DSN is enabled on the Client to
+// mail is an extension to the Go std library mail method. It decideds wether to call the
+// original mail method from the std library or in case DSN is enabled on the Client to
 // call our own method instead
-func (c *Client) Mail(f string) error {
+func (c *Client) mail(f string) error {
 	ok, _ := c.sc.Extension("DSN")
 	if ok && c.dsn {
-		return c.DSNMail(f)
+		return c.dsnMail(f)
 	}
 	return c.sc.Mail(f)
 }
 
-// Rcpt is an extension to the Go std library Rcpt method. It decideds wether to call
-// original Rcpt method from the std library or in case DSN is enabled on the Client to
+// rcpt is an extension to the Go std library rcpt method. It decideds wether to call
+// original rcpt method from the std library or in case DSN is enabled on the Client to
 // call our own method instead
-func (c *Client) Rcpt(t string) error {
+func (c *Client) rcpt(t string) error {
 	ok, _ := c.sc.Extension("DSN")
 	if ok && c.dsn {
-		return c.DSNRcpt(t)
+		return c.dsnRcpt(t)
 	}
 	return c.sc.Rcpt(t)
 }
 
-// DSNRcpt issues a RCPT command to the server using the provided email address.
-// A call to Rcpt must be preceded by a call to Mail and may be followed by
-// a Data call or another Rcpt call.
+// dsnRcpt issues a RCPT command to the server using the provided email address.
+// A call to rcpt must be preceded by a call to mail and may be followed by
+// a Data call or another rcpt call.
 //
 // This is a copy of the original Go std library net/smtp function with additions
 // for the DSN extension
-func (c *Client) DSNRcpt(t string) error {
+func (c *Client) dsnRcpt(t string) error {
 	if err := validateLine(t); err != nil {
 		return err
 	}
@@ -680,15 +680,15 @@ func (c *Client) DSNRcpt(t string) error {
 	return err
 }
 
-// DSNMail issues a MAIL command to the server using the provided email address.
-// If the server supports the 8BITMIME extension, Mail adds the BODY=8BITMIME
-// parameter. If the server supports the SMTPUTF8 extension, Mail adds the
+// dsnMail issues a MAIL command to the server using the provided email address.
+// If the server supports the 8BITMIME extension, mail adds the BODY=8BITMIME
+// parameter. If the server supports the SMTPUTF8 extension, mail adds the
 // SMTPUTF8 parameter.
-// This initiates a mail transaction and is followed by one or more Rcpt calls.
+// This initiates a mail transaction and is followed by one or more rcpt calls.
 //
 // This is a copy of the original Go std library net/smtp function with additions
 // for the DSN extension
-func (c *Client) DSNMail(f string) error {
+func (c *Client) dsnMail(f string) error {
 	if err := validateLine(f); err != nil {
 		return err
 	}
