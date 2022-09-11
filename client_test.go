@@ -94,6 +94,13 @@ func TestNewClientWithOptions(t *testing.T) {
 			false},
 		{"WithUsername()", WithUsername("test"), false},
 		{"WithPassword()", WithPassword("test"), false},
+		{"WithDSN()", WithDSN(), false},
+		{"WithDSNMailReturnType()", WithDSNMailReturnType(DSNMailReturnFull), false},
+		{"WithDSNMailReturnType() wrong option", WithDSNMailReturnType("FAIL"), true},
+		{"WithDSNRcptNotifyType()", WithDSNRcptNotifyType(DSNRcptNotifySuccess), false},
+		{"WithDSNRcptNotifyType() wrong option", WithDSNRcptNotifyType("FAIL"), true},
+		{"WithDSNRcptNotifyType() NEVER combination",
+			WithDSNRcptNotifyType(DSNRcptNotifySuccess, DSNRcptNotifyNever), true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -362,6 +369,87 @@ func TestSetSMTPAuth(t *testing.T) {
 			c.SetSMTPAuth(tt.value)
 			if string(c.satype) != tt.want {
 				t.Errorf("failed to set SMTP auth type. Expected %s, got: %s", tt.want, string(c.satype))
+			}
+		})
+	}
+}
+
+// TestWithDSN tests the WithDSN method for the Client object
+func TestWithDSN(t *testing.T) {
+	c, err := NewClient(DefaultHost, WithDSN())
+	if err != nil {
+		t.Errorf("failed to create new client: %s", err)
+		return
+	}
+	if !c.dsn {
+		t.Errorf("WithDSN failed. c.dsn expected to be: %t, got: %t", true, c.dsn)
+	}
+	if c.dsnmrtype != DSNMailReturnFull {
+		t.Errorf("WithDSN failed. c.dsnmrtype expected to be: %s, got: %s", DSNMailReturnFull,
+			c.dsnmrtype)
+	}
+	if c.dsnrntype[0] != string(DSNRcptNotifyFailure) {
+		t.Errorf("WithDSN failed. c.dsnrntype[0] expected to be: %s, got: %s", DSNRcptNotifyFailure,
+			c.dsnrntype[0])
+	}
+	if c.dsnrntype[1] != string(DSNRcptNotifySuccess) {
+		t.Errorf("WithDSN failed. c.dsnrntype[1] expected to be: %s, got: %s", DSNRcptNotifySuccess,
+			c.dsnrntype[1])
+	}
+}
+
+// TestWithDSNMailReturnType tests the WithDSNMailReturnType method for the Client object
+func TestWithDSNMailReturnType(t *testing.T) {
+	tests := []struct {
+		name  string
+		value DSNMailReturnOption
+		want  string
+		sf    bool
+	}{
+		{"WithDSNMailReturnType: FULL", DSNMailReturnFull, "FULL", false},
+		{"WithDSNMailReturnType: HDRS", DSNMailReturnHeadersOnly, "HDRS", false},
+		{"WithDSNMailReturnType: INVALID", "INVALID", "", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := NewClient(DefaultHost, WithDSNMailReturnType(tt.value))
+			if err != nil && !tt.sf {
+				t.Errorf("failed to create new client: %s", err)
+				return
+			}
+			if string(c.dsnmrtype) != tt.want {
+				t.Errorf("WithDSNMailReturnType failed. Expected %s, got: %s", tt.want, string(c.dsnmrtype))
+			}
+		})
+	}
+}
+
+// TestWithDSNRcptNotifyType tests the WithDSNRcptNotifyType method for the Client object
+func TestWithDSNRcptNotifyType(t *testing.T) {
+	tests := []struct {
+		name  string
+		value DSNRcptNotifyOption
+		want  string
+		sf    bool
+	}{
+		{"WithDSNRcptNotifyType: NEVER", DSNRcptNotifyNever, "NEVER", false},
+		{"WithDSNRcptNotifyType: SUCCESS", DSNRcptNotifySuccess, "SUCCESS", false},
+		{"WithDSNRcptNotifyType: FAILURE", DSNRcptNotifyFailure, "FAILURE", false},
+		{"WithDSNRcptNotifyType: DELAY", DSNRcptNotifyDelay, "DELAY", false},
+		{"WithDSNRcptNotifyType: INVALID", "INVALID", "", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := NewClient(DefaultHost, WithDSNRcptNotifyType(tt.value))
+			if err != nil && !tt.sf {
+				t.Errorf("failed to create new client: %s", err)
+				return
+			}
+			if len(c.dsnrntype) <= 0 && !tt.sf {
+				t.Errorf("WithDSNRcptNotifyType failed. Expected at least one DSNRNType but got none")
+			}
+			if !tt.sf && c.dsnrntype[0] != tt.want {
+				t.Errorf("WithDSNRcptNotifyType failed. Expected %s, got: %s", tt.want, c.dsnrntype[0])
 			}
 		})
 	}

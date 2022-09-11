@@ -43,7 +43,7 @@ Some of the features of this library:
 * [X] Support for attachments and inline embeds (from file system, `io.Reader` or `embed.FS`)
 * [X] Support for different encodings
 * [X] Support sending mails via a local sendmail command
-* [X] Support for requestng MDNs
+* [X] Support for requestng MDNs (RFC 8098) and DSNs (RFC 1891)
 * [X] Message object satisfies `io.WriteTo` and `io.Reader` interfaces
 * [X] Support for Go's `html/template` and `text/template` (as message body, alternative part or attachment/emebed)
 * [X] Output to file support which allows storing mail messages as e. g. `.eml` files to disk to open them in a MUA
