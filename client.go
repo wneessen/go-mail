@@ -33,13 +33,88 @@ const (
 	DefaultTLSMinVersion = tls.VersionTLS12
 )
 
+// DSNMailReturnOption is a type to define which MAIL RET option is used when a DSN
+// is requested
+type DSNMailReturnOption string
+
+// DSNRcptNotifyOption is a type to define which RCPT NOTIFY option is used when a DSN
+// is requested
+type DSNRcptNotifyOption string
+
+const (
+	// DSNMailReturnHeadersOnly requests that only the headers of the message be returned.
+	// See: https://www.rfc-editor.org/rfc/rfc1891#section-5.3
+	DSNMailReturnHeadersOnly DSNMailReturnOption = "HDRS"
+
+	// DSNMailReturnFull requests that the entire message be returned in any "failed"
+	// delivery status notification issued for this recipient
+	// See: https://www.rfc-editor.org/rfc/rfc1891#section-5.3
+	DSNMailReturnFull DSNMailReturnOption = "FULL"
+
+	// DSNRcptNotifyNever requests that a DSN not be returned to the sender under
+	// any conditions.
+	// See: https://www.rfc-editor.org/rfc/rfc1891#section-5.1
+	DSNRcptNotifyNever DSNRcptNotifyOption = "NEVER"
+
+	// DSNRcptNotifySuccess requests that a DSN be issued on successful delivery
+	// See: https://www.rfc-editor.org/rfc/rfc1891#section-5.1
+	DSNRcptNotifySuccess DSNRcptNotifyOption = "SUCCESS"
+
+	// DSNRcptNotifyFailure requests that a DSN be issued on delivery failure
+	// See: https://www.rfc-editor.org/rfc/rfc1891#section-5.1
+	DSNRcptNotifyFailure DSNRcptNotifyOption = "FAILURE"
+
+	// DSNRcptNotifyDelay indicates the sender's willingness to receive
+	// "delayed" DSNs. Delayed DSNs may be issued if delivery of a message has
+	// been delayed for an unusual amount of time (as determined by the MTA at
+	// which the message is delayed), but the final delivery status (whether
+	// successful or failure) cannot be determined. The absence of the DELAY
+	// keyword in a NOTIFY parameter requests that a "delayed" DSN NOT be
+	// issued under any conditions.
+	// See: https://www.rfc-editor.org/rfc/rfc1891#section-5.1
+	DSNRcptNotifyDelay DSNRcptNotifyOption = "DELAY"
+)
+
 // Client is the SMTP client struct
 type Client struct {
+	// co is the net.Conn that the smtp.Client is based on
+	co net.Conn
+
+	// Timeout for the SMTP server connection
+	cto time.Duration
+
+	// dsn indicates that we want to use DSN for the Client
+	dsn bool
+
+	// dsnmrtype defines the DSNMailReturnOption in case DSN is enabled
+	dsnmrtype DSNMailReturnOption
+
+	// dsnrntype defines the DSNRcptNotifyOption in case DSN is enabled
+	dsnrntype []string
+
+	// enc indicates if a Client connection is encrypted or not
+	enc bool
+
+	// HELO/EHLO string for the greeting the target SMTP server
+	helo string
+
 	// Hostname of the target SMTP server cto connect cto
 	host string
 
+	// pass is the corresponding SMTP AUTH password
+	pass string
+
 	// Port of the SMTP server cto connect cto
 	port int
+
+	// sa is a pointer to smtp.Auth
+	sa smtp.Auth
+
+	// satype represents the authentication type for SMTP AUTH
+	satype SMTPAuthType
+
+	// sc is the smtp.Client that is set up when using the Dial*() methods
+	sc *smtp.Client
 
 	// Use SSL for the connection
 	ssl bool
@@ -50,32 +125,8 @@ type Client struct {
 	// tlsconfig represents the tls.Config setting for the STARTTLS connection
 	tlsconfig *tls.Config
 
-	// Timeout for the SMTP server connection
-	cto time.Duration
-
-	// HELO/EHLO string for the greeting the target SMTP server
-	helo string
-
-	// enc indicates if a Client connection is encrypted or not
-	enc bool
-
 	// user is the SMTP AUTH username
 	user string
-
-	// pass is the corresponding SMTP AUTH password
-	pass string
-
-	// satype represents the authentication type for SMTP AUTH
-	satype SMTPAuthType
-
-	// co is the net.Conn that the smtp.Client is based on
-	co net.Conn
-
-	// sa is a pointer to smtp.Auth
-	sa smtp.Auth
-
-	// sc is the smtp.Client that is set up when using the Dial*() methods
-	sc *smtp.Client
 }
 
 // Option returns a function that can be used for grouping Client options
@@ -107,6 +158,20 @@ var (
 	// ErrServerNoUnencoded should be used when 8BIT encoding is selected for a message, but
 	// the server does not offer 8BITMIME mode
 	ErrServerNoUnencoded = errors.New("message is 8bit unencoded, but server does not support 8BITMIME")
+
+	// ErrInvalidDSNMailReturnOption should be used when an invalid option is provided for the
+	// DSNMailReturnOption in WithDSN
+	ErrInvalidDSNMailReturnOption = errors.New("DSN mail return option can only be HDRS or FULL")
+
+	// ErrInvalidDSNRcptNotifyOption should be used when an invalid option is provided for the
+	// DSNRcptNotifyOption in WithDSN
+	ErrInvalidDSNRcptNotifyOption = errors.New("DSN rcpt notify option can only be: NEVER, " +
+		"SUCCESS, FAILURE or DELAY")
+
+	// ErrInvalidDSNRcptNotifyCombination should be used when an invalid option is provided for the
+	// DSNRcptNotifyOption in WithDSN
+	ErrInvalidDSNRcptNotifyCombination = errors.New("DSN rcpt notify option NEVER cannot be " +
+		"combined with any of SUCCESS, FAILURE or DELAY")
 )
 
 // NewClient returns a new Session client object
@@ -234,6 +299,72 @@ func WithPassword(p string) Option {
 	}
 }
 
+// WithDSN enables the Client to request DSNs (if the server supports it)
+// as described in the RFC 1891 and set defaults for DSNMailReturnOption
+// to DSNMailReturnFull and DSNRcptNotifyOption to DSNRcptNotifySuccess
+// and DSNRcptNotifyFailure
+func WithDSN() Option {
+	return func(c *Client) error {
+		c.dsn = true
+		c.dsnmrtype = DSNMailReturnFull
+		c.dsnrntype = []string{string(DSNRcptNotifyFailure), string(DSNRcptNotifySuccess)}
+		return nil
+	}
+}
+
+// WithDSNMailReturnType enables the Client to request DSNs (if the server supports it)
+// as described in the RFC 1891 and set the MAIL FROM Return option type to the
+// given DSNMailReturnOption
+// See: https://www.rfc-editor.org/rfc/rfc1891
+func WithDSNMailReturnType(mro DSNMailReturnOption) Option {
+	return func(c *Client) error {
+		switch mro {
+		case DSNMailReturnHeadersOnly:
+		case DSNMailReturnFull:
+		default:
+			return ErrInvalidDSNMailReturnOption
+		}
+
+		c.dsn = true
+		c.dsnmrtype = mro
+		return nil
+	}
+}
+
+// WithDSNRcptNotifyType enables the Client to request DSNs as described in the RFC 1891
+// and sets the RCPT TO notify options to the given list of DSNRcptNotifyOption
+// See: https://www.rfc-editor.org/rfc/rfc1891
+func WithDSNRcptNotifyType(rno ...DSNRcptNotifyOption) Option {
+	return func(c *Client) error {
+		var rnol []string
+		var ns, nns bool
+		if len(rno) > 0 {
+			for _, crno := range rno {
+				switch crno {
+				case DSNRcptNotifyNever:
+					ns = true
+				case DSNRcptNotifySuccess:
+					nns = true
+				case DSNRcptNotifyFailure:
+					nns = true
+				case DSNRcptNotifyDelay:
+					nns = true
+				default:
+					return ErrInvalidDSNRcptNotifyOption
+				}
+				rnol = append(rnol, string(crno))
+			}
+		}
+		if ns && nns {
+			return ErrInvalidDSNRcptNotifyCombination
+		}
+
+		c.dsn = true
+		c.dsnrntype = rnol
+		return nil
+	}
+}
+
 // TLSPolicy returns the currently set TLSPolicy as string
 func (c *Client) TLSPolicy() string {
 	return c.tlspolicy.String()
@@ -351,11 +482,11 @@ func (c *Client) Send(ml ...*Msg) error {
 			return err
 		}
 
-		if err := c.sc.Mail(f); err != nil {
+		if err := c.mail(f); err != nil {
 			return fmt.Errorf("sending MAIL FROM command failed: %w", err)
 		}
 		for _, r := range rl {
-			if err := c.sc.Rcpt(r); err != nil {
+			if err := c.rcpt(r); err != nil {
 				return fmt.Errorf("sending RCPT TO command failed: %w", err)
 			}
 		}
@@ -506,4 +637,92 @@ func (c *Client) auth() error {
 		}
 	}
 	return nil
+}
+
+// mail is an extension to the Go std library mail method. It decideds wether to call the
+// original mail method from the std library or in case DSN is enabled on the Client to
+// call our own method instead
+func (c *Client) mail(f string) error {
+	ok, _ := c.sc.Extension("DSN")
+	if ok && c.dsn {
+		return c.dsnMail(f)
+	}
+	return c.sc.Mail(f)
+}
+
+// rcpt is an extension to the Go std library rcpt method. It decideds wether to call
+// original rcpt method from the std library or in case DSN is enabled on the Client to
+// call our own method instead
+func (c *Client) rcpt(t string) error {
+	ok, _ := c.sc.Extension("DSN")
+	if ok && c.dsn {
+		return c.dsnRcpt(t)
+	}
+	return c.sc.Rcpt(t)
+}
+
+// dsnRcpt issues a RCPT command to the server using the provided email address.
+// A call to rcpt must be preceded by a call to mail and may be followed by
+// a Data call or another rcpt call.
+//
+// This is a copy of the original Go std library net/smtp function with additions
+// for the DSN extension
+func (c *Client) dsnRcpt(t string) error {
+	if err := validateLine(t); err != nil {
+		return err
+	}
+	if len(c.dsnrntype) <= 0 {
+		return c.sc.Rcpt(t)
+	}
+
+	rno := strings.Join(c.dsnrntype, ",")
+	_, _, err := c.cmd(25, "RCPT TO:<%s> NOTIFY=%s", t, rno)
+	return err
+}
+
+// dsnMail issues a MAIL command to the server using the provided email address.
+// If the server supports the 8BITMIME extension, mail adds the BODY=8BITMIME
+// parameter. If the server supports the SMTPUTF8 extension, mail adds the
+// SMTPUTF8 parameter.
+// This initiates a mail transaction and is followed by one or more rcpt calls.
+//
+// This is a copy of the original Go std library net/smtp function with additions
+// for the DSN extension
+func (c *Client) dsnMail(f string) error {
+	if err := validateLine(f); err != nil {
+		return err
+	}
+	cmdStr := "MAIL FROM:<%s>"
+	if ok, _ := c.sc.Extension("8BITMIME"); ok {
+		cmdStr += " BODY=8BITMIME"
+	}
+	if ok, _ := c.sc.Extension("SMTPUTF8"); ok {
+		cmdStr += " SMTPUTF8"
+	}
+	cmdStr += fmt.Sprintf(" RET=%s", c.dsnmrtype)
+
+	_, _, err := c.cmd(250, cmdStr, f)
+	return err
+}
+
+// validateLine checks to see if a line has CR or LF as per RFC 5321
+// This is a 1:1 copy of the method from the original Go std library net/smtp
+func validateLine(line string) error {
+	if strings.ContainsAny(line, "\n\r") {
+		return errors.New("smtp: A line must not contain CR or LF")
+	}
+	return nil
+}
+
+// cmd is a convenience function that sends a command and returns the response
+// This is a 1:1 copy of the method from the original Go std library net/smtp
+func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, string, error) {
+	id, err := c.sc.Text.Cmd(format, args...)
+	if err != nil {
+		return 0, "", err
+	}
+	c.sc.Text.StartResponse(id)
+	defer c.sc.Text.EndResponse(id)
+	code, msg, err := c.sc.Text.ReadResponse(expectCode)
+	return code, msg, err
 }
