@@ -677,6 +677,30 @@ func TestClient_DialAndSend(t *testing.T) {
 	}
 }
 
+// TestClient_DialAndSendWithDSN tests the DialAndSend() method of Client with DSN enabled
+func TestClient_DialAndSendWithDSN(t *testing.T) {
+	if os.Getenv("TEST_ALLOW_SEND") == "" {
+		t.Skipf("TEST_ALLOW_SEND is not set. Skipping mail sending test")
+	}
+	m := NewMsg()
+	_ = m.FromFormat("go-mail Test Mailer", os.Getenv("TEST_FROM"))
+	_ = m.To(TestRcpt)
+	m.Subject(fmt.Sprintf("This is a test mail from go-mail/v%s", VERSION))
+	m.SetBulk()
+	m.SetDate()
+	m.SetMessageID()
+	m.SetBodyString(TypeTextPlain, "This is a test mail from the go-mail library")
+
+	c, err := getTestConnectionWithDSN(true)
+	if err != nil {
+		t.Skipf("failed to create test client: %s. Skipping tests", err)
+	}
+
+	if err := c.DialAndSend(m); err != nil {
+		t.Errorf("DialAndSend() failed: %s", err)
+	}
+}
+
 // TestClient_DialSendCloseBroken tests the Dial(), Send() and Close() method of Client with broken settings
 func TestClient_DialSendCloseBroken(t *testing.T) {
 	if os.Getenv("TEST_ALLOW_SEND") == "" {
@@ -706,6 +730,67 @@ func TestClient_DialSendCloseBroken(t *testing.T) {
 			m.SetAddrHeaderIgnoreInvalid(HeaderTo, tt.to)
 
 			c, err := getTestConnection(true)
+			if err != nil {
+				t.Skipf("failed to create test client: %s. Skipping tests", err)
+			}
+
+			ctx, cfn := context.WithTimeout(context.Background(), time.Second*10)
+			defer cfn()
+			if err := c.DialWithContext(ctx); err != nil && !tt.sf {
+				t.Errorf("Dail() failed: %s", err)
+				return
+			}
+			if tt.closestart {
+				_ = c.sc.Close()
+				_ = c.co.Close()
+			}
+			if err := c.Send(m); err != nil && !tt.sf {
+				t.Errorf("Send() failed: %s", err)
+				return
+			}
+			if tt.closeearly {
+				_ = c.sc.Close()
+				_ = c.co.Close()
+			}
+			if err := c.Close(); err != nil && !tt.sf {
+				t.Errorf("Close() failed: %s", err)
+				return
+			}
+		})
+	}
+
+}
+
+// TestClient_DialSendCloseBrokenWithDSN tests the Dial(), Send() and Close() method of Client with
+// broken settings and DSN enabled
+func TestClient_DialSendCloseBrokenWithDSN(t *testing.T) {
+	if os.Getenv("TEST_ALLOW_SEND") == "" {
+		t.Skipf("TEST_ALLOW_SEND is not set. Skipping mail sending test")
+	}
+	tests := []struct {
+		name       string
+		from       string
+		to         string
+		closestart bool
+		closeearly bool
+		sf         bool
+	}{
+		{"Invalid FROM", "foo@foo", TestRcpt, false, false, true},
+		{"Invalid TO", os.Getenv("TEST_FROM"), "foo@foo", false, false, true},
+		{"No FROM", "", TestRcpt, false, false, true},
+		{"No TO", os.Getenv("TEST_FROM"), "", false, false, true},
+		{"Close early", os.Getenv("TEST_FROM"), TestRcpt, false, true, true},
+		{"Close start", os.Getenv("TEST_FROM"), TestRcpt, true, false, true},
+		{"Close start/early", os.Getenv("TEST_FROM"), TestRcpt, true, true, true},
+	}
+
+	m := NewMsg(WithEncoding(NoEncoding))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m.SetAddrHeaderIgnoreInvalid(HeaderFrom, tt.from)
+			m.SetAddrHeaderIgnoreInvalid(HeaderTo, tt.to)
+
+			c, err := getTestConnectionWithDSN(true)
 			if err != nil {
 				t.Skipf("failed to create test client: %s. Skipping tests", err)
 			}
@@ -807,6 +892,43 @@ func getTestConnection(auth bool) (*Client, error) {
 		return nil, fmt.Errorf("no TEST_HOST set")
 	}
 	c, err := NewClient(th)
+	if err != nil {
+		return c, err
+	}
+	if auth {
+		st := os.Getenv("TEST_SMTPAUTH_TYPE")
+		if st != "" {
+			c.SetSMTPAuth(SMTPAuthType(st))
+		}
+		u := os.Getenv("TEST_SMTPAUTH_USER")
+		if u != "" {
+			c.SetUsername(u)
+		}
+		p := os.Getenv("TEST_SMTPAUTH_PASS")
+		if p != "" {
+			c.SetPassword(p)
+		}
+	}
+	if err := c.DialWithContext(context.Background()); err != nil {
+		return c, fmt.Errorf("connection to test server failed: %s", err)
+	}
+	if err := c.Close(); err != nil {
+		return c, fmt.Errorf("disconnect from test server failed: %s", err)
+	}
+	return c, nil
+}
+
+// getTestConnectionWithDSN takes environment variables to establish a connection to a real
+// SMTP server to test all functionality that requires a connection. It also enables DSN
+func getTestConnectionWithDSN(auth bool) (*Client, error) {
+	if os.Getenv("TEST_SKIP_ONLINE") != "" {
+		return nil, fmt.Errorf("env variable TEST_SKIP_ONLINE is set. Skipping online tests")
+	}
+	th := os.Getenv("TEST_HOST")
+	if th == "" {
+		return nil, fmt.Errorf("no TEST_HOST set")
+	}
+	c, err := NewClient(th, WithDSN())
 	if err != nil {
 		return c, err
 	}
