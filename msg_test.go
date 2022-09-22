@@ -177,6 +177,75 @@ func TestNewMsgWithBoundary(t *testing.T) {
 	}
 }
 
+type uppercaseMiddleware struct{}
+
+func (mw uppercaseMiddleware) Handle(m *Msg) *Msg {
+	s, ok := m.genHeader[HeaderSubject]
+	if !ok {
+		fmt.Println("can't find the subject header")
+	}
+	m.Subject(strings.ToUpper(s[0]))
+	return m
+}
+
+type encodeMiddleware struct{}
+
+func (mw encodeMiddleware) Handle(m *Msg) *Msg {
+	s, ok := m.genHeader[HeaderSubject]
+	if !ok {
+		fmt.Println("can't find the subject header")
+	}
+	m.Subject(strings.Replace(s[0], "a", "@", -1))
+	return m
+}
+
+// TestNewMsgWithMiddleware tests WithMiddleware
+func TestNewMsgWithMiddleware(t *testing.T) {
+	m := NewMsg()
+	if len(m.middlewares) != 0 {
+		t.Errorf("empty middlewares failed. m.middlewares expected to be: empty, got: %d middleware", len(m.middlewares))
+	}
+	m = NewMsg(WithMiddleware(uppercaseMiddleware{}))
+	if len(m.middlewares) != 1 {
+		t.Errorf("empty middlewares failed. m.middlewares expected to be: 1, got: %d middleware", len(m.middlewares))
+	}
+	m = NewMsg(WithMiddleware(uppercaseMiddleware{}), WithMiddleware(encodeMiddleware{}))
+	if len(m.middlewares) != 2 {
+		t.Errorf("empty middlewares failed. m.middlewares expected to be: 2, got: %d middleware", len(m.middlewares))
+	}
+}
+
+// TestApplyMiddlewares tests the applyMiddlewares for the Msg object
+func TestApplyMiddlewares(t *testing.T) {
+	tests := []struct {
+		name string
+		sub  string
+		want string
+	}{
+		{"normal subject", "This is a test subject", "THIS IS @ TEST SUBJECT"},
+		{"subject with one middleware effect", "This is test subject", "THIS IS TEST SUBJECT"},
+		{"subject with one middleware effect", "This is A test subject", "THIS IS A TEST SUBJECT"},
+	}
+	m := NewMsg(WithMiddleware(encodeMiddleware{}), WithMiddleware(uppercaseMiddleware{}))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m.Subject(tt.sub)
+			if m.genHeader[HeaderSubject] == nil {
+				t.Errorf("Subject() method failed in applyMiddlewares() test. Generic header for subject is empty")
+				return
+			}
+			m = m.applyMiddlewares(m)
+			s, ok := m.genHeader[HeaderSubject]
+			if !ok {
+				t.Errorf("failed to get subject header")
+			}
+			if s[0] != tt.want {
+				t.Errorf("applyMiddlewares() method failed. Expected: %s, got: %s", tt.want, s[0])
+			}
+		})
+	}
+}
+
 // TestMsg_SetHEader tests Msg.SetHeader
 func TestMsg_SetHeader(t *testing.T) {
 	tests := []struct {
@@ -626,12 +695,18 @@ func TestMsg_FromFormat(t *testing.T) {
 		want  string
 		fail  bool
 	}{
-		{"valid name and addr", "Toni Tester", "tester@example.com",
-			`"Toni Tester" <tester@example.com>`, false},
-		{"no name with valid addr", "", "tester@example.com",
-			`<tester@example.com>`, false},
-		{"valid name with invalid addr", "Toni Tester", "@example.com",
-			``, true},
+		{
+			"valid name and addr", "Toni Tester", "tester@example.com",
+			`"Toni Tester" <tester@example.com>`, false,
+		},
+		{
+			"no name with valid addr", "", "tester@example.com",
+			`<tester@example.com>`, false,
+		},
+		{
+			"valid name with invalid addr", "Toni Tester", "@example.com",
+			``, true,
+		},
 	}
 
 	m := NewMsg()
@@ -697,7 +772,7 @@ func TestMsg_GetRecipients(t *testing.T) {
 		return
 	}
 
-	var tf, cf, bf = false, false, false
+	tf, cf, bf := false, false, false
 	for _, r := range al {
 		if r == a[0] {
 			tf = true
@@ -732,12 +807,18 @@ func TestMsg_ReplyTo(t *testing.T) {
 		want  string
 		sf    bool
 	}{
-		{"valid name and addr", "Toni Tester", "tester@example.com",
-			`"Toni Tester" <tester@example.com>`, false},
-		{"no name with valid addr", "", "tester@example.com",
-			`<tester@example.com>`, false},
-		{"valid name with invalid addr", "Toni Tester", "@example.com",
-			``, true},
+		{
+			"valid name and addr", "Toni Tester", "tester@example.com",
+			`"Toni Tester" <tester@example.com>`, false,
+		},
+		{
+			"no name with valid addr", "", "tester@example.com",
+			`<tester@example.com>`, false,
+		},
+		{
+			"valid name with invalid addr", "Toni Tester", "@example.com",
+			``, true,
+		},
 	}
 	m := NewMsg()
 	for _, tt := range tests {
@@ -792,10 +873,14 @@ func TestMsg_Subject(t *testing.T) {
 		want string
 	}{
 		{"normal subject", "This is a test subject", "This is a test subject"},
-		{"subject with umlauts", "This is a test subject with umlauts: üäöß",
-			"=?UTF-8?q?This_is_a_test_subject_with_umlauts:_=C3=BC=C3=A4=C3=B6=C3=9F?="},
-		{"subject with emoji", "This is a test subject with emoji: 📧",
-			"=?UTF-8?q?This_is_a_test_subject_with_emoji:_=F0=9F=93=A7?="},
+		{
+			"subject with umlauts", "This is a test subject with umlauts: üäöß",
+			"=?UTF-8?q?This_is_a_test_subject_with_umlauts:_=C3=BC=C3=A4=C3=B6=C3=9F?=",
+		},
+		{
+			"subject with emoji", "This is a test subject with emoji: 📧",
+			"=?UTF-8?q?This_is_a_test_subject_with_emoji:_=F0=9F=93=A7?=",
+		},
 	}
 	m := NewMsg()
 	for _, tt := range tests {
@@ -868,7 +953,6 @@ func TestMsg_SetImportance(t *testing.T) {
 			m.genHeader = make(map[Header][]string)
 		})
 	}
-
 }
 
 // TestMsg_SetOrganization tests the Msg.SetOrganization method
@@ -1021,8 +1105,10 @@ func TestMsg_SetBodyString(t *testing.T) {
 		sf    bool
 	}{
 		{"Body: test", TypeTextPlain, "test", "test", false},
-		{"Body: with Umlauts", TypeTextHTML, "<strong>üäöß</strong>",
-			"<strong>üäöß</strong>", false},
+		{
+			"Body: with Umlauts", TypeTextHTML, "<strong>üäöß</strong>",
+			"<strong>üäöß</strong>", false,
+		},
 		{"Body: with emoji", TypeTextPlain, "📧", "📧", false},
 	}
 	m := NewMsg()
@@ -1654,8 +1740,10 @@ func TestMsg_SetBodyHTMLTemplate(t *testing.T) {
 		sf   bool
 	}{
 		{"normal HTML", "<p>This is a {{.Placeholder}}</p>", "TemplateTest", "TemplateTest", false},
-		{"HTML with HTML", "<p>This is a {{.Placeholder}}</p>", "<script>alert(1)</script>",
-			"&lt;script&gt;alert(1)&lt;/script&gt;", false},
+		{
+			"HTML with HTML", "<p>This is a {{.Placeholder}}</p>", "<script>alert(1)</script>",
+			"&lt;script&gt;alert(1)&lt;/script&gt;", false,
+		},
 		{"invalid tpl", "<p>This is a {{ foo .Placeholder}}</p>", "TemplateTest", "", true},
 	}
 
@@ -1738,8 +1826,10 @@ func TestMsg_AddAlternativeHTMLTemplate(t *testing.T) {
 		sf   bool
 	}{
 		{"normal HTML", "<p>This is a {{.Placeholder}}</p>", "TemplateTest", "TemplateTest", false},
-		{"HTML with HTML", "<p>This is a {{.Placeholder}}</p>", "<script>alert(1)</script>",
-			"&lt;script&gt;alert(1)&lt;/script&gt;", false},
+		{
+			"HTML with HTML", "<p>This is a {{.Placeholder}}</p>", "<script>alert(1)</script>",
+			"&lt;script&gt;alert(1)&lt;/script&gt;", false,
+		},
 		{"invalid tpl", "<p>This is a {{ foo .Placeholder}}</p>", "TemplateTest", "", true},
 	}
 
@@ -1782,8 +1872,10 @@ func TestMsg_AttachTextTemplate(t *testing.T) {
 		ac   int
 		sf   bool
 	}{
-		{"normal text", "This is a {{.Placeholder}}", "TemplateTest",
-			"VGhpcyBpcyBhIFRlbXBsYXRlVGVzdA==", 1, false},
+		{
+			"normal text", "This is a {{.Placeholder}}", "TemplateTest",
+			"VGhpcyBpcyBhIFRlbXBsYXRlVGVzdA==", 1, false,
+		},
 		{"invalid tpl", "This is a {{ foo .Placeholder}}", "TemplateTest", "", 0, true},
 	}
 
@@ -1829,10 +1921,14 @@ func TestMsg_AttachHTMLTemplate(t *testing.T) {
 		ac   int
 		sf   bool
 	}{
-		{"normal HTML", "<p>This is a {{.Placeholder}}</p>", "TemplateTest",
-			"PHA+VGhpcyBpcyBhIFRlbXBsYXRlVGVzdDwvcD4=", 1, false},
-		{"HTML with HTML", "<p>This is a {{.Placeholder}}</p>", "<script>alert(1)</script>",
-			"PHA+VGhpcyBpcyBhICZsdDtzY3JpcHQmZ3Q7YWxlcnQoMSkmbHQ7L3NjcmlwdCZndDs8L3A+", 1, false},
+		{
+			"normal HTML", "<p>This is a {{.Placeholder}}</p>", "TemplateTest",
+			"PHA+VGhpcyBpcyBhIFRlbXBsYXRlVGVzdDwvcD4=", 1, false,
+		},
+		{
+			"HTML with HTML", "<p>This is a {{.Placeholder}}</p>", "<script>alert(1)</script>",
+			"PHA+VGhpcyBpcyBhICZsdDtzY3JpcHQmZ3Q7YWxlcnQoMSkmbHQ7L3NjcmlwdCZndDs8L3A+", 1, false,
+		},
 		{"invalid tpl", "<p>This is a {{ foo .Placeholder}}</p>", "TemplateTest", "", 0, true},
 	}
 
@@ -1878,8 +1974,10 @@ func TestMsg_EmbedTextTemplate(t *testing.T) {
 		ec   int
 		sf   bool
 	}{
-		{"normal text", "This is a {{.Placeholder}}", "TemplateTest",
-			"VGhpcyBpcyBhIFRlbXBsYXRlVGVzdA==", 1, false},
+		{
+			"normal text", "This is a {{.Placeholder}}", "TemplateTest",
+			"VGhpcyBpcyBhIFRlbXBsYXRlVGVzdA==", 1, false,
+		},
 		{"invalid tpl", "This is a {{ foo .Placeholder}}", "TemplateTest", "", 0, true},
 	}
 
@@ -1925,10 +2023,14 @@ func TestMsg_EmbedHTMLTemplate(t *testing.T) {
 		ec   int
 		sf   bool
 	}{
-		{"normal HTML", "<p>This is a {{.Placeholder}}</p>", "TemplateTest",
-			"PHA+VGhpcyBpcyBhIFRlbXBsYXRlVGVzdDwvcD4=", 1, false},
-		{"HTML with HTML", "<p>This is a {{.Placeholder}}</p>", "<script>alert(1)</script>",
-			"PHA+VGhpcyBpcyBhICZsdDtzY3JpcHQmZ3Q7YWxlcnQoMSkmbHQ7L3NjcmlwdCZndDs8L3A+", 1, false},
+		{
+			"normal HTML", "<p>This is a {{.Placeholder}}</p>", "TemplateTest",
+			"PHA+VGhpcyBpcyBhIFRlbXBsYXRlVGVzdDwvcD4=", 1, false,
+		},
+		{
+			"HTML with HTML", "<p>This is a {{.Placeholder}}</p>", "<script>alert(1)</script>",
+			"PHA+VGhpcyBpcyBhICZsdDtzY3JpcHQmZ3Q7YWxlcnQoMSkmbHQ7L3NjcmlwdCZndDs8L3A+", 1, false,
+		},
 		{"invalid tpl", "<p>This is a {{ foo .Placeholder}}</p>", "TemplateTest", "", 0, true},
 	}
 
