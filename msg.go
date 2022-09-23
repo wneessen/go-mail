@@ -42,6 +42,11 @@ const (
 	errParseMailAddr = "failed to parse mail address %q: %w"
 )
 
+// Middleware is an interface to define a function to apply to Msg before sending
+type Middleware interface {
+	Handle(*Msg) *Msg
+}
+
 // Msg is the mail message struct
 type Msg struct {
 	// addrHeader is a slice of strings that the different mail AddrHeader fields
@@ -73,6 +78,9 @@ type Msg struct {
 
 	// parts represent the different parts of the Msg
 	parts []*Part
+
+	// middlewares is the list of middlewares to apply to the Msg before sending in FIFO order
+	middlewares []Middleware
 }
 
 // SendmailPath is the default system path to the sendmail binary
@@ -130,6 +138,13 @@ func WithMIMEVersion(mv MIMEVersion) MsgOption {
 func WithBoundary(b string) MsgOption {
 	return func(m *Msg) {
 		m.boundary = b
+	}
+}
+
+// WithMiddleware add the given middleware in the end of the list of the client middlewares
+func WithMiddleware(mw Middleware) MsgOption {
+	return func(m *Msg) {
+		m.middlewares = append(m.middlewares, mw)
 	}
 }
 
@@ -657,10 +672,18 @@ func (m *Msg) Reset() {
 	m.parts = nil
 }
 
+// ApplyMiddlewares apply the list of middlewares to a Msg
+func (m *Msg) applyMiddlewares(ms *Msg) *Msg {
+	for _, mw := range m.middlewares {
+		ms = mw.Handle(ms)
+	}
+	return ms
+}
+
 // WriteTo writes the formated Msg into a give io.Writer and satisfies the io.WriteTo interface
 func (m *Msg) WriteTo(w io.Writer) (int64, error) {
 	mw := &msgWriter{w: w, c: m.charset, en: m.encoder}
-	mw.writeMsg(m)
+	mw.writeMsg(m.applyMiddlewares(m))
 	return mw.n, mw.err
 }
 
