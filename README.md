@@ -141,5 +141,6 @@ func main() {
 
 ## Contributors
 Thanks to the following people for contributing to the go-mail project:
+* [Dhia Gharsallaoui](https://github.com/dhia-gharsallaoui)
 * [inliquid](https://github.com/inliquid) 
 * [Maria Letta](https://github.com/MariaLetta) (designed the go-mail logo)
