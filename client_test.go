@@ -653,6 +653,44 @@ func TestClient_DialSendClose(t *testing.T) {
 	}
 }
 
+// TestClient_DialAndSendWithContext tests the DialAndSendWithContext() method of Client
+func TestClient_DialAndSendWithContext(t *testing.T) {
+	if os.Getenv("TEST_ALLOW_SEND") == "" {
+		t.Skipf("TEST_ALLOW_SEND is not set. Skipping mail sending test")
+	}
+	m := NewMsg()
+	_ = m.FromFormat("go-mail Test Mailer", os.Getenv("TEST_FROM"))
+	_ = m.To(TestRcpt)
+	m.Subject(fmt.Sprintf("This is a test mail from go-mail/v%s", VERSION))
+	m.SetBulk()
+	m.SetDate()
+	m.SetMessageID()
+	m.SetBodyString(TypeTextPlain, "This is a test mail from the go-mail library")
+
+	tests := []struct {
+		name string
+		to   time.Duration
+		sf   bool
+	}{
+		{"Timeout: 100s", time.Second * 100, false},
+		{"Timeout: 100ms", time.Millisecond * 100, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := getTestConnection(true)
+			if err != nil {
+				t.Skipf("failed to create test client: %s. Skipping tests", err)
+			}
+
+			ctx, cfn := context.WithTimeout(context.Background(), tt.to)
+			defer cfn()
+			if err := c.DialAndSendWithContext(ctx, m); err != nil && !tt.sf {
+				t.Errorf("DialAndSendWithContext() failed: %s", err)
+			}
+		})
+	}
+}
+
 // TestClient_DialAndSend tests the DialAndSend() method of Client
 func TestClient_DialAndSend(t *testing.T) {
 	if os.Getenv("TEST_ALLOW_SEND") == "" {
