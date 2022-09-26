@@ -542,6 +542,12 @@ func (c *Client) Reset() error {
 // default context.Background and sends the mail
 func (c *Client) DialAndSend(ml ...*Msg) error {
 	ctx := context.Background()
+	return c.DialAndSendWithContext(ctx, ml...)
+}
+
+// DialAndSendWithContext establishes a connection to the SMTP server with a
+// custom context and sends the mail
+func (c *Client) DialAndSendWithContext(ctx context.Context, ml ...*Msg) error {
 	if err := c.DialWithContext(ctx); err != nil {
 		return fmt.Errorf("dial failed: %w", err)
 	}
