@@ -478,6 +478,11 @@ func (m *Msg) GetRecipients() ([]string, error) {
 	return rl, nil
 }
 
+// GetGenHeader returns the content of the requested generic header of the Msg
+func (m *Msg) GetGenHeader(h Header) []string {
+	return m.genHeader[h]
+}
+
 // SetBodyString sets the body of the message.
 func (m *Msg) SetBodyString(ct ContentType, b string, o ...PartOption) {
 	buf := bytes.NewBufferString(b)
