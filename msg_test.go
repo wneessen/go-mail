@@ -2105,3 +2105,20 @@ func TestMsg_WriteToFile(t *testing.T) {
 		t.Errorf("output file is expected to contain data but its size is zero")
 	}
 }
+
+// TestMsg_GetGenHeader will test the GetGenHeader method of the Msg
+func TestMsg_GetGenHeader(t *testing.T) {
+	m := NewMsg()
+	m.Subject("this is a test")
+	sa := m.GetGenHeader(HeaderSubject)
+	if len(sa) <= 0 {
+		t.Errorf("GetGenHeader on subject failed. Got empty slice")
+		return
+	}
+	if sa[0] == "" {
+		t.Errorf("GetGenHeader on subject failed. Got empty value")
+	}
+	if sa[0] != "this is a test" {
+		t.Errorf("GetGenHeader on subject failed. Expected: %q, got: %q", "this is a test", sa[0])
+	}
+}
