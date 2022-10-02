@@ -42,6 +42,7 @@ Some of the features of this library:
 * [X] Reusing the same SMTP connection to send multiple mails
 * [X] Support for attachments and inline embeds (from file system, `io.Reader` or `embed.FS`)
 * [X] Support for different encodings
+* [X] Middleware support for 3rd-party libraries to alter mail messages
 * [X] Support sending mails via a local sendmail command
 * [X] Support for requestng MDNs (RFC 8098) and DSNs (RFC 1891)
 * [X] Message object satisfies `io.WriteTo` and `io.Reader` interfaces
@@ -53,6 +54,15 @@ standard in a MUA.
 
 ## Support
 We have a support and general discussion channel on the Gophers Discord server. Find us at: [#go-mail](https://discord.gg/zSUeBrsFPB)
+
+## Middleware
+The goal of go-mail is to keep it free from 3rd party dependencies and only focus on things a mail library should
+fulfill. Yet, since version v0.2.8 we've added support for middleware on the `Msg` object, allowing 3rd parties to
+alter a given mail message to their needs without relying on `go-mail` to support their specific need.
+
+To get our users started with message middleware, we've created a collection of useful middlewares. It can be 
+found in a seperate repository: [go-mail-middlware](https://github.com/wneessen/go-mail-middleware).
+
 ## Examples
 
 The package is shipped with GoDoc example code for difference scenarios. Check them out on its
