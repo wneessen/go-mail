@@ -483,6 +483,11 @@ func (m *Msg) GetGenHeader(h Header) []string {
 	return m.genHeader[h]
 }
 
+// GetParts returns the message parts of the Msg
+func (m *Msg) GetParts() []*Part {
+	return m.parts
+}
+
 // SetBodyString sets the body of the message.
 func (m *Msg) SetBodyString(ct ContentType, b string, o ...PartOption) {
 	buf := bytes.NewBufferString(b)
