@@ -43,6 +43,12 @@ func (p *Part) GetWriteFunc() func(io.Writer) (int64, error) {
 	return p.w
 }
 
+// SetContent overrides the content of the Part with the given string
+func (p *Part) SetContent(c string) {
+	buf := bytes.NewBufferString(c)
+	p.w = writeFuncFromBuffer(buf)
+}
+
 // SetContentType overrides the ContentType of the Part
 func (p *Part) SetContentType(c ContentType) {
 	p.ctype = c
