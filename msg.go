@@ -488,6 +488,16 @@ func (m *Msg) GetParts() []*Part {
 	return m.parts
 }
 
+// GetAttachments returns the attachments of the Msg
+func (m *Msg) GetAttachments() []*File {
+	return m.attachments
+}
+
+// SetAttachements sets the attachements of the message.
+func (m *Msg) SetAttachements(ff []*File) {
+	m.attachments = ff
+}
+
 // SetBodyString sets the body of the message.
 func (m *Msg) SetBodyString(ct ContentType, b string, o ...PartOption) {
 	buf := bytes.NewBufferString(b)
