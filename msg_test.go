@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/mail"
 	"os"
+	"sort"
 	"strings"
 	"testing"
 	ttpl "text/template"
@@ -1199,6 +1200,99 @@ func TestMsg_AttachFile(t *testing.T) {
 				buf := bytes.Buffer{}
 				if _, err := file.Writer(&buf); err != nil {
 					t.Errorf("failed to execute WriterFunc: %s", err)
+					return
+				}
+			}
+			m.Reset()
+		})
+	}
+}
+
+// TestMsg_GetAttachments tests the Msg.GetAttachments method
+func TestMsg_GetAttachments(t *testing.T) {
+	tests := []struct {
+		name  string
+		files []string
+	}{
+		{"File: README.md", []string{"README.md"}},
+		{"File: doc.go", []string{"doc.go"}},
+		{"File: README.md and doc.go", []string{"README.md", "doc.go"}},
+		{"File: nonexisting", nil},
+	}
+	m := NewMsg()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, f := range tt.files {
+				m.AttachFile(f, WithFileName(f), nil)
+			}
+			if len(m.attachments) != len(tt.files) {
+				t.Errorf("AttachFile() failed. Number of attachments expected: %d, got: %d", len(tt.files),
+					len(m.attachments))
+				return
+			}
+			ff := m.GetAttachments()
+			if len(m.attachments) != len(ff) {
+				t.Errorf("GetAttachments() failed. Number of attachments expected: %d, got: %d", len(m.attachments),
+					len(ff))
+				return
+			}
+			var fn []string
+			for _, f := range ff {
+				fn = append(fn, f.Name)
+			}
+			sort.Strings(fn)
+			sort.Strings(tt.files)
+			for i, f := range tt.files {
+				if f != fn[i] {
+					t.Errorf("GetAttachments() failed. Attachment name expected: %s, got: %s", f,
+						fn[i])
+					return
+				}
+			}
+			m.Reset()
+		})
+	}
+}
+
+// TestMsg_SetAttachments tests the Msg.GetAttachments method
+func TestMsg_SetAttachments(t *testing.T) {
+	tests := []struct {
+		name        string
+		attachments []string
+		files       []string
+	}{
+		{"File: replace README.md  with doc.go", []string{"README.md"}, []string{"doc.go"}},
+		{"File: add README.md with doc.go ", []string{"doc.go"}, []string{"README.md", "doc.go"}},
+		{"File: remove README.md and doc.go", []string{"README.md", "doc.go"}, nil},
+		{"File: add README.md and doc.go", nil, []string{"README.md", "doc.go"}},
+	}
+	m := NewMsg()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sort.Strings(tt.attachments)
+			sort.Strings(tt.files)
+			for _, a := range tt.attachments {
+				m.AttachFile(a, WithFileName(a), nil)
+			}
+			if len(m.attachments) != len(tt.attachments) {
+				t.Errorf("AttachFile() failed. Number of attachments expected: %d, got: %d", len(tt.files),
+					len(m.attachments))
+				return
+			}
+			var files []*File
+			for _, f := range tt.files {
+				files = append(files, &File{Name: f})
+			}
+			m.SetAttachements(files)
+			if len(m.attachments) != len(files) {
+				t.Errorf("SetAttachements() failed. Number of attachments expected: %d, got: %d", len(files),
+					len(m.attachments))
+				return
+			}
+			for i, f := range tt.files {
+				if f != m.attachments[i].Name {
+					t.Errorf("SetAttachments() failed. Attachment name expected: %s, got: %s", f,
+						m.attachments[i].Name)
 					return
 				}
 			}
