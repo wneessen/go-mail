@@ -132,7 +132,7 @@ const (
 
 // List of MIME versions
 const (
-	//Mime10 is the MIME Version 1.0
+	// Mime10 is the MIME Version 1.0
 	Mime10 MIMEVersion = "1.0"
 )
 
