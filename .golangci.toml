@@ -1,0 +1,7 @@
+[run]
+go = "1.16"
+tests = true
+
+[linters]
+enable = ["stylecheck", "whitespace", "containedctx", "contextcheck", "decorder",
+    "errname", "errorlint", "gofmt", "gofumpt"]

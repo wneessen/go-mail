@@ -20,7 +20,7 @@
 
 # Local testfiles and auth data
 .auth
-cmd/*
+examples/*
 
 # SonarQube
 .scannerwork/
