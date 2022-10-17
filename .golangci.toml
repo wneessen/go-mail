@@ -7,4 +7,4 @@ go = "1.16"
 tests = true
 
 [linters]
-enable = ["stylecheck", "whitespace", "decorder", "errname", "errorlint", "gofmt", "gofumpt"]
+enable = ["stylecheck", "whitespace", "errname", "errorlint", "gofmt", "gofumpt"]
