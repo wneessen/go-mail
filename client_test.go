@@ -8,11 +8,12 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/wneessen/go-mail/auth"
 	"net/smtp"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/wneessen/go-mail/auth"
 )
 
 // DefaultHost is used as default hostname for the Client
@@ -89,9 +90,11 @@ func TestNewClientWithOptions(t *testing.T) {
 		{"WithTLSConfig()", WithTLSConfig(&tls.Config{}), false},
 		{"WithTLSConfig(); config is nil", WithTLSConfig(nil), true},
 		{"WithSMTPAuth()", WithSMTPAuth(SMTPAuthLogin), false},
-		{"WithSMTPAuthCustom()",
+		{
+			"WithSMTPAuthCustom()",
 			WithSMTPAuthCustom(smtp.PlainAuth("", "", "", "")),
-			false},
+			false,
+		},
 		{"WithUsername()", WithUsername("test"), false},
 		{"WithPassword()", WithPassword("test"), false},
 		{"WithDSN()", WithDSN(), false},
@@ -99,8 +102,10 @@ func TestNewClientWithOptions(t *testing.T) {
 		{"WithDSNMailReturnType() wrong option", WithDSNMailReturnType("FAIL"), true},
 		{"WithDSNRcptNotifyType()", WithDSNRcptNotifyType(DSNRcptNotifySuccess), false},
 		{"WithDSNRcptNotifyType() wrong option", WithDSNRcptNotifyType("FAIL"), true},
-		{"WithDSNRcptNotifyType() NEVER combination",
-			WithDSNRcptNotifyType(DSNRcptNotifySuccess, DSNRcptNotifyNever), true},
+		{
+			"WithDSNRcptNotifyType() NEVER combination",
+			WithDSNRcptNotifyType(DSNRcptNotifySuccess, DSNRcptNotifyNever), true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -796,7 +801,6 @@ func TestClient_DialSendCloseBroken(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 // TestClient_DialSendCloseBrokenWithDSN tests the Dial(), Send() and Close() method of Client with
@@ -857,7 +861,6 @@ func TestClient_DialSendCloseBrokenWithDSN(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 // TestClient_auth tests the Dial(), Send() and Close() method of Client with broken settings
@@ -948,10 +951,10 @@ func getTestConnection(auth bool) (*Client, error) {
 		}
 	}
 	if err := c.DialWithContext(context.Background()); err != nil {
-		return c, fmt.Errorf("connection to test server failed: %s", err)
+		return c, fmt.Errorf("connection to test server failed: %w", err)
 	}
 	if err := c.Close(); err != nil {
-		return c, fmt.Errorf("disconnect from test server failed: %s", err)
+		return c, fmt.Errorf("disconnect from test server failed: %w", err)
 	}
 	return c, nil
 }
@@ -985,10 +988,10 @@ func getTestConnectionWithDSN(auth bool) (*Client, error) {
 		}
 	}
 	if err := c.DialWithContext(context.Background()); err != nil {
-		return c, fmt.Errorf("connection to test server failed: %s", err)
+		return c, fmt.Errorf("connection to test server failed: %w", err)
 	}
 	if err := c.Close(); err != nil {
-		return c, fmt.Errorf("disconnect from test server failed: %s", err)
+		return c, fmt.Errorf("disconnect from test server failed: %w", err)
 	}
 	return c, nil
 }
