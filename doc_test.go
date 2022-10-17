@@ -7,10 +7,11 @@ package mail_test
 import (
 	"context"
 	"fmt"
-	"github.com/wneessen/go-mail"
 	"os"
 	"text/template"
 	"time"
+
+	"github.com/wneessen/go-mail"
 )
 
 // Code example for the NewClient method
