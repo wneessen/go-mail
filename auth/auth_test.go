@@ -20,9 +20,13 @@ func TestAuth(t *testing.T) {
 	}
 
 	authTests := []authTest{
-		{LoginAuth("user", "pass", "testserver"),
-			[]string{"Username:", "Password:", "2.7.0 Authentication successful", "Invalid:"}, "LOGIN",
-			[]string{"", "user", "pass", "", ""}, []bool{false, false, false, true}},
+		{
+			LoginAuth("user", "pass", "testserver"),
+			[]string{"Username:", "Password:", "2.7.0 Authentication successful", "Invalid:"},
+			"LOGIN",
+			[]string{"", "user", "pass", "", ""},
+			[]bool{false, false, false, true},
+		},
 	}
 
 testLoop:

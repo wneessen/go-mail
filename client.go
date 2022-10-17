@@ -9,12 +9,13 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/wneessen/go-mail/auth"
 	"net"
 	"net/smtp"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/wneessen/go-mail/auth"
 )
 
 // Defaults
