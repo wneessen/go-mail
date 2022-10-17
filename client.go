@@ -505,7 +505,7 @@ func (c *Client) Send(ml ...*Msg) error {
 		}
 
 		if err := c.Reset(); err != nil {
-			return fmt.Errorf("sending RSET command failed: %s", err)
+			return fmt.Errorf("sending RSET command failed: %w", err)
 		}
 		if err := c.checkConn(); err != nil {
 			return fmt.Errorf("failed to check server connection: %w", err)
@@ -556,7 +556,7 @@ func (c *Client) DialAndSendWithContext(ctx context.Context, ml ...*Msg) error {
 		return fmt.Errorf("send failed: %w", err)
 	}
 	if err := c.Close(); err != nil {
-		return fmt.Errorf("failed to close connction: %s", err)
+		return fmt.Errorf("failed to close connction: %w", err)
 	}
 	return nil
 }

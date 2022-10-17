@@ -951,10 +951,10 @@ func getTestConnection(auth bool) (*Client, error) {
 		}
 	}
 	if err := c.DialWithContext(context.Background()); err != nil {
-		return c, fmt.Errorf("connection to test server failed: %s", err)
+		return c, fmt.Errorf("connection to test server failed: %w", err)
 	}
 	if err := c.Close(); err != nil {
-		return c, fmt.Errorf("disconnect from test server failed: %s", err)
+		return c, fmt.Errorf("disconnect from test server failed: %w", err)
 	}
 	return c, nil
 }
@@ -988,10 +988,10 @@ func getTestConnectionWithDSN(auth bool) (*Client, error) {
 		}
 	}
 	if err := c.DialWithContext(context.Background()); err != nil {
-		return c, fmt.Errorf("connection to test server failed: %s", err)
+		return c, fmt.Errorf("connection to test server failed: %w", err)
 	}
 	if err := c.Close(); err != nil {
-		return c, fmt.Errorf("disconnect from test server failed: %s", err)
+		return c, fmt.Errorf("disconnect from test server failed: %w", err)
 	}
 	return c, nil
 }
