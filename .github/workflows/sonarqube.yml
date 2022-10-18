@@ -29,17 +29,12 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.18.x
+          go-version: 1.19.x
           
       - name: Run unit Tests
         run: |
           go test -v -race --coverprofile=./cov.out ./...
 
-      - name: Run Gosec Security Scanner
-        uses: securego/gosec@master
-        with:
-          args: '-no-fail -fmt sonarqube -out report.json ./...'
-          
       - uses: sonarsource/sonarqube-scan-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
