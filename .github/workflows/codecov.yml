@@ -37,16 +37,17 @@ jobs:
     steps:
     - name: Checkout Code
       uses: actions/checkout@master
-    
+    - name: Setup go
+      uses: actions/setup-go@v3
+      with:
+        go-version: ${{ matrix.go }}
     - name: Install sendmail
       if: matrix.go == 1.19 && matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get -y install sendmail; which sendmail
-        
     - name: Run Tests
       run: |
         go test -v -race --coverprofile=coverage.coverprofile --covermode=atomic ./...
-    
     - name: Upload coverage to Codecov
       if: success() && matrix.go == 1.19 && matrix.os == 'ubuntu-latest'
       uses: codecov/codecov-action@v2
