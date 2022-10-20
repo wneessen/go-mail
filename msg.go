@@ -807,24 +807,31 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...st
 	return nil
 }
 
-// NewReader returns a Msg reader that satisfies the io.Reader interface.
-// **Please note:** when creating a new reader, the current state of the Msg is taken, as
-// basis for the reader. If you perform changes on Msg after creating the reader, you need
-// to perform a call to Msg.UpdateReader first
-func (m *Msg) NewReader() io.Reader {
+// NewReader returns a Reader type that satisfies the io.Reader interface.
+//
+// IMPORTANT: when creating a new Reader, the current state of the Msg is taken, as
+// basis for the Reader. If you perform changes on Msg after creating the Reader, these
+// changes will not be reflected in the Reader. You will have to use Msg.UpdateReader
+// first to update the Reader's buffer with the current Msg content
+func (m *Msg) NewReader() *Reader {
+	r := &Reader{}
 	wbuf := bytes.Buffer{}
-	_, _ = m.Write(&wbuf)
-	r := &reader{buf: wbuf.Bytes()}
+	_, err := m.Write(&wbuf)
+	if err != nil {
+		r.err = fmt.Errorf("failed to write Msg to Reader buffer: %w", err)
+	}
+	r.buf = wbuf.Bytes()
 	return r
 }
 
-// UpdateReader will update a reader with the content of the current Msg and reset the reader position
-// to the start
-func (m *Msg) UpdateReader(r *reader) {
+// UpdateReader will update a Reader with the content of the given Msg and reset the
+// Reader position to the start
+func (m *Msg) UpdateReader(r *Reader) {
 	wbuf := bytes.Buffer{}
-	_, _ = m.Write(&wbuf)
+	_, err := m.Write(&wbuf)
 	r.Reset()
 	r.buf = wbuf.Bytes()
+	r.err = err
 }
 
 // Read outputs the length of p into p to satisfy the io.Reader interface

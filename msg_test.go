@@ -1784,6 +1784,86 @@ func TestMsg_Read_ioCopy(t *testing.T) {
 	}
 }
 
+// TestMsg_NewReader tests the Msg.NewReader method
+func TestMsg_NewReader(t *testing.T) {
+	m := NewMsg()
+	m.SetBodyString(TypeTextPlain, "TEST123")
+	mr := m.NewReader()
+	if mr == nil {
+		t.Errorf("NewReader failed: Reader is nil")
+	}
+}
+
+// TestMsg_NewReader_broken tests the Msg.NewReader method error handling
+func TestMsg_NewReader_broken(t *testing.T) {
+	m := &Msg{}
+	mr := m.NewReader()
+	if mr == nil {
+		t.Errorf("NewReader failed: Reader is nil")
+	}
+}
+
+// TestMsg_NewReader_ioCopy tests the Msg.NewReader method using io.Copy
+func TestMsg_NewReader_ioCopy(t *testing.T) {
+	wbuf1 := bytes.Buffer{}
+	wbuf2 := bytes.Buffer{}
+	m := NewMsg()
+	m.SetBodyString(TypeTextPlain, "TEST123")
+	mr := m.NewReader()
+	if mr == nil {
+		t.Errorf("NewReader failed: Reader is nil")
+	}
+
+	// First we use WriteTo to have something to compare to
+	_, err := m.WriteTo(&wbuf1)
+	if err != nil {
+		t.Errorf("failed to write body to buffer: %s", err)
+	}
+
+	// Then we write to wbuf2 via io.Copy
+	n, err := io.Copy(&wbuf2, mr)
+	if err != nil {
+		t.Errorf("failed to use io.Copy on Reader: %s", err)
+	}
+	if n != int64(wbuf1.Len()) {
+		t.Errorf("message length of WriteTo and io.Copy differ. Expected: %d, got: %d", wbuf1.Len(), n)
+	}
+	if wbuf1.String() != wbuf2.String() {
+		t.Errorf("message content of WriteTo and io.Copy differ")
+	}
+}
+
+// TestMsg_UpdateReader tests the Msg.UpdateReader method
+func TestMsg_UpdateReader(t *testing.T) {
+	m := NewMsg()
+	m.Subject("Subject-Run 1")
+	mr := m.NewReader()
+	if mr == nil {
+		t.Errorf("NewReader failed: Reader is nil")
+	}
+	wbuf1 := bytes.Buffer{}
+	_, err := io.Copy(&wbuf1, mr)
+	if err != nil {
+		t.Errorf("io.Copy on Reader failed: %s", err)
+	}
+	if !strings.Contains(wbuf1.String(), "Subject: Subject-Run 1") {
+		t.Errorf("io.Copy on Reader failed. Expected to find %q but string in Subject was not found",
+			"Subject-Run 1")
+	}
+
+	m.Subject("Subject-Run 2")
+	m.UpdateReader(mr)
+	wbuf2 := bytes.Buffer{}
+	_, err = io.Copy(&wbuf2, mr)
+	if err != nil {
+		t.Errorf("2nd io.Copy on Reader failed: %s", err)
+	}
+	if !strings.Contains(wbuf2.String(), "Subject: Subject-Run 2") {
+		t.Errorf("io.Copy on Reader failed. Expected to find %q but string in Subject was not found",
+			"Subject-Run 2")
+	}
+}
+
 // TestMsg_SetBodyTextTemplate tests the Msg.SetBodyTextTemplate method
 func TestMsg_SetBodyTextTemplate(t *testing.T) {
 	tests := []struct {
