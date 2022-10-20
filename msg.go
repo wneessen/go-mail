@@ -181,6 +181,9 @@ func (m *Msg) Charset() string {
 
 // SetHeader sets a generic header field of the Msg
 func (m *Msg) SetHeader(h Header, v ...string) {
+	if m.genHeader == nil {
+		m.genHeader = make(map[Header][]string)
+	}
 	for i, hv := range v {
 		v[i] = m.encodeString(hv)
 	}
@@ -189,6 +192,9 @@ func (m *Msg) SetHeader(h Header, v ...string) {
 
 // SetAddrHeader sets an address related header field of the Msg
 func (m *Msg) SetAddrHeader(h AddrHeader, v ...string) error {
+	if m.addrHeader == nil {
+		m.addrHeader = make(map[AddrHeader][]*mail.Address)
+	}
 	var al []*mail.Address
 	for _, av := range v {
 		a, err := mail.ParseAddress(av)
@@ -807,14 +813,31 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...st
 	return nil
 }
 
-// Read outputs the length of p into p to satisfy the io.Reader interface
-func (m *Msg) Read(p []byte) (int, error) {
+// NewReader returns a Reader type that satisfies the io.Reader interface.
+//
+// IMPORTANT: when creating a new Reader, the current state of the Msg is taken, as
+// basis for the Reader. If you perform changes on Msg after creating the Reader, these
+// changes will not be reflected in the Reader. You will have to use Msg.UpdateReader
+// first to update the Reader's buffer with the current Msg content
+func (m *Msg) NewReader() *Reader {
+	r := &Reader{}
 	wbuf := bytes.Buffer{}
-	_, err := m.WriteTo(&wbuf)
+	_, err := m.Write(&wbuf)
 	if err != nil {
-		return 0, fmt.Errorf("failed to write message to internal write buffer: %w", err)
+		r.err = fmt.Errorf("failed to write Msg to Reader buffer: %w", err)
 	}
-	return wbuf.Read(p)
+	r.buf = wbuf.Bytes()
+	return r
+}
+
+// UpdateReader will update a Reader with the content of the given Msg and reset the
+// Reader position to the start
+func (m *Msg) UpdateReader(r *Reader) {
+	wbuf := bytes.Buffer{}
+	_, err := m.Write(&wbuf)
+	r.Reset()
+	r.buf = wbuf.Bytes()
+	r.err = err
 }
 
 // encodeString encodes a string based on the configured message encoder and the corresponding
