@@ -15,6 +15,11 @@ type Reader struct {
 	err error  // initalization error
 }
 
+// Error returns an error if the Reader err field is not nil
+func (r *Reader) Error() error {
+	return r.err
+}
+
 // Read reads the length of p of the Msg buffer to satisfy the io.Reader interface
 func (r *Reader) Read(p []byte) (n int, err error) {
 	if r.err != nil {
