@@ -181,6 +181,9 @@ func (m *Msg) Charset() string {
 
 // SetHeader sets a generic header field of the Msg
 func (m *Msg) SetHeader(h Header, v ...string) {
+	if m.genHeader == nil {
+		m.genHeader = make(map[Header][]string)
+	}
 	for i, hv := range v {
 		v[i] = m.encodeString(hv)
 	}
@@ -189,6 +192,9 @@ func (m *Msg) SetHeader(h Header, v ...string) {
 
 // SetAddrHeader sets an address related header field of the Msg
 func (m *Msg) SetAddrHeader(h AddrHeader, v ...string) error {
+	if m.addrHeader == nil {
+		m.addrHeader = make(map[AddrHeader][]*mail.Address)
+	}
 	var al []*mail.Address
 	for _, av := range v {
 		a, err := mail.ParseAddress(av)
