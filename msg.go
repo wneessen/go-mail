@@ -807,6 +807,26 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...st
 	return nil
 }
 
+// NewReader returns a Msg reader that satisfies the io.Reader interface.
+// **Please note:** when creating a new reader, the current state of the Msg is taken, as
+// basis for the reader. If you perform changes on Msg after creating the reader, you need
+// to perform a call to Msg.UpdateReader first
+func (m *Msg) NewReader() io.Reader {
+	wbuf := bytes.Buffer{}
+	_, _ = m.Write(&wbuf)
+	r := &reader{buf: wbuf.Bytes()}
+	return r
+}
+
+// UpdateReader will update a reader with the content of the current Msg and reset the reader position
+// to the start
+func (m *Msg) UpdateReader(r *reader) {
+	wbuf := bytes.Buffer{}
+	_, _ = m.Write(&wbuf)
+	r.Reset()
+	r.buf = wbuf.Bytes()
+}
+
 // Read outputs the length of p into p to satisfy the io.Reader interface
 func (m *Msg) Read(p []byte) (int, error) {
 	wbuf := bytes.Buffer{}
