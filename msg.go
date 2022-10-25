@@ -42,9 +42,14 @@ const (
 	errParseMailAddr = "failed to parse mail address %q: %w"
 )
 
+// MiddlewareType is the type description of the Middleware and needs to be returned
+// in the Middleware interface by the Type method
+type MiddlewareType string
+
 // Middleware is an interface to define a function to apply to Msg before sending
 type Middleware interface {
 	Handle(*Msg) *Msg
+	Type() MiddlewareType
 }
 
 // Msg is the mail message struct
@@ -710,6 +715,24 @@ func (m *Msg) applyMiddlewares(ms *Msg) *Msg {
 func (m *Msg) WriteTo(w io.Writer) (int64, error) {
 	mw := &msgWriter{w: w, c: m.charset, en: m.encoder}
 	mw.writeMsg(m.applyMiddlewares(m))
+	return mw.n, mw.err
+}
+
+// WriteToSkipMiddleware writes the formated Msg into a give io.Writer and satisfies
+// the io.WriteTo interface but will skip the given Middleware
+func (m *Msg) WriteToSkipMiddleware(w io.Writer, mt MiddlewareType) (int64, error) {
+	var omwl, mwl []Middleware
+	omwl = m.middlewares
+	for i := range m.middlewares {
+		if m.middlewares[i].Type() == mt {
+			continue
+		}
+		mwl = append(mwl, m.middlewares[i])
+	}
+	m.middlewares = mwl
+	mw := &msgWriter{w: w, c: m.charset, en: m.encoder}
+	mw.writeMsg(m.applyMiddlewares(m))
+	m.middlewares = omwl
 	return mw.n, mw.err
 }
 
