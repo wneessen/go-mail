@@ -722,7 +722,7 @@ func (m *Msg) WriteTo(w io.Writer) (int64, error) {
 // the io.WriteTo interface but will skip the given Middleware
 func (m *Msg) WriteToSkipMiddleware(w io.Writer, mt MiddlewareType) (int64, error) {
 	var omwl, mwl []Middleware
-	copy(omwl, m.middlewares)
+	omwl = m.middlewares
 	for i := range m.middlewares {
 		if m.middlewares[i].Type() == mt {
 			continue

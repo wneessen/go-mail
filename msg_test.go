@@ -1600,14 +1600,27 @@ func TestMsg_WriteToSkipMiddleware(t *testing.T) {
 	wbuf := bytes.Buffer{}
 	n, err := m.WriteToSkipMiddleware(&wbuf, "uppercase")
 	if err != nil {
-		t.Errorf("WriteTo() failed: %s", err)
+		t.Errorf("WriteToSkipMiddleware() failed: %s", err)
 		return
 	}
 	if n != int64(wbuf.Len()) {
-		t.Errorf("WriteTo() failed: expected written byte length: %d, got: %d", n, wbuf.Len())
+		t.Errorf("WriteToSkipMiddleware() failed: expected written byte length: %d, got: %d", n, wbuf.Len())
 	}
 	if !strings.Contains(wbuf.String(), "Subject: This is @ test") {
 		t.Errorf("WriteToSkipMiddleware failed. Unable to find encoded subject")
+	}
+
+	wbuf2 := bytes.Buffer{}
+	n, err = m.WriteTo(&wbuf2)
+	if err != nil {
+		t.Errorf("WriteTo() failed: %s", err)
+		return
+	}
+	if n != int64(wbuf2.Len()) {
+		t.Errorf("WriteTo() failed: expected written byte length: %d, got: %d", n, wbuf2.Len())
+	}
+	if !strings.Contains(wbuf2.String(), "Subject: THIS IS @ TEST") {
+		t.Errorf("WriteToSkipMiddleware failed. Unable to find encoded and upperchase subject")
 	}
 }
 
