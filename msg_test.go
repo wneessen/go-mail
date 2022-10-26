@@ -710,7 +710,7 @@ func TestMsg_SetMessageIDRandomness(t *testing.T) {
 	}
 	for k, v := range c {
 		if v > 1 {
-			t.Errorf("MessageID randomness not give. MessageID %q was generated %d times", k, v)
+			t.Errorf("MessageID randomness not given. MessageID %q was generated %d times", k, v)
 		}
 	}
 }

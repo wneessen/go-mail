@@ -360,9 +360,9 @@ func (m *Msg) SetMessageID() {
 	ct := time.Now().UnixNano()
 	r := rand.New(rand.NewSource(ct))
 	rn := r.Int63()
-	pid := os.Getpid()
+	pid := os.Getpid() * (r.Intn(10000) + 1)
 	cts := fmt.Sprintf("%d", ct)
-	mid := fmt.Sprintf("%d.%d.%s@%s", pid, rn, cts[:15], hn)
+	mid := fmt.Sprintf("%d.%d.%s@%s", pid, rn, cts[:16], hn)
 	m.SetMessageIDWithValue(mid)
 }
 
