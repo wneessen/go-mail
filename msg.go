@@ -382,7 +382,7 @@ func (m *Msg) SetMessageID() {
 	}
 	rn, _ := randNum(100000000)
 	rm, _ := randNum(10000)
-	rs, _ := randomStringSecure(25)
+	rs, _ := randomStringSecure(17)
 	pid := os.Getpid() * rm
 	mid := fmt.Sprintf("%d.%d%d.%s@%s", pid, rn, rm, rs, hn)
 	m.SetMessageIDWithValue(mid)
