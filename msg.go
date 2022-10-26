@@ -77,6 +77,11 @@ type Msg struct {
 	// genHeader is a slice of strings that the different generic mail Header fields
 	genHeader map[Header][]string
 
+	// preformHeader is a slice of strings that the different generic mail Header fields
+	// of which content is already preformated and will not be affected by the automatic line
+	// breaks
+	preformHeader map[Header]string
+
 	// mimever represents the MIME version
 	mimever MIMEVersion
 
@@ -96,11 +101,12 @@ type MsgOption func(*Msg)
 // NewMsg returns a new Msg pointer
 func NewMsg(o ...MsgOption) *Msg {
 	m := &Msg{
-		addrHeader: make(map[AddrHeader][]*mail.Address),
-		charset:    CharsetUTF8,
-		encoding:   EncodingQP,
-		genHeader:  make(map[Header][]string),
-		mimever:    Mime10,
+		addrHeader:    make(map[AddrHeader][]*mail.Address),
+		charset:       CharsetUTF8,
+		encoding:      EncodingQP,
+		genHeader:     make(map[Header][]string),
+		preformHeader: make(map[Header]string),
+		mimever:       Mime10,
 	}
 
 	// Override defaults with optionally provided MsgOption functions
@@ -192,6 +198,24 @@ func (m *Msg) SetHeader(h Header, v ...string) {
 		v[i] = m.encodeString(hv)
 	}
 	m.genHeader[h] = v
+}
+
+// SetHeaderPreformatted sets a generic header field of the Msg which content is
+// already preformated.
+//
+// This method does not take a slice of values but only a single value. This is
+// due to the fact, that we do not perform any content alteration and expect the
+// user has already done so
+//
+// **Please note:** This method should be used only as a last resort. Since the
+// user is respondible for the formating of the message header, go-mail cannot
+// guarantee the fully compliance with the RFC 2822. It is recommended to use
+// SetHeader instead.
+func (m *Msg) SetHeaderPreformatted(h Header, v string) {
+	if m.preformHeader == nil {
+		m.preformHeader = make(map[Header]string)
+	}
+	m.preformHeader[h] = v
 }
 
 // SetAddrHeader sets an address related header field of the Msg
