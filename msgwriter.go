@@ -62,6 +62,7 @@ func (mw *msgWriter) writeMsg(m *Msg) {
 	m.addDefaultHeader()
 	m.checkUserAgent()
 	mw.writeGenHeader(m)
+	mw.writePreformattedGenHeader(m)
 
 	// Set the FROM header (or envelope FROM if FROM is empty)
 	hf := true
@@ -129,6 +130,13 @@ func (mw *msgWriter) writeGenHeader(m *Msg) {
 	sort.Strings(gk)
 	for _, k := range gk {
 		mw.writeHeader(Header(k), m.genHeader[Header(k)]...)
+	}
+}
+
+// writePreformatedHeader writes out all preformated generic headers to the msgWriter
+func (mw *msgWriter) writePreformattedGenHeader(m *Msg) {
+	for k, v := range m.preformHeader {
+		mw.writeString(fmt.Sprintf("%s: %s%s", k, v, SingleNewLine))
 	}
 }
 

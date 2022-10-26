@@ -255,7 +255,7 @@ func TestApplyMiddlewares(t *testing.T) {
 	}
 }
 
-// TestMsg_SetHEader tests Msg.SetHeader
+// TestMsg_SetHeader tests Msg.SetHeader
 func TestMsg_SetHeader(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -284,6 +284,46 @@ func TestMsg_SetHeader(t *testing.T) {
 				if !found {
 					t.Errorf("SetHeader() failed. Value %s not found in header field", v)
 				}
+			}
+		})
+	}
+}
+
+// TestMsg_SetHeaderPreformatted tests Msg.SetHeaderPreformatted
+func TestMsg_SetHeaderPreformatted(t *testing.T) {
+	tests := []struct {
+		name   string
+		header Header
+		value  string
+	}{
+		{"set subject", HeaderSubject, "This is Subject"},
+		{"set content-language", HeaderContentLang, fmt.Sprintf("%s, %s, %s, %s",
+			"en", "de", "fr", "es")},
+		{"set subject with newline", HeaderSubject, "This is Subject\r\n with 2nd line"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &Msg{}
+			m.SetHeaderPreformatted(tt.header, tt.value)
+			m = NewMsg()
+			m.SetHeaderPreformatted(tt.header, tt.value)
+			if m.preformHeader[tt.header] == "" {
+				t.Errorf("SetHeaderPreformatted() failed. Tried to set header %s, but it is empty", tt.header)
+			}
+			if m.preformHeader[tt.header] != tt.value {
+				t.Errorf("SetHeaderPreformatted() failed. Expected: %q, got: %q", tt.value,
+					m.preformHeader[tt.header])
+			}
+			buf := bytes.Buffer{}
+			_, err := m.WriteTo(&buf)
+			if err != nil {
+				t.Errorf("failed to write message to memory: %s", err)
+				return
+			}
+			if !strings.Contains(buf.String(), fmt.Sprintf("%s: %s%s", tt.header, tt.value, SingleNewLine)) {
+				t.Errorf("SetHeaderPreformatted() failed. Unable to find correctly formated header in " +
+					"mail message output")
 			}
 		})
 	}
