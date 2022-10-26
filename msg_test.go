@@ -695,6 +695,26 @@ func TestMsg_SetMessageIDWithValue(t *testing.T) {
 	}
 }
 
+// TestMsg_SetMessageIDRandomness tests the randomness of Msg.SetMessageID methods
+func TestMsg_SetMessageIDRandomness(t *testing.T) {
+	var mids []string
+	for i := 0; i < 100; i++ {
+		m := NewMsg()
+		m.SetMessageID()
+		mid := m.GetGenHeader(HeaderMessageID)
+		mids = append(mids, mid[0])
+	}
+	c := make(map[string]int)
+	for i := range mids {
+		c[mids[i]]++
+	}
+	for k, v := range c {
+		if v > 1 {
+			t.Errorf("MessageID randomness not give. MessageID %q was generated %d times", k, v)
+		}
+	}
+}
+
 // TestMsg_FromFormat tests the FromFormat and EnvelopeFrom methods for the Msg object
 func TestMsg_FromFormat(t *testing.T) {
 	tests := []struct {

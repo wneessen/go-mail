@@ -357,12 +357,12 @@ func (m *Msg) SetMessageID() {
 	if err != nil {
 		hn = "localhost.localdomain"
 	}
-	ct := time.Now().Unix()
+	ct := time.Now().UnixNano()
 	r := rand.New(rand.NewSource(ct))
-	rn := r.Int()
+	rn := r.Int63()
 	pid := os.Getpid()
-
-	mid := fmt.Sprintf("%d.%d.%d@%s", pid, rn, ct, hn)
+	cts := fmt.Sprintf("%d", ct)
+	mid := fmt.Sprintf("%d.%d.%s@%s", pid, rn, cts[:15], hn)
 	m.SetMessageIDWithValue(mid)
 }
 
