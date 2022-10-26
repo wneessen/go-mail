@@ -12,7 +12,6 @@ import (
 	"fmt"
 	ht "html/template"
 	"io"
-	"math/rand"
 	"mime"
 	"net/mail"
 	"os"
@@ -357,12 +356,11 @@ func (m *Msg) SetMessageID() {
 	if err != nil {
 		hn = "localhost.localdomain"
 	}
-	ct := time.Now().Unix()
-	r := rand.New(rand.NewSource(ct))
-	rn := r.Int()
-	pid := os.Getpid()
-
-	mid := fmt.Sprintf("%d.%d.%d@%s", pid, rn, ct, hn)
+	rn, _ := randNum(100000000)
+	rm, _ := randNum(10000)
+	rs, _ := randomStringSecure(25)
+	pid := os.Getpid() * rm
+	mid := fmt.Sprintf("%d.%d%d.%s@%s", pid, rn, rm, rs, hn)
 	m.SetMessageIDWithValue(mid)
 }
 
