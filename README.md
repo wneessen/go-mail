@@ -4,7 +4,7 @@ SPDX-FileCopyrightText: 2022 Winni Neessen <winni@neessen.dev>
 SPDX-License-Identifier: CC0-1.0
 -->
 
-# go-mail - Simple and easy way to send mails in Go
+# go-mail - Easy to use, yet comprehensive library for sending mails with Go
 
 [![GoDoc](https://godoc.org/github.com/wneessen/go-mail?status.svg)](https://pkg.go.dev/github.com/wneessen/go-mail)
 [![codecov](https://codecov.io/gh/wneessen/go-mail/branch/main/graph/badge.svg?token=37KWJV03MR)](https://codecov.io/gh/wneessen/go-mail) 
@@ -52,6 +52,10 @@ Some of the features of this library:
 go-mail works like a programatic email client and provides lots of methods and functionalities you would consider
 standard in a MUA.
 
+## Documentation
+We aim for good GoDoc documenation in our library which gives you a full API reference. We also provide a more in-depth documentation website at 
+[go-mail.dev](https://go-mail.dev)
+
 ## Support
 We have a support and general discussion channel on the Gophers Discord server. Find us at: [#go-mail](https://discord.gg/zSUeBrsFPB)
 
@@ -65,89 +69,8 @@ found in a seperate repository: [go-mail-middlware](https://github.com/wneessen/
 
 ## Examples
 
-The package is shipped with GoDoc example code for difference scenarios. Check them out on its
-[GoDoc page](https://pkg.go.dev/github.com/wneessen/go-mail#pkg-examples)
-
-For ease of use, here is a full usage example:
-
-```go
-package main
-
-import (
-	"fmt"
-	"github.com/wneessen/go-mail"
-	"os"
-)
-
-func main() {
-	// Create a new mail message
-	m := mail.NewMsg()
-
-	// To set address header fields like "From", "To", "Cc" or "Bcc" you have different methods
-	// at your hands. Some perform input validation, some ignore invalid addresses. Some perform
-	// the formating for you.
-	// 
-	if err := m.FromFormat("Toni Tester", "sender@example.com"); err != nil {
-		fmt.Printf("failed to set FROM address: %s\n", err)
-		os.Exit(1)
-	}
-	if err := m.To(`"Max Mastermind <rcpt@example.com>"`); err != nil {
-		fmt.Printf("failed to set TO address: %s\n", err)
-		os.Exit(1)
-	}
-	m.CcIgnoreInvalid("cc@example.com", "invalidaddress+example.com")
-
-	// Set a subject line
-	m.Subject("This is a great email")
-
-	// And some other common headers...
-	//
-	// Sets a valid "Date" header field with the current time
-	m.SetDate()
-	//
-	// Generates a valid and unique "Message-ID"
-	m.SetMessageID()
-	//
-	// Sets the "Precedence"-Header to "bulk" to indicate a "bulk mail"
-	m.SetBulk()
-	//
-	// Set a "high" importance to the mail (this sets several Header fields to 
-	// satisfy the different common mail clients like Mail.app and Outlook)
-	m.SetImportance(mail.ImportanceHigh)
-
-	// Add your mail message to body
-	m.SetBodyString(mail.TypeTextPlain, "This is a great message body text.")
-
-	// Attach a file from your local FS
-	// We override the attachment name using the WithFileName() Option
-	m.AttachFile("/home/ttester/test.txt", mail.WithFileName("attachment.txt"))
-
-	// Next let's create a Client
-	// We have lots of With* options at our disposal to stear the Client. It will set sane
-	// options by default, though
-	//
-	// Let's assume we need to perform SMTP AUTH with the sending server, though. Since we
-	// use SMTP PLAIN AUTH, let's also make sure to enforce strong TLS
-	host := "relay.example.com"
-	c, err := mail.NewClient(host,
-		mail.WithSMTPAuth(mail.SMTPAuthPlain), mail.WithUsername("ttester"),
-		mail.WithPassword("V3rySecUr3!Pw."), mail.WithTLSPolicy(mail.TLSMandatory))
-	if err != nil {
-		fmt.Printf("failed to create new mail client: %s\n", err)
-		os.Exit(1)
-	}
-
-	// Now that we have our client, we can connect to the server and send our mail message
-	// via the convenient DialAndSend() method. You have the option to Dial() and Send()
-	// seperately as well
-	if err := c.DialAndSend(m); err != nil {
-		fmt.Printf("failed to send mail: %s\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Println("Mail successfully sent.")
-}
-```
+We provide example code in both our GoDocs as well as on our official Website (see [Documentation](#documentation)). For a quick start into go-mail
+check out our [Getting started](https://go-mail.dev/getting-started/introduction/) guide.
 
 ## Contributors
 Thanks to the following people for contributing to the go-mail project:
