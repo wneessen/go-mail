@@ -190,7 +190,16 @@ func (m *Msg) Charset() string {
 }
 
 // SetHeader sets a generic header field of the Msg
+// For adding address headers like "To:" or "From", see SetAddrHeader
+//
+// Deprecated: This method only exists for compatibility reason. Please use SetGenHeader instead
 func (m *Msg) SetHeader(h Header, v ...string) {
+	m.SetGenHeader(h, v...)
+}
+
+// SetGenHeader sets a generic header field of the Msg
+// For adding address headers like "To:" or "From", see SetAddrHeader
+func (m *Msg) SetGenHeader(h Header, v ...string) {
 	if m.genHeader == nil {
 		m.genHeader = make(map[Header][]string)
 	}
@@ -203,6 +212,15 @@ func (m *Msg) SetHeader(h Header, v ...string) {
 // SetHeaderPreformatted sets a generic header field of the Msg which content is
 // already preformated.
 //
+// Deprecated: This method only exists for compatibility reason. Please use
+// SetGenHeaderPreformatted instead
+func (m *Msg) SetHeaderPreformatted(h Header, v string) {
+	m.SetGenHeaderPreformatted(h, v)
+}
+
+// SetGenHeaderPreformatted sets a generic header field of the Msg which content is
+// already preformated.
+//
 // This method does not take a slice of values but only a single value. This is
 // due to the fact, that we do not perform any content alteration and expect the
 // user has already done so
@@ -210,8 +228,8 @@ func (m *Msg) SetHeader(h Header, v ...string) {
 // **Please note:** This method should be used only as a last resort. Since the
 // user is respondible for the formating of the message header, go-mail cannot
 // guarantee the fully compliance with the RFC 2822. It is recommended to use
-// SetHeader instead.
-func (m *Msg) SetHeaderPreformatted(h Header, v string) {
+// SetGenHeader instead.
+func (m *Msg) SetGenHeaderPreformatted(h Header, v string) {
 	if m.preformHeader == nil {
 		m.preformHeader = make(map[Header]string)
 	}
@@ -349,7 +367,7 @@ func (m *Msg) ReplyTo(r string) error {
 	if err != nil {
 		return fmt.Errorf("failed to parse reply-to address: %w", err)
 	}
-	m.SetHeader(HeaderReplyTo, rt.String())
+	m.SetGenHeader(HeaderReplyTo, rt.String())
 	return nil
 }
 
@@ -371,7 +389,7 @@ func (m *Msg) addAddr(h AddrHeader, a string) error {
 
 // Subject sets the "Subject" header field of the Msg
 func (m *Msg) Subject(s string) {
-	m.SetHeader(HeaderSubject, s)
+	m.SetGenHeader(HeaderSubject, s)
 }
 
 // SetMessageID generates a random message id for the mail
@@ -390,25 +408,25 @@ func (m *Msg) SetMessageID() {
 
 // SetMessageIDWithValue sets the message id for the mail
 func (m *Msg) SetMessageIDWithValue(v string) {
-	m.SetHeader(HeaderMessageID, fmt.Sprintf("<%s>", v))
+	m.SetGenHeader(HeaderMessageID, fmt.Sprintf("<%s>", v))
 }
 
 // SetBulk sets the "Precedence: bulk" genHeader which is recommended for
 // automated mails like OOO replies
 // See: https://www.rfc-editor.org/rfc/rfc2076#section-3.9
 func (m *Msg) SetBulk() {
-	m.SetHeader(HeaderPrecedence, "bulk")
+	m.SetGenHeader(HeaderPrecedence, "bulk")
 }
 
 // SetDate sets the Date genHeader field to the current time in a valid format
 func (m *Msg) SetDate() {
 	ts := time.Now().Format(time.RFC1123Z)
-	m.SetHeader(HeaderDate, ts)
+	m.SetGenHeader(HeaderDate, ts)
 }
 
 // SetDateWithValue sets the Date genHeader field to the provided time in a valid format
 func (m *Msg) SetDateWithValue(t time.Time) {
-	m.SetHeader(HeaderDate, t.Format(time.RFC1123Z))
+	m.SetGenHeader(HeaderDate, t.Format(time.RFC1123Z))
 }
 
 // SetImportance sets the Msg Importance/Priority header to given Importance
@@ -416,21 +434,21 @@ func (m *Msg) SetImportance(i Importance) {
 	if i == ImportanceNormal {
 		return
 	}
-	m.SetHeader(HeaderImportance, i.String())
-	m.SetHeader(HeaderPriority, i.NumString())
-	m.SetHeader(HeaderXPriority, i.XPrioString())
-	m.SetHeader(HeaderXMSMailPriority, i.NumString())
+	m.SetGenHeader(HeaderImportance, i.String())
+	m.SetGenHeader(HeaderPriority, i.NumString())
+	m.SetGenHeader(HeaderXPriority, i.XPrioString())
+	m.SetGenHeader(HeaderXMSMailPriority, i.NumString())
 }
 
 // SetOrganization sets the provided string as Organization header for the Msg
 func (m *Msg) SetOrganization(o string) {
-	m.SetHeader(HeaderOrganization, o)
+	m.SetGenHeader(HeaderOrganization, o)
 }
 
 // SetUserAgent sets the User-Agent/X-Mailer header for the Msg
 func (m *Msg) SetUserAgent(a string) {
-	m.SetHeader(HeaderUserAgent, a)
-	m.SetHeader(HeaderXMailer, a)
+	m.SetGenHeader(HeaderUserAgent, a)
+	m.SetGenHeader(HeaderXMailer, a)
 }
 
 // RequestMDNTo adds the Disposition-Notification-To header to request a MDN from the receiving end
@@ -509,6 +527,60 @@ func (m *Msg) GetRecipients() ([]string, error) {
 		return rl, ErrNoRcptAddresses
 	}
 	return rl, nil
+}
+
+// GetAddrHeader returns the content of the requested address header of the Msg
+func (m *Msg) GetAddrHeader(h AddrHeader) []*mail.Address {
+	return m.addrHeader[h]
+}
+
+// GetAddrHeaderString returns the address string of the requested address header of the Msg
+func (m *Msg) GetAddrHeaderString(h AddrHeader) []string {
+	var al []string
+	for i := range m.addrHeader[h] {
+		al = append(al, m.addrHeader[h][i].String())
+	}
+	return al
+}
+
+// GetFrom returns the content of the From address header of the Msg
+func (m *Msg) GetFrom() []*mail.Address {
+	return m.GetAddrHeader(HeaderFrom)
+}
+
+// GetFromString returns the content of the From address header of the Msg as string slice
+func (m *Msg) GetFromString() []string {
+	return m.GetAddrHeaderString(HeaderFrom)
+}
+
+// GetTo returns the content of the To address header of the Msg
+func (m *Msg) GetTo() []*mail.Address {
+	return m.GetAddrHeader(HeaderTo)
+}
+
+// GetToString returns the content of the To address header of the Msg as string slice
+func (m *Msg) GetToString() []string {
+	return m.GetAddrHeaderString(HeaderTo)
+}
+
+// GetCc returns the content of the Cc address header of the Msg
+func (m *Msg) GetCc() []*mail.Address {
+	return m.GetAddrHeader(HeaderCc)
+}
+
+// GetCcString returns the content of the Cc address header of the Msg as string slice
+func (m *Msg) GetCcString() []string {
+	return m.GetAddrHeaderString(HeaderCc)
+}
+
+// GetBcc returns the content of the Bcc address header of the Msg
+func (m *Msg) GetBcc() []*mail.Address {
+	return m.GetAddrHeader(HeaderBcc)
+}
+
+// GetBccString returns the content of the Bcc address header of the Msg as string slice
+func (m *Msg) GetBccString() []string {
+	return m.GetAddrHeaderString(HeaderBcc)
 }
 
 // GetGenHeader returns the content of the requested generic header of the Msg
@@ -948,7 +1020,7 @@ func (m *Msg) addDefaultHeader() {
 	if _, ok := m.genHeader[HeaderMessageID]; !ok {
 		m.SetMessageID()
 	}
-	m.SetHeader(HeaderMIMEVersion, string(m.mimever))
+	m.SetGenHeader(HeaderMIMEVersion, string(m.mimever))
 }
 
 // fileFromEmbedFS returns a File pointer from a given file in the provided embed.FS

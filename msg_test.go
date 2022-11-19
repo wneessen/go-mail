@@ -255,8 +255,8 @@ func TestApplyMiddlewares(t *testing.T) {
 	}
 }
 
-// TestMsg_SetHeader tests Msg.SetHeader
-func TestMsg_SetHeader(t *testing.T) {
+// TestMsg_SetGenHeader tests Msg.SetGenHeader
+func TestMsg_SetGenHeader(t *testing.T) {
 	tests := []struct {
 		name   string
 		header Header
@@ -269,9 +269,9 @@ func TestMsg_SetHeader(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := NewMsg()
-			m.SetHeader(tt.header, tt.values...)
+			m.SetGenHeader(tt.header, tt.values...)
 			if m.genHeader[tt.header] == nil {
-				t.Errorf("SetHeader() failed. Tried to set header %s, but it is empty", tt.header)
+				t.Errorf("SetGenHeader() failed. Tried to set header %s, but it is empty", tt.header)
 				return
 			}
 			for _, v := range tt.values {
@@ -282,15 +282,15 @@ func TestMsg_SetHeader(t *testing.T) {
 					}
 				}
 				if !found {
-					t.Errorf("SetHeader() failed. Value %s not found in header field", v)
+					t.Errorf("SetGenHeader() failed. Value %s not found in header field", v)
 				}
 			}
 		})
 	}
 }
 
-// TestMsg_SetHeaderPreformatted tests Msg.SetHeaderPreformatted
-func TestMsg_SetHeaderPreformatted(t *testing.T) {
+// TestMsg_SetGenHeaderPreformatted tests Msg.SetGenHeaderPreformatted
+func TestMsg_SetGenHeaderPreformatted(t *testing.T) {
 	tests := []struct {
 		name   string
 		header Header
@@ -305,14 +305,14 @@ func TestMsg_SetHeaderPreformatted(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := &Msg{}
-			m.SetHeaderPreformatted(tt.header, tt.value)
+			m.SetGenHeaderPreformatted(tt.header, tt.value)
 			m = NewMsg()
-			m.SetHeaderPreformatted(tt.header, tt.value)
+			m.SetGenHeaderPreformatted(tt.header, tt.value)
 			if m.preformHeader[tt.header] == "" {
-				t.Errorf("SetHeaderPreformatted() failed. Tried to set header %s, but it is empty", tt.header)
+				t.Errorf("SetGenHeaderPreformatted() failed. Tried to set header %s, but it is empty", tt.header)
 			}
 			if m.preformHeader[tt.header] != tt.value {
-				t.Errorf("SetHeaderPreformatted() failed. Expected: %q, got: %q", tt.value,
+				t.Errorf("SetGenHeaderPreformatted() failed. Expected: %q, got: %q", tt.value,
 					m.preformHeader[tt.header])
 			}
 			buf := bytes.Buffer{}
@@ -322,7 +322,7 @@ func TestMsg_SetHeaderPreformatted(t *testing.T) {
 				return
 			}
 			if !strings.Contains(buf.String(), fmt.Sprintf("%s: %s%s", tt.header, tt.value, SingleNewLine)) {
-				t.Errorf("SetHeaderPreformatted() failed. Unable to find correctly formated header in " +
+				t.Errorf("SetGenHeaderPreformatted() failed. Unable to find correctly formated header in " +
 					"mail message output")
 			}
 		})
@@ -1703,9 +1703,9 @@ func TestMsg_Write(t *testing.T) {
 func TestMsg_WriteWithLongHeader(t *testing.T) {
 	m := NewMsg()
 	m.SetBodyString(TypeTextPlain, "Plain")
-	m.SetHeader(HeaderContentLang, "de", "en", "fr", "es", "xxxx", "yyyy", "de", "en", "fr",
+	m.SetGenHeader(HeaderContentLang, "de", "en", "fr", "es", "xxxx", "yyyy", "de", "en", "fr",
 		"es", "xxxx", "yyyy", "de", "en", "fr", "es", "xxxx", "yyyy", "de", "en", "fr")
-	m.SetHeader(HeaderContentID, "XXXXXXXXXXXXXXX XXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXX",
+	m.SetGenHeader(HeaderContentID, "XXXXXXXXXXXXXXX XXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXX",
 		"XXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXX")
 	wbuf := bytes.Buffer{}
 	n, err := m.WriteTo(&wbuf)
@@ -2322,5 +2322,230 @@ func TestMsg_GetGenHeader(t *testing.T) {
 	}
 	if sa[0] != "this is a test" {
 		t.Errorf("GetGenHeader on subject failed. Expected: %q, got: %q", "this is a test", sa[0])
+	}
+}
+
+// TestMsg_GetAddrHeader will test the Msg.GetAddrHeader method
+func TestMsg_GetAddrHeader(t *testing.T) {
+	m := NewMsg()
+	if err := m.FromFormat("Toni Sender", "sender@example.com"); err != nil {
+		t.Errorf("failed to set FROM address: %s", err)
+	}
+	if err := m.AddToFormat("Toni To", "to@example.com"); err != nil {
+		t.Errorf("failed to set TO address: %s", err)
+	}
+	if err := m.AddCcFormat("Toni Cc", "cc@example.com"); err != nil {
+		t.Errorf("failed to set CC address: %s", err)
+	}
+	if err := m.AddBccFormat("Toni Bcc", "bcc@example.com"); err != nil {
+		t.Errorf("failed to set BCC address: %s", err)
+	}
+	fh := m.GetAddrHeader(HeaderFrom)
+	if len(fh) <= 0 {
+		t.Errorf("GetAddrHeader on FROM failed. Got empty slice")
+		return
+	}
+	if fh[0].String() == "" {
+		t.Errorf("GetAddrHeader on FROM failed. Got empty value")
+	}
+	if fh[0].String() != `"Toni Sender" <sender@example.com>` {
+		t.Errorf("GetAddrHeader on FROM failed. Expected: %q, got: %q",
+			`"Toni Sender" <sender@example.com>"`, fh[0].String())
+	}
+	th := m.GetAddrHeader(HeaderTo)
+	if len(th) <= 0 {
+		t.Errorf("GetAddrHeader on TO failed. Got empty slice")
+		return
+	}
+	if th[0].String() == "" {
+		t.Errorf("GetAddrHeader on TO failed. Got empty value")
+	}
+	if th[0].String() != `"Toni To" <to@example.com>` {
+		t.Errorf("GetAddrHeader on TO failed. Expected: %q, got: %q",
+			`"Toni To" <to@example.com>"`, th[0].String())
+	}
+	ch := m.GetAddrHeader(HeaderCc)
+	if len(ch) <= 0 {
+		t.Errorf("GetAddrHeader on CC failed. Got empty slice")
+		return
+	}
+	if ch[0].String() == "" {
+		t.Errorf("GetAddrHeader on CC failed. Got empty value")
+	}
+	if ch[0].String() != `"Toni Cc" <cc@example.com>` {
+		t.Errorf("GetAddrHeader on CC failed. Expected: %q, got: %q",
+			`"Toni Cc" <cc@example.com>"`, ch[0].String())
+	}
+	bh := m.GetAddrHeader(HeaderBcc)
+	if len(bh) <= 0 {
+		t.Errorf("GetAddrHeader on BCC failed. Got empty slice")
+		return
+	}
+	if bh[0].String() == "" {
+		t.Errorf("GetAddrHeader on BCC failed. Got empty value")
+	}
+	if bh[0].String() != `"Toni Bcc" <bcc@example.com>` {
+		t.Errorf("GetAddrHeader on BCC failed. Expected: %q, got: %q",
+			`"Toni Bcc" <bcc@example.com>"`, bh[0].String())
+	}
+}
+
+// TestMsg_GetFrom will test the Msg.GetFrom method
+func TestMsg_GetFrom(t *testing.T) {
+	m := NewMsg()
+	if err := m.FromFormat("Toni Sender", "sender@example.com"); err != nil {
+		t.Errorf("failed to set FROM address: %s", err)
+	}
+	fh := m.GetFrom()
+	if len(fh) <= 0 {
+		t.Errorf("GetFrom failed. Got empty slice")
+		return
+	}
+	if fh[0].String() == "" {
+		t.Errorf("GetFrom failed. Got empty value")
+	}
+	if fh[0].String() != `"Toni Sender" <sender@example.com>` {
+		t.Errorf("GetFrom failed. Expected: %q, got: %q",
+			`"Toni Sender" <sender@example.com>"`, fh[0].String())
+	}
+}
+
+// TestMsg_GetFromString will test the Msg.GetFromString method
+func TestMsg_GetFromString(t *testing.T) {
+	m := NewMsg()
+	if err := m.FromFormat("Toni Sender", "sender@example.com"); err != nil {
+		t.Errorf("failed to set FROM address: %s", err)
+	}
+	fh := m.GetFromString()
+	if len(fh) <= 0 {
+		t.Errorf("GetFromString failed. Got empty slice")
+		return
+	}
+	if fh[0] == "" {
+		t.Errorf("GetFromString failed. Got empty value")
+	}
+	if fh[0] != `"Toni Sender" <sender@example.com>` {
+		t.Errorf("GetFromString failed. Expected: %q, got: %q",
+			`"Toni Sender" <sender@example.com>"`, fh[0])
+	}
+}
+
+// TestMsg_GetTo will test the Msg.GetTo method
+func TestMsg_GetTo(t *testing.T) {
+	m := NewMsg()
+	if err := m.AddToFormat("Toni To", "to@example.com"); err != nil {
+		t.Errorf("failed to set TO address: %s", err)
+	}
+	fh := m.GetTo()
+	if len(fh) <= 0 {
+		t.Errorf("GetTo failed. Got empty slice")
+		return
+	}
+	if fh[0].String() == "" {
+		t.Errorf("GetTo failed. Got empty value")
+	}
+	if fh[0].String() != `"Toni To" <to@example.com>` {
+		t.Errorf("GetTo failed. Expected: %q, got: %q",
+			`"Toni To" <to@example.com>"`, fh[0].String())
+	}
+}
+
+// TestMsg_GetToString will test the Msg.GetToString method
+func TestMsg_GetToString(t *testing.T) {
+	m := NewMsg()
+	if err := m.AddToFormat("Toni To", "to@example.com"); err != nil {
+		t.Errorf("failed to set TO address: %s", err)
+	}
+	fh := m.GetToString()
+	if len(fh) <= 0 {
+		t.Errorf("GetToString failed. Got empty slice")
+		return
+	}
+	if fh[0] == "" {
+		t.Errorf("GetToString failed. Got empty value")
+	}
+	if fh[0] != `"Toni To" <to@example.com>` {
+		t.Errorf("GetToString failed. Expected: %q, got: %q",
+			`"Toni To" <to@example.com>"`, fh[0])
+	}
+}
+
+// TestMsg_GetCc will test the Msg.GetCc method
+func TestMsg_GetCc(t *testing.T) {
+	m := NewMsg()
+	if err := m.AddCcFormat("Toni Cc", "cc@example.com"); err != nil {
+		t.Errorf("failed to set TO address: %s", err)
+	}
+	fh := m.GetCc()
+	if len(fh) <= 0 {
+		t.Errorf("GetCc failed. Got empty slice")
+		return
+	}
+	if fh[0].String() == "" {
+		t.Errorf("GetCc failed. Got empty value")
+	}
+	if fh[0].String() != `"Toni Cc" <cc@example.com>` {
+		t.Errorf("GetCc failed. Expected: %q, got: %q",
+			`"Toni Cc" <cc@example.com>"`, fh[0].String())
+	}
+}
+
+// TestMsg_GetCcString will test the Msg.GetCcString method
+func TestMsg_GetCcString(t *testing.T) {
+	m := NewMsg()
+	if err := m.AddCcFormat("Toni Cc", "cc@example.com"); err != nil {
+		t.Errorf("failed to set TO address: %s", err)
+	}
+	fh := m.GetCcString()
+	if len(fh) <= 0 {
+		t.Errorf("GetCcString failed. Got empty slice")
+		return
+	}
+	if fh[0] == "" {
+		t.Errorf("GetCcString failed. Got empty value")
+	}
+	if fh[0] != `"Toni Cc" <cc@example.com>` {
+		t.Errorf("GetCcString failed. Expected: %q, got: %q",
+			`"Toni Cc" <cc@example.com>"`, fh[0])
+	}
+}
+
+// TestMsg_GetBcc will test the Msg.GetBcc method
+func TestMsg_GetBcc(t *testing.T) {
+	m := NewMsg()
+	if err := m.AddBccFormat("Toni Bcc", "bcc@example.com"); err != nil {
+		t.Errorf("failed to set TO address: %s", err)
+	}
+	fh := m.GetBcc()
+	if len(fh) <= 0 {
+		t.Errorf("GetBcc failed. Got empty slice")
+		return
+	}
+	if fh[0].String() == "" {
+		t.Errorf("GetBcc failed. Got empty value")
+	}
+	if fh[0].String() != `"Toni Bcc" <bcc@example.com>` {
+		t.Errorf("GetBcc failed. Expected: %q, got: %q",
+			`"Toni Cc" <bcc@example.com>"`, fh[0].String())
+	}
+}
+
+// TestMsg_GetBccString will test the Msg.GetBccString method
+func TestMsg_GetBccString(t *testing.T) {
+	m := NewMsg()
+	if err := m.AddBccFormat("Toni Bcc", "bcc@example.com"); err != nil {
+		t.Errorf("failed to set TO address: %s", err)
+	}
+	fh := m.GetBccString()
+	if len(fh) <= 0 {
+		t.Errorf("GetBccString failed. Got empty slice")
+		return
+	}
+	if fh[0] == "" {
+		t.Errorf("GetBccString failed. Got empty value")
+	}
+	if fh[0] != `"Toni Bcc" <bcc@example.com>` {
+		t.Errorf("GetBccString failed. Expected: %q, got: %q",
+			`"Toni Cc" <bcc@example.com>"`, fh[0])
 	}
 }
