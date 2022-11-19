@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"embed"
+	"errors"
 	"fmt"
 	htpl "html/template"
 	"io"
@@ -1652,7 +1653,7 @@ func TestMsg_WriteTo(t *testing.T) {
 	}
 }
 
-// TestMsg_WriteTo tests the WriteTo() method of the Msg
+// TestMsg_WriteToSkipMiddleware tests the WriteTo() method of the Msg
 func TestMsg_WriteToSkipMiddleware(t *testing.T) {
 	m := NewMsg(WithMiddleware(encodeMiddleware{}), WithMiddleware(uppercaseMiddleware{}))
 	m.Subject("This is a test")
@@ -1681,6 +1682,30 @@ func TestMsg_WriteToSkipMiddleware(t *testing.T) {
 	}
 	if !strings.Contains(wbuf2.String(), "Subject: THIS IS @ TEST") {
 		t.Errorf("WriteToSkipMiddleware failed. Unable to find encoded and upperchase subject")
+	}
+}
+
+// TestMsg_WriteTo_fails tests the WriteTo() method of the Msg but with a failing body writer function
+func TestMsg_WriteTo_fails(t *testing.T) {
+	m := NewMsg()
+	m.SetBodyWriter(TypeTextPlain, func(io.Writer) (int64, error) {
+		return 0, errors.New("failed")
+	})
+	_, err := m.WriteTo(io.Discard)
+	if err == nil {
+		t.Errorf("WriteTo() with failing BodyWriter function was supposed to fail, but didn't")
+		return
+	}
+
+	// NoEncoding handles the errors separately
+	m = NewMsg(WithEncoding(NoEncoding))
+	m.SetBodyWriter(TypeTextPlain, func(io.Writer) (int64, error) {
+		return 0, errors.New("failed")
+	})
+	_, err = m.WriteTo(io.Discard)
+	if err == nil {
+		t.Errorf("WriteTo() (no encoding) with failing BodyWriter function was supposed to fail, but didn't")
+		return
 	}
 }
 

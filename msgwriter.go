@@ -282,6 +282,7 @@ func (mw *msgWriter) writeBody(f func(io.Writer) (int64, error), e Encoding) {
 	var w io.Writer
 	var ew io.WriteCloser
 	var n int64
+	var err error
 	if mw.d == 0 {
 		w = mw.w
 	}
@@ -298,8 +299,14 @@ func (mw *msgWriter) writeBody(f func(io.Writer) (int64, error), e Encoding) {
 	case EncodingB64:
 		ew = base64.NewEncoder(base64.StdEncoding, &lb)
 	case NoEncoding:
-		_, mw.err = f(&wbuf)
-		n, mw.err = io.Copy(w, &wbuf)
+		_, err = f(&wbuf)
+		if err != nil {
+			mw.err = fmt.Errorf("bodyWriter function: %w", err)
+		}
+		n, err = io.Copy(w, &wbuf)
+		if err != nil && mw.err == nil {
+			mw.err = fmt.Errorf("bodyWriter io.Copy: %w", err)
+		}
 		if mw.d == 0 {
 			mw.n += n
 		}
@@ -308,10 +315,22 @@ func (mw *msgWriter) writeBody(f func(io.Writer) (int64, error), e Encoding) {
 		ew = quotedprintable.NewWriter(w)
 	}
 
-	_, mw.err = f(ew)
-	mw.err = ew.Close()
-	mw.err = lb.Close()
-	n, mw.err = io.Copy(w, &wbuf)
+	_, err = f(ew)
+	if err != nil {
+		mw.err = fmt.Errorf("bodyWriter function: %w", err)
+	}
+	err = ew.Close()
+	if err != nil && mw.err == nil {
+		mw.err = fmt.Errorf("bodyWriter close encoded writer: %w", err)
+	}
+	err = lb.Close()
+	if err != nil && mw.err == nil {
+		mw.err = fmt.Errorf("bodyWriter close linebreaker: %w", err)
+	}
+	n, err = io.Copy(w, &wbuf)
+	if err != nil && mw.err == nil {
+		mw.err = fmt.Errorf("bodyWriter io.Copy: %w", err)
+	}
 
 	// Since the part writer uses the WriteTo() method, we don't need to add the
 	// bytes twice
