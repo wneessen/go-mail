@@ -463,58 +463,6 @@ func (c *Client) DialWithContext(pc context.Context) error {
 	return nil
 }
 
-// Send sends out the mail message
-func (c *Client) Send(ml ...*Msg) error {
-	if err := c.checkConn(); err != nil {
-		return fmt.Errorf("failed to send mail: %w", err)
-	}
-	for _, m := range ml {
-		if m.encoding == NoEncoding {
-			if ok, _ := c.sc.Extension("8BITMIME"); !ok {
-				return ErrServerNoUnencoded
-			}
-		}
-		f, err := m.GetSender(false)
-		if err != nil {
-			return err
-		}
-		rl, err := m.GetRecipients()
-		if err != nil {
-			return err
-		}
-
-		if err := c.mail(f); err != nil {
-			return fmt.Errorf("sending MAIL FROM command failed: %w", err)
-		}
-		for _, r := range rl {
-			if err := c.rcpt(r); err != nil {
-				return fmt.Errorf("sending RCPT TO command failed: %w", err)
-			}
-		}
-		w, err := c.sc.Data()
-		if err != nil {
-			return fmt.Errorf("sending DATA command failed: %w", err)
-		}
-		_, err = m.WriteTo(w)
-		if err != nil {
-			return fmt.Errorf("sending mail content failed: %w", err)
-		}
-
-		if err := w.Close(); err != nil {
-			return fmt.Errorf("failed to close DATA writer: %w", err)
-		}
-
-		if err := c.Reset(); err != nil {
-			return fmt.Errorf("sending RSET command failed: %w", err)
-		}
-		if err := c.checkConn(); err != nil {
-			return fmt.Errorf("failed to check server connection: %w", err)
-		}
-	}
-
-	return nil
-}
-
 // Close closes the Client connection
 func (c *Client) Close() error {
 	if err := c.checkConn(); err != nil {
