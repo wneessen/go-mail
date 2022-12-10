@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/smtp"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -860,6 +861,49 @@ func TestClient_DialSendCloseBrokenWithDSN(t *testing.T) {
 				return
 			}
 		})
+	}
+}
+
+// TestClient_Send_withBrokenRecipient tests the Send() method of Client with a broken and a working recipient
+func TestClient_Send_withBrokenRecipient(t *testing.T) {
+	if os.Getenv("TEST_ALLOW_SEND") == "" {
+		t.Skipf("TEST_ALLOW_SEND is not set. Skipping mail sending test")
+	}
+	var msgs []*Msg
+	rcpts := []string{"invalid@domain.tld", TestRcpt, "invalid@address.invalid"}
+	for _, rcpt := range rcpts {
+		m := NewMsg()
+		_ = m.FromFormat("go-mail Test Mailer", os.Getenv("TEST_FROM"))
+		_ = m.To(rcpt)
+		m.Subject(fmt.Sprintf("This is a test mail from go-mail/v%s", VERSION))
+		m.SetBulk()
+		m.SetDate()
+		m.SetMessageID()
+		m.SetBodyString(TypeTextPlain, "This is a test mail from the go-mail library")
+		msgs = append(msgs, m)
+	}
+
+	c, err := getTestConnection(true)
+	if err != nil {
+		t.Skipf("failed to create test client: %s. Skipping tests", err)
+	}
+
+	ctx, cfn := context.WithTimeout(context.Background(), DefaultTimeout)
+	defer cfn()
+	if err := c.DialWithContext(ctx); err != nil {
+		t.Errorf("failed to dial to sending server: %s", err)
+	}
+	if err := c.Send(msgs...); err != nil {
+		if !strings.Contains(err.Error(), "invalid@domain.tld") ||
+			!strings.Contains(err.Error(), "invalid@address.invalid") {
+			t.Errorf("sending mails to invalid addresses was supposed to fail but didn't")
+		}
+		if strings.Contains(err.Error(), TestRcpt) {
+			t.Errorf("sending mail to valid addresses failed: %s", err)
+		}
+	}
+	if err := c.Close(); err != nil {
+		t.Errorf("failed to close client connection: %s", err)
 	}
 }
 
