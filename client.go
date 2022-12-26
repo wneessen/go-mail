@@ -431,9 +431,11 @@ func (c *Client) DialWithContext(pc context.Context) error {
 	defer cfn()
 
 	nd := net.Dialer{}
-	td := tls.Dialer{}
+
 	var err error
 	if c.ssl {
+		td := tls.Dialer{NetDialer: &nd, Config: c.tlsconfig}
+
 		c.enc = true
 		c.co, err = td.DialContext(ctx, "tcp", c.ServerAddr())
 	}
