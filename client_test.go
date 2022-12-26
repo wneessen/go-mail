@@ -103,6 +103,8 @@ func TestNewClientWithOptions(t *testing.T) {
 		{"WithDSNMailReturnType() wrong option", WithDSNMailReturnType("FAIL"), true},
 		{"WithDSNRcptNotifyType()", WithDSNRcptNotifyType(DSNRcptNotifySuccess), false},
 		{"WithDSNRcptNotifyType() wrong option", WithDSNRcptNotifyType("FAIL"), true},
+		{"WithoutNoop()", WithoutNoop(), false},
+
 		{
 			"WithDSNRcptNotifyType() NEVER combination",
 			WithDSNRcptNotifyType(DSNRcptNotifySuccess, DSNRcptNotifyNever), true,
@@ -458,6 +460,27 @@ func TestWithDSNRcptNotifyType(t *testing.T) {
 				t.Errorf("WithDSNRcptNotifyType failed. Expected %s, got: %s", tt.want, c.dsnrntype[0])
 			}
 		})
+	}
+}
+
+// TestWithoutNoop tests the WithoutNoop method for the Client object
+func TestWithoutNoop(t *testing.T) {
+	c, err := NewClient(DefaultHost, WithoutNoop())
+	if err != nil {
+		t.Errorf("failed to create new client: %s", err)
+		return
+	}
+	if !c.noNoop {
+		t.Errorf("WithoutNoop failed. c.noNoop expected to be: %t, got: %t", true, c.noNoop)
+	}
+
+	c, err = NewClient(DefaultHost)
+	if err != nil {
+		t.Errorf("failed to create new client: %s", err)
+		return
+	}
+	if c.noNoop {
+		t.Errorf("WithoutNoop failed. c.noNoop expected to be: %t, got: %t", false, c.noNoop)
 	}
 }
 
