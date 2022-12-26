@@ -96,6 +96,9 @@ type Client struct {
 	// enc indicates if a Client connection is encrypted or not
 	enc bool
 
+	// noNoop indicates the Noop is to be skipped
+	noNoop bool
+
 	// HELO/EHLO string for the greeting the target SMTP server
 	helo string
 
@@ -366,6 +369,15 @@ func WithDSNRcptNotifyType(rno ...DSNRcptNotifyOption) Option {
 	}
 }
 
+// WithoutNoop disables the Client Noop check during connections. This is primarily for servers which delay responses
+// to SMTP commands that are not the AUTH command. For example Microsoft Exchange's Tarpit.
+func WithoutNoop() Option {
+	return func(c *Client) error {
+		c.noNoop = true
+		return nil
+	}
+}
+
 // TLSPolicy returns the currently set TLSPolicy as string
 func (c *Client) TLSPolicy() string {
 	return c.tlspolicy.String()
@@ -517,9 +529,13 @@ func (c *Client) checkConn() error {
 	if c.co == nil {
 		return ErrNoActiveConnection
 	}
-	if err := c.sc.Noop(); err != nil {
-		return ErrNoActiveConnection
+
+	if !c.noNoop {
+		if err := c.sc.Noop(); err != nil {
+			return ErrNoActiveConnection
+		}
 	}
+
 	if err := c.co.SetDeadline(time.Now().Add(c.cto)); err != nil {
 		return ErrDeadlineExtendFailed
 	}
