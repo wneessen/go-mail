@@ -19,6 +19,7 @@ func (c *Client) Send(ml ...*Msg) (rerr error) {
 		return
 	}
 	for _, m := range ml {
+		m.sendError = nil
 		if m.encoding == NoEncoding {
 			if ok, _ := c.sc.Extension("8BITMIME"); !ok {
 				rerr = errors.Join(rerr, ErrServerNoUnencoded)

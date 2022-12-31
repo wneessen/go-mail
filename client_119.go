@@ -18,6 +18,7 @@ func (c *Client) Send(ml ...*Msg) error {
 		return fmt.Errorf("failed to send mail: %w", err)
 	}
 	for _, m := range ml {
+		m.sendError = nil
 		if m.encoding == NoEncoding {
 			if ok, _ := c.sc.Extension("8BITMIME"); !ok {
 				errs = append(errs, ErrServerNoUnencoded)
