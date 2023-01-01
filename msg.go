@@ -966,6 +966,16 @@ func (m *Msg) HasSendError() bool {
 	return m.sendError != nil
 }
 
+// SendErrorIsTemp returns true if the Msg experienced an error during the message delivery and the
+// corresponding error was of temporary nature and should be retried later
+func (m *Msg) SendErrorIsTemp() bool {
+	e, ok := m.sendError.(*SendError)
+	if !ok {
+		return false
+	}
+	return e.isTemp
+}
+
 // SendError returns the senderror field of the Msg
 func (m *Msg) SendError() error {
 	return m.sendError

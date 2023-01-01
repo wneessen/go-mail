@@ -22,41 +22,42 @@ func (c *Client) Send(ml ...*Msg) error {
 		if m.encoding == NoEncoding {
 			if ok, _ := c.sc.Extension("8BITMIME"); !ok {
 				errs = append(errs, ErrServerNoUnencoded)
-				m.sendError = SendError{Err: ErrServerNoUnencoded}
+				m.sendError = &SendError{Reason: ErrNoUnencoded, isTemp: false}
 				continue
 			}
 		}
 		f, err := m.GetSender(false)
 		if err != nil {
 			errs = append(errs, err)
-			m.sendError = SendError{Err: ErrGetSender, details: []error{err}}
+			m.sendError = &SendError{Reason: ErrGetSender, errlist: []error{err}, isTemp: isTempError(err)}
 			continue
 		}
 		rl, err := m.GetRecipients()
 		if err != nil {
-			m.sendError = SendError{Err: ErrGetRcpts, details: []error{err}}
+			m.sendError = &SendError{Reason: ErrGetRcpts, errlist: []error{err}, isTemp: isTempError(err)}
 			errs = append(errs, err)
 			continue
 		}
 
 		if err := c.mail(f); err != nil {
 			errs = append(errs, fmt.Errorf("sending MAIL FROM command failed: %w", err))
-			m.sendError = SendError{Err: ErrSMTPMailFrom, details: []error{err}}
+			m.sendError = &SendError{Reason: ErrSMTPMailFrom, errlist: []error{err}, isTemp: isTempError(err)}
 			if reserr := c.sc.Reset(); reserr != nil {
 				errs = append(errs, reserr)
 			}
 			continue
 		}
 		failed := false
-		rse := SendError{}
-		rse.details = make([]error, 0)
+		rse := &SendError{}
+		rse.errlist = make([]error, 0)
 		rse.rcpt = make([]string, 0)
 		for _, r := range rl {
 			if err := c.rcpt(r); err != nil {
 				errs = append(errs, fmt.Errorf("sending RCPT TO command failed: %w", err))
-				rse.Err = ErrSMTPRcptTo
-				rse.details = append(rse.details, err)
+				rse.Reason = ErrSMTPRcptTo
+				rse.errlist = append(rse.errlist, err)
 				rse.rcpt = append(rse.rcpt, r)
+				rse.isTemp = isTempError(err)
 				failed = true
 			}
 		}
@@ -70,30 +71,30 @@ func (c *Client) Send(ml ...*Msg) error {
 		w, err := c.sc.Data()
 		if err != nil {
 			errs = append(errs, fmt.Errorf("sending DATA command failed: %w", err))
-			m.sendError = SendError{Err: ErrSMTPData, details: []error{err}}
+			m.sendError = &SendError{Reason: ErrSMTPData, errlist: []error{err}, isTemp: isTempError(err)}
 			continue
 		}
 		_, err = m.WriteTo(w)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("sending mail content failed: %w", err))
-			m.sendError = SendError{Err: ErrWriteContent, details: []error{err}}
+			m.sendError = &SendError{Reason: ErrWriteContent, errlist: []error{err}, isTemp: isTempError(err)}
 			continue
 		}
 
 		if err := w.Close(); err != nil {
 			errs = append(errs, fmt.Errorf("failed to close DATA writer: %w", err))
-			m.sendError = SendError{Err: ErrSMTPDataClose, details: []error{err}}
+			m.sendError = &SendError{Reason: ErrSMTPDataClose, errlist: []error{err}, isTemp: isTempError(err)}
 			continue
 		}
 
 		if err := c.Reset(); err != nil {
 			errs = append(errs, fmt.Errorf("sending RSET command failed: %w", err))
-			m.sendError = SendError{Err: ErrSMTPReset, details: []error{err}}
+			m.sendError = &SendError{Reason: ErrSMTPReset, errlist: []error{err}, isTemp: isTempError(err)}
 			continue
 		}
 		if err := c.checkConn(); err != nil {
 			errs = append(errs, fmt.Errorf("failed to check server connection: %w", err))
-			m.sendError = SendError{Err: ErrConnCheck, details: []error{err}}
+			m.sendError = &SendError{Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err)}
 			continue
 		}
 	}

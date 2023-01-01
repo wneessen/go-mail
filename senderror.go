@@ -5,68 +5,138 @@
 package mail
 
 import (
-	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
-// List of SendError errors
-var (
+// List of SendError reasons
+const (
 	// ErrGetSender is returned if the Msg.GetSender method fails during a Client.Send
-	ErrGetSender = errors.New("getting sender address")
+	ErrGetSender SendErrReason = iota
 
 	// ErrGetRcpts is returned if the Msg.GetRecipients method fails during a Client.Send
-	ErrGetRcpts = errors.New("getting recipient addresses")
+	ErrGetRcpts
 
 	// ErrSMTPMailFrom is returned if the Msg delivery failed when sending the MAIL FROM command
 	// to the sending SMTP server
-	ErrSMTPMailFrom = errors.New("sending SMTP MAIL FROM command")
+	ErrSMTPMailFrom
 
 	// ErrSMTPRcptTo is returned if the Msg delivery failed when sending the RCPT TO command
 	// to the sending SMTP server
-	ErrSMTPRcptTo = errors.New("sending SMTP RCPT TO command")
+	ErrSMTPRcptTo
 
 	// ErrSMTPData is returned if the Msg delivery failed when sending the DATA command
 	// to the sending SMTP server
-	ErrSMTPData = errors.New("sending SMTP DATA command")
+	ErrSMTPData
 
 	// ErrSMTPDataClose is returned if the Msg delivery failed when trying to close the
 	// Client data writer
-	ErrSMTPDataClose = errors.New("closing SMTP DATA writer")
+	ErrSMTPDataClose
 
 	// ErrSMTPReset is returned if the Msg delivery failed when sending the RSET command
 	// to the sending SMTP server
-	ErrSMTPReset = errors.New("sending SMTP RESET command")
+	ErrSMTPReset
 
 	// ErrWriteContent is returned if the Msg delivery failed when sending Msg content
 	// to the Client writer
-	ErrWriteContent = errors.New("sending message content")
+	ErrWriteContent
 
 	// ErrConnCheck is returned if the Msg delivery failed when checking if the SMTP
 	// server connection is still working
-	ErrConnCheck = errors.New("checking SMTP connection")
+	ErrConnCheck
+
+	// ErrNoUnencoded is returned if the Msg delivery failed when the Msg is configured for
+	// unencoded delivery but the server does not support this
+	ErrNoUnencoded
 )
 
 // SendError is an error wrapper for delivery errors of the Msg
 type SendError struct {
-	Err     error
-	details []error
+	Reason  SendErrReason
+	isTemp  bool
+	errlist []error
 	rcpt    []string
 }
 
+// SendErrReason represents a comparable reason on why the delivery failed
+type SendErrReason int
+
 // Error implements the error interface for the SendError type
-func (e SendError) Error() string {
+func (e *SendError) Error() string {
+	if e.Reason > 9 {
+		return "client_send: unknown error"
+	}
+
 	var em strings.Builder
-	_, _ = fmt.Fprintf(&em, "client_send: %s", e.Err)
-	if len(e.details) > 0 {
-		for i := range e.details {
-			em.WriteString(fmt.Sprintf(", error_details: %s", e.details[i]))
+	_, _ = fmt.Fprintf(&em, "client_send: %s", e.Reason)
+	if len(e.errlist) > 0 {
+		em.WriteRune(':')
+		for i := range e.errlist {
+			em.WriteRune(' ')
+			em.WriteString(e.errlist[i].Error())
+			if i != len(e.errlist)-1 {
+				em.WriteString(", ")
+			}
 		}
 	}
 	if len(e.rcpt) > 0 {
+		em.WriteString(", affected recipient(s): ")
 		for i := range e.rcpt {
-			em.WriteString(fmt.Sprintf(", rcpt: %s", e.rcpt[i]))
+			em.WriteString(e.rcpt[i])
+			if i != len(e.rcpt)-1 {
+				em.WriteString(", ")
+			}
 		}
 	}
 	return em.String()
+}
+
+// Is implements the errors.Is functionality and compares the SendErrReason
+func (e *SendError) Is(et error) bool {
+	t, ok := et.(*SendError)
+	if !ok {
+		return false
+	}
+	return e.Reason == t.Reason && e.isTemp == t.isTemp
+}
+
+// String implements the Stringer interface for the SendErrReason
+func (r SendErrReason) String() string {
+	switch r {
+	case ErrGetSender:
+		return "getting sender address"
+	case ErrGetRcpts:
+		return "getting recipient addresses"
+	case ErrSMTPMailFrom:
+		return "sending SMTP MAIL FROM command"
+	case ErrSMTPRcptTo:
+		return "sending SMTP RCPT TO command"
+	case ErrSMTPData:
+		return "sending SMTP DATA command"
+	case ErrSMTPDataClose:
+		return "closing SMTP DATA writer"
+	case ErrSMTPReset:
+		return "sending SMTP RESET command"
+	case ErrWriteContent:
+		return "sending message content"
+	case ErrConnCheck:
+		return "checking SMTP connection"
+	case ErrNoUnencoded:
+		return ErrServerNoUnencoded.Error()
+	}
+	return "unknown reason"
+}
+
+// isTempError checks the given SMTP error and returns true if the given error is of temporary nature
+// and should be retried
+func isTempError(e error) bool {
+	ec, err := strconv.Atoi(e.Error()[:3])
+	if err != nil {
+		return false
+	}
+	if ec >= 400 && ec <= 500 {
+		return true
+	}
+	return false
 }

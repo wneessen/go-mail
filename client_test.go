@@ -1030,9 +1030,12 @@ func TestClient_Send_MsgSendError(t *testing.T) {
 		if !m.HasSendError() {
 			t.Errorf("message was expected to have a send error, but didn't")
 		}
-		se := SendError{Err: ErrSMTPRcptTo}
-		if !errors.As(m.SendError(), &se) {
-			t.Errorf("message with broken recipient was expected to return a ErrSMTPRcptTo error, but didn't")
+		se := &SendError{Reason: ErrSMTPRcptTo}
+		if !errors.Is(m.SendError(), se) {
+			t.Errorf("error mismatch, expected: %s, got: %s", se, m.SendError())
+		}
+		if m.SendErrorIsTemp() {
+			t.Errorf("message was not expected to be a temporary error, but reported as such")
 		}
 	}
 }
