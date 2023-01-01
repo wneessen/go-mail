@@ -5,6 +5,7 @@
 package mail
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -94,11 +95,11 @@ func (e *SendError) Error() string {
 
 // Is implements the errors.Is functionality and compares the SendErrReason
 func (e *SendError) Is(et error) bool {
-	t, ok := et.(*SendError)
-	if !ok {
-		return false
+	var t *SendError
+	if errors.As(et, &t) {
+		return e.Reason == t.Reason && e.isTemp == t.isTemp
 	}
-	return e.Reason == t.Reason && e.isTemp == t.isTemp
+	return false
 }
 
 // String implements the Stringer interface for the SendErrReason
