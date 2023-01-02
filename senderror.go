@@ -6,7 +6,7 @@ package mail
 
 import (
 	"errors"
-	"strconv"
+	"fmt"
 	"strings"
 )
 
@@ -142,12 +142,5 @@ func (r SendErrReason) String() string {
 // isTempError checks the given SMTP error and returns true if the given error is of temporary nature
 // and should be retried
 func isTempError(e error) bool {
-	ec, err := strconv.Atoi(e.Error()[:3])
-	if err != nil {
-		return false
-	}
-	if ec >= 400 && ec <= 500 {
-		return true
-	}
-	return false
+	return e.Error()[0] == '4'
 }
