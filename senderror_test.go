@@ -6,6 +6,8 @@ package mail
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -36,6 +38,8 @@ func TestSendError_Error(t *testing.T) {
 		{"ErrConnCheck/perm", ErrConnCheck, false},
 		{"ErrNoUnencoded/temp", ErrNoUnencoded, true},
 		{"ErrNoUnencoded/perm", ErrNoUnencoded, false},
+		{"ErrAmbiguous/temp", ErrAmbiguous, true},
+		{"ErrAmbiguous/perm", ErrAmbiguous, false},
 		{"Unknown/temp", 9999, true},
 		{"Unknown/perm", 9999, false},
 	}
@@ -48,8 +52,34 @@ func TestSendError_Error(t *testing.T) {
 					t.Errorf("error mismatch, expected: %s (temp: %t), got: %s (temp: %t)", tt.r, tt.te,
 						exp.Error(), exp.isTemp)
 				}
+				if !strings.Contains(fmt.Sprintf("%s", err), tt.r.String()) {
+					t.Errorf("error string mismatch, expected: %s, got: %s",
+						tt.r.String(), fmt.Sprintf("%s", err))
+				}
 			}
 		})
+	}
+}
+
+func TestSendError_IsTemp(t *testing.T) {
+	var se *SendError
+	err1 := returnSendError(ErrAmbiguous, true)
+	if !errors.As(err1, &se) {
+		t.Errorf("error mismatch, expected error to be of type *SendError")
+		return
+	}
+	if errors.As(err1, &se) && !se.IsTemp() {
+		t.Errorf("error mismatch, expected temporary error")
+		return
+	}
+	err2 := returnSendError(ErrAmbiguous, false)
+	if !errors.As(err2, &se) {
+		t.Errorf("error mismatch, expected error to be of type *SendError")
+		return
+	}
+	if errors.As(err2, &se) && se.IsTemp() {
+		t.Errorf("error mismatch, expected non-temporary error")
+		return
 	}
 }
 

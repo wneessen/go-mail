@@ -68,7 +68,7 @@ type SendErrReason int
 // Error implements the error interface for the SendError type
 func (e *SendError) Error() string {
 	if e.Reason > 10 {
-		return "client_send: unknown error"
+		return "unknown reason"
 	}
 
 	var em strings.Builder
