@@ -976,7 +976,7 @@ func (m *Msg) SendErrorIsTemp() bool {
 	return false
 }
 
-// SendError returns the senderror field of the Msg
+// SendError returns the sendError field of the Msg
 func (m *Msg) SendError() error {
 	return m.sendError
 }
