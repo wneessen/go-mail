@@ -990,7 +990,7 @@ func TestValidateLine(t *testing.T) {
 	}
 }
 
-// TestClient_Send_MsgSendError tests the Send() method of Client with a broken and verifies
+// TestClient_Send_MsgSendError tests the Client.Send method with a broken recipient and verifies
 // that the SendError type works properly
 func TestClient_Send_MsgSendError(t *testing.T) {
 	if os.Getenv("TEST_ALLOW_SEND") == "" {
