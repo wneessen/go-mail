@@ -108,12 +108,8 @@ func (c *Client) Send(ml ...*Msg) error {
 		if len(errs) > 1 {
 			re := &SendError{Reason: ErrAmbiguous}
 			for i := range errs {
-				for _, e := range errs[i].errlist {
-					re.errlist = append(re.errlist, e)
-				}
-				for _, r := range errs[i].rcpt {
-					re.rcpt = append(re.rcpt, r)
-				}
+				re.errlist = append(re.errlist, errs[i].errlist...)
+				re.rcpt = append(re.rcpt, errs[i].rcpt...)
 			}
 
 			// We assume that the isTemp flage from the last error we received should be the
