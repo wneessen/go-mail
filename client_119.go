@@ -112,7 +112,7 @@ func (c *Client) Send(ml ...*Msg) error {
 				re.rcpt = append(re.rcpt, errs[i].rcpt...)
 			}
 
-			// We assume that the isTemp flage from the last error we received should be the
+			// We assume that the isTemp flag from the last error we received should be the
 			// indicator for the returned isTemp flag as well
 			re.isTemp = errs[len(errs)-1].isTemp
 
