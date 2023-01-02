@@ -961,7 +961,7 @@ func (m *Msg) UpdateReader(r *Reader) {
 }
 
 // HasSendError returns true if the Msg experienced an error during the message delivery and the
-// senderror field of the Msg is not nil
+// sendError field of the Msg is not nil
 func (m *Msg) HasSendError() bool {
 	return m.sendError != nil
 }
