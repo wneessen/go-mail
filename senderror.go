@@ -6,7 +6,6 @@ package mail
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 )
 
