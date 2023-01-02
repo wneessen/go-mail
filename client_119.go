@@ -7,44 +7,44 @@
 
 package mail
 
-import (
-	"fmt"
-)
-
 // Send sends out the mail message
 func (c *Client) Send(ml ...*Msg) error {
-	var errs []error
-	if err := c.checkConn(); err != nil {
-		return fmt.Errorf("failed to send mail: %w", err)
+	if cerr := c.checkConn(); cerr != nil {
+		return &SendError{Reason: ErrConnCheck, errlist: []error{cerr}, isTemp: isTempError(cerr)}
 	}
+	var errs []*SendError
 	for _, m := range ml {
 		m.sendError = nil
 		if m.encoding == NoEncoding {
 			if ok, _ := c.sc.Extension("8BITMIME"); !ok {
-				errs = append(errs, ErrServerNoUnencoded)
-				m.sendError = &SendError{Reason: ErrNoUnencoded, isTemp: false}
+				se := &SendError{Reason: ErrNoUnencoded, isTemp: false}
+				m.sendError = se
+				errs = append(errs, se)
 				continue
 			}
 		}
 		f, err := m.GetSender(false)
 		if err != nil {
-			errs = append(errs, err)
-			m.sendError = &SendError{Reason: ErrGetSender, errlist: []error{err}, isTemp: isTempError(err)}
+			se := &SendError{Reason: ErrGetSender, errlist: []error{err}, isTemp: isTempError(err)}
+			m.sendError = se
+			errs = append(errs, se)
 			continue
 		}
 		rl, err := m.GetRecipients()
 		if err != nil {
-			m.sendError = &SendError{Reason: ErrGetRcpts, errlist: []error{err}, isTemp: isTempError(err)}
-			errs = append(errs, err)
+			se := &SendError{Reason: ErrGetRcpts, errlist: []error{err}, isTemp: isTempError(err)}
+			m.sendError = se
+			errs = append(errs, se)
 			continue
 		}
 
 		if err := c.mail(f); err != nil {
-			errs = append(errs, fmt.Errorf("sending MAIL FROM command failed: %w", err))
-			m.sendError = &SendError{Reason: ErrSMTPMailFrom, errlist: []error{err}, isTemp: isTempError(err)}
+			se := &SendError{Reason: ErrSMTPMailFrom, errlist: []error{err}, isTemp: isTempError(err)}
 			if reserr := c.sc.Reset(); reserr != nil {
-				errs = append(errs, reserr)
+				se.errlist = append(se.errlist, reserr)
 			}
+			m.sendError = se
+			errs = append(errs, se)
 			continue
 		}
 		failed := false
@@ -53,7 +53,6 @@ func (c *Client) Send(ml ...*Msg) error {
 		rse.rcpt = make([]string, 0)
 		for _, r := range rl {
 			if err := c.rcpt(r); err != nil {
-				errs = append(errs, fmt.Errorf("sending RCPT TO command failed: %w", err))
 				rse.Reason = ErrSMTPRcptTo
 				rse.errlist = append(rse.errlist, err)
 				rse.rcpt = append(rse.rcpt, r)
@@ -63,51 +62,67 @@ func (c *Client) Send(ml ...*Msg) error {
 		}
 		if failed {
 			if reserr := c.sc.Reset(); reserr != nil {
-				errs = append(errs, reserr)
+				rse.errlist = append(rse.errlist, err)
 			}
 			m.sendError = rse
+			errs = append(errs, rse)
 			continue
 		}
 		w, err := c.sc.Data()
 		if err != nil {
-			errs = append(errs, fmt.Errorf("sending DATA command failed: %w", err))
-			m.sendError = &SendError{Reason: ErrSMTPData, errlist: []error{err}, isTemp: isTempError(err)}
+			se := &SendError{Reason: ErrSMTPData, errlist: []error{err}, isTemp: isTempError(err)}
+			m.sendError = se
+			errs = append(errs, se)
 			continue
 		}
 		_, err = m.WriteTo(w)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("sending mail content failed: %w", err))
-			m.sendError = &SendError{Reason: ErrWriteContent, errlist: []error{err}, isTemp: isTempError(err)}
+			se := &SendError{Reason: ErrWriteContent, errlist: []error{err}, isTemp: isTempError(err)}
+			m.sendError = se
+			errs = append(errs, se)
 			continue
 		}
 
 		if err := w.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("failed to close DATA writer: %w", err))
-			m.sendError = &SendError{Reason: ErrSMTPDataClose, errlist: []error{err}, isTemp: isTempError(err)}
+			se := &SendError{Reason: ErrSMTPDataClose, errlist: []error{err}, isTemp: isTempError(err)}
+			m.sendError = se
+			errs = append(errs, se)
 			continue
 		}
 
 		if err := c.Reset(); err != nil {
-			errs = append(errs, fmt.Errorf("sending RSET command failed: %w", err))
-			m.sendError = &SendError{Reason: ErrSMTPReset, errlist: []error{err}, isTemp: isTempError(err)}
+			se := &SendError{Reason: ErrSMTPReset, errlist: []error{err}, isTemp: isTempError(err)}
+			m.sendError = se
+			errs = append(errs, se)
 			continue
 		}
 		if err := c.checkConn(); err != nil {
-			errs = append(errs, fmt.Errorf("failed to check server connection: %w", err))
-			m.sendError = &SendError{Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err)}
+			se := &SendError{Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err)}
+			m.sendError = se
+			errs = append(errs, se)
 			continue
 		}
 	}
 
 	if len(errs) > 0 {
-		errtxt := ""
-		for i := range errs {
-			errtxt += fmt.Sprintf("%s", errs[i])
-			if i < len(errs) {
-				errtxt += "\n"
+		if len(errs) > 1 {
+			re := &SendError{Reason: ErrAmbiguous}
+			for i := range errs {
+				for _, e := range errs[i].errlist {
+					re.errlist = append(re.errlist, e)
+				}
+				for _, r := range errs[i].rcpt {
+					re.rcpt = append(re.rcpt, r)
+				}
 			}
+
+			// We assume that the isTemp flage from the last error we received should be the
+			// indicator for the returned isTemp flag as well
+			re.isTemp = errs[len(errs)-1].isTemp
+
+			return re
 		}
-		return fmt.Errorf("%s", errtxt)
+		return errs[0]
 	}
 	return nil
 }

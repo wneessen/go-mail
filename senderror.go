@@ -6,7 +6,6 @@ package mail
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 )
@@ -50,6 +49,10 @@ const (
 	// ErrNoUnencoded is returned if the Msg delivery failed when the Msg is configured for
 	// unencoded delivery but the server does not support this
 	ErrNoUnencoded
+
+	// ErrAmbiguous is a generalized delivery error for the SendError type that is
+	// returned if the exact reason for the delivery failure is ambiguous
+	ErrAmbiguous
 )
 
 // SendError is an error wrapper for delivery errors of the Msg
@@ -65,12 +68,12 @@ type SendErrReason int
 
 // Error implements the error interface for the SendError type
 func (e *SendError) Error() string {
-	if e.Reason > 9 {
+	if e.Reason > 10 {
 		return "client_send: unknown error"
 	}
 
 	var em strings.Builder
-	_, _ = fmt.Fprintf(&em, "client_send: %s", e.Reason)
+	em.WriteString(e.Reason.String())
 	if len(e.errlist) > 0 {
 		em.WriteRune(':')
 		for i := range e.errlist {
@@ -102,6 +105,11 @@ func (e *SendError) Is(et error) bool {
 	return false
 }
 
+// IsTemp returns true if the delivery error is of temporary nature and can be retried
+func (e *SendError) IsTemp() bool {
+	return e.isTemp
+}
+
 // String implements the Stringer interface for the SendErrReason
 func (r SendErrReason) String() string {
 	switch r {
@@ -125,6 +133,8 @@ func (r SendErrReason) String() string {
 		return "checking SMTP connection"
 	case ErrNoUnencoded:
 		return ErrServerNoUnencoded.Error()
+	case ErrAmbiguous:
+		return "ambiguous reason, check Msg.SendError for message specific reasons"
 	}
 	return "unknown reason"
 }
