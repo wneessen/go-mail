@@ -90,6 +90,9 @@ type Msg struct {
 
 	// middlewares is the list of middlewares to apply to the Msg before sending in FIFO order
 	middlewares []Middleware
+
+	// sendError holds the SendError in case a Msg could not be delivered during the Client.Send operation
+	sendError error
 }
 
 // SendmailPath is the default system path to the sendmail binary
@@ -955,6 +958,27 @@ func (m *Msg) UpdateReader(r *Reader) {
 	r.Reset()
 	r.buf = wbuf.Bytes()
 	r.err = err
+}
+
+// HasSendError returns true if the Msg experienced an error during the message delivery and the
+// sendError field of the Msg is not nil
+func (m *Msg) HasSendError() bool {
+	return m.sendError != nil
+}
+
+// SendErrorIsTemp returns true if the Msg experienced an error during the message delivery and the
+// corresponding error was of temporary nature and should be retried later
+func (m *Msg) SendErrorIsTemp() bool {
+	var e *SendError
+	if errors.As(m.sendError, &e) {
+		return e.isTemp
+	}
+	return false
+}
+
+// SendError returns the sendError field of the Msg
+func (m *Msg) SendError() error {
+	return m.sendError
 }
 
 // encodeString encodes a string based on the configured message encoder and the corresponding

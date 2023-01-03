@@ -7,6 +7,7 @@ package mail
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net/smtp"
 	"os"
@@ -986,6 +987,93 @@ func TestValidateLine(t *testing.T) {
 				t.Errorf("validateLine failed: %s", err)
 			}
 		})
+	}
+}
+
+// TestClient_Send_MsgSendError tests the Client.Send method with a broken recipient and verifies
+// that the SendError type works properly
+func TestClient_Send_MsgSendError(t *testing.T) {
+	if os.Getenv("TEST_ALLOW_SEND") == "" {
+		t.Skipf("TEST_ALLOW_SEND is not set. Skipping mail sending test")
+	}
+	var msgs []*Msg
+	rcpts := []string{"invalid@domain.tld", "invalid@address.invalid"}
+	for _, rcpt := range rcpts {
+		m := NewMsg()
+		_ = m.FromFormat("go-mail Test Mailer", os.Getenv("TEST_FROM"))
+		_ = m.To(rcpt)
+		m.Subject(fmt.Sprintf("This is a test mail from go-mail/v%s", VERSION))
+		m.SetBulk()
+		m.SetDate()
+		m.SetMessageID()
+		m.SetBodyString(TypeTextPlain, "This is a test mail from the go-mail library")
+		msgs = append(msgs, m)
+	}
+
+	c, err := getTestConnection(true)
+	if err != nil {
+		t.Skipf("failed to create test client: %s. Skipping tests", err)
+	}
+
+	ctx, cfn := context.WithTimeout(context.Background(), DefaultTimeout)
+	defer cfn()
+	if err := c.DialWithContext(ctx); err != nil {
+		t.Errorf("failed to dial to sending server: %s", err)
+	}
+	if err := c.Send(msgs...); err == nil {
+		t.Errorf("sending messages with broken recipients was supposed to fail but didn't")
+	}
+	if err := c.Close(); err != nil {
+		t.Errorf("failed to close client connection: %s", err)
+	}
+	for _, m := range msgs {
+		if !m.HasSendError() {
+			t.Errorf("message was expected to have a send error, but didn't")
+		}
+		se := &SendError{Reason: ErrSMTPRcptTo}
+		if !errors.Is(m.SendError(), se) {
+			t.Errorf("error mismatch, expected: %s, got: %s", se, m.SendError())
+		}
+		if m.SendErrorIsTemp() {
+			t.Errorf("message was not expected to be a temporary error, but reported as such")
+		}
+	}
+}
+
+// TestClient_DialAndSendWithContext_withSendError tests the Client.DialAndSendWithContext method
+// with a broken recipient to make sure that the returned error satisfies the Msg.SendError type
+func TestClient_DialAndSendWithContext_withSendError(t *testing.T) {
+	if os.Getenv("TEST_ALLOW_SEND") == "" {
+		t.Skipf("TEST_ALLOW_SEND is not set. Skipping mail sending test")
+	}
+	m := NewMsg()
+	_ = m.FromFormat("go-mail Test Mailer", os.Getenv("TEST_FROM"))
+	_ = m.To("invalid@domain.tld")
+	m.Subject(fmt.Sprintf("This is a test mail from go-mail/v%s", VERSION))
+	m.SetBulk()
+	m.SetDate()
+	m.SetMessageID()
+	m.SetBodyString(TypeTextPlain, "This is a test mail from the go-mail library")
+
+	c, err := getTestConnection(true)
+	if err != nil {
+		t.Skipf("failed to create test client: %s. Skipping tests", err)
+	}
+	ctx, cfn := context.WithTimeout(context.Background(), DefaultTimeout)
+	defer cfn()
+	err = c.DialAndSendWithContext(ctx, m)
+	if err == nil {
+		t.Errorf("expected DialAndSendWithContext with broken mail recipient to fail, but didn't")
+		return
+	}
+	var se *SendError
+	if !errors.As(err, &se) {
+		t.Errorf("expected *SendError type as returned error, but didn't")
+		return
+	}
+	if se.IsTemp() {
+		t.Errorf("expected permanent error but IsTemp() returned true")
+		return
 	}
 }
 
