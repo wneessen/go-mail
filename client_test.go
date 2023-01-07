@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/smtp"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1087,10 +1088,22 @@ func getTestConnection(auth bool) (*Client, error) {
 	if th == "" {
 		return nil, fmt.Errorf("no TEST_HOST set")
 	}
-	c, err := NewClient(th)
+	tp := 25
+	if tps := os.Getenv("TEST_PORT"); tps != "" {
+		tpi, err := strconv.Atoi(tps)
+		if err == nil {
+			tp = tpi
+		}
+	}
+	sv := false
+	if sve := os.Getenv("TEST_TLS_SKIP_VERIFY"); sve != "" {
+		sv = true
+	}
+	c, err := NewClient(th, WithPort(tp))
 	if err != nil {
 		return c, err
 	}
+	c.tlsconfig.InsecureSkipVerify = sv
 	if auth {
 		st := os.Getenv("TEST_SMTPAUTH_TYPE")
 		if st != "" {
