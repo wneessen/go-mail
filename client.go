@@ -10,12 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/smtp"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/wneessen/go-mail/auth"
+	"github.com/wneessen/go-mail/smtp"
 )
 
 // Defaults
@@ -593,7 +592,7 @@ func (c *Client) auth() error {
 			if !strings.Contains(sat, string(SMTPAuthLogin)) {
 				return ErrLoginAuthNotSupported
 			}
-			c.sa = auth.LoginAuth(c.user, c.pass, c.host)
+			c.sa = smtp.LoginAuth(c.user, c.pass, c.host)
 		case SMTPAuthCramMD5:
 			if !strings.Contains(sat, string(SMTPAuthCramMD5)) {
 				return ErrCramMD5AuthNotSupported
