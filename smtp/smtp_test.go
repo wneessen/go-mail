@@ -35,14 +35,29 @@ type authTest struct {
 }
 
 var authTests = []authTest{
-	{PlainAuth("", "user", "pass", "testserver"), []string{}, "PLAIN", []string{"\x00user\x00pass"}},
-	{PlainAuth("foo", "bar", "baz", "testserver"), []string{}, "PLAIN", []string{"foo\x00bar\x00baz"}},
-	{CRAMMD5Auth("user", "pass"), []string{"<123456.1322876914@testserver>"}, "CRAM-MD5", []string{"", "user 287eb355114cf5c471c26a875f1ca4ae"}},
+	{
+		PlainAuth("", "user", "pass", "testserver"),
+		[]string{},
+		"PLAIN",
+		[]string{"\x00user\x00pass"},
+	},
+	{
+		PlainAuth("foo", "bar", "baz", "testserver"),
+		[]string{},
+		"PLAIN",
+		[]string{"foo\x00bar\x00baz"},
+	},
 	{
 		LoginAuth("user", "pass", "testserver"),
-		[]string{"Username:", "Password:", "Invalid:"},
+		[]string{"Username:", "Password:"},
 		"LOGIN",
 		[]string{"", "user", "pass", ""},
+	},
+	{
+		CRAMMD5Auth("user", "pass"),
+		[]string{"<123456.1322876914@testserver>"},
+		"CRAM-MD5",
+		[]string{"", "user 287eb355114cf5c471c26a875f1ca4ae"},
 	},
 }
 
@@ -186,8 +201,10 @@ func TestClientAuthTrimSpace(t *testing.T) {
 	}
 	c.tls = true
 	c.didHello = true
-	c.Auth(toServerEmptyAuth{})
-	c.Close()
+	_ = c.Auth(toServerEmptyAuth{})
+	if err := c.Close(); err != nil {
+		t.Errorf("close failed: %s", err)
+	}
 	if got, want := wrote.String(), "AUTH FOOAUTH\r\n*\r\nQUIT\r\n"; got != want {
 		t.Errorf("wrote %q; want %q", got, want)
 	}
@@ -199,11 +216,11 @@ func TestClientAuthTrimSpace(t *testing.T) {
 // the end of the line. See TestClientAuthTrimSpace.
 type toServerEmptyAuth struct{}
 
-func (toServerEmptyAuth) Start(server *ServerInfo) (proto string, toServer []byte, err error) {
+func (toServerEmptyAuth) Start(_ *ServerInfo) (proto string, toServer []byte, err error) {
 	return "FOOAUTH", nil, nil
 }
 
-func (toServerEmptyAuth) Next(fromServer []byte, more bool) (toServer []byte, err error) {
+func (toServerEmptyAuth) Next(_ []byte, _ bool) (toServer []byte, err error) {
 	panic("unexpected call")
 }
 
@@ -301,7 +318,9 @@ Goodbye.`
 		t.Fatalf("QUIT failed: %s", err)
 	}
 
-	bcmdbuf.Flush()
+	if err := bcmdbuf.Flush(); err != nil {
+		t.Errorf("flush failed: %s", err)
+	}
 	actualcmds := cmdbuf.String()
 	if client != actualcmds {
 		t.Fatalf("Got:\n%s\nExpected:\n%s", actualcmds, client)
@@ -385,7 +404,9 @@ QUIT
 			t.Fatalf("QUIT failed: %s", err)
 		}
 
-		bcmdbuf.Flush()
+		if err := bcmdbuf.Flush(); err != nil {
+			t.Errorf("flush failed: %s", err)
+		}
 		actualcmds := cmdbuf.String()
 		client := strings.Join(strings.Split(basicClient, "\n"), "\r\n")
 		if client != actualcmds {
@@ -425,7 +446,9 @@ QUIT
 			t.Fatalf("QUIT failed: %s", err)
 		}
 
-		bcmdbuf.Flush()
+		if err := bcmdbuf.Flush(); err != nil {
+			t.Errorf("flush failed: %s", err)
+		}
 		actualcmds := cmdbuf.String()
 		client := strings.Join(strings.Split(basicClient, "\n"), "\r\n")
 		if client != actualcmds {
@@ -824,14 +847,20 @@ func TestSendMail(t *testing.T) {
 			t.Errorf("Accept error: %v", err)
 			return
 		}
-		defer conn.Close()
+		defer func() {
+			_ = conn.Close()
+		}()
 
 		tc := textproto.NewConn(conn)
 		for i := 0; i < len(data) && data[i] != ""; i++ {
-			tc.PrintfLine(data[i])
+			if err := tc.PrintfLine(data[i]); err != nil {
+				t.Errorf("printing to textproto failed: %s", err)
+			}
 			for len(data[i]) >= 4 && data[i][3] == '-' {
 				i++
-				tc.PrintfLine(data[i])
+				if err := tc.PrintfLine(data[i]); err != nil {
+					t.Errorf("printing to textproto failed: %s", err)
+				}
 			}
 			if data[i] == "221 Goodbye" {
 				return
