@@ -1,6 +1,15 @@
-// Copyright 2010 The Go Authors. All rights reserved.
+// SPDX-FileCopyrightText: Copyright 2010 The Go Authors. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2022-2023 The go-mail Authors
+//
+// Original net/smtp code from the Go stdlib by the Go Authors.
 // Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
+// license that can be found in the [PROJECT ROOT]/LICENSES directory.
+//
+// go-mail specific modifications by the go-mail Authors.
+// Licensed under the MIT License.
+// See [PROJECT ROOT]/LICENSES directory for more information.
+//
+// SPDX-License-Identifier: BSD-3-Clause AND MIT
 
 // Package smtp implements the Simple Mail Transfer Protocol as defined in RFC 5321.
 // It also implements the following extensions:

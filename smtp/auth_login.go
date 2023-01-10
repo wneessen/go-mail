@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: MIT
 
-// Package auth implements the LOGIN and MD5-DIGEST smtp authentication mechanisms
 package smtp
 
 import (
