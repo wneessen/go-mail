@@ -18,10 +18,12 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
+	"flag"
 	"fmt"
 	"io"
 	"net"
 	"net/textproto"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -1071,12 +1073,9 @@ QUIT
 `
 
 func TestTLSClient(t *testing.T) {
-	/*
-		TODO: Check if we need this
-		if runtime.GOOS == "freebsd" || runtime.GOOS == "js" {
-			testenv.SkipFlaky(t, 19229)
-		}
-	*/
+	if runtime.GOOS == "freebsd" || runtime.GOOS == "js" {
+		SkipFlaky(t, 19229)
+	}
 	ln := newLocalListener(t)
 	defer func() {
 		_ = ln.Close()
@@ -1280,3 +1279,12 @@ qgkeluku4GjxRlDMBuXk94xOBEinUs+p/hwP1Alll80Tpg==
 -----END RSA TESTING KEY-----`))
 
 func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
+
+var flaky = flag.Bool("flaky", false, "run known-flaky tests too")
+
+func SkipFlaky(t testing.TB, issue int) {
+	t.Helper()
+	if !*flaky {
+		t.Skipf("skipping known flaky test without the -flaky flag; see golang.org/issue/%d", issue)
+	}
+}
