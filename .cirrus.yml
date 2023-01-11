@@ -26,5 +26,4 @@ freebsd_task:
     - pkg install -y go
 
   test_script:
-    - cd ..
     - go test -v -race -cover -shuffle=on ./...
