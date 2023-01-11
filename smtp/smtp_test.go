@@ -489,7 +489,9 @@ QUIT
 			t.Fatalf("QUIT failed: %s", err)
 		}
 
-		bcmdbuf.Flush()
+		if err := bcmdbuf.Flush(); err != nil {
+			t.Errorf("failed to flush: %s", err)
+		}
 		actualcmds := cmdbuf.String()
 		client := strings.Join(strings.Split(basicClient, "\n"), "\r\n")
 		if client != actualcmds {
@@ -530,7 +532,9 @@ QUIT
 			t.Fatalf("QUIT failed: %s", err)
 		}
 
-		bcmdbuf.Flush()
+		if err := bcmdbuf.Flush(); err != nil {
+			t.Errorf("failed to flush: %s", err)
+		}
 		actualcmds := cmdbuf.String()
 		client := strings.Join(strings.Split(basicClient, "\n"), "\r\n")
 		if client != actualcmds {
@@ -573,7 +577,9 @@ QUIT
 			t.Fatalf("QUIT failed: %s", err)
 		}
 
-		bcmdbuf.Flush()
+		if err := bcmdbuf.Flush(); err != nil {
+			t.Errorf("failed to flush: %s", err)
+		}
 		actualcmds := cmdbuf.String()
 		client := strings.Join(strings.Split(basicClient, "\n"), "\r\n")
 		if client != actualcmds {
@@ -589,7 +595,9 @@ func TestNewClient(t *testing.T) {
 	var cmdbuf strings.Builder
 	bcmdbuf := bufio.NewWriter(&cmdbuf)
 	out := func() string {
-		bcmdbuf.Flush()
+		if err := bcmdbuf.Flush(); err != nil {
+			t.Errorf("failed to flush: %s", err)
+		}
 		return cmdbuf.String()
 	}
 	var fake faker
@@ -598,7 +606,9 @@ func TestNewClient(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewClient: %v\n(after %v)", err, out())
 	}
-	defer c.Close()
+	defer func() {
+		_ = c.Close()
+	}()
 	if ok, args := c.Extension("aUtH"); !ok || args != "LOGIN PLAIN" {
 		t.Fatalf("Expected AUTH supported")
 	}
@@ -639,7 +649,9 @@ func TestNewClient2(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
-	defer c.Close()
+	defer func() {
+		_ = c.Close()
+	}()
 	if ok, _ := c.Extension("DSN"); ok {
 		t.Fatalf("Shouldn't support DSN")
 	}
@@ -647,7 +659,9 @@ func TestNewClient2(t *testing.T) {
 		t.Fatalf("QUIT failed: %s", err)
 	}
 
-	bcmdbuf.Flush()
+	if err := bcmdbuf.Flush(); err != nil {
+		t.Errorf("flush failed: %s", err)
+	}
 	actualcmds := cmdbuf.String()
 	if client != actualcmds {
 		t.Fatalf("Got:\n%s\nExpected:\n%s", actualcmds, client)
@@ -690,7 +704,9 @@ func TestNewClientWithTLS(t *testing.T) {
 			t.Errorf("server: accept: %v", err)
 			return
 		}
-		defer conn.Close()
+		defer func() {
+			_ = conn.Close()
+		}()
 
 		_, err = conn.Write([]byte("220 SIGNS\r\n"))
 		if err != nil {
@@ -704,7 +720,9 @@ func TestNewClientWithTLS(t *testing.T) {
 	if err != nil {
 		t.Fatalf("client: dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	client, err := NewClient(conn, ln.Addr().String())
 	if err != nil {
@@ -731,7 +749,9 @@ func TestHello(t *testing.T) {
 		if err != nil {
 			t.Fatalf("NewClient: %v", err)
 		}
-		defer c.Close()
+		defer func() {
+			_ = c.Close()
+		}()
 		c.localName = "customhost"
 		err = nil
 
@@ -782,7 +802,9 @@ func TestHello(t *testing.T) {
 			t.Errorf("Command %d failed: %v", i, err)
 		}
 
-		bcmdbuf.Flush()
+		if err := bcmdbuf.Flush(); err != nil {
+			t.Errorf("flush failed: %s", err)
+		}
 		actualcmds := cmdbuf.String()
 		if client != actualcmds {
 			t.Errorf("Got:\n%s\nExpected:\n%s", actualcmds, client)
@@ -835,7 +857,9 @@ func TestSendMail(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unable to create listener: %v", err)
 	}
-	defer l.Close()
+	defer func() {
+		_ = l.Close()
+	}()
 
 	// prevent data race on bcmdbuf
 	done := make(chan struct{})
@@ -868,7 +892,9 @@ func TestSendMail(t *testing.T) {
 			read := false
 			for !read || data[i] == "354 Go ahead" {
 				msg, err := tc.ReadLine()
-				bcmdbuf.Write([]byte(msg + "\r\n"))
+				if _, err := bcmdbuf.Write([]byte(msg + "\r\n")); err != nil {
+					t.Errorf("write failed: %s", err)
+				}
 				read = true
 				if err != nil {
 					t.Errorf("Read error: %v", err)
@@ -903,7 +929,9 @@ SendMail is working for me.
 	}
 
 	<-done
-	bcmdbuf.Flush()
+	if err := bcmdbuf.Flush(); err != nil {
+		t.Errorf("flush failed: %s", err)
+	}
 	actualcmds := cmdbuf.String()
 	if client != actualcmds {
 		t.Errorf("Got:\n%s\nExpected:\n%s", actualcmds, client)
@@ -939,23 +967,29 @@ func TestSendMailWithAuth(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unable to create listener: %v", err)
 	}
-	defer l.Close()
+	defer func() {
+		_ = l.Close()
+	}()
 
 	errCh := make(chan error)
 	go func() {
 		defer close(errCh)
 		conn, err := l.Accept()
 		if err != nil {
-			errCh <- fmt.Errorf("Accept: %v", err)
+			errCh <- fmt.Errorf("listener Accept: %w", err)
 			return
 		}
-		defer conn.Close()
+		defer func() {
+			_ = conn.Close()
+		}()
 
 		tc := textproto.NewConn(conn)
-		tc.PrintfLine("220 hello world")
+		if err := tc.PrintfLine("220 hello world"); err != nil {
+			t.Errorf("textproto connetion print failed: %s", err)
+		}
 		msg, err := tc.ReadLine()
 		if err != nil {
-			errCh <- fmt.Errorf("ReadLine error: %v", err)
+			errCh <- fmt.Errorf("textproto connection ReadLine error: %w", err)
 			return
 		}
 		const wantMsg = "EHLO localhost"
@@ -965,7 +999,7 @@ func TestSendMailWithAuth(t *testing.T) {
 		}
 		err = tc.PrintfLine("250 mx.google.com at your service")
 		if err != nil {
-			errCh <- fmt.Errorf("PrintfLine: %v", err)
+			errCh <- fmt.Errorf("textproto connection PrintfLine: %w", err)
 			return
 		}
 	}()
@@ -999,7 +1033,9 @@ func TestAuthFailed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
-	defer c.Close()
+	defer func() {
+		_ = c.Close()
+	}()
 
 	c.tls = true
 	c.serverName = "smtp.google.com"
@@ -1011,7 +1047,9 @@ func TestAuthFailed(t *testing.T) {
 		t.Errorf("Auth: got error: %v, want: %s", err, "535 Invalid credentials\nplease see www.example.com")
 	}
 
-	bcmdbuf.Flush()
+	if err := bcmdbuf.Flush(); err != nil {
+		t.Errorf("flush failed: %s", err)
+	}
 	actualcmds := cmdbuf.String()
 	if client != actualcmds {
 		t.Errorf("Got:\n%s\nExpected:\n%s", actualcmds, client)
@@ -1040,7 +1078,9 @@ func TestTLSClient(t *testing.T) {
 		}
 	*/
 	ln := newLocalListener(t)
-	defer ln.Close()
+	defer func() {
+		_ = ln.Close()
+	}()
 	errc := make(chan error)
 	go func() {
 		errc <- sendMail(ln.Addr().String())
@@ -1049,7 +1089,9 @@ func TestTLSClient(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to accept connection: %v", err)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 	if err := serverHandle(conn, t); err != nil {
 		t.Fatalf("failed to handle connection: %v", err)
 	}
@@ -1060,7 +1102,9 @@ func TestTLSClient(t *testing.T) {
 
 func TestTLSConnState(t *testing.T) {
 	ln := newLocalListener(t)
-	defer ln.Close()
+	defer func() {
+		_ = ln.Close()
+	}()
 	clientDone := make(chan bool)
 	serverDone := make(chan bool)
 	go func() {
@@ -1070,7 +1114,9 @@ func TestTLSConnState(t *testing.T) {
 			t.Errorf("Server accept: %v", err)
 			return
 		}
-		defer c.Close()
+		defer func() {
+			_ = c.Close()
+		}()
 		if err := serverHandle(c, t); err != nil {
 			t.Errorf("server error: %v", err)
 		}
@@ -1082,7 +1128,9 @@ func TestTLSConnState(t *testing.T) {
 			t.Errorf("Client dial: %v", err)
 			return
 		}
-		defer c.Quit()
+		defer func() {
+			_ = c.Quit()
+		}()
 		cfg := &tls.Config{ServerName: "example.com"}
 		testHookStartTLS(cfg) // set the RootCAs
 		if err := c.StartTLS(cfg); err != nil {
@@ -1118,7 +1166,7 @@ type smtpSender struct {
 }
 
 func (s smtpSender) send(f string) {
-	s.w.Write([]byte(f + "\r\n"))
+	_, _ = s.w.Write([]byte(f + "\r\n"))
 }
 
 // smtp server, finely tailored to deal with our own client only!
@@ -1140,7 +1188,9 @@ func serverHandle(c net.Conn, t *testing.T) error {
 			}
 			config := &tls.Config{Certificates: []tls.Certificate{keypair}}
 			c = tls.Server(c, config)
-			defer c.Close()
+			defer func() {
+				_ = c.Close()
+			}()
 			return serverHandleTLS(c, t)
 		default:
 			t.Fatalf("unrecognized command: %q", s.Text())
