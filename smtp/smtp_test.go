@@ -34,6 +34,7 @@ type authTest struct {
 	challenges []string
 	name       string
 	responses  []string
+	sf         []bool
 }
 
 var authTests = []authTest{
@@ -42,24 +43,28 @@ var authTests = []authTest{
 		[]string{},
 		"PLAIN",
 		[]string{"\x00user\x00pass"},
+		[]bool{false, false},
 	},
 	{
 		PlainAuth("foo", "bar", "baz", "testserver"),
 		[]string{},
 		"PLAIN",
 		[]string{"foo\x00bar\x00baz"},
+		[]bool{false, false},
 	},
 	{
 		LoginAuth("user", "pass", "testserver"),
-		[]string{"Username:", "Password:"},
+		[]string{"Username:", "Password:", "Invalid:"},
 		"LOGIN",
 		[]string{"", "user", "pass", ""},
+		[]bool{false, false, true},
 	},
 	{
 		CRAMMD5Auth("user", "pass"),
 		[]string{"<123456.1322876914@testserver>"},
 		"CRAM-MD5",
 		[]string{"", "user 287eb355114cf5c471c26a875f1ca4ae"},
+		[]bool{false, false},
 	},
 }
 
@@ -79,8 +84,9 @@ testLoop:
 		for j := range test.challenges {
 			challenge := []byte(test.challenges[j])
 			expected := []byte(test.responses[j+1])
+			sf := test.sf[j]
 			resp, err := test.auth.Next(challenge, true)
-			if err != nil {
+			if err != nil && !sf {
 				t.Errorf("#%d error: %s", i, err)
 				continue testLoop
 			}
@@ -157,7 +163,7 @@ func TestAuthLogin(t *testing.T) {
 			// NOT OK on non-localhost, even if server says PLAIN is OK.
 			// (We don't know that the server is the real server.)
 			authName: "servername",
-			server:   &ServerInfo{Name: "servername", Auth: []string{"PLAIN"}},
+			server:   &ServerInfo{Name: "servername", Auth: []string{"LOGIN"}},
 			err:      "unencrypted connection",
 		},
 		{
