@@ -1,28 +1,20 @@
 # SPDX-FileCopyrightText: 2022 Winni Neessen <winni@neessen.dev>
 #
-# SPDX-License-Identifier: CC0-1.0
+# SPDX-License-Identifier: MIT
 
-container:
-  image: golang:latest
+freebsd_task:
+  name: FreeBSD
 
-env:
-  GOPROXY: https://proxy.golang.org
+  matrix:
+    - name: FreeBSD 13.1
+      freebsd_instance:
+        image_family: freebsd-13-1
+    - name: FreeBSD 12.4
+      freebsd_instance:
+        image_family: freebsd-12-4
 
-lint_task:
-  name: GolangCI Lint
-  container:
-    image: golangci/golangci-lint:latest
-  run_script: golangci-lint run -v --timeout 5m0s --out-format json > lint-report.json
-  always:
-    golangci_artifacts:
-      path: lint-report.json
-      type: text/json
-      format: golangci
-
-build_task:
-  modules_cache:
-    fingerprint_script: cat go.sum
-    folder: $GOPATH/pkg/mod
-  get_script: go get github.com/wneessen/go-mail
-  build_script: go build github.com/wneessen/go-mail
-  test_script: go test -race -v -cover github.com/wneessen/go-mail/...
+  pkginstall_script:
+    - pkg update -f
+    - pkg install -y go
+  test_script:
+    - go test -v -race -cover -shuffle=on ./...
