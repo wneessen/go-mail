@@ -13,8 +13,18 @@ freebsd_task:
       freebsd_instance:
         image_family: freebsd-12-4
 
+  env:
+    TEST_HOST: ${{ secrets.TEST_HOST }}
+    TEST_FROM: ${{ secrets.TEST_USER }}
+    TEST_ALLOW_SEND: "1"
+    TEST_SMTPAUTH_USER: ${{ secrets.TEST_USER }}
+    TEST_SMTPAUTH_PASS: ${{ secrets.TEST_PASS }}
+    TEST_SMTPAUTH_TYPE: "LOGIN"
+
   pkginstall_script:
     - pkg update -f
     - pkg install -y go
+
   test_script:
+    - cd ..
     - go test -v -race -cover -shuffle=on ./...
