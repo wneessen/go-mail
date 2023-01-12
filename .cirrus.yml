@@ -12,13 +12,16 @@ freebsd_task:
     - name: FreeBSD 12.4
       freebsd_instance:
         image_family: freebsd-12-4
+    - name: FreeBSD 12.3
+      freebsd_instance:
+        image_family: freebsd-12-3
 
   env:
-    TEST_HOST: ${{ secrets.TEST_HOST }}
-    TEST_FROM: ${{ secrets.TEST_USER }}
+    TEST_HOST: ${secrets.TEST_HOST}
+    TEST_FROM: ${secrets.TEST_USER}
     TEST_ALLOW_SEND: "1"
-    TEST_SMTPAUTH_USER: ${{ secrets.TEST_USER }}
-    TEST_SMTPAUTH_PASS: ${{ secrets.TEST_PASS }}
+    TEST_SMTPAUTH_USER: ${secrets.TEST_USER}
+    TEST_SMTPAUTH_PASS: ${secrets.TEST_PASS}
     TEST_SMTPAUTH_TYPE: "LOGIN"
 
   pkginstall_script:
