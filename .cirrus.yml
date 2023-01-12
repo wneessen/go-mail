@@ -17,16 +17,11 @@ freebsd_task:
         image_family: freebsd-12-3
 
   env:
-    TEST_HOST: ${secrets.TEST_HOST}
-    TEST_FROM: ${secrets.TEST_USER}
-    TEST_ALLOW_SEND: "1"
-    TEST_SMTPAUTH_USER: ${secrets.TEST_USER}
-    TEST_SMTPAUTH_PASS: ${secrets.TEST_PASS}
-    TEST_SMTPAUTH_TYPE: "LOGIN"
+    TEST_ALLOW_SEND: 0
 
   pkginstall_script:
     - pkg update -f
-    - pkg install -y go
+    - pkg install -y go postfix
 
   test_script:
     - go test -v -race -cover -shuffle=on ./...
