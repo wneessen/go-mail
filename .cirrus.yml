@@ -18,6 +18,7 @@ freebsd_task:
 
   env:
     TEST_ALLOW_SEND: 0
+    TEST_SKIP_SENDMAIL: 1
 
   pkginstall_script:
     - pkg update -f
