@@ -1087,6 +1087,7 @@ func getTestConnection(auth bool) (*Client, error) {
 	if th == "" {
 		return nil, fmt.Errorf("no TEST_HOST set")
 	}
+	fmt.Printf("XXX: TEST_HOST: %s\n", th)
 	tp := 25
 	if tps := os.Getenv("TEST_PORT"); tps != "" {
 		tpi, err := strconv.Atoi(tps)
