@@ -3,7 +3,7 @@
 //
 // Original net/smtp code from the Go stdlib by the Go Authors.
 // Use of this source code is governed by a BSD-style
-// license that can be found in the [PROJECT ROOT]/LICENSES directory.
+// LICENSE file that can be found in this directory.
 //
 // go-mail specific modifications by the go-mail Authors.
 // Licensed under the MIT License.
@@ -51,7 +51,7 @@ func (a *plainAuth) Start(server *ServerInfo) (string, []byte, error) {
 	return "PLAIN", resp, nil
 }
 
-func (a *plainAuth) Next(fromServer []byte, more bool) ([]byte, error) {
+func (a *plainAuth) Next(_ []byte, more bool) ([]byte, error) {
 	if more {
 		// We've already sent everything.
 		return nil, errors.New("unexpected server challenge")

@@ -3,7 +3,7 @@
 //
 // Original net/smtp code from the Go stdlib by the Go Authors.
 // Use of this source code is governed by a BSD-style
-// license that can be found in the [PROJECT ROOT]/LICENSES directory.
+// LICENSE file that can be found in this directory.
 //
 // go-mail specific modifications by the go-mail Authors.
 // Licensed under the MIT License.
@@ -32,7 +32,7 @@ func CRAMMD5Auth(username, secret string) Auth {
 	return &cramMD5Auth{username, secret}
 }
 
-func (a *cramMD5Auth) Start(server *ServerInfo) (string, []byte, error) {
+func (a *cramMD5Auth) Start(_ *ServerInfo) (string, []byte, error) {
 	return "CRAM-MD5", nil, nil
 }
 

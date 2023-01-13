@@ -3,7 +3,7 @@
 //
 // Original net/smtp code from the Go stdlib by the Go Authors.
 // Use of this source code is governed by a BSD-style
-// license that can be found in the [PROJECT ROOT]/LICENSES directory.
+// LICENSE file that can be found in this directory.
 //
 // go-mail specific modifications by the go-mail Authors.
 // Licensed under the MIT License.
