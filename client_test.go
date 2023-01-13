@@ -9,14 +9,13 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"net/smtp"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/wneessen/go-mail/auth"
+	"github.com/wneessen/go-mail/smtp"
 )
 
 // DefaultHost is used as default hostname for the Client
@@ -496,7 +495,7 @@ func TestSetSMTPAuthCustom(t *testing.T) {
 	}{
 		{"SMTPAuth: PLAIN", smtp.PlainAuth("", "", "", ""), "PLAIN", false},
 		{"SMTPAuth: CRAM-MD5", smtp.CRAMMD5Auth("", ""), "CRAM-MD5", false},
-		{"SMTPAuth: LOGIN", auth.LoginAuth("", "", ""), "LOGIN", false},
+		{"SMTPAuth: LOGIN", smtp.LoginAuth("", "", ""), "LOGIN", false},
 	}
 	si := smtp.ServerInfo{TLS: true}
 	for _, tt := range tests {
@@ -584,7 +583,7 @@ func TestClient_DialWithContextInvalidAuth(t *testing.T) {
 	}
 	c.user = "invalid"
 	c.pass = "invalid"
-	c.SetSMTPAuthCustom(auth.LoginAuth("invalid", "invalid", "invalid"))
+	c.SetSMTPAuthCustom(smtp.LoginAuth("invalid", "invalid", "invalid"))
 	ctx := context.Background()
 	if err := c.DialWithContext(ctx); err == nil {
 		t.Errorf("dial succeeded but was supposed to fail")

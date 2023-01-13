@@ -1,16 +1,15 @@
-// SPDX-FileCopyrightText: 2022 Winni Neessen <winni@neessen.dev>
+// SPDX-FileCopyrightText: 2022-2023 The go-mail Authors
 //
 // SPDX-License-Identifier: MIT
 
-// Package auth implements the LOGIN and MD5-DIGEST smtp authentication mechanisms
-package auth
+package smtp
 
 import (
 	"errors"
 	"fmt"
-	"net/smtp"
 )
 
+// loginAuth is the type that satisfies the Auth interface for the "SMTP LOGIN" auth
 type loginAuth struct {
 	username, password string
 	host               string
@@ -35,15 +34,11 @@ const (
 // LoginAuth will only send the credentials if the connection is using TLS
 // or is connected to localhost. Otherwise authentication will fail with an
 // error, without sending the credentials.
-func LoginAuth(username, password, host string) smtp.Auth {
+func LoginAuth(username, password, host string) Auth {
 	return &loginAuth{username, password, host}
 }
 
-func isLocalhost(name string) bool {
-	return name == "localhost" || name == "127.0.0.1" || name == "::1"
-}
-
-func (a *loginAuth) Start(server *smtp.ServerInfo) (string, []byte, error) {
+func (a *loginAuth) Start(server *ServerInfo) (string, []byte, error) {
 	// Must have TLS, or else localhost server.
 	// Note: If TLS is not true, then we can't trust ANYTHING in ServerInfo.
 	// In particular, it doesn't matter if the server advertises LOGIN auth.
