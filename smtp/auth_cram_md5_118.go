@@ -11,8 +11,8 @@
 //
 // SPDX-License-Identifier: BSD-3-Clause AND MIT
 
-//go:build go1.19
-// +build go1.19
+//go:build !go1.19
+// +build !go1.19
 
 package smtp
 
@@ -44,7 +44,7 @@ func (a *cramMD5Auth) Next(fromServer []byte, more bool) ([]byte, error) {
 		d := hmac.New(md5.New, []byte(a.secret))
 		d.Write(fromServer)
 		s := make([]byte, 0, d.Size())
-		return fmt.Appendf(nil, "%s %x", a.username, d.Sum(s)), nil
+		return []byte(fmt.Sprintf("%s %x", a.username, d.Sum(s))), nil
 	}
 	return nil, nil
 }

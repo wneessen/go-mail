@@ -137,29 +137,6 @@ func (c *Client) helo() error {
 	return err
 }
 
-// ehlo sends the EHLO (extended hello) greeting to the server. It
-// should be the preferred greeting for servers that support it.
-func (c *Client) ehlo() error {
-	_, msg, err := c.cmd(250, "EHLO %s", c.localName)
-	if err != nil {
-		return err
-	}
-	ext := make(map[string]string)
-	extList := strings.Split(msg, "\n")
-	if len(extList) > 1 {
-		extList = extList[1:]
-		for _, line := range extList {
-			k, v, _ := strings.Cut(line, " ")
-			ext[k] = v
-		}
-	}
-	if mechs, ok := ext["AUTH"]; ok {
-		c.auth = strings.Split(mechs, " ")
-	}
-	c.ext = ext
-	return err
-}
-
 // StartTLS sends the STARTTLS command and encrypts all further communication.
 // Only servers that advertise the STARTTLS extension support this function.
 func (c *Client) StartTLS(config *tls.Config) error {
