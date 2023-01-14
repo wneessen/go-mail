@@ -32,8 +32,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/textproto"
+	"os"
 	"strings"
 )
 
@@ -55,7 +57,18 @@ type Client struct {
 	localName  string // the name to use in HELO/EHLO
 	didHello   bool   // whether we've said HELO/EHLO
 	helloError error  // the error from the hello
+
+	debug  bool        // debug logging is enabled
+	logger *log.Logger // logger will be used for debug logging
 }
+
+// logDirection is a type wrapper for the direction a debug log message goes
+type logDirection int
+
+const (
+	logIn  logDirection = iota // Incoming log message
+	logOut                     // Outgoing log message
+)
 
 // Dial returns a new Client connected to an SMTP server at addr.
 // The addr must include a port, as in "mail.example.com:smtp".
@@ -81,6 +94,7 @@ func NewClient(conn net.Conn, host string) (*Client, error) {
 	}
 	c := &Client{Text: text, conn: conn, serverName: host, localName: "localhost"}
 	_, c.tls = conn.(*tls.Conn)
+
 	return c, nil
 }
 
@@ -119,6 +133,7 @@ func (c *Client) Hello(localName string) error {
 
 // cmd is a convenience function that sends a command and returns the response
 func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, string, error) {
+	c.debugLog(logOut, format, args...)
 	id, err := c.Text.Cmd(format, args...)
 	if err != nil {
 		return 0, "", err
@@ -126,6 +141,7 @@ func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, s
 	c.Text.StartResponse(id)
 	defer c.Text.EndResponse(id)
 	code, msg, err := c.Text.ReadResponse(expectCode)
+	c.debugLog(logIn, "%d %s", code, msg)
 	return code, msg, err
 }
 
@@ -413,6 +429,24 @@ func (c *Client) Quit() error {
 		return err
 	}
 	return c.Text.Close()
+}
+
+// SetDebugLog enables the debug logging for incoming and outgoing SMTP messages
+func (c *Client) SetDebugLog() {
+	c.debug = true
+	c.logger = log.New(os.Stderr, "[DEBUG] ", log.LstdFlags|log.Lmsgprefix)
+}
+
+// debugLog checks if the debug flag is set and if so logs the provided message to StdErr
+func (c *Client) debugLog(d logDirection, f string, a ...interface{}) {
+	if c.debug {
+		p := "S <-- C:"
+		if d == logOut {
+			p = "C --> S:"
+		}
+		fs := fmt.Sprintf("%s %s", p, f)
+		c.logger.Printf(fs, a...)
+	}
 }
 
 // validateLine checks to see if a line has CR or LF as per RFC 5321.

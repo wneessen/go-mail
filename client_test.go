@@ -105,6 +105,7 @@ func TestNewClientWithOptions(t *testing.T) {
 		{"WithDSNRcptNotifyType()", WithDSNRcptNotifyType(DSNRcptNotifySuccess), false},
 		{"WithDSNRcptNotifyType() wrong option", WithDSNRcptNotifyType("FAIL"), true},
 		{"WithoutNoop()", WithoutNoop(), false},
+		{"WithDebugLog()", WithDebugLog(), false},
 
 		{
 			"WithDSNRcptNotifyType() NEVER combination",
@@ -526,6 +527,30 @@ func TestClient_DialWithContext(t *testing.T) {
 	if err != nil {
 		t.Skipf("failed to create test client: %s. Skipping tests", err)
 	}
+	ctx := context.Background()
+	if err := c.DialWithContext(ctx); err != nil {
+		t.Errorf("failed to dial with context: %s", err)
+		return
+	}
+	if c.co == nil {
+		t.Errorf("DialWithContext didn't fail but no connection found.")
+	}
+	if c.sc == nil {
+		t.Errorf("DialWithContext didn't fail but no SMTP client found.")
+	}
+	if err := c.Close(); err != nil {
+		t.Errorf("failed to close connection: %s", err)
+	}
+}
+
+// TestClient_DialWithContext_Debug tests the DialWithContext method for the Client object with debug
+// logging enabled on the SMTP client
+func TestClient_DialWithContext_Debug(t *testing.T) {
+	c, err := getTestConnection(true)
+	if err != nil {
+		t.Skipf("failed to create test client: %s. Skipping tests", err)
+	}
+	c.SetDebugLog(true)
 	ctx := context.Background()
 	if err := c.DialWithContext(ctx); err != nil {
 		t.Errorf("failed to dial with context: %s", err)
@@ -1087,7 +1112,6 @@ func getTestConnection(auth bool) (*Client, error) {
 	if th == "" {
 		return nil, fmt.Errorf("no TEST_HOST set")
 	}
-	fmt.Printf("XXX: TEST_HOST: %s\n", th)
 	tp := 25
 	if tps := os.Getenv("TEST_PORT"); tps != "" {
 		tpi, err := strconv.Atoi(tps)
