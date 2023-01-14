@@ -444,7 +444,7 @@ func (c *Client) SetDebugLog(v bool) {
 // debugLog checks if the debug flag is set and if so logs the provided message to StdErr
 func (c *Client) debugLog(d logDirection, f string, a ...interface{}) {
 	if c.debug {
-		p := "S <-- C:"
+		p := "C <-- S:"
 		if d == logOut {
 			p = "C --> S:"
 		}
