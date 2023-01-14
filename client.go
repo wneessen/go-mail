@@ -130,6 +130,9 @@ type Client struct {
 
 	// user is the SMTP AUTH username
 	user string
+
+	// dl enables the debug logging on the SMTP client
+	dl bool
 }
 
 // Option returns a function that can be used for grouping Client options
@@ -236,6 +239,15 @@ func WithTimeout(t time.Duration) Option {
 func WithSSL() Option {
 	return func(c *Client) error {
 		c.ssl = true
+		return nil
+	}
+}
+
+// WithDebugLog tells the client to log incoming and outgoing messages of the SMTP client
+// to StdErr
+func WithDebugLog() Option {
+	return func(c *Client) error {
+		c.dl = true
 		return nil
 	}
 }
@@ -397,6 +409,14 @@ func (c *Client) SetSSL(s bool) {
 	c.ssl = s
 }
 
+// SetDebugLog tells the Client whether debug logging is enabled or not
+func (c *Client) SetDebugLog(v bool) {
+	c.dl = v
+	if c.sc != nil {
+		c.sc.SetDebugLog(v)
+	}
+}
+
 // SetTLSConfig overrides the current *tls.Config with the given *tls.Config value
 func (c *Client) SetTLSConfig(co *tls.Config) error {
 	if co == nil {
@@ -460,6 +480,9 @@ func (c *Client) DialWithContext(pc context.Context) error {
 	c.sc, err = smtp.NewClient(c.co, c.host)
 	if err != nil {
 		return err
+	}
+	if c.dl {
+		c.sc.SetDebugLog(true)
 	}
 	if err := c.sc.Hello(c.helo); err != nil {
 		return err
