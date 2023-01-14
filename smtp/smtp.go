@@ -432,9 +432,13 @@ func (c *Client) Quit() error {
 }
 
 // SetDebugLog enables the debug logging for incoming and outgoing SMTP messages
-func (c *Client) SetDebugLog() {
-	c.debug = true
-	c.logger = log.New(os.Stderr, "[DEBUG] ", log.LstdFlags|log.Lmsgprefix)
+func (c *Client) SetDebugLog(v bool) {
+	c.debug = v
+	if v {
+		c.logger = log.New(os.Stderr, "[DEBUG] ", log.LstdFlags|log.Lmsgprefix)
+		return
+	}
+	c.logger = nil
 }
 
 // debugLog checks if the debug flag is set and if so logs the provided message to StdErr

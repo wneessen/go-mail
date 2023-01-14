@@ -410,8 +410,11 @@ func (c *Client) SetSSL(s bool) {
 }
 
 // SetDebugLog tells the Client whether debug logging is enabled or not
-func (c *Client) SetDebugLog(s bool) {
-	c.dl = s
+func (c *Client) SetDebugLog(v bool) {
+	c.dl = v
+	if c.sc != nil {
+		c.sc.SetDebugLog(v)
+	}
 }
 
 // SetTLSConfig overrides the current *tls.Config with the given *tls.Config value
@@ -479,7 +482,7 @@ func (c *Client) DialWithContext(pc context.Context) error {
 		return err
 	}
 	if c.dl {
-		c.sc.SetDebugLog()
+		c.sc.SetDebugLog(true)
 	}
 	if err := c.sc.Hello(c.helo); err != nil {
 		return err

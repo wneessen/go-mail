@@ -655,7 +655,7 @@ func TestClient_SetDebugLog(t *testing.T) {
 	defer func() {
 		_ = c.Close()
 	}()
-	c.SetDebugLog()
+	c.SetDebugLog(true)
 	if !c.debug {
 		t.Errorf("Expected DebugLog flag to be true but received false")
 	}
