@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2022 Winni Neessen <winni@neessen.dev>
+SPDX-FileCopyrightText: 2022-2023 The go-mail Authors
 
 SPDX-License-Identifier: CC0-1.0
 -->
@@ -8,5 +8,11 @@ SPDX-License-Identifier: CC0-1.0
 
 ## Reporting a Vulnerability
 
-Please send a mail to wn+gomail@neessen.net when you found a security issue in go-mail, even when you are not 100% certain 
-that it is actually a security issue. Typically, you will receive an answer within a day or even within a few hours.
+To report (possible) security issues in go-mail, please either send a mail to 
+[security@go-mail.dev](mailto:security@go-mail.dev) or use Github's 
+[private reporting feature](https://github.com/wneessen/go-mail/security/advisories/new).
+Reports are always welcome. Even if you are not 100% certain that a specific issue you found
+counts as a security issue, we'd love to hear the details, so we can figure out together if
+the issue in question needds to be addressed.
+
+Typically, you will receive an answer within a day or even within a few hours.
