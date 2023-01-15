@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2022 Winni Neessen <winni@neessen.dev>
+SPDX-FileCopyrightText: 2022-2023 The go-mail Authors
 
 SPDX-License-Identifier: CC0-1.0
 -->
@@ -25,6 +25,9 @@ Parts of this library (especially some parts of [msgwriter.go](msgwriter.go)) ha
 [go-mail/mail](https://github.com/go-mail/mail) respectively [go-gomail/gomail](https://github.com/go-gomail/gomail)
 which both seems to not be maintained anymore.
 
+The smtp package of go-mail is forked from the original Go stdlib's `net/smtp` and then extended by the go-mail
+team.
+
 ## Features
 
 Some of the features of this library:
@@ -48,6 +51,8 @@ Some of the features of this library:
 * [X] Message object satisfies `io.WriteTo` and `io.Reader` interfaces
 * [X] Support for Go's `html/template` and `text/template` (as message body, alternative part or attachment/emebed)
 * [X] Output to file support which allows storing mail messages as e. g. `.eml` files to disk to open them in a MUA
+* [X] Debug logging of SMTP traffic
+* [X] Custom error types for delivery errors
 
 go-mail works like a programatic email client and provides lots of methods and functionalities you would consider
 standard in a MUA.
@@ -72,8 +77,13 @@ found in a seperate repository: [go-mail-middlware](https://github.com/wneessen/
 We provide example code in both our GoDocs as well as on our official Website (see [Documentation](#documentation)). For a quick start into go-mail
 check out our [Getting started](https://go-mail.dev/getting-started/introduction/) guide.
 
-## Contributors
-Thanks to the following people for contributing to the go-mail project:
+## Authors/Contributors
+go-mail was initially authored and developed by [Winni Neessen](https://github.com/wneessen/).
+
+Big thanks to the following people, for contributing to the go-mail project (either in form of code or by 
+reviewing code, writing documenation or helping to translate the website):
 * [Dhia Gharsallaoui](https://github.com/dhia-gharsallaoui)
 * [inliquid](https://github.com/inliquid) 
+* [iwittkau](https://github.com/iwittkau)
+* [James Elliott](https://github.com/james-d-elliott)
 * [Maria Letta](https://github.com/MariaLetta) (designed the go-mail logo)

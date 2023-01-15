@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2022 Winni Neessen <winni@neessen.dev>
+SPDX-FileCopyrightText: 2022-2023 The go-mail Authors
 
 SPDX-License-Identifier: CC0-1.0
 -->
