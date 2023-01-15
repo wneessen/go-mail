@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Winni Neessen <winni@neessen.dev>
+// SPDX-FileCopyrightText: 2022-2023 The go-mail Authors
 //
 // SPDX-License-Identifier: MIT
 
@@ -6,4 +6,4 @@
 package mail
 
 // VERSION is used in the default user agent string
-const VERSION = "0.3.8"
+const VERSION = "0.3.9"
