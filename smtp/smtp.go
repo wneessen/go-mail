@@ -17,6 +17,7 @@
 //	8BITMIME  RFC 1652
 //	AUTH      RFC 2554
 //	STARTTLS  RFC 3207
+//	DSN       RFC 1891
 package smtp
 
 import (
@@ -50,9 +51,12 @@ type Client struct {
 	localName  string // the name to use in HELO/EHLO
 	didHello   bool   // whether we've said HELO/EHLO
 	helloError error  // the error from the hello
-
+	// debug logging
 	debug  bool        // debug logging is enabled
 	logger *log.Logger // logger will be used for debug logging
+	// DSN support
+	dsnmrtype string // dsnmrtype defines the mail return option in case DSN is enabled
+	dsnrntype string // dsnrntype defines the recipient notify option in case DSN is enabled
 }
 
 // logDirection is a type wrapper for the direction a debug log message goes
@@ -256,6 +260,10 @@ func (c *Client) Mail(from string) error {
 		if _, ok := c.ext["SMTPUTF8"]; ok {
 			cmdStr += " SMTPUTF8"
 		}
+		_, ok := c.ext["DSN"]
+		if ok && c.dsnmrtype != "" {
+			cmdStr += fmt.Sprintf(" RET=%s", c.dsnmrtype)
+		}
 	}
 	_, _, err := c.cmd(250, cmdStr, from)
 	return err
@@ -266,6 +274,11 @@ func (c *Client) Mail(from string) error {
 // a Data call or another Rcpt call.
 func (c *Client) Rcpt(to string) error {
 	if err := validateLine(to); err != nil {
+		return err
+	}
+	_, ok := c.ext["DSN"]
+	if ok && c.dsnrntype != "" {
+		_, _, err := c.cmd(25, "RCPT TO:<%s> NOTIFY=%s", to, c.dsnrntype)
 		return err
 	}
 	_, _, err := c.cmd(25, "RCPT TO:<%s>", to)
@@ -432,6 +445,16 @@ func (c *Client) SetDebugLog(v bool) {
 		return
 	}
 	c.logger = nil
+}
+
+// SetDSNMailReturnOption sets the DSN mail return option for the Mail method
+func (c *Client) SetDSNMailReturnOption(d string) {
+	c.dsnmrtype = d
+}
+
+// SetDSNRcptNotifyOption sets the DSN recipient notify option for the Mail method
+func (c *Client) SetDSNRcptNotifyOption(d string) {
+	c.dsnrntype = d
 }
 
 // debugLog checks if the debug flag is set and if so logs the provided message to StdErr
