@@ -994,27 +994,6 @@ func TestClient_auth(t *testing.T) {
 	}
 }
 
-// TestValidateLine tests the validateLine() method
-func TestValidateLine(t *testing.T) {
-	tests := []struct {
-		name  string
-		value string
-		sf    bool
-	}{
-		{"valid line", "valid line", false},
-		{`invalid line: \n`, "invalid line\n", true},
-		{`invalid line: \r`, "invalid line\r", true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := validateLine(tt.value); err != nil && !tt.sf {
-				t.Errorf("validateLine failed: %s", err)
-			}
-		})
-	}
-}
-
 // TestClient_Send_MsgSendError tests the Client.Send method with a broken recipient and verifies
 // that the SendError type works properly
 func TestClient_Send_MsgSendError(t *testing.T) {

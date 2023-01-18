@@ -7,6 +7,8 @@
 
 package mail
 
+import "strings"
+
 // Send sends out the mail message
 func (c *Client) Send(ml ...*Msg) error {
 	if cerr := c.checkConn(); cerr != nil {
@@ -38,7 +40,12 @@ func (c *Client) Send(ml ...*Msg) error {
 			continue
 		}
 
-		if err := c.mail(f); err != nil {
+		if c.dsn {
+			if c.dsnmrtype != "" {
+				c.sc.SetDSNMailReturnOption(string(c.dsnmrtype))
+			}
+		}
+		if err := c.sc.Mail(f); err != nil {
 			se := &SendError{Reason: ErrSMTPMailFrom, errlist: []error{err}, isTemp: isTempError(err)}
 			if reserr := c.sc.Reset(); reserr != nil {
 				se.errlist = append(se.errlist, reserr)
@@ -51,8 +58,10 @@ func (c *Client) Send(ml ...*Msg) error {
 		rse := &SendError{}
 		rse.errlist = make([]error, 0)
 		rse.rcpt = make([]string, 0)
+		rno := strings.Join(c.dsnrntype, ",")
+		c.sc.SetDSNRcptNotifyOption(rno)
 		for _, r := range rl {
-			if err := c.rcpt(r); err != nil {
+			if err := c.sc.Rcpt(r); err != nil {
 				rse.Reason = ErrSMTPRcptTo
 				rse.errlist = append(rse.errlist, err)
 				rse.rcpt = append(rse.rcpt, r)
