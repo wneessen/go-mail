@@ -102,7 +102,9 @@ func (mw *msgWriter) writeMsg(m *Msg) {
 	}
 
 	for _, p := range m.parts {
-		mw.writePart(p, m.charset)
+		if !p.del {
+			mw.writePart(p, m.charset)
+		}
 	}
 	if m.hasAlt() {
 		mw.stopMP()

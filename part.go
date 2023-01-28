@@ -16,6 +16,7 @@ type PartOption func(*Part)
 type Part struct {
 	ctype ContentType
 	enc   Encoding
+	del   bool
 	w     func(io.Writer) (int64, error)
 }
 
@@ -62,6 +63,12 @@ func (p *Part) SetEncoding(e Encoding) {
 // SetWriteFunc overrides the WriteFunc of the Part
 func (p *Part) SetWriteFunc(w func(io.Writer) (int64, error)) {
 	p.w = w
+}
+
+// Delete removes the current part from the parts list of the Msg by setting the
+// del flag to true. The msgWriter will skip it then
+func (p *Part) Delete() {
+	p.del = true
 }
 
 // WithPartEncoding overrides the default Part encoding
