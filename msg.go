@@ -989,7 +989,13 @@ func (m *Msg) encodeString(s string) string {
 
 // hasAlt returns true if the Msg has more than one part
 func (m *Msg) hasAlt() bool {
-	return len(m.parts) > 1
+	c := 0
+	for _, p := range m.parts {
+		if !p.del {
+			c++
+		}
+	}
+	return c > 1
 }
 
 // hasMixed returns true if the Msg has mixed parts
