@@ -241,6 +241,22 @@ func TestPart_SetContent(t *testing.T) {
 	}
 }
 
+// TestPart_Delete tests Part.Delete
+func TestPart_Delete(t *testing.T) {
+	c := "This is a test with ümläutß"
+	m := NewMsg()
+	m.SetBodyString(TypeTextPlain, c)
+	pl, err := getPartList(m)
+	if err != nil {
+		t.Errorf("failed: %s", err)
+		return
+	}
+	pl[0].Delete()
+	if !pl[0].del {
+		t.Errorf("Delete failed. Expected: %t, got: %t", true, pl[0].del)
+	}
+}
+
 // getPartList is a helper function
 func getPartList(m *Msg) ([]*Part, error) {
 	pl := m.GetParts()
