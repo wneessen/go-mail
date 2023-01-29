@@ -1370,6 +1370,99 @@ func TestMsg_SetAttachments(t *testing.T) {
 	}
 }
 
+// TestMsg_GetEmbeds tests the Msg.GetEmbeds method
+func TestMsg_GetEmbeds(t *testing.T) {
+	tests := []struct {
+		name  string
+		files []string
+	}{
+		{"File: README.md", []string{"README.md"}},
+		{"File: doc.go", []string{"doc.go"}},
+		{"File: README.md and doc.go", []string{"README.md", "doc.go"}},
+		{"File: nonexisting", nil},
+	}
+	m := NewMsg()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, f := range tt.files {
+				m.EmbedFile(f, WithFileName(f), nil)
+			}
+			if len(m.embeds) != len(tt.files) {
+				t.Errorf("EmbedFile() failed. Number of embedded files expected: %d, got: %d", len(tt.files),
+					len(m.embeds))
+				return
+			}
+			ff := m.GetEmbeds()
+			if len(m.embeds) != len(ff) {
+				t.Errorf("GetEmbeds() failed. Number of embedded files expected: %d, got: %d", len(m.embeds),
+					len(ff))
+				return
+			}
+			var fn []string
+			for _, f := range ff {
+				fn = append(fn, f.Name)
+			}
+			sort.Strings(fn)
+			sort.Strings(tt.files)
+			for i, f := range tt.files {
+				if f != fn[i] {
+					t.Errorf("GetEmbeds() failed. Embedded file name expected: %s, got: %s", f,
+						fn[i])
+					return
+				}
+			}
+			m.Reset()
+		})
+	}
+}
+
+// TestMsg_SetEmbeds tests the Msg.GetEmbeds method
+func TestMsg_SetEmbeds(t *testing.T) {
+	tests := []struct {
+		name   string
+		embeds []string
+		files  []string
+	}{
+		{"File: replace README.md  with doc.go", []string{"README.md"}, []string{"doc.go"}},
+		{"File: add README.md with doc.go ", []string{"doc.go"}, []string{"README.md", "doc.go"}},
+		{"File: remove README.md and doc.go", []string{"README.md", "doc.go"}, nil},
+		{"File: add README.md and doc.go", nil, []string{"README.md", "doc.go"}},
+	}
+	m := NewMsg()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sort.Strings(tt.embeds)
+			sort.Strings(tt.files)
+			for _, a := range tt.embeds {
+				m.EmbedFile(a, WithFileName(a), nil)
+			}
+			if len(m.embeds) != len(tt.embeds) {
+				t.Errorf("EmbedFile() failed. Number of embedded files expected: %d, got: %d", len(tt.files),
+					len(m.embeds))
+				return
+			}
+			var files []*File
+			for _, f := range tt.files {
+				files = append(files, &File{Name: f})
+			}
+			m.SetEmbeds(files)
+			if len(m.embeds) != len(files) {
+				t.Errorf("SetEmbeds() failed. Number of embedded files expected: %d, got: %d", len(files),
+					len(m.embeds))
+				return
+			}
+			for i, f := range tt.files {
+				if f != m.embeds[i].Name {
+					t.Errorf("SetEmbeds() failed. Embedded file name expected: %s, got: %s", f,
+						m.embeds[i].Name)
+					return
+				}
+			}
+			m.Reset()
+		})
+	}
+}
+
 // TestMsg_AttachFromEmbedFS tests the Msg.AttachFromEmbedFS and the WithFilename FileOption method
 func TestMsg_AttachFromEmbedFS(t *testing.T) {
 	tests := []struct {
