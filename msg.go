@@ -606,6 +606,16 @@ func (m *Msg) SetAttachements(ff []*File) {
 	m.attachments = ff
 }
 
+// GetEmbeds returns the embeds of the Msg
+func (m *Msg) GetEmbeds() []*File {
+	return m.embeds
+}
+
+// SetEmbeds sets the attachements of the message.
+func (m *Msg) SetEmbeds(ff []*File) {
+	m.embeds = ff
+}
+
 // SetBodyString sets the body of the message.
 func (m *Msg) SetBodyString(ct ContentType, b string, o ...PartOption) {
 	buf := bytes.NewBufferString(b)
