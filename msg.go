@@ -806,10 +806,10 @@ func (m *Msg) EmbedFile(n string, o ...FileOption) {
 
 // EmbedReader adds an embedded File from an io.Reader to the Msg
 //
-// CAVEAT: For AttachReader to work it has to read all data of the io.Reader
+// CAVEAT: For EmbedReader to work it has to read all data of the io.Reader
 // into memory first, so it can seek through it. Using larger amounts of
 // data on the io.Reader should be avoided. For such, it is recommeded to
-// either use AttachFile or AttachReadSeeker instead
+// either use EmbedFile or EmbedReadSeeker instead
 func (m *Msg) EmbedReader(n string, r io.Reader, o ...FileOption) {
 	f := fileFromReader(n, r)
 	m.embeds = m.appendFile(m.embeds, f, o...)
