@@ -2667,3 +2667,127 @@ func TestMsg_GetBccString(t *testing.T) {
 			`"Toni Cc" <bcc@example.com>"`, fh[0])
 	}
 }
+
+// TestMsg_AttachEmbedReader_consecutive tests the Msg.AttachReader and Msg.EmbedReader
+// methods with consecutive calls to Msg.WriteTo to make sure the attachments are not
+// lost (see Github issue #110)
+func TestMsg_AttachEmbedReader_consecutive(t *testing.T) {
+	ts1 := "This is a test string"
+	ts2 := "Another test string"
+	m := NewMsg()
+	m.AttachReader("attachment.txt", bytes.NewBufferString(ts1))
+	m.EmbedReader("embeded.txt", bytes.NewBufferString(ts2))
+	obuf1 := &bytes.Buffer{}
+	obuf2 := &bytes.Buffer{}
+	_, err := m.WriteTo(obuf1)
+	if err != nil {
+		t.Errorf("WriteTo to first output buffer failed: %s", err)
+	}
+	_, err = m.WriteTo(obuf2)
+	if err != nil {
+		t.Errorf("WriteTo to second output buffer failed: %s", err)
+	}
+	if !strings.Contains(obuf1.String(), "VGhpcyBpcyBhIHRlc3Qgc3RyaW5n") {
+		t.Errorf("Expected file attachment string not found in first output buffer")
+	}
+	if !strings.Contains(obuf2.String(), "VGhpcyBpcyBhIHRlc3Qgc3RyaW5n") {
+		t.Errorf("Expected file attachment string not found in second output buffer")
+	}
+	if !strings.Contains(obuf1.String(), "QW5vdGhlciB0ZXN0IHN0cmluZw==") {
+		t.Errorf("Expected embeded file string not found in first output buffer")
+	}
+	if !strings.Contains(obuf2.String(), "QW5vdGhlciB0ZXN0IHN0cmluZw==") {
+		t.Errorf("Expected embded file string not found in second output buffer")
+	}
+}
+
+// TestMsg_AttachEmbedReadSeeker_consecutive tests the Msg.AttachReadSeeker and
+// Msg.EmbedReadSeeker methods with consecutive calls to Msg.WriteTo to make
+// sure the attachments are not lost (see Github issue #110)
+func TestMsg_AttachEmbedReadSeeker_consecutive(t *testing.T) {
+	ts1 := []byte("This is a test string")
+	ts2 := []byte("Another test string")
+	m := NewMsg()
+	m.AttachReadSeeker("attachment.txt", bytes.NewReader(ts1))
+	m.EmbedReadSeeker("embeded.txt", bytes.NewReader(ts2))
+	obuf1 := &bytes.Buffer{}
+	obuf2 := &bytes.Buffer{}
+	_, err := m.WriteTo(obuf1)
+	if err != nil {
+		t.Errorf("WriteTo to first output buffer failed: %s", err)
+	}
+	_, err = m.WriteTo(obuf2)
+	if err != nil {
+		t.Errorf("WriteTo to second output buffer failed: %s", err)
+	}
+	if !strings.Contains(obuf1.String(), "VGhpcyBpcyBhIHRlc3Qgc3RyaW5n") {
+		t.Errorf("Expected file attachment string not found in first output buffer")
+	}
+	if !strings.Contains(obuf2.String(), "VGhpcyBpcyBhIHRlc3Qgc3RyaW5n") {
+		t.Errorf("Expected file attachment string not found in second output buffer")
+	}
+	if !strings.Contains(obuf1.String(), "QW5vdGhlciB0ZXN0IHN0cmluZw==") {
+		t.Errorf("Expected embeded file string not found in first output buffer")
+	}
+	if !strings.Contains(obuf2.String(), "QW5vdGhlciB0ZXN0IHN0cmluZw==") {
+		t.Errorf("Expected embded file string not found in second output buffer")
+	}
+}
+
+// TestMsg_AttachReadSeeker tests the Msg.AttachReadSeeker method
+func TestMsg_AttachReadSeeker(t *testing.T) {
+	m := NewMsg()
+	ts := []byte("This is a test string")
+	r := bytes.NewReader(ts)
+	m.AttachReadSeeker("testfile.txt", r)
+	if len(m.attachments) != 1 {
+		t.Errorf("AttachReadSeeker() failed. Number of attachments expected: %d, got: %d", 1,
+			len(m.attachments))
+		return
+	}
+	file := m.attachments[0]
+	if file == nil {
+		t.Errorf("AttachReadSeeker() failed. Attachment file pointer is nil")
+		return
+	}
+	if file.Name != "testfile.txt" {
+		t.Errorf("AttachReadSeeker() failed. Expected file name: %s, got: %s", "testfile.txt",
+			file.Name)
+	}
+	wbuf := bytes.Buffer{}
+	if _, err := file.Writer(&wbuf); err != nil {
+		t.Errorf("execute WriterFunc failed: %s", err)
+	}
+	if wbuf.String() != string(ts) {
+		t.Errorf("AttachReadSeeker() failed. Expected string: %q, got: %q", ts, wbuf.String())
+	}
+}
+
+// TestMsg_EmbedReadSeeker tests the Msg.EmbedReadSeeker method
+func TestMsg_EmbedReadSeeker(t *testing.T) {
+	m := NewMsg()
+	ts := []byte("This is a test string")
+	r := bytes.NewReader(ts)
+	m.EmbedReadSeeker("testfile.txt", r)
+	if len(m.embeds) != 1 {
+		t.Errorf("EmbedReadSeeker() failed. Number of attachments expected: %d, got: %d", 1,
+			len(m.embeds))
+		return
+	}
+	file := m.embeds[0]
+	if file == nil {
+		t.Errorf("EmbedReadSeeker() failed. Embedded file pointer is nil")
+		return
+	}
+	if file.Name != "testfile.txt" {
+		t.Errorf("EmbedReadSeeker() failed. Expected file name: %s, got: %s", "testfile.txt",
+			file.Name)
+	}
+	wbuf := bytes.Buffer{}
+	if _, err := file.Writer(&wbuf); err != nil {
+		t.Errorf("execute WriterFunc failed: %s", err)
+	}
+	if wbuf.String() != string(ts) {
+		t.Errorf("EmbedReadSeeker() failed. Expected string: %q, got: %q", ts, wbuf.String())
+	}
+}
