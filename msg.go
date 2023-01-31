@@ -746,8 +746,19 @@ func (m *Msg) AttachFile(n string, o ...FileOption) {
 }
 
 // AttachReader adds an attachment File via io.Reader to the Msg
+//
+// CAVEAT: For AttachReader to work it has to read all data of the io.Reader
+// into memory first, so it can seek through it. Using larger amounts of
+// data on the io.Reader should be avoided. For such, it is recommeded to
+// either use AttachFile or AttachReadSeeker instead
 func (m *Msg) AttachReader(n string, r io.Reader, o ...FileOption) {
 	f := fileFromReader(n, r)
+	m.attachments = m.appendFile(m.attachments, f, o...)
+}
+
+// AttachReadSeeker adds an attachment File via io.ReadSeeker to the Msg
+func (m *Msg) AttachReadSeeker(n string, r io.ReadSeeker, o ...FileOption) {
+	f := fileFromReadSeeker(n, r)
 	m.attachments = m.appendFile(m.attachments, f, o...)
 }
 
@@ -794,8 +805,19 @@ func (m *Msg) EmbedFile(n string, o ...FileOption) {
 }
 
 // EmbedReader adds an embedded File from an io.Reader to the Msg
+//
+// CAVEAT: For AttachReader to work it has to read all data of the io.Reader
+// into memory first, so it can seek through it. Using larger amounts of
+// data on the io.Reader should be avoided. For such, it is recommeded to
+// either use AttachFile or AttachReadSeeker instead
 func (m *Msg) EmbedReader(n string, r io.Reader, o ...FileOption) {
 	f := fileFromReader(n, r)
+	m.embeds = m.appendFile(m.embeds, f, o...)
+}
+
+// EmbedReadSeeker adds an embedded File from an io.ReadSeeker to the Msg
+func (m *Msg) EmbedReadSeeker(n string, r io.ReadSeeker, o ...FileOption) {
+	f := fileFromReadSeeker(n, r)
 	m.embeds = m.appendFile(m.embeds, f, o...)
 }
 
@@ -1151,15 +1173,37 @@ func fileFromFS(n string) *File {
 
 // fileFromReader returns a File pointer from a given io.Reader
 func fileFromReader(n string, r io.Reader) *File {
+	d, err := io.ReadAll(r)
+	if err != nil {
+		return &File{}
+	}
+	br := bytes.NewReader(d)
 	return &File{
-		Name:   filepath.Base(n),
+		Name:   n,
 		Header: make(map[string][]string),
 		Writer: func(w io.Writer) (int64, error) {
-			nb, err := io.Copy(w, r)
-			if err != nil {
-				return nb, err
+			rb, cerr := io.Copy(w, br)
+			if cerr != nil {
+				return rb, cerr
 			}
-			return nb, nil
+			_, cerr = br.Seek(0, io.SeekStart)
+			return rb, cerr
+		},
+	}
+}
+
+// fileFromReadSeeker returns a File pointer from a given io.ReadSeeker
+func fileFromReadSeeker(n string, r io.ReadSeeker) *File {
+	return &File{
+		Name:   n,
+		Header: make(map[string][]string),
+		Writer: func(w io.Writer) (int64, error) {
+			rb, err := io.Copy(w, r)
+			if err != nil {
+				return rb, err
+			}
+			_, err = r.Seek(0, io.SeekStart)
+			return rb, err
 		},
 	}
 }
