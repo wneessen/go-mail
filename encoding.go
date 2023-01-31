@@ -141,6 +141,8 @@ const (
 	TypeTextPlain      ContentType = "text/plain"
 	TypeTextHTML       ContentType = "text/html"
 	TypeAppOctetStream ContentType = "application/octet-stream"
+	TypePGPSignature   ContentType = "application/pgp-signature"
+	TypePGPEncrypted   ContentType = "application/pgp-encrypted"
 )
 
 // List of MIMETypes

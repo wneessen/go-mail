@@ -100,11 +100,25 @@ func (mw *msgWriter) writeMsg(m *Msg) {
 		mw.startMP(MIMEAlternative, m.boundary)
 		mw.writeString(DoubleNewLine)
 	}
+	if m.hasPGPType() {
+		switch m.pgptype {
+		case PGPEncrypt:
+			mw.startMP(`encrypted; protocol="application/pgp-encrypted"`, m.boundary)
+		case PGPSignature:
+			mw.startMP(`signed; protocol="application/pgp-signature";`, m.boundary)
+		}
+		mw.writeString(DoubleNewLine)
+		mw.startMP("mixed", m.boundary)
+	}
 
 	for _, p := range m.parts {
 		if !p.del {
 			mw.writePart(p, m.charset)
 		}
+	}
+
+	if m.hasPGPType() {
+		mw.stopMP()
 	}
 	if m.hasAlt() {
 		mw.stopMP()
@@ -172,17 +186,30 @@ func (mw *msgWriter) stopMP() {
 // addFiles adds the attachments/embeds file content to the mail body
 func (mw *msgWriter) addFiles(fl []*File, a bool) {
 	for _, f := range fl {
+		e := EncodingB64
 		if _, ok := f.getHeader(HeaderContentType); !ok {
 			mt := mime.TypeByExtension(filepath.Ext(f.Name))
 			if mt == "" {
 				mt = "application/octet-stream"
+			}
+			if f.ContentType != "" {
+				mt = string(f.ContentType)
 			}
 			f.setHeader(HeaderContentType, fmt.Sprintf(`%s; name="%s"`, mt,
 				mw.en.Encode(mw.c.String(), f.Name)))
 		}
 
 		if _, ok := f.getHeader(HeaderContentTransferEnc); !ok {
-			f.setHeader(HeaderContentTransferEnc, string(EncodingB64))
+			if f.Enc != "" {
+				e = f.Enc
+			}
+			f.setHeader(HeaderContentTransferEnc, string(e))
+		}
+
+		if f.Desc != "" {
+			if _, ok := f.getHeader(HeaderContentDescription); !ok {
+				f.setHeader(HeaderContentDescription, f.Desc)
+			}
 		}
 
 		if _, ok := f.getHeader(HeaderContentDisposition); !ok {
@@ -208,7 +235,7 @@ func (mw *msgWriter) addFiles(fl []*File, a bool) {
 		if mw.d > 0 {
 			mw.newPart(f.Header)
 		}
-		mw.writeBody(f.Writer, EncodingB64)
+		mw.writeBody(f.Writer, e)
 	}
 }
 
@@ -228,6 +255,9 @@ func (mw *msgWriter) writePart(p *Part, cs Charset) {
 	}
 	if mw.d > 0 {
 		mh := textproto.MIMEHeader{}
+		if p.desc != "" {
+			mh.Add(string(HeaderContentDescription), p.desc)
+		}
 		mh.Add(string(HeaderContentType), ct)
 		mh.Add(string(HeaderContentTransferEnc), cte)
 		mw.newPart(mh)

@@ -41,6 +41,18 @@ const (
 	errParseMailAddr = "failed to parse mail address %q: %w"
 )
 
+const (
+	// NoPGP indicates that a message should not be treated as PGP encrypted
+	// or signed and is the default value for a message
+	NoPGP PGPType = iota
+	// PGPEncrypt indicates that a message should be treated as PGP encrypted
+	// This works closely together with the corresponding go-mail-middleware
+	PGPEncrypt
+	// PGPSignature indicates that a message should be treated as PGP signed
+	// This works closely together with the corresponding go-mail-middleware
+	PGPSignature
+)
+
 // MiddlewareType is the type description of the Middleware and needs to be returned
 // in the Middleware interface by the Type method
 type MiddlewareType string
@@ -50,6 +62,10 @@ type Middleware interface {
 	Handle(*Msg) *Msg
 	Type() MiddlewareType
 }
+
+// PGPType is a type alias for a int representing a type of PGP encryption
+// or signature
+type PGPType int
 
 // Msg is the mail message struct
 type Msg struct {
@@ -77,10 +93,8 @@ type Msg struct {
 	// genHeader is a slice of strings that the different generic mail Header fields
 	genHeader map[Header][]string
 
-	// preformHeader is a slice of strings that the different generic mail Header fields
-	// of which content is already preformated and will not be affected by the automatic line
-	// breaks
-	preformHeader map[Header]string
+	// middlewares is the list of middlewares to apply to the Msg before sending in FIFO order
+	middlewares []Middleware
 
 	// mimever represents the MIME version
 	mimever MIMEVersion
@@ -88,8 +102,14 @@ type Msg struct {
 	// parts represent the different parts of the Msg
 	parts []*Part
 
-	// middlewares is the list of middlewares to apply to the Msg before sending in FIFO order
-	middlewares []Middleware
+	// preformHeader is a slice of strings that the different generic mail Header fields
+	// of which content is already preformated and will not be affected by the automatic line
+	// breaks
+	preformHeader map[Header]string
+
+	// pgptype indicates that a message has a PGPType assigned and therefore will generate
+	// different Content-Type settings in the msgWriter
+	pgptype PGPType
 
 	// sendError holds the SendError in case a Msg could not be delivered during the Client.Send operation
 	sendError error
@@ -161,6 +181,13 @@ func WithMiddleware(mw Middleware) MsgOption {
 	}
 }
 
+// WithPGPType overrides the default PGPType of the message
+func WithPGPType(t PGPType) MsgOption {
+	return func(m *Msg) {
+		m.pgptype = t
+	}
+}
+
 // SetCharset sets the encoding charset of the Msg
 func (m *Msg) SetCharset(c Charset) {
 	m.charset = c
@@ -180,6 +207,11 @@ func (m *Msg) SetBoundary(b string) {
 // SetMIMEVersion sets the MIME version of the Msg
 func (m *Msg) SetMIMEVersion(mv MIMEVersion) {
 	m.mimever = mv
+}
+
+// SetPGPType sets the PGPType of the Msg
+func (m *Msg) SetPGPType(t PGPType) {
+	m.pgptype = t
 }
 
 // Encoding returns the currently set encoding of the Msg
@@ -1005,17 +1037,22 @@ func (m *Msg) hasAlt() bool {
 			c++
 		}
 	}
-	return c > 1
+	return c > 1 && m.pgptype == 0
 }
 
 // hasMixed returns true if the Msg has mixed parts
 func (m *Msg) hasMixed() bool {
-	return (len(m.parts) > 0 && len(m.attachments) > 0) || len(m.attachments) > 1
+	return m.pgptype == 0 && ((len(m.parts) > 0 && len(m.attachments) > 0) || len(m.attachments) > 1)
 }
 
 // hasRelated returns true if the Msg has related parts
 func (m *Msg) hasRelated() bool {
-	return (len(m.parts) > 0 && len(m.embeds) > 0) || len(m.embeds) > 1
+	return m.pgptype == 0 && ((len(m.parts) > 0 && len(m.embeds) > 0) || len(m.embeds) > 1)
+}
+
+// hasPGPType returns true if the Msg should be treated as PGP encoded message
+func (m *Msg) hasPGPType() bool {
+	return m.pgptype > 0
 }
 
 // newPart returns a new Part for the Msg
