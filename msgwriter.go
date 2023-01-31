@@ -108,7 +108,6 @@ func (mw *msgWriter) writeMsg(m *Msg) {
 			mw.startMP(`signed; protocol="application/pgp-signature";`, m.boundary)
 		}
 		mw.writeString(DoubleNewLine)
-		mw.startMP("mixed", m.boundary)
 	}
 
 	for _, p := range m.parts {
@@ -117,9 +116,6 @@ func (mw *msgWriter) writeMsg(m *Msg) {
 		}
 	}
 
-	if m.hasPGPType() {
-		mw.stopMP()
-	}
 	if m.hasAlt() {
 		mw.stopMP()
 	}
