@@ -714,6 +714,11 @@ func (m *Msg) AttachFile(n string, o ...FileOption) {
 }
 
 // AttachReader adds an attachment File via io.Reader to the Msg
+//
+// CAVEAT: For AttachReader to work it has to read all data of the io.Reader
+// into memory first, so it can seek through it. Using larger amounts of
+// data on the io.Reader should be avoided. For such, it is recommeded to
+// either use AttachFile or AttachReadSeeker instead
 func (m *Msg) AttachReader(n string, r io.Reader, o ...FileOption) {
 	f := fileFromReader(n, r)
 	m.attachments = m.appendFile(m.attachments, f, o...)
@@ -768,6 +773,11 @@ func (m *Msg) EmbedFile(n string, o ...FileOption) {
 }
 
 // EmbedReader adds an embedded File from an io.Reader to the Msg
+//
+// CAVEAT: For AttachReader to work it has to read all data of the io.Reader
+// into memory first, so it can seek through it. Using larger amounts of
+// data on the io.Reader should be avoided. For such, it is recommeded to
+// either use AttachFile or AttachReadSeeker instead
 func (m *Msg) EmbedReader(n string, r io.Reader, o ...FileOption) {
 	f := fileFromReader(n, r)
 	m.embeds = m.appendFile(m.embeds, f, o...)
