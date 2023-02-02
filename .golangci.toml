@@ -3,7 +3,7 @@
 ## SPDX-License-Identifier: MIT
 
 [run]
-go = "1.16"
+go = "1.20"
 tests = true
 
 [linters]
