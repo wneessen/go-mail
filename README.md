@@ -61,6 +61,15 @@ standard in a MUA.
 We aim for good GoDoc documenation in our library which gives you a full API reference. We also provide a more in-depth documentation website at 
 [go-mail.dev](https://go-mail.dev)
 
+## Compatibility
+
+Go is growing fast and providing great features with every new release. While we'd love to adopt the latest Go features
+into our code, we realize that not everybody using this package can run the latest Go versions. Therefore we try to
+implement alternative solutions for Go versions that do not support these features. Yet, the work needed to maintain
+the separate versions is not to be underestimated. For that reason, we might retire that code at some point. 
+We guarantee that go-mail will always support the last four releases of Go. With two Go releases per year, this gives
+the user a timeframe of two years to update to the next or even the latest version of Go.
+
 ## Support
 We have a support and general discussion channel on Discord. Find us at: [#go-mail](https://discord.gg/dbfQyC4s)
 
