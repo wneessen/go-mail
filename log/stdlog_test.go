@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: Copyright (c) 2023 The go-mail Authors
+//
+// SPDX-License-Identifier: MIT
+
 package log
 
 import (
