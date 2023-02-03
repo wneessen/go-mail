@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/wneessen/go-mail/log"
 	"github.com/wneessen/go-mail/smtp"
 )
 
@@ -133,6 +134,9 @@ type Client struct {
 
 	// dl enables the debug logging on the SMTP client
 	dl bool
+
+	// l is a logger that implements the log.Logger interface
+	l log.Logger
 }
 
 // Option returns a function that can be used for grouping Client options
@@ -248,6 +252,14 @@ func WithSSL() Option {
 func WithDebugLog() Option {
 	return func(c *Client) error {
 		c.dl = true
+		return nil
+	}
+}
+
+// WithLogger overrides the default log.Logger that is used for debug logging
+func WithLogger(l log.Logger) Option {
+	return func(c *Client) error {
+		c.l = l
 		return nil
 	}
 }
@@ -417,6 +429,14 @@ func (c *Client) SetDebugLog(v bool) {
 	}
 }
 
+// SetLogger tells the Client which log.Logger to use
+func (c *Client) SetLogger(l log.Logger) {
+	c.l = l
+	if c.sc != nil {
+		c.sc.SetLogger(l)
+	}
+}
+
 // SetTLSConfig overrides the current *tls.Config with the given *tls.Config value
 func (c *Client) SetTLSConfig(co *tls.Config) error {
 	if co == nil {
@@ -480,6 +500,9 @@ func (c *Client) DialWithContext(pc context.Context) error {
 	c.sc, err = smtp.NewClient(c.co, c.host)
 	if err != nil {
 		return err
+	}
+	if c.l != nil {
+		c.sc.SetLogger(c.l)
 	}
 	if c.dl {
 		c.sc.SetDebugLog(true)

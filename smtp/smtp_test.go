@@ -23,10 +23,13 @@ import (
 	"io"
 	"net"
 	"net/textproto"
+	"os"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/wneessen/go-mail/log"
 )
 
 type authTest struct {
@@ -659,6 +662,37 @@ func TestClient_SetDebugLog(t *testing.T) {
 	if !c.debug {
 		t.Errorf("Expected DebugLog flag to be true but received false")
 	}
+}
+
+// TestClient_SetLogger tests the Client method with the Client.SetLogger method
+// to provide a custom logger
+func TestClient_SetLogger(t *testing.T) {
+	server := strings.Join(strings.Split(newClientServer, "\n"), "\r\n")
+
+	var cmdbuf strings.Builder
+	bcmdbuf := bufio.NewWriter(&cmdbuf)
+	out := func() string {
+		if err := bcmdbuf.Flush(); err != nil {
+			t.Errorf("failed to flush: %s", err)
+		}
+		return cmdbuf.String()
+	}
+	var fake faker
+	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
+	c, err := NewClient(fake, "fake.host")
+	if err != nil {
+		t.Fatalf("NewClient: %v\n(after %v)", err, out())
+	}
+	defer func() {
+		_ = c.Close()
+	}()
+	c.SetLogger(log.New(os.Stderr, log.LevelDebug))
+	if c.logger == nil {
+		t.Errorf("Expected Logger to be set but received nil")
+	}
+	c.logger.Debugf("test")
+	c.SetLogger(nil)
+	c.logger.Debugf("test")
 }
 
 var newClientServer = `220 hello world

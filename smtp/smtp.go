@@ -26,11 +26,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/textproto"
 	"os"
 	"strings"
+
+	"github.com/wneessen/go-mail/log"
 )
 
 // A Client represents a client connection to an SMTP server.
@@ -52,8 +53,8 @@ type Client struct {
 	didHello   bool   // whether we've said HELO/EHLO
 	helloError error  // the error from the hello
 	// debug logging
-	debug  bool        // debug logging is enabled
-	logger *log.Logger // logger will be used for debug logging
+	debug  bool       // debug logging is enabled
+	logger log.Logger // logger will be used for debug logging
 	// DSN support
 	dsnmrtype string // dsnmrtype defines the mail return option in case DSN is enabled
 	dsnrntype string // dsnrntype defines the recipient notify option in case DSN is enabled
@@ -441,10 +442,21 @@ func (c *Client) Quit() error {
 func (c *Client) SetDebugLog(v bool) {
 	c.debug = v
 	if v {
-		c.logger = log.New(os.Stderr, "[DEBUG] ", log.LstdFlags|log.Lmsgprefix)
+		if c.logger == nil {
+			c.logger = log.New(os.Stderr, log.LevelDebug)
+		}
 		return
 	}
 	c.logger = nil
+}
+
+// SetLogger overrides the default log.Stdlog for the debug logging with a logger that
+// satisfies the log.Logger interface
+func (c *Client) SetLogger(l log.Logger) {
+	if l == nil {
+		return
+	}
+	c.logger = l
 }
 
 // SetDSNMailReturnOption sets the DSN mail return option for the Mail method
@@ -465,7 +477,7 @@ func (c *Client) debugLog(d logDirection, f string, a ...interface{}) {
 			p = "C --> S:"
 		}
 		fs := fmt.Sprintf("%s %s", p, f)
-		c.logger.Printf(fs, a...)
+		c.logger.Debugf(fs, a...)
 	}
 }
 
