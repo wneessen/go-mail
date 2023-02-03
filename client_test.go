@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/wneessen/go-mail/log"
 	"github.com/wneessen/go-mail/smtp"
 )
 
@@ -106,6 +107,7 @@ func TestNewClientWithOptions(t *testing.T) {
 		{"WithDSNRcptNotifyType() wrong option", WithDSNRcptNotifyType("FAIL"), true},
 		{"WithoutNoop()", WithoutNoop(), false},
 		{"WithDebugLog()", WithDebugLog(), false},
+		{"WithLogger()", WithLogger(log.New(os.Stderr, log.LevelDebug)), false},
 
 		{
 			"WithDSNRcptNotifyType() NEVER combination",
@@ -562,6 +564,31 @@ func TestClient_DialWithContext_Debug(t *testing.T) {
 		t.Errorf("DialWithContext didn't fail but no SMTP client found.")
 	}
 	c.SetDebugLog(true)
+	if err := c.Close(); err != nil {
+		t.Errorf("failed to close connection: %s", err)
+	}
+}
+
+// TestClient_DialWithContext_Debug_custom tests the DialWithContext method for the Client
+// object with debug logging enabled and a custom logger on the SMTP client
+func TestClient_DialWithContext_Debug_custom(t *testing.T) {
+	c, err := getTestClient(true)
+	if err != nil {
+		t.Skipf("failed to create test client: %s. Skipping tests", err)
+	}
+	ctx := context.Background()
+	if err := c.DialWithContext(ctx); err != nil {
+		t.Errorf("failed to dial with context: %s", err)
+		return
+	}
+	if c.co == nil {
+		t.Errorf("DialWithContext didn't fail but no connection found.")
+	}
+	if c.sc == nil {
+		t.Errorf("DialWithContext didn't fail but no SMTP client found.")
+	}
+	c.SetDebugLog(true)
+	c.SetLogger(log.New(os.Stderr, log.LevelDebug))
 	if err := c.Close(); err != nil {
 		t.Errorf("failed to close connection: %s", err)
 	}
