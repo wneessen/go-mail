@@ -819,9 +819,6 @@ func TestHello(t *testing.T) {
 		if err != nil {
 			t.Fatalf("NewClient: %v", err)
 		}
-		defer func() {
-			_ = c.Close()
-		}()
 		c.localName = "customhost"
 		err = nil
 
@@ -879,6 +876,7 @@ func TestHello(t *testing.T) {
 		if client != actualcmds {
 			t.Errorf("Got:\n%s\nExpected:\n%s", actualcmds, client)
 		}
+		_ = c.Close()
 	}
 }
 
@@ -1255,13 +1253,11 @@ func serverHandle(c net.Conn, t *testing.T) error {
 			}
 			config := &tls.Config{Certificates: []tls.Certificate{keypair}}
 			c = tls.Server(c, config)
-			defer func() {
-				_ = c.Close()
-			}()
 			return serverHandleTLS(c, t)
 		default:
 			t.Fatalf("unrecognized command: %q", s.Text())
 		}
+		_ = c.Close()
 	}
 	return s.Err()
 }
