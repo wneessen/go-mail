@@ -179,6 +179,36 @@ func TestNewMsgWithBoundary(t *testing.T) {
 	}
 }
 
+// TestNewMsg_WithPGPType tests WithPGPType option
+func TestNewMsg_WithPGPType(t *testing.T) {
+	tests := []struct {
+		name string
+		pt   PGPType
+		hpt  bool
+	}{
+		{"Not a PGP encoded message", NoPGP, false},
+		{"PGP encrypted message", PGPEncrypt, true},
+		{"PGP signed message", PGPSignature, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := NewMsg(WithPGPType(tt.pt))
+			if m.pgptype != tt.pt {
+				t.Errorf("WithPGPType() failed. Expected: %d, got: %d", tt.pt, m.pgptype)
+			}
+			m.pgptype = 99
+			m.SetPGPType(tt.pt)
+			if m.pgptype != tt.pt {
+				t.Errorf("SetPGPType() failed. Expected: %d, got: %d", tt.pt, m.pgptype)
+			}
+			if m.hasPGPType() != tt.hpt {
+				t.Errorf("hasPGPType() failed. Expected %t, got: %t", tt.hpt, m.hasPGPType())
+			}
+		})
+	}
+}
+
 type uppercaseMiddleware struct{}
 
 func (mw uppercaseMiddleware) Handle(m *Msg) *Msg {
