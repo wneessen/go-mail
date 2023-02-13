@@ -45,6 +45,36 @@ func TestPartEncoding(t *testing.T) {
 	}
 }
 
+// TestPart_WithPartContentDescription tests the WithPartContentDescription method
+func TestPart_WithPartContentDescription(t *testing.T) {
+	tests := []struct {
+		name string
+		desc string
+	}{
+		{"Part description: test", "test"},
+		{"Part description: empty", ""},
+	}
+	for _, tt := range tests {
+		m := NewMsg()
+		t.Run(tt.name, func(t *testing.T) {
+			part := m.newPart(TypeTextPlain, WithPartContentDescription(tt.desc), nil)
+			if part == nil {
+				t.Errorf("newPart() WithPartContentDescription() failed: no part returned")
+				return
+			}
+			if part.desc != tt.desc {
+				t.Errorf("newPart() WithPartContentDescription() failed: expected: %s, got: %s", tt.desc,
+					part.desc)
+			}
+			part.desc = ""
+			part.SetDescription(tt.desc)
+			if part.desc != tt.desc {
+				t.Errorf("newPart() SetDescription() failed: expected: %s, got: %s", tt.desc, part.desc)
+			}
+		})
+	}
+}
+
 // TestPartContentType tests Part.SetContentType
 func TestPart_SetContentType(t *testing.T) {
 	tests := []struct {
@@ -238,6 +268,31 @@ func TestPart_SetContent(t *testing.T) {
 	}
 	if string(nc) != strings.ToUpper(c) {
 		t.Errorf("SetContent failed. Expected: %s, got: %s", strings.ToUpper(c), string(nc))
+	}
+}
+
+// TestPart_SetDescription tests Part.SetDescription
+func TestPart_SetDescription(t *testing.T) {
+	c := "This is a test"
+	d := "test-description"
+	m := NewMsg()
+	m.SetBodyString(TypeTextPlain, c)
+	pl, err := getPartList(m)
+	if err != nil {
+		t.Errorf("failed: %s", err)
+		return
+	}
+	pd := pl[0].GetDescription()
+	if pd != "" {
+		t.Errorf("Part.GetDescription failed. Expected empty description but got: %s", pd)
+	}
+	pl[0].SetDescription(d)
+	if pl[0].desc != d {
+		t.Errorf("Part.SetDescription failed. Expected desc to be: %s, got: %s", d, pd)
+	}
+	pd = pl[0].GetDescription()
+	if pd != d {
+		t.Errorf("Part.GetDescription failed. Expected: %s, got: %s", d, pd)
 	}
 }
 

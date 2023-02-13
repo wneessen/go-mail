@@ -104,3 +104,32 @@ func TestMsgWriter_writeMsg(t *testing.T) {
 		t.Errorf(em)
 	}
 }
+
+// TestMsgWriter_writeMsg_PGP tests the writeMsg method of the msgWriter with PGP types set
+func TestMsgWriter_writeMsg_PGP(t *testing.T) {
+	m := NewMsg(WithPGPType(PGPEncrypt))
+	_ = m.From(`"Toni Tester" <test@example.com>`)
+	_ = m.To(`"Toni Receiver" <receiver@example.com>`)
+	m.Subject("This is a subject")
+	m.SetBodyString(TypeTextPlain, "This is the body")
+	buf := bytes.Buffer{}
+	mw := &msgWriter{w: &buf, c: CharsetUTF8, en: mime.QEncoding}
+	mw.writeMsg(m)
+	ms := buf.String()
+	if !strings.Contains(ms, `encrypted; protocol="application/pgp-encrypted"`) {
+		t.Errorf("writeMsg failed. Expected PGP encoding header but didn't find it in message output")
+	}
+
+	m = NewMsg(WithPGPType(PGPSignature))
+	_ = m.From(`"Toni Tester" <test@example.com>`)
+	_ = m.To(`"Toni Receiver" <receiver@example.com>`)
+	m.Subject("This is a subject")
+	m.SetBodyString(TypeTextPlain, "This is the body")
+	buf = bytes.Buffer{}
+	mw = &msgWriter{w: &buf, c: CharsetUTF8, en: mime.QEncoding}
+	mw.writeMsg(m)
+	ms = buf.String()
+	if !strings.Contains(ms, `signed; protocol="application/pgp-signature"`) {
+		t.Errorf("writeMsg failed. Expected PGP encoding header but didn't find it in message output")
+	}
+}

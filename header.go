@@ -15,6 +15,9 @@ type Importance int
 
 // List of common generic header field names
 const (
+	// HeaderContentDescription is the "Content-Description" header
+	HeaderContentDescription Header = "Content-Description"
+
 	// HeaderContentDisposition is the "Content-Disposition" header
 	HeaderContentDisposition Header = "Content-Disposition"
 

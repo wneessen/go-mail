@@ -15,6 +15,7 @@ type PartOption func(*Part)
 // Part is a part of the Msg
 type Part struct {
 	ctype ContentType
+	desc  string
 	enc   Encoding
 	del   bool
 	w     func(io.Writer) (int64, error)
@@ -44,6 +45,11 @@ func (p *Part) GetWriteFunc() func(io.Writer) (int64, error) {
 	return p.w
 }
 
+// GetDescription returns the currently set Content-Description of the Part
+func (p *Part) GetDescription() string {
+	return p.desc
+}
+
 // SetContent overrides the content of the Part with the given string
 func (p *Part) SetContent(c string) {
 	buf := bytes.NewBufferString(c)
@@ -58,6 +64,11 @@ func (p *Part) SetContentType(c ContentType) {
 // SetEncoding creates a new mime.WordEncoder based on the encoding setting of the message
 func (p *Part) SetEncoding(e Encoding) {
 	p.enc = e
+}
+
+// SetDescription overrides the Content-Description of the Part
+func (p *Part) SetDescription(d string) {
+	p.desc = d
 }
 
 // SetWriteFunc overrides the WriteFunc of the Part
@@ -75,5 +86,12 @@ func (p *Part) Delete() {
 func WithPartEncoding(e Encoding) PartOption {
 	return func(p *Part) {
 		p.enc = e
+	}
+}
+
+// WithPartContentDescription overrides the default Part Content-Description
+func WithPartContentDescription(d string) PartOption {
+	return func(p *Part) {
+		p.desc = d
 	}
 }
