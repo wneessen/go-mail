@@ -398,7 +398,7 @@ func (m *Msg) BccIgnoreInvalid(b ...string) {
 
 // ReplyTo takes and validates a given mail address and sets it as "Reply-To" addrHeader of the Msg
 func (m *Msg) ReplyTo(r string) error {
-	rt, err := mail.ParseAddress(m.encodeString(r))
+	rt, err := mail.ParseAddress(r)
 	if err != nil {
 		return fmt.Errorf("failed to parse reply-to address: %w", err)
 	}
