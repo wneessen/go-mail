@@ -86,6 +86,10 @@ func NewClient(conn net.Conn, host string) (*Client, error) {
 	_, _, err := text.ReadResponse(220)
 	if err != nil {
 		if cerr := text.Close(); cerr != nil {
+			// Since we are being Go <1.20 compatible, we can't combine errorrs and
+			// duplicate %w vers are not suppored. Therefore let's ignore this linting
+			// error for now
+			// nolint:errorlint
 			return nil, fmt.Errorf("%w, %s", err, cerr)
 		}
 		return nil, err
@@ -204,6 +208,10 @@ func (c *Client) Auth(a Auth) error {
 	mech, resp, err := a.Start(&ServerInfo{c.serverName, c.tls, c.auth})
 	if err != nil {
 		if qerr := c.Quit(); qerr != nil {
+			// Since we are being Go <1.20 compatible, we can't combine errorrs and
+			// duplicate %w vers are not suppored. Therefore let's ignore this linting
+			// error for now
+			// nolint:errorlint
 			return fmt.Errorf("%w, %s", err, qerr)
 		}
 		return err
