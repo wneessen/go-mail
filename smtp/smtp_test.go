@@ -808,13 +808,7 @@ func TestHello(t *testing.T) {
 		t.Fatalf("Hello server and client size mismatch")
 	}
 
-	for i := 0; i < len(helloServer); i++ {
-		server := strings.Join(strings.Split(baseHelloServer+helloServer[i], "\n"), "\r\n")
-		client := strings.Join(strings.Split(baseHelloClient+helloClient[i], "\n"), "\r\n")
-		var cmdbuf strings.Builder
-		bcmdbuf := bufio.NewWriter(&cmdbuf)
-		var fake faker
-		fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
+	tf := func(fake faker, i int) error {
 		c, err := NewClient(fake, "fake.host")
 		if err != nil {
 			t.Fatalf("NewClient: %v", err)
@@ -870,6 +864,20 @@ func TestHello(t *testing.T) {
 
 		if err != nil {
 			t.Errorf("Command %d failed: %v", i, err)
+		}
+		return nil
+	}
+
+	for i := 0; i < len(helloServer); i++ {
+		server := strings.Join(strings.Split(baseHelloServer+helloServer[i], "\n"), "\r\n")
+		client := strings.Join(strings.Split(baseHelloClient+helloClient[i], "\n"), "\r\n")
+		var cmdbuf strings.Builder
+		bcmdbuf := bufio.NewWriter(&cmdbuf)
+		var fake faker
+		fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
+
+		if err := tf(fake, i); err != nil {
+			t.Error(err)
 		}
 
 		if err := bcmdbuf.Flush(); err != nil {
@@ -1241,6 +1249,13 @@ func serverHandle(c net.Conn, t *testing.T) error {
 	send := smtpSender{c}.send
 	send("220 127.0.0.1 ESMTP service ready")
 	s := bufio.NewScanner(c)
+	tf := func(config *tls.Config) error {
+		c = tls.Server(c, config)
+		defer func() {
+			_ = c.Close()
+		}()
+		return serverHandleTLS(c, t)
+	}
 	for s.Scan() {
 		switch s.Text() {
 		case "EHLO localhost":
@@ -1254,11 +1269,7 @@ func serverHandle(c net.Conn, t *testing.T) error {
 				return err
 			}
 			config := &tls.Config{Certificates: []tls.Certificate{keypair}}
-			c = tls.Server(c, config)
-			defer func() {
-				_ = c.Close()
-			}()
-			return serverHandleTLS(c, t)
+			return tf(config)
 		default:
 			t.Fatalf("unrecognized command: %q", s.Text())
 		}
