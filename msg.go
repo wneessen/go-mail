@@ -67,6 +67,23 @@ type Middleware interface {
 // or signature
 type PGPType int
 
+type defMsg struct {
+	// addrHeader is a slice of strings that the different mail AddrHeader fields
+	addrHeader map[AddrHeader][]*mail.Address
+
+	// attachments represent the different attachment File of the Msg
+	attachments []*File
+
+	// embeds represent the different embedded File of the Msg
+	embeds []*File
+
+	// genHeader is a slice of strings that the different generic mail Header fields
+	genHeader map[Header][]string
+
+	// parts represent the different parts of the Msg
+	parts []*Part
+}
+
 // Msg is the mail message struct
 type Msg struct {
 	// addrHeader is a slice of strings that the different mail AddrHeader fields
@@ -113,6 +130,9 @@ type Msg struct {
 
 	// sendError holds the SendError in case a Msg could not be delivered during the Client.Send operation
 	sendError error
+
+	// stores the defaults options of the mail
+	def *defMsg
 }
 
 // SendmailPath is the default system path to the sendmail binary
@@ -138,6 +158,14 @@ func NewMsg(o ...MsgOption) *Msg {
 			continue
 		}
 		co(m)
+	}
+
+	m.def = &defMsg{
+		addrHeader:  m.addrHeader,
+		attachments: m.attachments,
+		embeds:      m.embeds,
+		genHeader:   m.genHeader,
+		parts:       m.parts,
 	}
 
 	// Set the matcing mime.WordEncoder for the Msg
@@ -857,11 +885,11 @@ func (m *Msg) EmbedFromEmbedFS(n string, f *embed.FS, o ...FileOption) error {
 // Reset resets all headers, body parts and attachments/embeds of the Msg
 // It leaves already set encodings, charsets, boundaries, etc. as is
 func (m *Msg) Reset() {
-	m.addrHeader = make(map[AddrHeader][]*mail.Address)
-	m.attachments = nil
-	m.embeds = nil
-	m.genHeader = make(map[Header][]string)
-	m.parts = nil
+	m.addrHeader = m.def.addrHeader
+	m.attachments = m.def.attachments
+	m.embeds = m.def.embeds
+	m.genHeader = m.def.genHeader
+	m.parts = m.def.parts
 }
 
 // ApplyMiddlewares apply the list of middlewares to a Msg
