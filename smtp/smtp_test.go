@@ -1149,7 +1149,7 @@ QUIT
 `
 
 func TestTLSClient(t *testing.T) {
-	if runtime.GOOS == "freebsd" || runtime.GOOS == "js" {
+	if runtime.GOOS == "freebsd" || runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
 		SkipFlaky(t, 19229)
 	}
 	ln := newLocalListener(t)
