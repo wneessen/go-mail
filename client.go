@@ -76,6 +76,9 @@ const (
 	DSNRcptNotifyDelay DSNRcptNotifyOption = "DELAY"
 )
 
+// DialContextFunc is a type to define custom DialContext function.
+type DialContextFunc func(ctx context.Context, network, address string) (net.Conn, error)
+
 // Client is the SMTP client struct
 type Client struct {
 	// co is the net.Conn that the smtp.Client is based on
@@ -137,6 +140,9 @@ type Client struct {
 
 	// l is a logger that implements the log.Logger interface
 	l log.Logger
+
+	// dialContextFunc is a custom DialContext function to dial target SMTP server
+	dialContextFunc DialContextFunc
 }
 
 // Option returns a function that can be used for grouping Client options
@@ -401,6 +407,14 @@ func WithoutNoop() Option {
 	}
 }
 
+// WithDialContextFunc overrides the default DialContext for connecting SMTP server
+func WithDialContextFunc(f DialContextFunc) Option {
+	return func(c *Client) error {
+		c.dialContextFunc = f
+		return nil
+	}
+}
+
 // TLSPolicy returns the currently set TLSPolicy as string
 func (c *Client) TLSPolicy() string {
 	return c.tlspolicy.String()
@@ -481,18 +495,18 @@ func (c *Client) DialWithContext(pc context.Context) error {
 	ctx, cfn := context.WithDeadline(pc, time.Now().Add(c.cto))
 	defer cfn()
 
-	nd := net.Dialer{}
+	if c.dialContextFunc == nil {
+		nd := net.Dialer{}
+		c.dialContextFunc = nd.DialContext
 
+		if c.ssl {
+			td := tls.Dialer{NetDialer: &nd, Config: c.tlsconfig}
+			c.enc = true
+			c.dialContextFunc = td.DialContext
+		}
+	}
 	var err error
-	if c.ssl {
-		td := tls.Dialer{NetDialer: &nd, Config: c.tlsconfig}
-
-		c.enc = true
-		c.co, err = td.DialContext(ctx, "tcp", c.ServerAddr())
-	}
-	if !c.ssl {
-		c.co, err = nd.DialContext(ctx, "tcp", c.ServerAddr())
-	}
+	c.co, err = c.dialContextFunc(ctx, "tcp", c.ServerAddr())
 	if err != nil {
 		return err
 	}

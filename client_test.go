@@ -9,6 +9,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -108,6 +109,9 @@ func TestNewClientWithOptions(t *testing.T) {
 		{"WithoutNoop()", WithoutNoop(), false},
 		{"WithDebugLog()", WithDebugLog(), false},
 		{"WithLogger()", WithLogger(log.New(os.Stderr, log.LevelDebug)), false},
+		{"WithDialContextFunc()", WithDialContextFunc(func(ctx context.Context, network, address string) (net.Conn, error) {
+			return nil, nil
+		}), false},
 
 		{
 			"WithDSNRcptNotifyType() NEVER combination",
@@ -700,6 +704,31 @@ func TestClient_DialWithContextOptions(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestClient_DialWithContextOptionDialContextFunc tests the DialWithContext method plus
+// use dialContextFunc option for the Client object
+func TestClient_DialWithContextOptionDialContextFunc(t *testing.T) {
+	c, err := getTestConnection(true)
+	if err != nil {
+		t.Skipf("failed to create test client: %s. Skipping tests", err)
+	}
+
+	called := false
+	c.dialContextFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
+		called = true
+		return (&net.Dialer{}).DialContext(ctx, network, address)
+	}
+
+	ctx := context.Background()
+	if err := c.DialWithContext(ctx); err != nil {
+		t.Errorf("failed to dial with context: %s", err)
+		return
+	}
+
+	if called == false {
+		t.Errorf("dialContextFunc supposed to be called but not called")
 	}
 }
 
