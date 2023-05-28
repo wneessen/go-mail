@@ -69,6 +69,20 @@ var authTests = []authTest{
 		[]string{"", "user 287eb355114cf5c471c26a875f1ca4ae"},
 		[]bool{false, false},
 	},
+	{
+		XOAuth2Auth("username", "token", XOAuth2VariantGoogle),
+		[]string{""},
+		"XOAUTH2",
+		[]string{"user=username\x01auth=Bearer token\x01\x01", ""},
+		[]bool{false},
+	},
+	{
+		XOAuth2Auth("username", "token", XOAuth2VariantMicrosoft),
+		[]string{""},
+		"XOAUTH2",
+		[]string{"", "user=username\x01auth=Bearer token\x01\x01"},
+		[]bool{false},
+	},
 }
 
 func TestAuth(t *testing.T) {
@@ -190,6 +204,37 @@ func TestAuthLogin(t *testing.T) {
 		if got != tt.err {
 			t.Errorf("%d. got error = %q; want %q", i, got, tt.err)
 		}
+	}
+}
+
+func TestXOAuth2VariantToString(t *testing.T) {
+	v := XOAuth2VariantGoogle
+	if val := v.String(); val != "Google" {
+		t.Errorf("got %q; want Google", val)
+	}
+	v = XOAuth2VariantMicrosoft
+	if val := v.String(); val != "Microsoft" {
+		t.Errorf("got %q; want Microsoft", val)
+	}
+	v = XOAuth2Variant(-1)
+	if val := v.String(); val != "Unknown XOAuth2 variant" {
+		t.Errorf("got %q; want Unknown XOAuth2 variant", val)
+	}
+}
+
+func TestXOAuth2UnsupportendVariant(t *testing.T) {
+	serverInfo := &ServerInfo{
+		Name: "servename",
+		Auth: []string{"XOAUTH2"},
+	}
+	auth := &xoauth2Auth{"username", "token", XOAuth2Variant(-1)}
+	_, _, err := auth.Start(serverInfo)
+	if err == nil {
+		t.Error("expected error for auth.Start() using an unsupported variant")
+	}
+	_, err = auth.Next(nil, true)
+	if err == nil {
+		t.Error("expected error for auth.Next() using an unsupported variant")
 	}
 }
 

@@ -101,6 +101,7 @@ func TestNewClientWithOptions(t *testing.T) {
 		},
 		{"WithUsername()", WithUsername("test"), false},
 		{"WithPassword()", WithPassword("test"), false},
+		{"WithXOAuth2Variant()", WithXOAuth2Variant(smtp.XOAuth2VariantMicrosoft), false},
 		{"WithDSN()", WithDSN(), false},
 		{"WithDSNMailReturnType()", WithDSNMailReturnType(DSNMailReturnFull), false},
 		{"WithDSNMailReturnType() wrong option", WithDSNMailReturnType("FAIL"), true},
@@ -385,6 +386,57 @@ func TestSetSMTPAuth(t *testing.T) {
 			c.SetSMTPAuth(tt.value)
 			if string(c.satype) != tt.want {
 				t.Errorf("failed to set SMTP auth type. Expected %s, got: %s", tt.want, string(c.satype))
+			}
+		})
+	}
+}
+
+// TestWithXOAuth2Variant tests the WithXOAuth2Variant() option for the NewClient() method
+func TestWithXOAuth2Variant(t *testing.T) {
+	tests := []struct {
+		name  string
+		value smtp.XOAuth2Variant
+		want  string
+		sf    bool
+	}{
+		{"Variant: Google", smtp.XOAuth2VariantGoogle, smtp.XOAuth2VariantGoogle.String(), false},
+		{"Variant: Microsoft", smtp.XOAuth2VariantMicrosoft, smtp.XOAuth2VariantMicrosoft.String(), false},
+		{"Variant: Invalid", -1, "Unknown XOAuth2 variant", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := NewClient(DefaultHost, WithXOAuth2Variant(tt.value))
+			if err != nil && !tt.sf {
+				t.Errorf("failed to create new client: %s", err)
+				return
+			}
+			if c.xoauthVariant.String() != tt.want {
+				t.Errorf("failed to set XOAuth2 variant. Want: %s, got: %s", tt.want, c.xoauthVariant)
+			}
+		})
+	}
+}
+
+// TestSetXOAuth2Variant tests the SetXOAuth2Variant method for the Client object
+func TestSetXOAuth2Variant(t *testing.T) {
+	tests := []struct {
+		name  string
+		value smtp.XOAuth2Variant
+		want  smtp.XOAuth2Variant
+	}{
+		{"Google", smtp.XOAuth2VariantGoogle, smtp.XOAuth2VariantGoogle},
+		{"Google", smtp.XOAuth2VariantMicrosoft, smtp.XOAuth2VariantMicrosoft},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := NewClient(DefaultHost)
+			if err != nil {
+				t.Errorf("failed to create new client: %s", err)
+				return
+			}
+			c.SetXOAuth2Variant(tt.value)
+			if c.xoauthVariant != tt.want {
+				t.Errorf("failed to set XOAuthVariant. Expected %s, got: %s", tt.want, c.xoauthVariant)
 			}
 		})
 	}

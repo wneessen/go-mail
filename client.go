@@ -32,6 +32,9 @@ const (
 	// DefaultTLSMinVersion is the minimum TLS version required for the connection
 	// Nowadays TLS1.2 should be the sane default
 	DefaultTLSMinVersion = tls.VersionTLS12
+
+	// DefaultXOAuth2Variant is the default XOAuth2 variant
+	DefaultXOAuth2Variant = smtp.XOAuth2VariantGoogle
 )
 
 // DSNMailReturnOption is a type to define which MAIL RET option is used when a DSN
@@ -135,6 +138,9 @@ type Client struct {
 	// user is the SMTP AUTH username
 	user string
 
+	// xoauthVariant sets the client to use the provided XOAuth2Variant variant
+	xoauthVariant smtp.XOAuth2Variant
+
 	// dl enables the debug logging on the SMTP client
 	dl bool
 
@@ -193,11 +199,12 @@ var (
 // NewClient returns a new Session client object
 func NewClient(h string, o ...Option) (*Client, error) {
 	c := &Client{
-		cto:       DefaultTimeout,
-		host:      h,
-		port:      DefaultPort,
-		tlsconfig: &tls.Config{ServerName: h, MinVersion: DefaultTLSMinVersion},
-		tlspolicy: DefaultTLSPolicy,
+		cto:           DefaultTimeout,
+		host:          h,
+		port:          DefaultPort,
+		tlsconfig:     &tls.Config{ServerName: h, MinVersion: DefaultTLSMinVersion},
+		tlspolicy:     DefaultTLSPolicy,
+		xoauthVariant: DefaultXOAuth2Variant,
 	}
 
 	// Set default HELO/EHLO hostname
@@ -415,6 +422,14 @@ func WithDialContextFunc(f DialContextFunc) Option {
 	}
 }
 
+// WithXOAuth2Variant tells the client to use the provided XOAuth2 variant
+func WithXOAuth2Variant(v smtp.XOAuth2Variant) Option {
+	return func(c *Client) error {
+		c.xoauthVariant = v
+		return nil
+	}
+}
+
 // TLSPolicy returns the currently set TLSPolicy as string
 func (c *Client) TLSPolicy() string {
 	return c.tlspolicy.String()
@@ -428,6 +443,11 @@ func (c *Client) ServerAddr() string {
 // SetTLSPolicy overrides the current TLSPolicy with the given TLSPolicy value
 func (c *Client) SetTLSPolicy(p TLSPolicy) {
 	c.tlspolicy = p
+}
+
+// SetXOAuth2Variant overrides the current XOAuth2Variant with the given XOAuth2Variant value
+func (c *Client) SetXOAuth2Variant(v smtp.XOAuth2Variant) {
+	c.xoauthVariant = v
 }
 
 // SetSSL tells the Client wether to use SSL or not
@@ -658,6 +678,11 @@ func (c *Client) auth() error {
 				return ErrCramMD5AuthNotSupported
 			}
 			c.sa = smtp.CRAMMD5Auth(c.user, c.pass)
+		case SMTPAuthXOAUTH2:
+			if !strings.Contains(sat, string(SMTPAuthXOAUTH2)) {
+				return ErrXOauth2AuthNotSupported
+			}
+			c.sa = smtp.XOAuth2Auth(c.user, c.pass, c.xoauthVariant)
 		default:
 			return fmt.Errorf("unsupported SMTP AUTH type %q", c.satype)
 		}

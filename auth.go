@@ -19,6 +19,9 @@ const (
 
 	// SMTPAuthCramMD5 is the "CRAM-MD5" SASL authentication mechanism as described in RFC 4954
 	SMTPAuthCramMD5 SMTPAuthType = "CRAM-MD5"
+
+	// SMTPAuthXOAUTH2 is the "XOAUTH2" SASL authentication mechanism
+	SMTPAuthXOAUTH2 SMTPAuthType = "XOAUTH2"
 )
 
 // SMTP Auth related static errors
@@ -31,4 +34,7 @@ var (
 
 	// ErrCramMD5AuthNotSupported should be used if the target server does not support the "CRAM-MD5" schema
 	ErrCramMD5AuthNotSupported = errors.New("server does not support SMTP AUTH type: CRAM-MD5")
+
+	// ErrXOauth2AuthNotSupported should be used if the target server does not support the "XOAUTH2" schema
+	ErrXOauth2AuthNotSupported = errors.New("server does not support SMTP AUTH type: XOAUTH2")
 )
