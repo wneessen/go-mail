@@ -20,7 +20,8 @@ const (
 	// SMTPAuthCramMD5 is the "CRAM-MD5" SASL authentication mechanism as described in RFC 4954
 	SMTPAuthCramMD5 SMTPAuthType = "CRAM-MD5"
 
-	// SMTPAuthXOAUTH2 is the "XOAUTH2" SASL authentication mechanism
+	// SMTPAuthXOAUTH2 is the "XOAUTH2" SASL authentication mechanism.
+	// https://developers.google.com/gmail/imap/xoauth2-protocol
 	SMTPAuthXOAUTH2 SMTPAuthType = "XOAUTH2"
 )
 
