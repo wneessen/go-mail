@@ -234,8 +234,10 @@ func (c *Client) Auth(a Auth) error {
 			resp, err = a.Next(msg, code == 334)
 		}
 		if err != nil {
-			// abort the AUTH
-			_, _, _ = c.cmd(501, "*")
+			if mech != "XOAUTH2" {
+				// abort the AUTH. Not required for XOAUTH2
+				_, _, _ = c.cmd(501, "*")
+			}
 			_ = c.Quit()
 			break
 		}
