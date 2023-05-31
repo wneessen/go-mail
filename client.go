@@ -658,6 +658,11 @@ func (c *Client) auth() error {
 				return ErrCramMD5AuthNotSupported
 			}
 			c.sa = smtp.CRAMMD5Auth(c.user, c.pass)
+		case SMTPAuthXOAUTH2:
+			if !strings.Contains(sat, string(SMTPAuthXOAUTH2)) {
+				return ErrXOauth2AuthNotSupported
+			}
+			c.sa = smtp.XOAuth2Auth(c.user, c.pass)
 		default:
 			return fmt.Errorf("unsupported SMTP AUTH type %q", c.satype)
 		}

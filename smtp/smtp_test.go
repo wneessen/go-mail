@@ -69,6 +69,13 @@ var authTests = []authTest{
 		[]string{"", "user 287eb355114cf5c471c26a875f1ca4ae"},
 		[]bool{false, false},
 	},
+	{
+		XOAuth2Auth("username", "token"),
+		[]string{""},
+		"XOAUTH2",
+		[]string{"user=username\x01auth=Bearer token\x01\x01", ""},
+		[]bool{false},
+	},
 }
 
 func TestAuth(t *testing.T) {
@@ -190,6 +197,86 @@ func TestAuthLogin(t *testing.T) {
 		if got != tt.err {
 			t.Errorf("%d. got error = %q; want %q", i, got, tt.err)
 		}
+	}
+}
+
+func TestXOAuthOK(t *testing.T) {
+	server := []string{
+		"220 Fake server ready ESMTP",
+		"250-fake.server",
+		"250-AUTH XOAUTH2",
+		"250 8BITMIME",
+		"235 2.7.0 Accepted",
+	}
+	var wrote strings.Builder
+	var fake faker
+	fake.ReadWriter = struct {
+		io.Reader
+		io.Writer
+	}{
+		strings.NewReader(strings.Join(server, "\r\n")),
+		&wrote,
+	}
+
+	c, err := NewClient(fake, "fake.host")
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	defer c.Close()
+
+	auth := XOAuth2Auth("user", "token")
+	err = c.Auth(auth)
+	if err != nil {
+		t.Fatalf("XOAuth2 error: %v", err)
+	}
+	// the Next method returns a nil response. It must not be sent.
+	// The client request must end with the authentication.
+	if !strings.HasSuffix(wrote.String(), "AUTH XOAUTH2 dXNlcj11c2VyAWF1dGg9QmVhcmVyIHRva2VuAQE=\r\n") {
+		t.Fatalf("got %q; want AUTH XOAUTH2 dXNlcj11c2VyAWF1dGg9QmVhcmVyIHRva2VuAQE=\r\n", wrote.String())
+	}
+}
+
+func TestXOAuth2Error(t *testing.T) {
+	serverResp := []string{
+		"220 Fake server ready ESMTP",
+		"250-fake.server",
+		"250-AUTH XOAUTH2",
+		"250 8BITMIME",
+		"334 eyJzdGF0dXMiOiI0MDAiLCJzY2hlbWVzIjoiQmVhcmVyIiwic2NvcGUiOiJodHRwczovL21haWwuZ29vZ2xlLmNvbS8ifQ==",
+		"535 5.7.8 Username and Password not accepted",
+		"221 2.0.0 closing connection",
+	}
+	var wrote strings.Builder
+	var fake faker
+	fake.ReadWriter = struct {
+		io.Reader
+		io.Writer
+	}{
+		strings.NewReader(strings.Join(serverResp, "\r\n")),
+		&wrote,
+	}
+
+	c, err := NewClient(fake, "fake.host")
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	defer c.Close()
+
+	auth := XOAuth2Auth("user", "token")
+	err = c.Auth(auth)
+	if err == nil {
+		t.Fatal("expected auth error, got nil")
+	}
+	client := strings.Split(wrote.String(), "\r\n")
+	if len(client) != 5 {
+		t.Fatalf("unexpected number of client requests got %d; want 5", len(client))
+	}
+	if client[1] != "AUTH XOAUTH2 dXNlcj11c2VyAWF1dGg9QmVhcmVyIHRva2VuAQE=" {
+		t.Fatalf("got %q; want AUTH XOAUTH2 dXNlcj11c2VyAWF1dGg9QmVhcmVyIHRva2VuAQE=", client[1])
+	}
+	// the Next method returns an empty response. It must be sent
+	if client[2] != "" {
+		t.Fatalf("got %q; want empty response", client[2])
 	}
 }
 
