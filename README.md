@@ -38,7 +38,7 @@ Some of the features of this library:
 * [X] Explicit SSL/TLS support
 * [X] Implicit StartTLS support with different policies
 * [X] Makes use of contexts for a better control flow and timeout/cancelation handling
-* [X] SMTP Auth support (LOGIN, PLAIN, CRAM-MD)
+* [X] SMTP Auth support (LOGIN, PLAIN, CRAM-MD, XOAUTH2)
 * [X] RFC5322 compliant mail address validation
 * [X] Support for common mail header field generation (Message-ID, Date, Bulk-Precedence, Priority, etc.)
 * [X] Reusing the same SMTP connection to send multiple mails
@@ -53,13 +53,14 @@ Some of the features of this library:
 * [X] Output to file support which allows storing mail messages as e. g. `.eml` files to disk to open them in a MUA
 * [X] Debug logging of SMTP traffic
 * [X] Custom error types for delivery errors
+* [X] Custom dial-context functions for more control over the connection (proxing, DNS hooking, etc.)
 
 go-mail works like a programatic email client and provides lots of methods and functionalities you would consider
 standard in a MUA.
 
 ## Documentation
-We aim for good GoDoc documenation in our library which gives you a full API reference. We also provide a more in-depth documentation website at 
-[go-mail.dev](https://go-mail.dev)
+We aim for good GoDoc documenation in our library which gives you a full API reference. We also provide a more in-depth 
+documentation website at [go-mail.dev](https://go-mail.dev)
 
 ## Compatibility
 
@@ -91,8 +92,11 @@ go-mail was initially authored and developed by [Winni Neessen](https://github.c
 
 Big thanks to the following people, for contributing to the go-mail project (either in form of code or by 
 reviewing code, writing documenation or helping to translate the website):
+* [Christian Vette](https://github.com/cvette)
 * [Dhia Gharsallaoui](https://github.com/dhia-gharsallaoui)
 * [inliquid](https://github.com/inliquid) 
 * [iwittkau](https://github.com/iwittkau)
 * [James Elliott](https://github.com/james-d-elliott)
 * [Maria Letta](https://github.com/MariaLetta) (designed the go-mail logo)
+* [Nicola Murino](https://github.com/drakkan)
+* [sters](https://github.com/sters)

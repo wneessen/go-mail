@@ -12,7 +12,7 @@ import (
 type Reader struct {
 	buf []byte // contents are the bytes buf[off : len(buf)]
 	off int    // read at &buf[off], write at &buf[len(buf)]
-	err error  // initalization error
+	err error  // initialization error
 }
 
 // Error returns an error if the Reader err field is not nil

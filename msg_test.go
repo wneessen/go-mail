@@ -2706,7 +2706,7 @@ func TestMsg_AttachEmbedReader_consecutive(t *testing.T) {
 	ts2 := "Another test string"
 	m := NewMsg()
 	m.AttachReader("attachment.txt", bytes.NewBufferString(ts1))
-	m.EmbedReader("embeded.txt", bytes.NewBufferString(ts2))
+	m.EmbedReader("embedded.txt", bytes.NewBufferString(ts2))
 	obuf1 := &bytes.Buffer{}
 	obuf2 := &bytes.Buffer{}
 	_, err := m.WriteTo(obuf1)
@@ -2724,7 +2724,7 @@ func TestMsg_AttachEmbedReader_consecutive(t *testing.T) {
 		t.Errorf("Expected file attachment string not found in second output buffer")
 	}
 	if !strings.Contains(obuf1.String(), "QW5vdGhlciB0ZXN0IHN0cmluZw==") {
-		t.Errorf("Expected embeded file string not found in first output buffer")
+		t.Errorf("Expected embedded file string not found in first output buffer")
 	}
 	if !strings.Contains(obuf2.String(), "QW5vdGhlciB0ZXN0IHN0cmluZw==") {
 		t.Errorf("Expected embded file string not found in second output buffer")
@@ -2739,7 +2739,7 @@ func TestMsg_AttachEmbedReadSeeker_consecutive(t *testing.T) {
 	ts2 := []byte("Another test string")
 	m := NewMsg()
 	m.AttachReadSeeker("attachment.txt", bytes.NewReader(ts1))
-	m.EmbedReadSeeker("embeded.txt", bytes.NewReader(ts2))
+	m.EmbedReadSeeker("embedded.txt", bytes.NewReader(ts2))
 	obuf1 := &bytes.Buffer{}
 	obuf2 := &bytes.Buffer{}
 	_, err := m.WriteTo(obuf1)
@@ -2757,7 +2757,7 @@ func TestMsg_AttachEmbedReadSeeker_consecutive(t *testing.T) {
 		t.Errorf("Expected file attachment string not found in second output buffer")
 	}
 	if !strings.Contains(obuf1.String(), "QW5vdGhlciB0ZXN0IHN0cmluZw==") {
-		t.Errorf("Expected embeded file string not found in first output buffer")
+		t.Errorf("Expected embedded file string not found in first output buffer")
 	}
 	if !strings.Contains(obuf2.String(), "QW5vdGhlciB0ZXN0IHN0cmluZw==") {
 		t.Errorf("Expected embded file string not found in second output buffer")
