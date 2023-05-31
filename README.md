@@ -9,7 +9,8 @@ SPDX-License-Identifier: CC0-1.0
 [![GoDoc](https://godoc.org/github.com/wneessen/go-mail?status.svg)](https://pkg.go.dev/github.com/wneessen/go-mail)
 [![codecov](https://codecov.io/gh/wneessen/go-mail/branch/main/graph/badge.svg?token=37KWJV03MR)](https://codecov.io/gh/wneessen/go-mail) 
 [![Go Report Card](https://goreportcard.com/badge/github.com/wneessen/go-mail)](https://goreportcard.com/report/github.com/wneessen/go-mail) 
-[![Mentioned in Awesome Go](https://awesome.re/mentioned-badge-flat.svg)](https://github.com/avelino/awesome-go) [![#go-mail on Discord](https://img.shields.io/badge/Discord-%23gomail-blue.svg)](https://discord.gg/dbfQyC4s) 
+[![Mentioned in Awesome Go](https://awesome.re/mentioned-badge-flat.svg)](https://github.com/avelino/awesome-go)
+[![#go-mail on Discord](https://img.shields.io/badge/Discord-%23go%E2%80%93mail-blue.svg)](https://discord.gg/ysQXkaccXk) 
 [![REUSE status](https://api.reuse.software/badge/github.com/wneessen/go-mail)](https://api.reuse.software/info/github.com/wneessen/go-mail) 
 <a href="https://ko-fi.com/D1D24V9IX"><img src="https://uploads-ssl.webflow.com/5c14e387dab576fe667689cf/5cbed8a4ae2b88347c06c923_BuyMeACoffee_blue.png" height="20" alt="buy ma a coffee"></a>
 
@@ -38,7 +39,7 @@ Some of the features of this library:
 * [X] Explicit SSL/TLS support
 * [X] Implicit StartTLS support with different policies
 * [X] Makes use of contexts for a better control flow and timeout/cancelation handling
-* [X] SMTP Auth support (LOGIN, PLAIN, CRAM-MD)
+* [X] SMTP Auth support (LOGIN, PLAIN, CRAM-MD, XOAUTH2)
 * [X] RFC5322 compliant mail address validation
 * [X] Support for common mail header field generation (Message-ID, Date, Bulk-Precedence, Priority, etc.)
 * [X] Reusing the same SMTP connection to send multiple mails
@@ -53,13 +54,14 @@ Some of the features of this library:
 * [X] Output to file support which allows storing mail messages as e. g. `.eml` files to disk to open them in a MUA
 * [X] Debug logging of SMTP traffic
 * [X] Custom error types for delivery errors
+* [X] Custom dial-context functions for more control over the connection (proxing, DNS hooking, etc.)
 
 go-mail works like a programatic email client and provides lots of methods and functionalities you would consider
 standard in a MUA.
 
 ## Documentation
-We aim for good GoDoc documenation in our library which gives you a full API reference. We also provide a more in-depth documentation website at 
-[go-mail.dev](https://go-mail.dev)
+We aim for good GoDoc documenation in our library which gives you a full API reference. We also provide a more in-depth 
+documentation website at [go-mail.dev](https://go-mail.dev)
 
 ## Compatibility
 
@@ -91,8 +93,11 @@ go-mail was initially authored and developed by [Winni Neessen](https://github.c
 
 Big thanks to the following people, for contributing to the go-mail project (either in form of code or by 
 reviewing code, writing documenation or helping to translate the website):
+* [Christian Vette](https://github.com/cvette)
 * [Dhia Gharsallaoui](https://github.com/dhia-gharsallaoui)
 * [inliquid](https://github.com/inliquid) 
 * [iwittkau](https://github.com/iwittkau)
 * [James Elliott](https://github.com/james-d-elliott)
 * [Maria Letta](https://github.com/MariaLetta) (designed the go-mail logo)
+* [Nicola Murino](https://github.com/drakkan)
+* [sters](https://github.com/sters)

@@ -49,6 +49,7 @@ examples/*
 .idea/**/dynamic.xml
 .idea/**/uiDesigner.xml
 .idea/**/dbnavigator.xml
+.idea/sonarlint.xml
 
 # Gradle
 .idea/**/gradle.xml

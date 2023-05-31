@@ -40,7 +40,7 @@ func (a *cramMD5Auth) Start(_ *ServerInfo) (string, []byte, error) {
 }
 
 // Backport of: https://github.com/golang/go/commit/58158e990f272774e615c9abd8662bf0198c29aa#diff-772fc9f5d0c86f26e35158fb3e7a71a4967d18b4ec23a5dbb60781ab0babf426
-// to guarantee backwards compatiblity with Go 1.16-1.18
+// to guarantee backwards compatibility with Go 1.16-1.18
 func (a *cramMD5Auth) Next(fromServer []byte, more bool) ([]byte, error) {
 	if more {
 		d := hmac.New(md5.New, []byte(a.secret))

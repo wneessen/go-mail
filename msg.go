@@ -749,7 +749,7 @@ func (m *Msg) AttachFile(n string, o ...FileOption) {
 //
 // CAVEAT: For AttachReader to work it has to read all data of the io.Reader
 // into memory first, so it can seek through it. Using larger amounts of
-// data on the io.Reader should be avoided. For such, it is recommeded to
+// data on the io.Reader should be avoided. For such, it is recommended to
 // either use AttachFile or AttachReadSeeker instead
 func (m *Msg) AttachReader(n string, r io.Reader, o ...FileOption) {
 	f := fileFromReader(n, r)
@@ -808,7 +808,7 @@ func (m *Msg) EmbedFile(n string, o ...FileOption) {
 //
 // CAVEAT: For EmbedReader to work it has to read all data of the io.Reader
 // into memory first, so it can seek through it. Using larger amounts of
-// data on the io.Reader should be avoided. For such, it is recommeded to
+// data on the io.Reader should be avoided. For such, it is recommended to
 // either use EmbedFile or EmbedReadSeeker instead
 func (m *Msg) EmbedReader(n string, r io.Reader, o ...FileOption) {
 	f := fileFromReader(n, r)
