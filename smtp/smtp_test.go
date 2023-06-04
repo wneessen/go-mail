@@ -200,7 +200,7 @@ func TestAuthLogin(t *testing.T) {
 	}
 }
 
-func TestXOAuthOK(t *testing.T) {
+func TestXOAuth2OK(t *testing.T) {
 	server := []string{
 		"220 Fake server ready ESMTP",
 		"250-fake.server",
