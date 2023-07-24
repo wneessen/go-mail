@@ -33,6 +33,10 @@ const (
 	LevelDebug
 )
 
+// CallDepth is the call depth value for the log.Logger's Output method
+// This defaults to 2 and is only here for better readablity of the code
+const CallDepth = 2
+
 // New returns a new Stdlog type that satisfies the Logger interface
 func New(o io.Writer, l Level) *Stdlog {
 	lf := log.Lmsgprefix | log.LstdFlags
@@ -48,27 +52,27 @@ func New(o io.Writer, l Level) *Stdlog {
 // Debugf performs a Printf() on the debug logger
 func (l *Stdlog) Debugf(f string, v ...interface{}) {
 	if l.l >= LevelDebug {
-		_ = l.debug.Output(2, fmt.Sprintf(f, v...))
+		_ = l.debug.Output(CallDepth, fmt.Sprintf(f, v...))
 	}
 }
 
 // Infof performs a Printf() on the info logger
 func (l *Stdlog) Infof(f string, v ...interface{}) {
 	if l.l >= LevelInfo {
-		_ = l.info.Output(2, fmt.Sprintf(f, v...))
+		_ = l.info.Output(CallDepth, fmt.Sprintf(f, v...))
 	}
 }
 
 // Warnf performs a Printf() on the warn logger
 func (l *Stdlog) Warnf(f string, v ...interface{}) {
 	if l.l >= LevelWarn {
-		_ = l.warn.Output(2, fmt.Sprintf(f, v...))
+		_ = l.warn.Output(CallDepth, fmt.Sprintf(f, v...))
 	}
 }
 
 // Errorf performs a Printf() on the error logger
 func (l *Stdlog) Errorf(f string, v ...interface{}) {
 	if l.l >= LevelError {
-		_ = l.err.Output(2, fmt.Sprintf(f, v...))
+		_ = l.err.Output(CallDepth, fmt.Sprintf(f, v...))
 	}
 }
