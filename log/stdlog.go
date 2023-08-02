@@ -50,29 +50,42 @@ func New(o io.Writer, l Level) *Stdlog {
 }
 
 // Debugf performs a Printf() on the debug logger
-func (l *Stdlog) Debugf(f string, v ...interface{}) {
+func (l *Stdlog) Debugf(lo Log) {
 	if l.l >= LevelDebug {
-		_ = l.debug.Output(CallDepth, fmt.Sprintf(f, v...))
+		f := fmt.Sprintf("%s %s", lo.directionPrefix(), lo.Format)
+		_ = l.debug.Output(CallDepth, fmt.Sprintf(f, lo.Messages...))
 	}
 }
 
 // Infof performs a Printf() on the info logger
-func (l *Stdlog) Infof(f string, v ...interface{}) {
+func (l *Stdlog) Infof(lo Log) {
 	if l.l >= LevelInfo {
-		_ = l.info.Output(CallDepth, fmt.Sprintf(f, v...))
+		f := fmt.Sprintf("%s %s", lo.directionPrefix(), lo.Format)
+		_ = l.info.Output(CallDepth, fmt.Sprintf(f, lo.Messages...))
 	}
 }
 
 // Warnf performs a Printf() on the warn logger
-func (l *Stdlog) Warnf(f string, v ...interface{}) {
+func (l *Stdlog) Warnf(lo Log) {
 	if l.l >= LevelWarn {
-		_ = l.warn.Output(CallDepth, fmt.Sprintf(f, v...))
+		f := fmt.Sprintf("%s %s", lo.directionPrefix(), lo.Format)
+		_ = l.warn.Output(CallDepth, fmt.Sprintf(f, lo.Messages...))
 	}
 }
 
 // Errorf performs a Printf() on the error logger
-func (l *Stdlog) Errorf(f string, v ...interface{}) {
+func (l *Stdlog) Errorf(lo Log) {
 	if l.l >= LevelError {
-		_ = l.err.Output(CallDepth, fmt.Sprintf(f, v...))
+		f := fmt.Sprintf("%s %s", lo.directionPrefix(), lo.Format)
+		_ = l.err.Output(CallDepth, fmt.Sprintf(f, lo.Messages...))
 	}
+}
+
+// directionPrefix will return a prefix string depending on the Direction.
+func (l Log) directionPrefix() string {
+	p := "C <-- S:"
+	if l.Direction == DirClientToServer {
+		p = "C --> S:"
+	}
+	return p
 }

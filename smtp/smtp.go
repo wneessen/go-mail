@@ -60,14 +60,6 @@ type Client struct {
 	dsnrntype string // dsnrntype defines the recipient notify option in case DSN is enabled
 }
 
-// logDirection is a type wrapper for the direction a debug log message goes
-type logDirection int
-
-const (
-	logIn  logDirection = iota // Incoming log message
-	logOut                     // Outgoing log message
-)
-
 // Dial returns a new Client connected to an SMTP server at addr.
 // The addr must include a port, as in "mail.example.com:smtp".
 func Dial(addr string) (*Client, error) {
@@ -135,7 +127,7 @@ func (c *Client) Hello(localName string) error {
 
 // cmd is a convenience function that sends a command and returns the response
 func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, string, error) {
-	c.debugLog(logOut, format, args...)
+	c.debugLog(log.DirClientToServer, format, args...)
 	id, err := c.Text.Cmd(format, args...)
 	if err != nil {
 		return 0, "", err
@@ -143,7 +135,7 @@ func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, s
 	c.Text.StartResponse(id)
 	defer c.Text.EndResponse(id)
 	code, msg, err := c.Text.ReadResponse(expectCode)
-	c.debugLog(logIn, "%d %s", code, msg)
+	c.debugLog(log.DirServerToClient, "%d %s", code, msg)
 	return code, msg, err
 }
 
@@ -479,15 +471,11 @@ func (c *Client) SetDSNRcptNotifyOption(d string) {
 	c.dsnrntype = d
 }
 
-// debugLog checks if the debug flag is set and if so logs the provided message to StdErr
-func (c *Client) debugLog(d logDirection, f string, a ...interface{}) {
+// debugLog checks if the debug flag is set and if so logs the provided message to
+// the log.Logger interface
+func (c *Client) debugLog(d log.Direction, f string, a ...interface{}) {
 	if c.debug {
-		p := "C <-- S:"
-		if d == logOut {
-			p = "C --> S:"
-		}
-		fs := fmt.Sprintf("%s %s", p, f)
-		c.logger.Debugf(fs, a...)
+		c.logger.Debugf(log.Log{Direction: d, Format: f, Messages: a})
 	}
 }
 
