@@ -230,8 +230,12 @@ func (mw *msgWriter) addFiles(fl []*File, a bool) {
 		}
 		if mw.d > 0 {
 			mw.newPart(f.Header)
+			mw.err = fmt.Errorf("ERROR")
 		}
-		mw.writeBody(f.Writer, e)
+
+		if mw.err == nil {
+			mw.writeBody(f.Writer, e)
+		}
 	}
 }
 
