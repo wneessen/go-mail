@@ -10,9 +10,6 @@ import (
 	"log"
 )
 
-// Level is a type wrapper for an int
-type Level int
-
 // Stdlog is the default logger that satisfies the Logger interface
 type Stdlog struct {
 	l     Level
@@ -21,17 +18,6 @@ type Stdlog struct {
 	info  *log.Logger
 	debug *log.Logger
 }
-
-const (
-	// LevelError is the Level for only ERROR log messages
-	LevelError Level = iota
-	// LevelWarn is the Level for WARN and higher log messages
-	LevelWarn
-	// LevelInfo is the Level for INFO and higher log messages
-	LevelInfo
-	// LevelDebug is the Level for DEBUG and higher log messages
-	LevelDebug
-)
 
 // CallDepth is the call depth value for the log.Logger's Output method
 // This defaults to 2 and is only here for better readablity of the code
@@ -79,13 +65,4 @@ func (l *Stdlog) Errorf(lo Log) {
 		f := fmt.Sprintf("%s %s", lo.directionPrefix(), lo.Format)
 		_ = l.err.Output(CallDepth, fmt.Sprintf(f, lo.Messages...))
 	}
-}
-
-// directionPrefix will return a prefix string depending on the Direction.
-func (l Log) directionPrefix() string {
-	p := "C <-- S:"
-	if l.Direction == DirClientToServer {
-		p = "C --> S:"
-	}
-	return p
 }

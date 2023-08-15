@@ -10,8 +10,22 @@ const (
 	DirClientToServer                  // Client to Server communication
 )
 
+const (
+	// LevelError is the Level for only ERROR log messages
+	LevelError Level = iota
+	// LevelWarn is the Level for WARN and higher log messages
+	LevelWarn
+	// LevelInfo is the Level for INFO and higher log messages
+	LevelInfo
+	// LevelDebug is the Level for DEBUG and higher log messages
+	LevelDebug
+)
+
 // Direction is a type wrapper for the direction a debug log message goes
 type Direction int
+
+// Level is a type wrapper for an int
+type Level int
 
 // Log represents a log message type that holds a log Direction, a Format string
 // and a slice of Messages
@@ -27,4 +41,13 @@ type Logger interface {
 	Infof(Log)
 	Warnf(Log)
 	Errorf(Log)
+}
+
+// directionPrefix will return a prefix string depending on the Direction.
+func (l Log) directionPrefix() string {
+	p := "C <-- S:"
+	if l.Direction == DirClientToServer {
+		p = "C --> S:"
+	}
+	return p
 }
