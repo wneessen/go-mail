@@ -21,6 +21,15 @@ const (
 	LevelDebug
 )
 
+const (
+	// DirString is a constant used for the structured logger
+	DirString = "direction"
+	// DirFromString is a constant used for the structured logger
+	DirFromString = "from"
+	// DirToString is a constant used for the structured logger
+	DirToString = "to"
+)
+
 // Direction is a type wrapper for the direction a debug log message goes
 type Direction int
 
@@ -48,6 +57,24 @@ func (l Log) directionPrefix() string {
 	p := "C <-- S:"
 	if l.Direction == DirClientToServer {
 		p = "C --> S:"
+	}
+	return p
+}
+
+// directionFrom will return a from direction string depending on the Direction.
+func (l Log) directionFrom() string {
+	p := "server"
+	if l.Direction == DirClientToServer {
+		p = "client"
+	}
+	return p
+}
+
+// directionTo will return a to direction string depending on the Direction.
+func (l Log) directionTo() string {
+	p := "client"
+	if l.Direction == DirClientToServer {
+		p = "server"
 	}
 	return p
 }
