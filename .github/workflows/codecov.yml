@@ -42,14 +42,14 @@ jobs:
       with:
         go-version: ${{ matrix.go }}
     - name: Install sendmail
-      if: matrix.go == '1.20' && matrix.os == 'ubuntu-latest'
+      if: matrix.go == '1.21' && matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get -y install sendmail; which sendmail
     - name: Run Tests
       run: |
         go test -v -race --coverprofile=coverage.coverprofile --covermode=atomic ./...
     - name: Upload coverage to Codecov
-      if: success() && matrix.go == '1.20' && matrix.os == 'ubuntu-latest'
+      if: success() && matrix.go == '1.21' && matrix.os == 'ubuntu-latest'
       uses: codecov/codecov-action@v2
       with:
         token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
