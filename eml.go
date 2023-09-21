@@ -3,6 +3,7 @@ package mail
 import (
 	"errors"
 	"fmt"
+	"mime"
 	nm "net/mail"
 	"os"
 )
@@ -22,9 +23,18 @@ func EMLToMsg(fp string) (*Msg, error) {
 		return m, fmt.Errorf("failed to parse EML file: %w", err)
 	}
 
+	// Parse the header
 	if err := parseEMLHeaders(&pm.Header, m); err != nil {
 		return m, fmt.Errorf("failed to parse EML headers: %w", err)
 	}
+
+	// Extract the transfer encoding of the body
+	x, y, err := mime.ParseMediaType(pm.Header.Get(HeaderContentType.String()))
+	if err != nil {
+		return m, fmt.Errorf("failed to extract content type: %w", err)
+	}
+	fmt.Printf("Encoding: %s\n", x)
+	fmt.Printf("Params: %+v\n", y)
 
 	return m, nil
 }
@@ -45,6 +55,8 @@ func readEML(fp string) (*nm.Message, error) {
 	return pm, nil
 }
 
+// parseEMLHeaders will check the EML headers for the most common headers and set the
+// according settings in the Msg
 func parseEMLHeaders(mh *nm.Header, m *Msg) error {
 	commonHeaders := []Header{
 		HeaderContentType, HeaderImportance, HeaderInReplyTo, HeaderListUnsubscribe,
@@ -59,17 +71,24 @@ func parseEMLHeaders(mh *nm.Header, m *Msg) error {
 			return fmt.Errorf(`failed to parse "From:" header: %w`, err)
 		}
 	}
-	if v := mh.Get(HeaderTo.String()); v != "" {
-		var als []string
-		pal, err := nm.ParseAddressList(v)
-		if err != nil {
-			return fmt.Errorf(`failed to parse address list: %w`, err)
-		}
-		for _, a := range pal {
-			als = append(als, a.String())
-		}
-		if err := m.To(als...); err != nil {
-			return fmt.Errorf(`failed to parse "To:" header: %w`, err)
+	ahl := map[AddrHeader]func(...string) error{
+		HeaderTo:  m.To,
+		HeaderCc:  m.Cc,
+		HeaderBcc: m.Bcc,
+	}
+	for h, f := range ahl {
+		if v := mh.Get(h.String()); v != "" {
+			var als []string
+			pal, err := nm.ParseAddressList(v)
+			if err != nil {
+				return fmt.Errorf(`failed to parse address list: %w`, err)
+			}
+			for _, a := range pal {
+				als = append(als, a.String())
+			}
+			if err := f(als...); err != nil {
+				return fmt.Errorf(`failed to parse "To:" header: %w`, err)
+			}
 		}
 	}
 
@@ -93,5 +112,6 @@ func parseEMLHeaders(mh *nm.Header, m *Msg) error {
 			m.SetGenHeader(h, v)
 		}
 	}
+
 	return nil
 }
