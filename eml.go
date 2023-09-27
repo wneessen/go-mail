@@ -29,12 +29,15 @@ func EMLToMsg(fp string) (*Msg, error) {
 	}
 
 	// Extract the transfer encoding of the body
-	x, y, err := mime.ParseMediaType(pm.Header.Get(HeaderContentType.String()))
+	mi, ar, err := mime.ParseMediaType(pm.Header.Get(HeaderContentType.String()))
 	if err != nil {
 		return m, fmt.Errorf("failed to extract content type: %w", err)
 	}
-	fmt.Printf("Encoding: %s\n", x)
-	fmt.Printf("Params: %+v\n", y)
+	if v, ok := ar["charset"]; ok {
+		m.SetCharset(Charset(v))
+	}
+	fmt.Printf("Encoding: %s\n", mi)
+	fmt.Printf("Params: %+v\n", ar)
 
 	return m, nil
 }
