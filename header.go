@@ -73,6 +73,9 @@ const (
 	// HeaderPriority represents the "Priority" field
 	HeaderPriority Header = "Priority"
 
+	// HeaderReferences is the "References" header field
+	HeaderReferences Header = "References"
+
 	// HeaderReplyTo is the "Reply-To" header field
 	HeaderReplyTo Header = "Reply-To"
 

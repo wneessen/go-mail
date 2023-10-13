@@ -152,12 +152,17 @@ const (
 	MIMERelated     MIMEType = "related"
 )
 
-// String is a standard method to convert an Encoding into a printable format
-func (e Encoding) String() string {
-	return string(e)
-}
-
 // String is a standard method to convert an Charset into a printable format
 func (c Charset) String() string {
 	return string(c)
+}
+
+// String is a standard method to convert an ContentType into a printable format
+func (c ContentType) String() string {
+	return string(c)
+}
+
+// String is a standard method to convert an Encoding into a printable format
+func (e Encoding) String() string {
+	return string(e)
 }

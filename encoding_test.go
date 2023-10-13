@@ -27,6 +27,38 @@ func TestEncoding_String(t *testing.T) {
 	}
 }
 
+// TestContentType_String tests the string method of the ContentType object
+func TestContentType_String(t *testing.T) {
+	tests := []struct {
+		name string
+		ct   ContentType
+		want string
+	}{
+		{"ContentType: text/plain", TypeTextPlain, "text/plain"},
+		{"ContentType: text/html", TypeTextHTML, "text/html"},
+		{
+			"ContentType: application/octet-stream", TypeAppOctetStream,
+			"application/octet-stream",
+		},
+		{
+			"ContentType: application/pgp-signature", TypePGPSignature,
+			"application/pgp-signature",
+		},
+		{
+			"ContentType: application/pgp-encrypted", TypePGPEncrypted,
+			"application/pgp-encrypted",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.ct.String() != tt.want {
+				t.Errorf("wrong string for Content-Type returned. Expected: %s, got: %s",
+					tt.want, tt.ct.String())
+			}
+		})
+	}
+}
+
 // TestCharset_String tests the string method of the Charset object
 func TestCharset_String(t *testing.T) {
 	tests := []struct {
