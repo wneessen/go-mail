@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"mime"
+	"mime/quotedprintable"
 	nm "net/mail"
 	"os"
 	"strings"
@@ -132,16 +133,24 @@ func parseEMLBodyParts(pm *nm.Message, mbbuf *bytes.Buffer, m *Msg) error {
 		m.SetCharset(Charset(v))
 	}
 
-	if cte := pm.Header.Get(HeaderContentTransferEnc.String()); cte != "" {
-		switch strings.ToLower(cte) {
-		case NoEncoding.String():
-			m.SetEncoding(NoEncoding)
-		}
-	}
-
+	cte := pm.Header.Get(HeaderContentTransferEnc.String())
 	switch strings.ToLower(mt) {
 	case TypeTextPlain.String():
-		m.SetBodyString(TypeTextPlain, mbbuf.String())
+		if cte == NoEncoding.String() {
+			m.SetEncoding(NoEncoding)
+			m.SetBodyString(TypeTextPlain, mbbuf.String())
+			break
+		}
+		if cte == EncodingQP.String() {
+			m.SetEncoding(EncodingQP)
+			qpr := quotedprintable.NewReader(mbbuf)
+			qpbuf := bytes.Buffer{}
+			if _, err := qpbuf.ReadFrom(qpr); err != nil {
+				return fmt.Errorf("failed to read quoted-printable body: %w", err)
+			}
+			m.SetBodyString(TypeTextPlain, qpbuf.String())
+			break
+		}
 	default:
 	}
 	return nil
