@@ -21,7 +21,7 @@ func EMLToMsg(fp string) (*Msg, error) {
 		addrHeader:    make(map[AddrHeader][]*nm.Address),
 		genHeader:     make(map[Header][]string),
 		preformHeader: make(map[Header]string),
-		mimever:       Mime10,
+		mimever:       MIME10,
 	}
 
 	pm, mbbuf, err := readEML(fp)

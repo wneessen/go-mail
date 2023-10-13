@@ -129,7 +129,7 @@ func NewMsg(o ...MsgOption) *Msg {
 		encoding:      EncodingQP,
 		genHeader:     make(map[Header][]string),
 		preformHeader: make(map[Header]string),
-		mimever:       Mime10,
+		mimever:       MIME10,
 	}
 
 	// Override defaults with optionally provided MsgOption functions
