@@ -6,6 +6,7 @@ package mail
 
 import (
 	"bytes"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"mime"
@@ -149,6 +150,16 @@ func parseEMLBodyParts(pm *nm.Message, mbbuf *bytes.Buffer, m *Msg) error {
 				return fmt.Errorf("failed to read quoted-printable body: %w", err)
 			}
 			m.SetBodyString(TypeTextPlain, qpbuf.String())
+			break
+		}
+		if cte == EncodingB64.String() {
+			m.SetEncoding(EncodingB64)
+			b64d := base64.NewDecoder(base64.StdEncoding, mbbuf)
+			b64buf := bytes.Buffer{}
+			if _, err := b64buf.ReadFrom(b64d); err != nil {
+				return fmt.Errorf("failed to read base64 body: %w", err)
+			}
+			m.SetBodyString(TypeTextPlain, b64buf.String())
 			break
 		}
 	default:
