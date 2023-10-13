@@ -1,11 +1,13 @@
 package mail
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"mime"
 	nm "net/mail"
 	"os"
+	"strings"
 )
 
 // EMLToMsg will open an parse a .eml file at a provided file path and return a
@@ -18,44 +20,40 @@ func EMLToMsg(fp string) (*Msg, error) {
 		mimever:       Mime10,
 	}
 
-	pm, err := readEML(fp)
+	pm, mbbuf, err := readEML(fp)
 	if err != nil || pm == nil {
 		return m, fmt.Errorf("failed to parse EML file: %w", err)
 	}
 
-	// Parse the header
 	if err := parseEMLHeaders(&pm.Header, m); err != nil {
 		return m, fmt.Errorf("failed to parse EML headers: %w", err)
 	}
-
-	// Extract the transfer encoding of the body
-	mi, ar, err := mime.ParseMediaType(pm.Header.Get(HeaderContentType.String()))
-	if err != nil {
-		return m, fmt.Errorf("failed to extract content type: %w", err)
+	if err := parseEMLBodyParts(pm, mbbuf, m); err != nil {
+		return m, fmt.Errorf("failed to parse EML body parts: %w", err)
 	}
-	if v, ok := ar["charset"]; ok {
-		m.SetCharset(Charset(v))
-	}
-	fmt.Printf("Encoding: %s\n", mi)
-	fmt.Printf("Params: %+v\n", ar)
 
 	return m, nil
 }
 
 // readEML opens an EML file and uses net/mail to parse the header and body
-func readEML(fp string) (*nm.Message, error) {
+func readEML(fp string) (*nm.Message, *bytes.Buffer, error) {
 	fh, err := os.Open(fp)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open EML file: %w", err)
+		return nil, nil, fmt.Errorf("failed to open EML file: %w", err)
 	}
 	defer func() {
 		_ = fh.Close()
 	}()
 	pm, err := nm.ReadMessage(fh)
 	if err != nil {
-		return pm, fmt.Errorf("failed to parse EML: %w", err)
+		return pm, nil, fmt.Errorf("failed to parse EML: %w", err)
 	}
-	return pm, nil
+
+	buf := bytes.Buffer{}
+	if _, err = buf.ReadFrom(pm.Body); err != nil {
+		return nil, nil, err
+	}
+	return pm, &buf, nil
 }
 
 // parseEMLHeaders will check the EML headers for the most common headers and set the
@@ -64,8 +62,8 @@ func parseEMLHeaders(mh *nm.Header, m *Msg) error {
 	commonHeaders := []Header{
 		HeaderContentType, HeaderImportance, HeaderInReplyTo, HeaderListUnsubscribe,
 		HeaderListUnsubscribePost, HeaderMessageID, HeaderMIMEVersion, HeaderOrganization,
-		HeaderPrecedence, HeaderPriority, HeaderSubject, HeaderUserAgent, HeaderXMailer,
-		HeaderXMSMailPriority, HeaderXPriority,
+		HeaderPrecedence, HeaderPriority, HeaderReferences, HeaderSubject, HeaderUserAgent,
+		HeaderXMailer, HeaderXMSMailPriority, HeaderXPriority,
 	}
 
 	// Extract address headers
@@ -116,5 +114,31 @@ func parseEMLHeaders(mh *nm.Header, m *Msg) error {
 		}
 	}
 
+	return nil
+}
+
+// parseEMLBodyParts ...
+func parseEMLBodyParts(pm *nm.Message, mbbuf *bytes.Buffer, m *Msg) error {
+	// Extract the transfer encoding of the body
+	mt, par, err := mime.ParseMediaType(pm.Header.Get(HeaderContentType.String()))
+	if err != nil {
+		return fmt.Errorf("failed to extract content type: %w", err)
+	}
+	if v, ok := par["charset"]; ok {
+		m.SetCharset(Charset(v))
+	}
+
+	if cte := pm.Header.Get(HeaderContentTransferEnc.String()); cte != "" {
+		switch strings.ToLower(cte) {
+		case NoEncoding.String():
+			m.SetEncoding(NoEncoding)
+		}
+	}
+
+	switch strings.ToLower(mt) {
+	case TypeTextPlain.String():
+		m.SetBodyString(TypeTextPlain, mbbuf.String())
+	default:
+	}
 	return nil
 }
