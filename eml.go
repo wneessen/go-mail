@@ -31,10 +31,10 @@ func EMLToMsg(fp string) (*Msg, error) {
 		return m, fmt.Errorf("failed to parse EML file: %w", err)
 	}
 
-	if err := parseEMLHeaders(&pm.Header, m); err != nil {
+	if err = parseEMLHeaders(&pm.Header, m); err != nil {
 		return m, fmt.Errorf("failed to parse EML headers: %w", err)
 	}
-	if err := parseEMLBodyParts(pm, mbbuf, m); err != nil {
+	if err = parseEMLBodyParts(pm, mbbuf, m); err != nil {
 		return m, fmt.Errorf("failed to parse EML body parts: %w", err)
 	}
 
@@ -59,6 +59,10 @@ func readEML(fp string) (*nm.Message, *bytes.Buffer, error) {
 	if _, err = buf.ReadFrom(pm.Body); err != nil {
 		return nil, nil, err
 	}
+
+	if err = fh.Close(); err != nil {
+		return nil, nil, fmt.Errorf("failed to close EML file: %w", err)
+	}
 	return pm, &buf, nil
 }
 
@@ -75,7 +79,7 @@ func parseEMLHeaders(mh *nm.Header, m *Msg) error {
 	// Extract address headers
 	if v := mh.Get(HeaderFrom.String()); v != "" {
 		if err := m.From(v); err != nil {
-			return fmt.Errorf(`failed to parse "From:" header: %w`, err)
+			return fmt.Errorf(`failed to parse %q header: %w`, HeaderFrom, err)
 		}
 	}
 	ahl := map[AddrHeader]func(...string) error{
@@ -94,7 +98,7 @@ func parseEMLHeaders(mh *nm.Header, m *Msg) error {
 				als = append(als, a.String())
 			}
 			if err := f(als...); err != nil {
-				return fmt.Errorf(`failed to parse "To:" header: %w`, err)
+				return fmt.Errorf(`failed to parse %q header: %w`, HeaderTo, err)
 			}
 		}
 	}
@@ -123,7 +127,7 @@ func parseEMLHeaders(mh *nm.Header, m *Msg) error {
 	return nil
 }
 
-// parseEMLBodyParts ...
+// parseEMLBodyParts parses the body of a EML based on the different content types and encodings
 func parseEMLBodyParts(pm *nm.Message, mbbuf *bytes.Buffer, m *Msg) error {
 	// Extract the transfer encoding of the body
 	mt, par, err := mime.ParseMediaType(pm.Header.Get(HeaderContentType.String()))
@@ -137,26 +141,26 @@ func parseEMLBodyParts(pm *nm.Message, mbbuf *bytes.Buffer, m *Msg) error {
 	cte := pm.Header.Get(HeaderContentTransferEnc.String())
 	switch strings.ToLower(mt) {
 	case TypeTextPlain.String():
-		if cte == NoEncoding.String() {
+		if strings.EqualFold(cte, NoEncoding.String()) {
 			m.SetEncoding(NoEncoding)
 			m.SetBodyString(TypeTextPlain, mbbuf.String())
 			break
 		}
-		if cte == EncodingQP.String() {
+		if strings.EqualFold(cte, EncodingQP.String()) {
 			m.SetEncoding(EncodingQP)
 			qpr := quotedprintable.NewReader(mbbuf)
 			qpbuf := bytes.Buffer{}
-			if _, err := qpbuf.ReadFrom(qpr); err != nil {
+			if _, err = qpbuf.ReadFrom(qpr); err != nil {
 				return fmt.Errorf("failed to read quoted-printable body: %w", err)
 			}
 			m.SetBodyString(TypeTextPlain, qpbuf.String())
 			break
 		}
-		if cte == EncodingB64.String() {
+		if strings.EqualFold(cte, EncodingB64.String()) {
 			m.SetEncoding(EncodingB64)
 			b64d := base64.NewDecoder(base64.StdEncoding, mbbuf)
 			b64buf := bytes.Buffer{}
-			if _, err := b64buf.ReadFrom(b64d); err != nil {
+			if _, err = b64buf.ReadFrom(b64d); err != nil {
 				return fmt.Errorf("failed to read base64 body: %w", err)
 			}
 			m.SetBodyString(TypeTextPlain, b64buf.String())
