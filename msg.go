@@ -638,14 +638,30 @@ func (m *Msg) SetAttachements(ff []*File) {
 	m.attachments = ff
 }
 
+// UnsetAllAttachments unset the attachments of the message.
+func (m *Msg) UnsetAllAttachments() {
+	m.attachments = nil
+}
+
 // GetEmbeds returns the embeds of the Msg
 func (m *Msg) GetEmbeds() []*File {
 	return m.embeds
 }
 
-// SetEmbeds sets the attachements of the message.
+// SetEmbeds sets the embeds of the message.
 func (m *Msg) SetEmbeds(ff []*File) {
 	m.embeds = ff
+}
+
+// UnsetAllEmbeds unset the embeds of the message.
+func (m *Msg) UnsetAllEmbeds() {
+	m.embeds = nil
+}
+
+// UnsetAllParts unset the embeds and attachments of the message.
+func (m *Msg) UnsetAllParts() {
+	m.UnsetAllAttachments()
+	m.UnsetAllEmbeds()
 }
 
 // SetBodyString sets the body of the message.
