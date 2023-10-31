@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"mime"
 	"mime/quotedprintable"
 	nm "net/mail"
@@ -16,9 +17,40 @@ import (
 	"strings"
 )
 
-// EMLToMsg will open an parse a .eml file at a provided file path and return a
+// EMLToMsgFromString will parse a given EML string and returns a pre-filled Msg pointer
+func EMLToMsgFromString(es string) (*Msg, error) {
+	eb := bytes.NewBufferString(es)
+	return EMLToMsgFromReader(eb)
+}
+
+// EMLToMsgFromReader will parse a reader that holds EML content and returns a pre-filled
+// Msg pointer
+func EMLToMsgFromReader(r io.Reader) (*Msg, error) {
+	m := &Msg{
+		addrHeader:    make(map[AddrHeader][]*nm.Address),
+		genHeader:     make(map[Header][]string),
+		preformHeader: make(map[Header]string),
+		mimever:       MIME10,
+	}
+
+	pm, mbbuf, err := readEMLFromReader(r)
+	if err != nil || pm == nil {
+		return m, fmt.Errorf("failed to parse EML from reader: %w", err)
+	}
+
+	if err = parseEMLHeaders(&pm.Header, m); err != nil {
+		return m, fmt.Errorf("failed to parse EML headers: %w", err)
+	}
+	if err = parseEMLBodyParts(pm, mbbuf, m); err != nil {
+		return m, fmt.Errorf("failed to parse EML body parts: %w", err)
+	}
+
+	return m, nil
+}
+
+// EMLToMsgFromFile will open and parse a .eml file at a provided file path and returns a
 // pre-filled Msg pointer
-func EMLToMsg(fp string) (*Msg, error) {
+func EMLToMsgFromFile(fp string) (*Msg, error) {
 	m := &Msg{
 		addrHeader:    make(map[AddrHeader][]*nm.Address),
 		genHeader:     make(map[Header][]string),
@@ -50,7 +82,12 @@ func readEML(fp string) (*nm.Message, *bytes.Buffer, error) {
 	defer func() {
 		_ = fh.Close()
 	}()
-	pm, err := nm.ReadMessage(fh)
+	return readEMLFromReader(fh)
+}
+
+// readEMLFromReader uses net/mail to parse the header and body from a given io.Reader
+func readEMLFromReader(r io.Reader) (*nm.Message, *bytes.Buffer, error) {
+	pm, err := nm.ReadMessage(r)
 	if err != nil {
 		return pm, nil, fmt.Errorf("failed to parse EML: %w", err)
 	}
@@ -60,9 +97,6 @@ func readEML(fp string) (*nm.Message, *bytes.Buffer, error) {
 		return nil, nil, err
 	}
 
-	if err = fh.Close(); err != nil {
-		return nil, nil, fmt.Errorf("failed to close EML file: %w", err)
-	}
 	return pm, &buf, nil
 }
 
