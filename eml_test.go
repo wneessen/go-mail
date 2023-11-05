@@ -7,11 +7,57 @@ package mail
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 const (
 	exampleMailPlainNoEnc = `Date: Wed, 01 Nov 2023 00:00:00 +0000
 MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // plain text without encoding
+User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Dear Customer,
+
+This is a test mail. Please do not reply to this. Also this line is very long so it
+should be wrapped.
+
+
+Thank your for your business!
+The go-mail team
+
+--
+This is a signature`
+	exampleMailPlainNoEncInvalidDate = `Date: Inv, 99 Nov 9999 99:99:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // plain text without encoding
+User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Dear Customer,
+
+This is a test mail. Please do not reply to this. Also this line is very long so it
+should be wrapped.
+
+
+Thank your for your business!
+The go-mail team
+
+--
+This is a signature`
+	exampleMailPlainNoEncNoDate = `MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text without encoding
 User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
@@ -108,5 +154,26 @@ func TestEMLToMsgFromString(t *testing.T) {
 				t.Errorf("EMLToMsgFromString failed: expected subject: %s, but got: %s", tt.sub, s[0])
 			}
 		})
+	}
+}
+
+func TestEMLToMsgFromStringBrokenDate(t *testing.T) {
+	_, err := EMLToMsgFromString(exampleMailPlainNoEncInvalidDate)
+	if err == nil {
+		t.Error("EML with invalid date was supposed to fail, but didn't")
+	}
+	now := time.Now()
+	m, err := EMLToMsgFromString(exampleMailPlainNoEncNoDate)
+	if err != nil {
+		t.Errorf("EML with no date parsing failed: %s", err)
+	}
+	da := m.GetGenHeader(HeaderDate)
+	if len(da) < 1 {
+		t.Error("EML with no date expected current date, but got nothing")
+		return
+	}
+	d := da[0]
+	if d != now.Format(time.RFC1123Z) {
+		t.Errorf("EML with no date expected: %s, got: %s", now.Format(time.RFC1123Z), d)
 	}
 }
