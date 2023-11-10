@@ -2947,13 +2947,13 @@ func TestMsg_ToFromString(t *testing.T) {
 		sf bool
 	}{
 		{"valid single address", "test@test.com", []*mail.Address{
-			{"", "test@test.com"},
+			{Name: "", Address: "test@test.com"},
 		}, false},
 		{
 			"valid multiple addresses", "test@test.com,test2@example.com",
 			[]*mail.Address{
-				{"", "test@test.com"},
-				{"", "test2@example.com"},
+				{Name: "", Address: "test@test.com"},
+				{Name: "", Address: "test2@example.com"},
 			},
 			false,
 		},
@@ -2961,8 +2961,8 @@ func TestMsg_ToFromString(t *testing.T) {
 			"valid multiple addresses with space and name",
 			`test@test.com, "Toni Tester" <test2@example.com>`,
 			[]*mail.Address{
-				{"", "test@test.com"},
-				{"Toni Tester", "test2@example.com"},
+				{Name: "", Address: "test@test.com"},
+				{Name: "Toni Tester", Address: "test2@example.com"},
 			},
 			false,
 		},
@@ -3006,13 +3006,13 @@ func TestMsg_CcFromString(t *testing.T) {
 		sf bool
 	}{
 		{"valid single address", "test@test.com", []*mail.Address{
-			{"", "test@test.com"},
+			{Name: "", Address: "test@test.com"},
 		}, false},
 		{
 			"valid multiple addresses", "test@test.com,test2@example.com",
 			[]*mail.Address{
-				{"", "test@test.com"},
-				{"", "test2@example.com"},
+				{Name: "", Address: "test@test.com"},
+				{Name: "", Address: "test2@example.com"},
 			},
 			false,
 		},
@@ -3020,8 +3020,8 @@ func TestMsg_CcFromString(t *testing.T) {
 			"valid multiple addresses with space and name",
 			`test@test.com, "Toni Tester" <test2@example.com>`,
 			[]*mail.Address{
-				{"", "test@test.com"},
-				{"Toni Tester", "test2@example.com"},
+				{Name: "", Address: "test@test.com"},
+				{Name: "Toni Tester", Address: "test2@example.com"},
 			},
 			false,
 		},
@@ -3065,13 +3065,13 @@ func TestMsg_BccFromString(t *testing.T) {
 		sf bool
 	}{
 		{"valid single address", "test@test.com", []*mail.Address{
-			{"", "test@test.com"},
+			{Name: "", Address: "test@test.com"},
 		}, false},
 		{
 			"valid multiple addresses", "test@test.com,test2@example.com",
 			[]*mail.Address{
-				{"", "test@test.com"},
-				{"", "test2@example.com"},
+				{Name: "", Address: "test@test.com"},
+				{Name: "", Address: "test2@example.com"},
 			},
 			false,
 		},
@@ -3079,8 +3079,8 @@ func TestMsg_BccFromString(t *testing.T) {
 			"valid multiple addresses with space and name",
 			`test@test.com, "Toni Tester" <test2@example.com>`,
 			[]*mail.Address{
-				{"", "test@test.com"},
-				{"Toni Tester", "test2@example.com"},
+				{Name: "", Address: "test@test.com"},
+				{Name: "Toni Tester", Address: "test2@example.com"},
 			},
 			false,
 		},
