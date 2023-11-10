@@ -2937,3 +2937,180 @@ func TestMsg_EmbedReadSeeker(t *testing.T) {
 		t.Errorf("EmbedReadSeeker() failed. Expected string: %q, got: %q", ts, wbuf.String())
 	}
 }
+
+// TestMsg_ToFromString tests Msg.ToFromString in different scenarios
+func TestMsg_ToFromString(t *testing.T) {
+	tests := []struct {
+		n  string
+		v  string
+		w  []*mail.Address
+		sf bool
+	}{
+		{"valid single address", "test@test.com", []*mail.Address{
+			{"", "test@test.com"},
+		}, false},
+		{
+			"valid multiple addresses", "test@test.com,test2@example.com",
+			[]*mail.Address{
+				{"", "test@test.com"},
+				{"", "test2@example.com"},
+			},
+			false,
+		},
+		{
+			"valid multiple addresses with space and name",
+			`test@test.com, "Toni Tester" <test2@example.com>`,
+			[]*mail.Address{
+				{"", "test@test.com"},
+				{"Toni Tester", "test2@example.com"},
+			},
+			false,
+		},
+		{
+			"invalid and valid multiple addresses", "test@test.com,test2#example.com", nil,
+			true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.n, func(t *testing.T) {
+			m := NewMsg()
+			if err := m.ToFromString(tt.v); err != nil && !tt.sf {
+				t.Errorf("Msg.ToFromString failed: %s", err)
+				return
+			}
+			mto := m.GetTo()
+			if len(mto) != len(tt.w) {
+				t.Errorf("Msg.ToFromString failed, expected len: %d, got: %d", len(tt.w),
+					len(mto))
+				return
+			}
+			for i := range mto {
+				w := tt.w[i]
+				g := mto[i]
+				if w.String() != g.String() {
+					t.Errorf("Msg.ToFromString failed, expected address: %s, got: %s",
+						w.String(), g.String())
+				}
+			}
+		})
+	}
+}
+
+// TestMsg_CcFromString tests Msg.CcFromString in different scenarios
+func TestMsg_CcFromString(t *testing.T) {
+	tests := []struct {
+		n  string
+		v  string
+		w  []*mail.Address
+		sf bool
+	}{
+		{"valid single address", "test@test.com", []*mail.Address{
+			{"", "test@test.com"},
+		}, false},
+		{
+			"valid multiple addresses", "test@test.com,test2@example.com",
+			[]*mail.Address{
+				{"", "test@test.com"},
+				{"", "test2@example.com"},
+			},
+			false,
+		},
+		{
+			"valid multiple addresses with space and name",
+			`test@test.com, "Toni Tester" <test2@example.com>`,
+			[]*mail.Address{
+				{"", "test@test.com"},
+				{"Toni Tester", "test2@example.com"},
+			},
+			false,
+		},
+		{
+			"invalid and valid multiple addresses", "test@test.com,test2#example.com", nil,
+			true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.n, func(t *testing.T) {
+			m := NewMsg()
+			if err := m.CcFromString(tt.v); err != nil && !tt.sf {
+				t.Errorf("Msg.CcFromString failed: %s", err)
+				return
+			}
+			mto := m.GetCc()
+			if len(mto) != len(tt.w) {
+				t.Errorf("Msg.CcFromString failed, expected len: %d, got: %d", len(tt.w),
+					len(mto))
+				return
+			}
+			for i := range mto {
+				w := tt.w[i]
+				g := mto[i]
+				if w.String() != g.String() {
+					t.Errorf("Msg.CcFromString failed, expected address: %s, got: %s",
+						w.String(), g.String())
+				}
+			}
+		})
+	}
+}
+
+// TestMsg_BccFromString tests Msg.BccFromString in different scenarios
+func TestMsg_BccFromString(t *testing.T) {
+	tests := []struct {
+		n  string
+		v  string
+		w  []*mail.Address
+		sf bool
+	}{
+		{"valid single address", "test@test.com", []*mail.Address{
+			{"", "test@test.com"},
+		}, false},
+		{
+			"valid multiple addresses", "test@test.com,test2@example.com",
+			[]*mail.Address{
+				{"", "test@test.com"},
+				{"", "test2@example.com"},
+			},
+			false,
+		},
+		{
+			"valid multiple addresses with space and name",
+			`test@test.com, "Toni Tester" <test2@example.com>`,
+			[]*mail.Address{
+				{"", "test@test.com"},
+				{"Toni Tester", "test2@example.com"},
+			},
+			false,
+		},
+		{
+			"invalid and valid multiple addresses", "test@test.com,test2#example.com", nil,
+			true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.n, func(t *testing.T) {
+			m := NewMsg()
+			if err := m.BccFromString(tt.v); err != nil && !tt.sf {
+				t.Errorf("Msg.BccFromString failed: %s", err)
+				return
+			}
+			mto := m.GetBcc()
+			if len(mto) != len(tt.w) {
+				t.Errorf("Msg.BccFromString failed, expected len: %d, got: %d", len(tt.w),
+					len(mto))
+				return
+			}
+			for i := range mto {
+				w := tt.w[i]
+				g := mto[i]
+				if w.String() != g.String() {
+					t.Errorf("Msg.BccFromString failed, expected address: %s, got: %s",
+						w.String(), g.String())
+				}
+			}
+		})
+	}
+}
