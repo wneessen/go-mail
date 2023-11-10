@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	tt "text/template"
 	"time"
@@ -352,6 +353,12 @@ func (m *Msg) ToIgnoreInvalid(t ...string) {
 	m.SetAddrHeaderIgnoreInvalid(HeaderTo, t...)
 }
 
+// ToFromString takes and validates a given string of comma separted
+// mail address and sets them as To: addresses of the Msg
+func (m *Msg) ToFromString(v string) error {
+	return m.To(strings.Split(v, ",")...)
+}
+
 // Cc takes and validates a given mail address list sets the Cc: addresses of the Msg
 func (m *Msg) Cc(c ...string) error {
 	return m.SetAddrHeader(HeaderCc, c...)
@@ -374,6 +381,12 @@ func (m *Msg) CcIgnoreInvalid(c ...string) {
 	m.SetAddrHeaderIgnoreInvalid(HeaderCc, c...)
 }
 
+// CcFromString takes and validates a given string of comma separted
+// mail address and sets them as Cc: addresses of the Msg
+func (m *Msg) CcFromString(v string) error {
+	return m.Cc(strings.Split(v, ",")...)
+}
+
 // Bcc takes and validates a given mail address list sets the Bcc: addresses of the Msg
 func (m *Msg) Bcc(b ...string) error {
 	return m.SetAddrHeader(HeaderBcc, b...)
@@ -394,6 +407,12 @@ func (m *Msg) AddBccFormat(n, a string) error {
 // Any provided address that is not RFC5322 compliant, will be ignored
 func (m *Msg) BccIgnoreInvalid(b ...string) {
 	m.SetAddrHeaderIgnoreInvalid(HeaderBcc, b...)
+}
+
+// BccFromString takes and validates a given string of comma separted
+// mail address and sets them as Bcc: addresses of the Msg
+func (m *Msg) BccFromString(v string) error {
+	return m.Bcc(strings.Split(v, ",")...)
 }
 
 // ReplyTo takes and validates a given mail address and sets it as "Reply-To" addrHeader of the Msg
