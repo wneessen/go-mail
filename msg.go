@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	tt "text/template"
 	"time"
@@ -277,12 +278,23 @@ func (m *Msg) SetAddrHeader(h AddrHeader, v ...string) error {
 		m.addrHeader = make(map[AddrHeader][]*mail.Address)
 	}
 	var al []*mail.Address
-	for _, av := range v {
-		a, err := mail.ParseAddress(av)
+	if strings.Contains(v[0], ",") {
+		// special case, first v takes all addresses in a single string.
+		// safe to use ParseAddressList() as `HeaderFrom` case is
+		// specially handled separately below.
+		var err error
+		al, err = mail.ParseAddressList(v[0])
 		if err != nil {
-			return fmt.Errorf(errParseMailAddr, av, err)
+			return fmt.Errorf(errParseMailAddr, v[0], err)
 		}
-		al = append(al, a)
+	} else {
+		for _, av := range v {
+			a, err := mail.ParseAddress(av)
+			if err != nil {
+				return fmt.Errorf(errParseMailAddr, av, err)
+			}
+			al = append(al, a)
+		}
 	}
 	switch h {
 	case HeaderFrom:
