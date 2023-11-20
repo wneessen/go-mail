@@ -106,6 +106,9 @@ func (e *SendError) Is(et error) bool {
 
 // IsTemp returns true if the delivery error is of temporary nature and can be retried
 func (e *SendError) IsTemp() bool {
+	if e == nil {
+		return false
+	}
 	return e.isTemp
 }
 
