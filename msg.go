@@ -287,7 +287,9 @@ func (m *Msg) SetAddrHeader(h AddrHeader, v ...string) error {
 	}
 	switch h {
 	case HeaderFrom:
-		m.addrHeader[h] = []*mail.Address{al[0]}
+		if len(al) > 0 {
+			m.addrHeader[h] = []*mail.Address{al[0]}
+		}
 	default:
 		m.addrHeader[h] = al
 	}
@@ -1001,7 +1003,7 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...st
 	}
 
 	// Start the execution and write to STDIN
-	if err := ec.Start(); err != nil {
+	if err = ec.Start(); err != nil {
 		return fmt.Errorf("could not start sendmail execution: %w", err)
 	}
 	_, err = m.WriteTo(si)
@@ -1012,7 +1014,7 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...st
 	}
 
 	// Close STDIN and wait for completion or cancellation of the sendmail executable
-	if err := si.Close(); err != nil {
+	if err = si.Close(); err != nil {
 		return fmt.Errorf("failed to close STDIN pipe: %w", err)
 	}
 
@@ -1025,7 +1027,7 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...st
 		return fmt.Errorf("sendmail command failed: %s", string(serr))
 	}
 
-	if err := ec.Wait(); err != nil {
+	if err = ec.Wait(); err != nil {
 		return fmt.Errorf("sendmail command execution failed: %w", err)
 	}
 
