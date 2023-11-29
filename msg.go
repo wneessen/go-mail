@@ -593,8 +593,8 @@ func (m *Msg) GetAddrHeader(h AddrHeader) []*mail.Address {
 // GetAddrHeaderString returns the address string of the requested address header of the Msg
 func (m *Msg) GetAddrHeaderString(h AddrHeader) []string {
 	var al []string
-	for i := range m.addrHeader[h] {
-		al = append(al, m.addrHeader[h][i].String())
+	for _, mh := range m.addrHeader[h] {
+		al = append(al, mh.String())
 	}
 	return al
 }
