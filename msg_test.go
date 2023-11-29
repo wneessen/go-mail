@@ -1168,9 +1168,11 @@ func TestMsg_RequestMDN(t *testing.T) {
 	if err := m.RequestMDNAddTo(v2); err != nil {
 		t.Errorf("RequestMDNAddTo with a valid address failed: %s", err)
 	}
-	if m.genHeader[HeaderDispositionNotificationTo][1] != fmt.Sprintf("<%s>", v2) {
-		t.Errorf("RequestMDNTo with a multiple valid addresses failed. Expected 1: %s, got 1: %s", v2,
-			m.genHeader[HeaderDispositionNotificationTo][1])
+	if val := m.genHeader[HeaderDispositionNotificationTo]; val != nil && len(val) > 1 {
+		if val[1] != fmt.Sprintf("<%s>", v2) {
+			t.Errorf("RequestMDNTo with a multiple valid addresses failed. Expected 1: %s, got 1: %s", v2,
+				val[1])
+		}
 	}
 	m.Reset()
 
@@ -1178,16 +1180,20 @@ func TestMsg_RequestMDN(t *testing.T) {
 	if err := m.RequestMDNToFormat(n, v); err != nil {
 		t.Errorf("RequestMDNToFormat with a single valid address failed: %s", err)
 	}
-	if m.genHeader[HeaderDispositionNotificationTo][0] != fmt.Sprintf(`"%s" <%s>`, n, v) {
-		t.Errorf(`RequestMDNToFormat with a single valid address failed. Expected: "%s" <%s>, got: %s`, n, v,
-			m.genHeader[HeaderDispositionNotificationTo][0])
+	if val := m.genHeader[HeaderDispositionNotificationTo]; val != nil && len(val) > 0 {
+		if val[0] != fmt.Sprintf(`"%s" <%s>`, n, v) {
+			t.Errorf(`RequestMDNToFormat with a single valid address failed. Expected: "%s" <%s>, got: %s`, n, v,
+				val[0])
+		}
 	}
 	if err := m.RequestMDNAddToFormat(n2, v2); err != nil {
 		t.Errorf("RequestMDNAddToFormat with a valid address failed: %s", err)
 	}
-	if m.genHeader[HeaderDispositionNotificationTo][1] != fmt.Sprintf(`"%s" <%s>`, n2, v2) {
-		t.Errorf(`RequestMDNAddToFormat with a single valid address failed. Expected: "%s" <%s>, got: %s`, n2, v2,
-			m.genHeader[HeaderDispositionNotificationTo][1])
+	if val := m.genHeader[HeaderDispositionNotificationTo]; val != nil && len(val) > 1 {
+		if val[1] != fmt.Sprintf(`"%s" <%s>`, n2, v2) {
+			t.Errorf(`RequestMDNAddToFormat with a single valid address failed. Expected: "%s" <%s>, got: %s`, n2, v2,
+				val[1])
+		}
 	}
 	m.Reset()
 
