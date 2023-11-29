@@ -1074,7 +1074,7 @@ func (m *Msg) HasSendError() bool {
 // corresponding error was of temporary nature and should be retried later
 func (m *Msg) SendErrorIsTemp() bool {
 	var e *SendError
-	if errors.As(m.sendError, &e) {
+	if errors.As(m.sendError, &e) && e != nil {
 		return e.isTemp
 	}
 	return false
