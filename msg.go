@@ -520,7 +520,9 @@ func (m *Msg) RequestMDNTo(t ...string) error {
 		}
 		tl = append(tl, a.String())
 	}
-	m.genHeader[HeaderDispositionNotificationTo] = tl
+	if _, ok := m.genHeader[HeaderDispositionNotificationTo]; ok {
+		m.genHeader[HeaderDispositionNotificationTo] = tl
+	}
 	return nil
 }
 
@@ -541,7 +543,9 @@ func (m *Msg) RequestMDNAddTo(t string) error {
 	var tl []string
 	tl = append(tl, m.genHeader[HeaderDispositionNotificationTo]...)
 	tl = append(tl, a.String())
-	m.genHeader[HeaderDispositionNotificationTo] = tl
+	if _, ok := m.genHeader[HeaderDispositionNotificationTo]; ok {
+		m.genHeader[HeaderDispositionNotificationTo] = tl
+	}
 	return nil
 }
 
