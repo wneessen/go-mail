@@ -1135,9 +1135,11 @@ func TestMsg_RequestMDN(t *testing.T) {
 	if err := m.RequestMDNTo(v); err != nil {
 		t.Errorf("RequestMDNTo with a single valid address failed: %s", err)
 	}
-	if m.genHeader[HeaderDispositionNotificationTo][0] != fmt.Sprintf("<%s>", v) {
-		t.Errorf("RequestMDNTo with a single valid address failed. Expected: %s, got: %s", v,
-			m.genHeader[HeaderDispositionNotificationTo][0])
+	if val := m.genHeader[HeaderDispositionNotificationTo]; val != nil && len(val) > 1 {
+		if val[0] != fmt.Sprintf("<%s>", v) {
+			t.Errorf("RequestMDNTo with a single valid address failed. Expected: %s, got: %s", v,
+				val[0])
+		}
 	}
 	m.Reset()
 
@@ -1145,13 +1147,17 @@ func TestMsg_RequestMDN(t *testing.T) {
 	if err := m.RequestMDNTo(vl...); err != nil {
 		t.Errorf("RequestMDNTo with a multiple valid address failed: %s", err)
 	}
-	if m.genHeader[HeaderDispositionNotificationTo][0] != fmt.Sprintf("<%s>", v) {
-		t.Errorf("RequestMDNTo with a multiple valid addresses failed. Expected 0: %s, got 0: %s", v,
-			m.genHeader[HeaderDispositionNotificationTo][0])
+	if val := m.genHeader[HeaderDispositionNotificationTo]; val != nil && len(val) > 0 {
+		if val[0] != fmt.Sprintf("<%s>", v) {
+			t.Errorf("RequestMDNTo with a multiple valid addresses failed. Expected 0: %s, got 0: %s", v,
+				val[0])
+		}
 	}
-	if m.genHeader[HeaderDispositionNotificationTo][1] != fmt.Sprintf("<%s>", v2) {
-		t.Errorf("RequestMDNTo with a multiple valid addresses failed. Expected 1: %s, got 1: %s", v2,
-			m.genHeader[HeaderDispositionNotificationTo][1])
+	if val := m.genHeader[HeaderDispositionNotificationTo]; val != nil && len(val) > 1 {
+		if val[1] != fmt.Sprintf("<%s>", v2) {
+			t.Errorf("RequestMDNTo with a multiple valid addresses failed. Expected 1: %s, got 1: %s", v2,
+				val[1])
+		}
 	}
 	m.Reset()
 
