@@ -2589,6 +2589,10 @@ func TestMsg_WriteToFile(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to stat output file: %s", err)
 	}
+	if fi == nil {
+		t.Errorf("received empty file handle")
+		return
+	}
 	if fi.Size() <= 0 {
 		t.Errorf("output file is expected to contain data but its size is zero")
 	}
