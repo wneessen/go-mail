@@ -758,7 +758,9 @@ func TestMsg_SetMessageIDWithValue(t *testing.T) {
 		t.Errorf("SetMessageID() failed. Expected value, got: empty")
 		return
 	}
-	m.genHeader[HeaderMessageID] = nil
+	if _, ok := m.genHeader[HeaderMessageID]; ok {
+		m.genHeader[HeaderMessageID] = nil
+	}
 	v := "This.is.a.message.id"
 	vf := "<This.is.a.message.id>"
 	m.SetMessageIDWithValue(v)
@@ -779,7 +781,9 @@ func TestMsg_SetMessageIDRandomness(t *testing.T) {
 		m := NewMsg()
 		m.SetMessageID()
 		mid := m.GetGenHeader(HeaderMessageID)
-		mids = append(mids, mid[0])
+		if len(mid) > 0 {
+			mids = append(mids, mid[0])
+		}
 	}
 	c := make(map[string]int)
 	for i := range mids {
