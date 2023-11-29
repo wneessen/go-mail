@@ -1001,6 +1001,9 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...st
 	if err != nil {
 		return fmt.Errorf("failed to set STDIN pipe: %w", err)
 	}
+	if se == nil || si == nil {
+		return fmt.Errorf("received nil for STDERR or STDIN pipe")
+	}
 
 	// Start the execution and write to STDIN
 	if err = ec.Start(); err != nil {
