@@ -98,7 +98,7 @@ func (e *SendError) Error() string {
 // Is implements the errors.Is functionality and compares the SendErrReason
 func (e *SendError) Is(et error) bool {
 	var t *SendError
-	if errors.As(et, &t) {
+	if errors.As(et, &t) && t != nil {
 		return e.Reason == t.Reason && e.isTemp == t.isTemp
 	}
 	return false
