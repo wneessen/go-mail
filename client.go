@@ -511,10 +511,15 @@ func (c *Client) DialWithContext(pc context.Context) error {
 		return err
 	}
 
-	c.sc, err = smtp.NewClient(c.co, c.host)
+	sc, err := smtp.NewClient(c.co, c.host)
 	if err != nil {
 		return err
 	}
+	if sc == nil {
+		return fmt.Errorf("SMTP client is nil")
+	}
+	c.sc = sc
+
 	if c.l != nil {
 		c.sc.SetLogger(c.l)
 	}

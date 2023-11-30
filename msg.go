@@ -287,7 +287,9 @@ func (m *Msg) SetAddrHeader(h AddrHeader, v ...string) error {
 	}
 	switch h {
 	case HeaderFrom:
-		m.addrHeader[h] = []*mail.Address{al[0]}
+		if len(al) > 0 {
+			m.addrHeader[h] = []*mail.Address{al[0]}
+		}
 	default:
 		m.addrHeader[h] = al
 	}
@@ -518,7 +520,9 @@ func (m *Msg) RequestMDNTo(t ...string) error {
 		}
 		tl = append(tl, a.String())
 	}
-	m.genHeader[HeaderDispositionNotificationTo] = tl
+	if _, ok := m.genHeader[HeaderDispositionNotificationTo]; ok {
+		m.genHeader[HeaderDispositionNotificationTo] = tl
+	}
 	return nil
 }
 
@@ -539,7 +543,9 @@ func (m *Msg) RequestMDNAddTo(t string) error {
 	var tl []string
 	tl = append(tl, m.genHeader[HeaderDispositionNotificationTo]...)
 	tl = append(tl, a.String())
-	m.genHeader[HeaderDispositionNotificationTo] = tl
+	if _, ok := m.genHeader[HeaderDispositionNotificationTo]; ok {
+		m.genHeader[HeaderDispositionNotificationTo] = tl
+	}
 	return nil
 }
 
@@ -591,8 +597,8 @@ func (m *Msg) GetAddrHeader(h AddrHeader) []*mail.Address {
 // GetAddrHeaderString returns the address string of the requested address header of the Msg
 func (m *Msg) GetAddrHeaderString(h AddrHeader) []string {
 	var al []string
-	for i := range m.addrHeader[h] {
-		al = append(al, m.addrHeader[h][i].String())
+	for _, mh := range m.addrHeader[h] {
+		al = append(al, mh.String())
 	}
 	return al
 }
@@ -999,9 +1005,12 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...st
 	if err != nil {
 		return fmt.Errorf("failed to set STDIN pipe: %w", err)
 	}
+	if se == nil || si == nil {
+		return fmt.Errorf("received nil for STDERR or STDIN pipe")
+	}
 
 	// Start the execution and write to STDIN
-	if err := ec.Start(); err != nil {
+	if err = ec.Start(); err != nil {
 		return fmt.Errorf("could not start sendmail execution: %w", err)
 	}
 	_, err = m.WriteTo(si)
@@ -1012,7 +1021,7 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...st
 	}
 
 	// Close STDIN and wait for completion or cancellation of the sendmail executable
-	if err := si.Close(); err != nil {
+	if err = si.Close(); err != nil {
 		return fmt.Errorf("failed to close STDIN pipe: %w", err)
 	}
 
@@ -1025,7 +1034,7 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...st
 		return fmt.Errorf("sendmail command failed: %s", string(serr))
 	}
 
-	if err := ec.Wait(); err != nil {
+	if err = ec.Wait(); err != nil {
 		return fmt.Errorf("sendmail command execution failed: %w", err)
 	}
 
@@ -1069,7 +1078,7 @@ func (m *Msg) HasSendError() bool {
 // corresponding error was of temporary nature and should be retried later
 func (m *Msg) SendErrorIsTemp() bool {
 	var e *SendError
-	if errors.As(m.sendError, &e) {
+	if errors.As(m.sendError, &e) && e != nil {
 		return e.isTemp
 	}
 	return false
