@@ -67,13 +67,13 @@ func (mw *msgWriter) writeMsg(m *Msg) {
 	// Set the FROM header (or envelope FROM if FROM is empty)
 	hf := true
 	f, ok := m.addrHeader[HeaderFrom]
-	if !ok || len(f) == 0 {
+	if !ok || (len(f) == 0 || f == nil) {
 		f, ok = m.addrHeader[HeaderEnvelopeFrom]
-		if !ok || len(f) == 0 {
+		if !ok || (len(f) == 0 || f == nil) {
 			hf = false
 		}
 	}
-	if hf {
+	if hf && (len(f) > 0 && f[0] != nil) {
 		mw.writeHeader(Header(HeaderFrom), f[0].String())
 	}
 

@@ -6,7 +6,9 @@ package mail
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"testing"
 )
 
@@ -64,9 +66,20 @@ func TestReader_Read_error(t *testing.T) {
 // TestReader_Read_empty tests the Reader.Read method with an empty buffer
 func TestReader_Read_empty(t *testing.T) {
 	r := Reader{buf: []byte{}}
-	var p []byte
+	p := make([]byte, 1)
+	p[0] = 'a'
 	_, err := r.Read(p)
-	if err != nil {
+	if err != nil && !errors.Is(err, io.EOF) {
+		t.Errorf("Reader failed: %s", err)
+	}
+}
+
+// TestReader_Read_nil tests the Reader.Read method with a nil buffer
+func TestReader_Read_nil(t *testing.T) {
+	r := Reader{buf: nil, off: -10}
+	p := make([]byte, 0)
+	_, err := r.Read(p)
+	if err != nil && !errors.Is(err, io.EOF) {
 		t.Errorf("Reader failed: %s", err)
 	}
 }

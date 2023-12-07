@@ -25,7 +25,7 @@ func (r *Reader) Read(p []byte) (n int, err error) {
 	if r.err != nil {
 		return 0, r.err
 	}
-	if r.empty() {
+	if r.empty() || r.buf == nil {
 		r.Reset()
 		if len(p) == 0 {
 			return 0, nil

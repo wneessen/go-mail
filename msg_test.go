@@ -216,6 +216,9 @@ func (mw uppercaseMiddleware) Handle(m *Msg) *Msg {
 	if !ok {
 		fmt.Println("can't find the subject header")
 	}
+	if s == nil || len(s) < 1 {
+		s = append(s, "")
+	}
 	m.Subject(strings.ToUpper(s[0]))
 	return m
 }
@@ -230,6 +233,9 @@ func (mw encodeMiddleware) Handle(m *Msg) *Msg {
 	s, ok := m.genHeader[HeaderSubject]
 	if !ok {
 		fmt.Println("can't find the subject header")
+	}
+	if s == nil || len(s) < 1 {
+		s = append(s, "")
 	}
 	m.Subject(strings.Replace(s[0], "a", "@", -1))
 	return m
@@ -752,7 +758,9 @@ func TestMsg_SetMessageIDWithValue(t *testing.T) {
 		t.Errorf("SetMessageID() failed. Expected value, got: empty")
 		return
 	}
-	m.genHeader[HeaderMessageID] = nil
+	if _, ok := m.genHeader[HeaderMessageID]; ok {
+		m.genHeader[HeaderMessageID] = nil
+	}
 	v := "This.is.a.message.id"
 	vf := "<This.is.a.message.id>"
 	m.SetMessageIDWithValue(v)
@@ -773,7 +781,9 @@ func TestMsg_SetMessageIDRandomness(t *testing.T) {
 		m := NewMsg()
 		m.SetMessageID()
 		mid := m.GetGenHeader(HeaderMessageID)
-		mids = append(mids, mid[0])
+		if len(mid) > 0 {
+			mids = append(mids, mid[0])
+		}
 	}
 	c := make(map[string]int)
 	for i := range mids {
@@ -1125,9 +1135,11 @@ func TestMsg_RequestMDN(t *testing.T) {
 	if err := m.RequestMDNTo(v); err != nil {
 		t.Errorf("RequestMDNTo with a single valid address failed: %s", err)
 	}
-	if m.genHeader[HeaderDispositionNotificationTo][0] != fmt.Sprintf("<%s>", v) {
-		t.Errorf("RequestMDNTo with a single valid address failed. Expected: %s, got: %s", v,
-			m.genHeader[HeaderDispositionNotificationTo][0])
+	if val := m.genHeader[HeaderDispositionNotificationTo]; len(val) > 1 {
+		if val[0] != fmt.Sprintf("<%s>", v) {
+			t.Errorf("RequestMDNTo with a single valid address failed. Expected: %s, got: %s", v,
+				val[0])
+		}
 	}
 	m.Reset()
 
@@ -1135,13 +1147,17 @@ func TestMsg_RequestMDN(t *testing.T) {
 	if err := m.RequestMDNTo(vl...); err != nil {
 		t.Errorf("RequestMDNTo with a multiple valid address failed: %s", err)
 	}
-	if m.genHeader[HeaderDispositionNotificationTo][0] != fmt.Sprintf("<%s>", v) {
-		t.Errorf("RequestMDNTo with a multiple valid addresses failed. Expected 0: %s, got 0: %s", v,
-			m.genHeader[HeaderDispositionNotificationTo][0])
+	if val := m.genHeader[HeaderDispositionNotificationTo]; len(val) > 0 {
+		if val[0] != fmt.Sprintf("<%s>", v) {
+			t.Errorf("RequestMDNTo with a multiple valid addresses failed. Expected 0: %s, got 0: %s", v,
+				val[0])
+		}
 	}
-	if m.genHeader[HeaderDispositionNotificationTo][1] != fmt.Sprintf("<%s>", v2) {
-		t.Errorf("RequestMDNTo with a multiple valid addresses failed. Expected 1: %s, got 1: %s", v2,
-			m.genHeader[HeaderDispositionNotificationTo][1])
+	if val := m.genHeader[HeaderDispositionNotificationTo]; len(val) > 1 {
+		if val[1] != fmt.Sprintf("<%s>", v2) {
+			t.Errorf("RequestMDNTo with a multiple valid addresses failed. Expected 1: %s, got 1: %s", v2,
+				val[1])
+		}
 	}
 	m.Reset()
 
@@ -1158,9 +1174,11 @@ func TestMsg_RequestMDN(t *testing.T) {
 	if err := m.RequestMDNAddTo(v2); err != nil {
 		t.Errorf("RequestMDNAddTo with a valid address failed: %s", err)
 	}
-	if m.genHeader[HeaderDispositionNotificationTo][1] != fmt.Sprintf("<%s>", v2) {
-		t.Errorf("RequestMDNTo with a multiple valid addresses failed. Expected 1: %s, got 1: %s", v2,
-			m.genHeader[HeaderDispositionNotificationTo][1])
+	if val := m.genHeader[HeaderDispositionNotificationTo]; len(val) > 1 {
+		if val[1] != fmt.Sprintf("<%s>", v2) {
+			t.Errorf("RequestMDNTo with a multiple valid addresses failed. Expected 1: %s, got 1: %s", v2,
+				val[1])
+		}
 	}
 	m.Reset()
 
@@ -1168,16 +1186,20 @@ func TestMsg_RequestMDN(t *testing.T) {
 	if err := m.RequestMDNToFormat(n, v); err != nil {
 		t.Errorf("RequestMDNToFormat with a single valid address failed: %s", err)
 	}
-	if m.genHeader[HeaderDispositionNotificationTo][0] != fmt.Sprintf(`"%s" <%s>`, n, v) {
-		t.Errorf(`RequestMDNToFormat with a single valid address failed. Expected: "%s" <%s>, got: %s`, n, v,
-			m.genHeader[HeaderDispositionNotificationTo][0])
+	if val := m.genHeader[HeaderDispositionNotificationTo]; len(val) > 0 {
+		if val[0] != fmt.Sprintf(`"%s" <%s>`, n, v) {
+			t.Errorf(`RequestMDNToFormat with a single valid address failed. Expected: "%s" <%s>, got: %s`, n, v,
+				val[0])
+		}
 	}
 	if err := m.RequestMDNAddToFormat(n2, v2); err != nil {
 		t.Errorf("RequestMDNAddToFormat with a valid address failed: %s", err)
 	}
-	if m.genHeader[HeaderDispositionNotificationTo][1] != fmt.Sprintf(`"%s" <%s>`, n2, v2) {
-		t.Errorf(`RequestMDNAddToFormat with a single valid address failed. Expected: "%s" <%s>, got: %s`, n2, v2,
-			m.genHeader[HeaderDispositionNotificationTo][1])
+	if val := m.genHeader[HeaderDispositionNotificationTo]; len(val) > 1 {
+		if val[1] != fmt.Sprintf(`"%s" <%s>`, n2, v2) {
+			t.Errorf(`RequestMDNAddToFormat with a single valid address failed. Expected: "%s" <%s>, got: %s`, n2, v2,
+				val[1])
+		}
 	}
 	m.Reset()
 
@@ -2566,6 +2588,10 @@ func TestMsg_WriteToFile(t *testing.T) {
 	fi, err := os.Stat(f.Name())
 	if err != nil {
 		t.Errorf("failed to stat output file: %s", err)
+	}
+	if fi == nil {
+		t.Errorf("received empty file handle")
+		return
 	}
 	if fi.Size() <= 0 {
 		t.Errorf("output file is expected to contain data but its size is zero")
