@@ -1705,7 +1705,10 @@ func TestMsg_AttachReader(t *testing.T) {
 	rbuf := bytes.Buffer{}
 	rbuf.WriteString(ts)
 	r := bufio.NewReader(&rbuf)
-	m.AttachReader("testfile.txt", r)
+	if err := m.AttachReader("testfile.txt", r); err != nil {
+		t.Errorf("AttachReader() failed. Expected no error, got: %s", err.Error())
+		return
+	}
 	if len(m.attachments) != 1 {
 		t.Errorf("AttachReader() failed. Number of attachments expected: %d, got: %d", 1,
 			len(m.attachments))
@@ -1845,7 +1848,10 @@ func TestMsg_EmbedReader(t *testing.T) {
 	rbuf := bytes.Buffer{}
 	rbuf.WriteString(ts)
 	r := bufio.NewReader(&rbuf)
-	m.EmbedReader("testfile.txt", r)
+	if err := m.EmbedReader("testfile.txt", r); err != nil {
+		t.Errorf("EmbedReader() failed. Expected no error, got: %s", err.Error())
+		return
+	}
 	if len(m.embeds) != 1 {
 		t.Errorf("EmbedReader() failed. Number of embeds expected: %d, got: %d", 1,
 			len(m.embeds))
@@ -2847,8 +2853,14 @@ func TestMsg_AttachEmbedReader_consecutive(t *testing.T) {
 	ts1 := "This is a test string"
 	ts2 := "Another test string"
 	m := NewMsg()
-	m.AttachReader("attachment.txt", bytes.NewBufferString(ts1))
-	m.EmbedReader("embedded.txt", bytes.NewBufferString(ts2))
+	if err := m.AttachReader("attachment.txt", bytes.NewBufferString(ts1)); err != nil {
+		t.Errorf("AttachReader() failed. Expected no error, got: %s", err.Error())
+		return
+	}
+	if err := m.EmbedReader("embedded.txt", bytes.NewBufferString(ts2)); err != nil {
+		t.Errorf("EmbedReader() failed. Expected no error, got: %s", err.Error())
+		return
+	}
 	obuf1 := &bytes.Buffer{}
 	obuf2 := &bytes.Buffer{}
 	_, err := m.WriteTo(obuf1)
