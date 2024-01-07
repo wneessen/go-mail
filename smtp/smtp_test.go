@@ -57,10 +57,10 @@ var authTests = []authTest{
 	},
 	{
 		LoginAuth("user", "pass", "testserver"),
-		[]string{"Username:", "Password:", "Invalid:"},
+		[]string{"Username:", "Password:", "User Name\x00", "Password\x00", "Invalid:"},
 		"LOGIN",
-		[]string{"", "user", "pass", ""},
-		[]bool{false, false, true},
+		[]string{"", "user", "pass", "user", "pass", ""},
+		[]bool{false, false, false, false, true},
 	},
 	{
 		CRAMMD5Auth("user", "pass"),
