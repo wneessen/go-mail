@@ -43,7 +43,7 @@ const (
 	LoginXDraftPasswordChallenge = "Password\x00"
 )
 
-// LoginAuth returns an Auth that implements the LOGIN authentication
+// LoginAuth returns an [Auth] that implements the LOGIN authentication
 // mechanism as it is used by MS Outlook. The Auth works similar to PLAIN
 // but instead of sending all in one response, the login is handled within
 // 3 steps:

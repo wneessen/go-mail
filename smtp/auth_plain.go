@@ -23,7 +23,7 @@ type plainAuth struct {
 	host                         string
 }
 
-// PlainAuth returns an Auth that implements the PLAIN authentication
+// PlainAuth returns an [Auth] that implements the PLAIN authentication
 // mechanism as defined in RFC 4616. The returned Auth uses the given
 // username and password to authenticate to host and act as identity.
 // Usually identity should be the empty string, to act as username.
