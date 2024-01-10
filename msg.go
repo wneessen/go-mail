@@ -792,9 +792,13 @@ func (m *Msg) AttachFile(n string, o ...FileOption) {
 // into memory first, so it can seek through it. Using larger amounts of
 // data on the io.Reader should be avoided. For such, it is recommended to
 // either use AttachFile or AttachReadSeeker instead
-func (m *Msg) AttachReader(n string, r io.Reader, o ...FileOption) {
-	f := fileFromReader(n, r)
+func (m *Msg) AttachReader(n string, r io.Reader, o ...FileOption) error {
+	f, err := fileFromReader(n, r)
+	if err != nil {
+		return err
+	}
 	m.attachments = m.appendFile(m.attachments, f, o...)
+	return nil
 }
 
 // AttachReadSeeker adds an attachment File via io.ReadSeeker to the Msg
@@ -851,9 +855,13 @@ func (m *Msg) EmbedFile(n string, o ...FileOption) {
 // into memory first, so it can seek through it. Using larger amounts of
 // data on the io.Reader should be avoided. For such, it is recommended to
 // either use EmbedFile or EmbedReadSeeker instead
-func (m *Msg) EmbedReader(n string, r io.Reader, o ...FileOption) {
-	f := fileFromReader(n, r)
+func (m *Msg) EmbedReader(n string, r io.Reader, o ...FileOption) error {
+	f, err := fileFromReader(n, r)
+	if err != nil {
+		return err
+	}
 	m.embeds = m.appendFile(m.embeds, f, o...)
+	return nil
 }
 
 // EmbedReadSeeker adds an embedded File from an io.ReadSeeker to the Msg
@@ -1216,10 +1224,10 @@ func fileFromFS(n string) *File {
 }
 
 // fileFromReader returns a File pointer from a given io.Reader
-func fileFromReader(n string, r io.Reader) *File {
+func fileFromReader(n string, r io.Reader) (*File, error) {
 	d, err := io.ReadAll(r)
 	if err != nil {
-		return &File{}
+		return &File{}, err
 	}
 	br := bytes.NewReader(d)
 	return &File{
@@ -1233,7 +1241,7 @@ func fileFromReader(n string, r io.Reader) *File {
 			_, cerr = br.Seek(0, io.SeekStart)
 			return rb, cerr
 		},
-	}
+	}, nil
 }
 
 // fileFromReadSeeker returns a File pointer from a given io.ReadSeeker
@@ -1261,8 +1269,7 @@ func fileFromHTMLTemplate(n string, t *ht.Template, d interface{}) (*File, error
 	if err := t.Execute(&buf, d); err != nil {
 		return nil, fmt.Errorf(errTplExecuteFailed, err)
 	}
-	f := fileFromReader(n, &buf)
-	return f, nil
+	return fileFromReader(n, &buf)
 }
 
 // fileFromTextTemplate returns a File pointer form a given text/template.Template
@@ -1274,8 +1281,7 @@ func fileFromTextTemplate(n string, t *tt.Template, d interface{}) (*File, error
 	if err := t.Execute(&buf, d); err != nil {
 		return nil, fmt.Errorf(errTplExecuteFailed, err)
 	}
-	f := fileFromReader(n, &buf)
-	return f, nil
+	return fileFromReader(n, &buf)
 }
 
 // getEncoder creates a new mime.WordEncoder based on the encoding setting of the message

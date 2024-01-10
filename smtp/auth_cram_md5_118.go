@@ -27,7 +27,7 @@ type cramMD5Auth struct {
 	username, secret string
 }
 
-// CRAMMD5Auth returns an Auth that implements the CRAM-MD5 authentication
+// CRAMMD5Auth returns an [Auth] that implements the CRAM-MD5 authentication
 // mechanism as defined in RFC 2195.
 // The returned Auth uses the given username and secret to authenticate
 // to the server using the challenge-response mechanism.
