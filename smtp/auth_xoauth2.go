@@ -8,6 +8,11 @@ type xoauth2Auth struct {
 	username, token string
 }
 
+// XOAuth2Auth returns an [Auth] that implements the XOAuth2 authentication
+// mechanism as defined in the following specs:
+//
+// https://developers.google.com/gmail/imap/xoauth2-protocol
+// https://learn.microsoft.com/en-us/exchange/client-developer/legacy-protocols/how-to-authenticate-an-imap-pop-smtp-application-by-using-oauth
 func XOAuth2Auth(username, token string) Auth {
 	return &xoauth2Auth{username, token}
 }
