@@ -138,11 +138,12 @@ const (
 
 // List of common content types
 const (
-	TypeTextPlain      ContentType = "text/plain"
-	TypeTextHTML       ContentType = "text/html"
-	TypeAppOctetStream ContentType = "application/octet-stream"
-	TypePGPSignature   ContentType = "application/pgp-signature"
-	TypePGPEncrypted   ContentType = "application/pgp-encrypted"
+	TypeAppOctetStream       ContentType = "application/octet-stream"
+	TypeMultipartAlternative ContentType = "multipart/alternative"
+	TypePGPSignature         ContentType = "application/pgp-signature"
+	TypePGPEncrypted         ContentType = "application/pgp-encrypted"
+	TypeTextHTML             ContentType = "text/html"
+	TypeTextPlain            ContentType = "text/plain"
 )
 
 // List of MIMETypes
