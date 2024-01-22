@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"mime/multipart"
 	"mime/quotedprintable"
 	nm "net/mail"
 	"os"
@@ -200,6 +201,59 @@ func parseEMLBodyParts(pm *nm.Message, mbbuf *bytes.Buffer, m *Msg) error {
 			m.SetBodyString(TypeTextPlain, b64buf.String())
 			break
 		}
+	case TypeMultipartAlternative.String():
+		// TODO: Refactor in its own function
+		b, ok := par["boundary"]
+		if !ok {
+			return fmt.Errorf("no boundary tag found in multipart body")
+		}
+		mpr := multipart.NewReader(mbbuf, b)
+		mp, err := mpr.NextPart()
+		if err != nil {
+			return fmt.Errorf("failed to get next part of multipart message: %w", err)
+		}
+		for err == nil {
+			// TODO: Clean up code
+			mpd, mperr := io.ReadAll(mp)
+			if mperr != nil {
+				_ = mp.Close()
+				return fmt.Errorf("failed to read multipart: %w", err)
+			}
+			mpctc, ok := mp.Header[HeaderContentType.String()]
+			if !ok {
+				return fmt.Errorf("failed to get content-type from part")
+			}
+			mpcts := strings.Split(mpctc[0], "; ")
+			if len(mpcts) > 1 && strings.HasPrefix(strings.ToLower(mpcts[1]), "charset=") {
+				vs := strings.Split(mpcts[1], "=")
+				if len(vs) > 1 {
+					// TODO: We probably want per-part charset instead
+					m.SetCharset(Charset(vs[1]))
+				}
+			}
+			mpcte, ok := mp.Header[HeaderContentTransferEnc.String()]
+			if !ok {
+				return fmt.Errorf("failed to get content-transfer-encoding from part")
+			}
+			m.SetCharset(Charset(mpcts[1]))
+			p := m.newPart(ContentType(mpcts[0]))
+			switch {
+			case strings.EqualFold(mpcte[0], EncodingB64.String()):
+				p.SetEncoding(EncodingB64)
+				cont, err := base64.StdEncoding.DecodeString(string(mpd))
+				if err != nil {
+					return fmt.Errorf("failed to decode base64 part: %w", err)
+				}
+				p.SetContent(string(cont))
+			}
+			m.parts = append(m.parts, p)
+			mp, err = mpr.NextPart()
+		}
+		if err != io.EOF {
+			_ = mp.Close()
+			return fmt.Errorf("failed to read multipart: %w", err)
+		}
+
 	default:
 	}
 	return nil
