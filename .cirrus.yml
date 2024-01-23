@@ -9,9 +9,9 @@ freebsd_task:
     - name: FreeBSD 13.2
       freebsd_instance:
         image_family: freebsd-13-2
-    - name: FreeBSD 12.4
+    - name: FreeBSD 14.0
       freebsd_instance:
-        image_family: freebsd-12-4
+        image_family: freebsd-14-0
 
   env:
     TEST_ALLOW_SEND: 0
