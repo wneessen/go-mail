@@ -91,6 +91,7 @@ func (c *Client) Send(ml ...*Msg) error {
 			errs = append(errs, se)
 			continue
 		}
+		m.isDelivered = true
 
 		if err := w.Close(); err != nil {
 			se := &SendError{Reason: ErrSMTPDataClose, errlist: []error{err}, isTemp: isTempError(err)}

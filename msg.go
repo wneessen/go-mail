@@ -94,6 +94,9 @@ type Msg struct {
 	// genHeader is a slice of strings that the different generic mail Header fields
 	genHeader map[Header][]string
 
+	// isDelivered signals if a message has been delivered or not
+	isDelivered bool
+
 	// middlewares is the list of middlewares to apply to the Msg before sending in FIFO order
 	middlewares []Middleware
 
@@ -505,6 +508,11 @@ func (m *Msg) SetOrganization(o string) {
 func (m *Msg) SetUserAgent(a string) {
 	m.SetGenHeader(HeaderUserAgent, a)
 	m.SetGenHeader(HeaderXMailer, a)
+}
+
+// IsDelivered will return true if the Msg has been successfully delivered
+func (m *Msg) IsDelivered() bool {
+	return m.isDelivered
 }
 
 // RequestMDNTo adds the Disposition-Notification-To header to request a MDN from the receiving end

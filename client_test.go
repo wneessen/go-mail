@@ -763,6 +763,9 @@ func TestClient_DialSendClose(t *testing.T) {
 	if err := c.Close(); err != nil {
 		t.Errorf("Close() failed: %s", err)
 	}
+	if !m.IsDelivered() {
+		t.Errorf("message should be delivered but is indicated no to")
+	}
 }
 
 // TestClient_DialAndSendWithContext tests the DialAndSendWithContext() method of Client
@@ -1134,7 +1137,9 @@ func TestClient_DialAndSendWithContext_withSendError(t *testing.T) {
 	}
 	if se.IsTemp() {
 		t.Errorf("expected permanent error but IsTemp() returned true")
-		return
+	}
+	if m.IsDelivered() {
+		t.Errorf("message is indicated to be delivered but shouldn't")
 	}
 }
 

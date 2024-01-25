@@ -88,6 +88,7 @@ func (c *Client) Send(ml ...*Msg) (rerr error) {
 			rerr = errors.Join(rerr, m.sendError)
 			continue
 		}
+		m.isDelivered = true
 
 		if err := w.Close(); err != nil {
 			m.sendError = &SendError{Reason: ErrSMTPDataClose, errlist: []error{err}, isTemp: isTempError(err)}
