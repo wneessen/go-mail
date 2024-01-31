@@ -15,6 +15,7 @@ type PartOption func(*Part)
 // Part is a part of the Msg
 type Part struct {
 	ctype ContentType
+	cset  Charset
 	desc  string
 	enc   Encoding
 	del   bool
@@ -61,6 +62,11 @@ func (p *Part) SetContentType(c ContentType) {
 	p.ctype = c
 }
 
+// SetCharset overrides the Charset of the Part
+func (p *Part) SetCharset(c Charset) {
+	p.cset = c
+}
+
 // SetEncoding creates a new mime.WordEncoder based on the encoding setting of the message
 func (p *Part) SetEncoding(e Encoding) {
 	p.enc = e
@@ -80,6 +86,13 @@ func (p *Part) SetWriteFunc(w func(io.Writer) (int64, error)) {
 // del flag to true. The msgWriter will skip it then
 func (p *Part) Delete() {
 	p.del = true
+}
+
+// WithPartCharset overrides the default Part charset
+func WithPartCharset(c Charset) PartOption {
+	return func(p *Part) {
+		p.cset = c
+	}
 }
 
 // WithPartEncoding overrides the default Part encoding
