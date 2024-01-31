@@ -20,8 +20,14 @@ import (
 
 // Defaults
 const (
-	// DefaultPort is the default connection port cto the SMTP server
+	// DefaultPort is the default connection port to the SMTP server
 	DefaultPort = 25
+
+	// DefaultPortSSL is the default connection port for SSL/TLS to the SMTP server
+	DefaultPortSSL = 465
+
+	// DefaultPortTLS is the default connection port for STARTTLS to the SMTP server
+	DefaultPortTLS = 587
 
 	// DefaultTimeout is the default connection timeout
 	DefaultTimeout = time.Second * 15
@@ -105,14 +111,15 @@ type Client struct {
 	// HELO/EHLO string for the greeting the target SMTP server
 	helo string
 
-	// Hostname of the target SMTP server cto connect cto
+	// Hostname of the target SMTP server to connect to
 	host string
 
 	// pass is the corresponding SMTP AUTH password
 	pass string
 
-	// Port of the SMTP server cto connect cto
-	port int
+	// Port of the SMTP server to connect to
+	port         int
+	fallbackPort int
 
 	// sa is a pointer to smtp.Auth
 	sa smtp.Auth
@@ -246,9 +253,23 @@ func WithTimeout(t time.Duration) Option {
 }
 
 // WithSSL tells the client to use a SSL/TLS connection
+//
+// Deprecated: use WithSSLPort instead.
 func WithSSL() Option {
 	return func(c *Client) error {
 		c.ssl = true
+		return nil
+	}
+}
+
+// WithSSLPort tells the client to use a SSL/TLS connection.
+// It automatically sets the port to 465.
+//
+// When the SSL connection fails and fallback is set to true,
+// the client will attempt to connect on port 25 using plaintext.
+func WithSSLPort(fb bool) Option {
+	return func(c *Client) error {
+		c.SetSSLPort(true, fb)
 		return nil
 	}
 }
@@ -282,9 +303,25 @@ func WithHELO(h string) Option {
 }
 
 // WithTLSPolicy tells the client to use the provided TLSPolicy
+//
+// Deprecated: use WithTLSPortPolicy instead.
 func WithTLSPolicy(p TLSPolicy) Option {
 	return func(c *Client) error {
 		c.tlspolicy = p
+		return nil
+	}
+}
+
+// WithTLSPortPolicy tells the client to use the provided TLSPolicy,
+// The correct port is automatically set.
+//
+// Port 587 is used for TLSMandatory and TLSOpportunistic.
+// If the connection fails with TLSOpportunistic,
+// a plaintext connection is attempted on port 25 as a fallback.
+// NoTLS will allways use port 25.
+func WithTLSPortPolicy(p TLSPolicy) Option {
+	return func(c *Client) error {
+		c.SetTLSPortPolicy(p)
 		return nil
 	}
 }
@@ -430,9 +467,50 @@ func (c *Client) SetTLSPolicy(p TLSPolicy) {
 	c.tlspolicy = p
 }
 
+// SetTLSPortPolicy overrides the current TLSPolicy with the given TLSPolicy
+// value. The correct port is automatically set.
+//
+// Port 587 is used for TLSMandatory and TLSOpportunistic.
+// If the connection fails with TLSOpportunistic, a plaintext connection is
+// attempted on port 25 as a fallback.
+// NoTLS will allways use port 25.
+func (c *Client) SetTLSPortPolicy(p TLSPolicy) {
+	c.port = DefaultPortTLS
+
+	if p == TLSOpportunistic {
+		c.fallbackPort = DefaultPort
+	}
+	if p == NoTLS {
+		c.port = DefaultPort
+	}
+
+	c.tlspolicy = p
+}
+
 // SetSSL tells the Client wether to use SSL or not
 func (c *Client) SetSSL(s bool) {
 	c.ssl = s
+}
+
+// SetSSLPort tells the Client wether or not to use SSL and fallback.
+// The correct port is automatically set.
+//
+// Port 465 is used when SSL set (true).
+// Port 25 is used when SSL is unset (false).
+// When the SSL connection fails and fb is set to true,
+// the client will attempt to connect on port 25 using plaintext.
+func (c *Client) SetSSLPort(ssl bool, fb bool) {
+	c.port = DefaultPort
+	if ssl {
+		c.port = DefaultPortSSL
+	}
+
+	c.fallbackPort = 0
+	if fb {
+		c.fallbackPort = DefaultPort
+	}
+
+	c.ssl = ssl
 }
 
 // SetDebugLog tells the Client whether debug logging is enabled or not
@@ -507,6 +585,10 @@ func (c *Client) DialWithContext(pc context.Context) error {
 	}
 	var err error
 	c.co, err = c.dialContextFunc(ctx, "tcp", c.ServerAddr())
+	if err != nil && c.fallbackPort != 0 {
+		// TODO: should we somehow log or append the previous error?
+		c.co, err = c.dialContextFunc(ctx, "tcp", c.serverFallbackAddr())
+	}
 	if err != nil {
 		return err
 	}
@@ -604,6 +686,12 @@ func (c *Client) checkConn() error {
 		return ErrDeadlineExtendFailed
 	}
 	return nil
+}
+
+// serverFallbackAddr returns the currently set combination of hostname
+// and fallback port.
+func (c *Client) serverFallbackAddr() string {
+	return fmt.Sprintf("%s:%d", c.host, c.fallbackPort)
 }
 
 // tls tries to make sure that the STARTTLS requirements are satisfied
