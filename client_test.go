@@ -89,9 +89,12 @@ func TestNewClientWithOptions(t *testing.T) {
 		{"WithTimeout()", WithTimeout(time.Second * 5), false},
 		{"WithTimeout()", WithTimeout(-10), true},
 		{"WithSSL()", WithSSL(), false},
+		{"WithSSLPort(false)", WithSSLPort(false), false},
+		{"WithSSLPort(true)", WithSSLPort(true), false},
 		{"WithHELO()", WithHELO(host), false},
 		{"WithHELO(); helo is empty", WithHELO(""), true},
 		{"WithTLSPolicy()", WithTLSPolicy(TLSOpportunistic), false},
+		{"WithTLSPortPolicy()", WithTLSPortPolicy(TLSOpportunistic), false},
 		{"WithTLSConfig()", WithTLSConfig(&tls.Config{}), false},
 		{"WithTLSConfig(); config is nil", WithTLSConfig(nil), true},
 		{"WithSMTPAuth()", WithSMTPAuth(SMTPAuthLogin), false},
@@ -235,6 +238,42 @@ func TestWithTLSPolicy(t *testing.T) {
 	}
 }
 
+// TestWithTLSPortPolicy tests the WithTLSPortPolicy() option for the NewClient() method
+func TestWithTLSPortPolicy(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    TLSPolicy
+		want     string
+		wantPort int
+		fbPort   int
+		sf       bool
+	}{
+		{"Policy: TLSMandatory", TLSMandatory, TLSMandatory.String(), 587, 0, false},
+		{"Policy: TLSOpportunistic", TLSOpportunistic, TLSOpportunistic.String(), 587, 25, false},
+		{"Policy: NoTLS", NoTLS, NoTLS.String(), 25, 0, false},
+		{"Policy: Invalid", -1, "UnknownPolicy", 587, 0, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := NewClient(DefaultHost, WithTLSPortPolicy(tt.value))
+			if err != nil && !tt.sf {
+				t.Errorf("failed to create new client: %s", err)
+				return
+			}
+			if c.tlspolicy.String() != tt.want {
+				t.Errorf("failed to set TLSPortPolicy. Want: %s, got: %s", tt.want, c.tlspolicy)
+			}
+			if c.port != tt.wantPort {
+				t.Errorf("failed to set TLSPortPolicy, wanted port: %d, got: %d", tt.wantPort, c.port)
+			}
+			if c.fallbackPort != tt.fbPort {
+				t.Errorf("failed to set TLSPortPolicy, wanted fallbakc port: %d, got: %d", tt.fbPort,
+					c.fallbackPort)
+			}
+		})
+	}
+}
+
 // TestSetTLSPolicy tests the SetTLSPolicy() method for the Client object
 func TestSetTLSPolicy(t *testing.T) {
 	tests := []struct {
@@ -307,6 +346,42 @@ func TestSetSSL(t *testing.T) {
 			c.SetSSL(tt.value)
 			if c.ssl != tt.value {
 				t.Errorf("failed to set SSL setting. Got: %t, want: %t", c.ssl, tt.value)
+			}
+		})
+	}
+}
+
+// TestSetSSLPort tests the Client.SetSSLPort method
+func TestClient_SetSSLPort(t *testing.T) {
+	tests := []struct {
+		name   string
+		value  bool
+		fb     bool
+		port   int
+		fbPort int
+	}{
+		{"SSL: on, fb: off", true, false, 465, 0},
+		{"SSL: on, fb: on", true, true, 465, 25},
+		{"SSL: off, fb: off", false, false, 25, 0},
+		{"SSL: off, fb: on", false, true, 25, 25},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := NewClient(DefaultHost)
+			if err != nil {
+				t.Errorf("failed to create new client: %s", err)
+				return
+			}
+			c.SetSSLPort(tt.value, tt.fb)
+			if c.ssl != tt.value {
+				t.Errorf("failed to set SSL setting. Got: %t, want: %t", c.ssl, tt.value)
+			}
+			if c.port != tt.port {
+				t.Errorf("failed to set SSLPort, wanted port: %d, got: %d", c.port, tt.port)
+			}
+			if c.fallbackPort != tt.fbPort {
+				t.Errorf("failed to set SSLPort, wanted fallback port: %d, got: %d", c.fallbackPort,
+					tt.fbPort)
 			}
 		})
 	}
@@ -547,6 +622,38 @@ func TestClient_DialWithContext(t *testing.T) {
 	}
 	if err := c.Close(); err != nil {
 		t.Errorf("failed to close connection: %s", err)
+	}
+}
+
+// TestClient_DialWithContext_Fallback tests the Client.DialWithContext method with the fallback
+// port functionality
+func TestClient_DialWithContext_Fallback(t *testing.T) {
+	c, err := getTestConnection(true)
+	if err != nil {
+		t.Skipf("failed to create test client: %s. Skipping tests", err)
+	}
+	c.SetTLSPortPolicy(TLSOpportunistic)
+	c.port = 999
+	ctx := context.Background()
+	if err := c.DialWithContext(ctx); err != nil {
+		t.Errorf("failed to dial with context: %s", err)
+		return
+	}
+	if c.co == nil {
+		t.Errorf("DialWithContext didn't fail but no connection found.")
+	}
+	if c.sc == nil {
+		t.Errorf("DialWithContext didn't fail but no SMTP client found.")
+	}
+	if err := c.Close(); err != nil {
+		t.Errorf("failed to close connection: %s", err)
+	}
+
+	c.port = 999
+	c.fallbackPort = 999
+	if err = c.DialWithContext(ctx); err == nil {
+		t.Error("dial with context was supposed to fail, but didn't")
+		return
 	}
 }
 
