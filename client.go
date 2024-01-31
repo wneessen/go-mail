@@ -497,19 +497,17 @@ func (c *Client) SetSSL(s bool) {
 //
 // Port 465 is used when SSL set (true).
 // Port 25 is used when SSL is unset (false).
-// When the SSL connection fails and fallback is set to true,
+// When the SSL connection fails and fb is set to true,
 // the client will attempt to connect on port 25 using plaintext.
 func (c *Client) SetSSLPort(ssl bool, fb bool) {
+	c.port = DefaultPort
 	if ssl {
 		c.port = DefaultPortSSL
-	} else {
-		c.port = DefaultPort
 	}
 
+	c.fallbackPort = 0
 	if fb {
 		c.fallbackPort = DefaultPort
-	} else {
-		c.fallbackPort = 0
 	}
 
 	c.ssl = ssl
