@@ -53,6 +53,7 @@ func TestMsgWriter_writeMsg(t *testing.T) {
 	m.SetDateWithValue(now)
 	m.SetMessageIDWithValue("message@id.com")
 	m.SetBodyString(TypeTextPlain, "This is the body")
+	m.AddAlternativeString(TypeTextHTML, "This is the alternative body")
 	buf := bytes.Buffer{}
 	mw := &msgWriter{w: &buf, c: CharsetUTF8, en: mime.QEncoding}
 	mw.writeMsg(m)
@@ -95,6 +96,26 @@ func TestMsgWriter_writeMsg(t *testing.T) {
 	if !strings.Contains(ms, "\r\n\r\nThis is the body") {
 		ea = append(ea, "Message body")
 	}
+
+	pl := m.GetParts()
+	if len(pl) <= 0 {
+		t.Errorf("expected multiple parts but got none")
+		return
+	}
+	if len(pl) == 2 {
+		ap := pl[1]
+		ap.SetCharset(CharsetISO88591)
+	}
+	buf.Reset()
+	mw.writeMsg(m)
+	ms = buf.String()
+	if !strings.Contains(ms, "\r\n\r\nThis is the alternative body") {
+		ea = append(ea, "Message alternative body")
+	}
+	if !strings.Contains(ms, `Content-Type: text/html; charset=ISO-8859-1`) {
+		ea = append(ea, "alternative body charset")
+	}
+
 	if len(ea) > 0 {
 		em := "writeMsg() failed. The following errors occurred:\n"
 		for e := range ea {
