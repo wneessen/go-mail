@@ -31,6 +31,11 @@ func (p *Part) GetContent() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
+// GetCharset returns the currently set Charset of the Part
+func (p *Part) GetCharset() Charset {
+	return p.cset
+}
+
 // GetContentType returns the currently set ContentType of the Part
 func (p *Part) GetContentType() ContentType {
 	return p.ctype

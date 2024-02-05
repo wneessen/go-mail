@@ -45,6 +45,33 @@ func TestPartEncoding(t *testing.T) {
 	}
 }
 
+// TestWithPartCharset tests the WithPartCharset method
+func TestWithPartCharset(t *testing.T) {
+	tests := []struct {
+		name string
+		cs   Charset
+		want string
+	}{
+		{"Part charset: UTF-8", CharsetUTF8, "UTF-8"},
+		{"Part charset: ISO-8859-1", CharsetISO88591, "ISO-8859-1"},
+		{"Part charset: empty", "", ""},
+	}
+	for _, tt := range tests {
+		m := NewMsg()
+		t.Run(tt.name, func(t *testing.T) {
+			part := m.newPart(TypeTextPlain, WithPartCharset(tt.cs), nil)
+			if part == nil {
+				t.Errorf("newPart() WithPartCharset() failed: no part returned")
+				return
+			}
+			if part.cset.String() != tt.want {
+				t.Errorf("newPart() WithPartCharset() failed: expected charset: %s, got: %s",
+					tt.want, part.cset.String())
+			}
+		})
+	}
+}
+
 // TestPart_WithPartContentDescription tests the WithPartContentDescription method
 func TestPart_WithPartContentDescription(t *testing.T) {
 	tests := []struct {
@@ -319,4 +346,33 @@ func getPartList(m *Msg) ([]*Part, error) {
 		return nil, fmt.Errorf("Msg.GetParts failed. Part list is empty")
 	}
 	return pl, nil
+}
+
+// TestPart_SetCharset tests Part.SetCharset method
+func TestPart_SetCharset(t *testing.T) {
+	tests := []struct {
+		name string
+		cs   Charset
+		want string
+	}{
+		{"Charset: UTF-8", CharsetUTF8, "UTF-8"},
+		{"Charset: ISO-8859-1", CharsetISO88591, "ISO-8859-1"},
+		{"Charset: empty", "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := NewMsg()
+			m.SetBodyString(TypeTextPlain, "This is a test with ümläutß")
+			pl, err := getPartList(m)
+			if err != nil {
+				t.Errorf("failed: %s", err)
+				return
+			}
+			pl[0].SetCharset(tt.cs)
+			cs := pl[0].GetCharset()
+			if string(cs) != tt.want {
+				t.Errorf("SetCharset failed. Got: %s, expected: %s", string(cs), tt.want)
+			}
+		})
+	}
 }
