@@ -1141,6 +1141,7 @@ func (m *Msg) hasPGPType() bool {
 func (m *Msg) newPart(ct ContentType, o ...PartOption) *Part {
 	p := &Part{
 		ctype: ct,
+		cset:  m.charset,
 		enc:   m.encoding,
 	}
 
