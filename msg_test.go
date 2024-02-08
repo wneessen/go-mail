@@ -701,7 +701,16 @@ func TestMsg_SetBulk(t *testing.T) {
 		return
 	}
 	if m.genHeader[HeaderPrecedence][0] != "bulk" {
-		t.Errorf("SetBulk() failed. Expected %q, got: %q", "bulk", m.genHeader[HeaderPrecedence][0])
+		t.Errorf("SetBulk() failed. Expected Precedence header: %q, got: %q", "bulk",
+			m.genHeader[HeaderPrecedence][0])
+	}
+	if m.genHeader[HeaderXAutoResponseSuppress] == nil {
+		t.Errorf("SetBulk() failed. X-Auto-Response-Suppress header is nil")
+		return
+	}
+	if m.genHeader[HeaderXAutoResponseSuppress][0] != "All" {
+		t.Errorf("SetBulk() failed. Expected X-Auto-Response-Suppress header: %q, got: %q", "All",
+			m.genHeader[HeaderXAutoResponseSuppress][0])
 	}
 }
 

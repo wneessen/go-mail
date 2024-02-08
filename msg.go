@@ -470,11 +470,13 @@ func (m *Msg) SetMessageIDWithValue(v string) {
 	m.SetGenHeader(HeaderMessageID, fmt.Sprintf("<%s>", v))
 }
 
-// SetBulk sets the "Precedence: bulk" genHeader which is recommended for
-// automated mails like OOO replies
+// SetBulk sets the "Precedence: bulk" and "X-Auto-Response-Suppress: All" genHeaders which are
+// recommended for automated mails like OOO replies
 // See: https://www.rfc-editor.org/rfc/rfc2076#section-3.9
+// See also: https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-oxcmail/ced68690-498a-4567-9d14-5c01f974d8b1#Appendix_A_Target_51
 func (m *Msg) SetBulk() {
 	m.SetGenHeader(HeaderPrecedence, "bulk")
+	m.SetGenHeader(HeaderXAutoResponseSuppress, "All")
 }
 
 // SetDate sets the Date genHeader field to the current time in a valid format
