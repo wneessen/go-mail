@@ -82,6 +82,9 @@ const (
 	// HeaderUserAgent is the "User-Agent" header field
 	HeaderUserAgent Header = "User-Agent"
 
+	// HeaderXAutoResponseSuppress is the "X-Auto-Response-Suppress" header field
+	HeaderXAutoResponseSuppress Header = "X-Auto-Response-Suppress"
+
 	// HeaderXMailer is the "X-Mailer" header field
 	HeaderXMailer Header = "X-Mailer"
 
