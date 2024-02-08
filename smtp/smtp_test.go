@@ -1088,7 +1088,6 @@ Subject: SendMail test
 
 SendMail is working for me.
 `, "\n", "\r\n", -1)))
-
 	if err != nil {
 		t.Errorf("%v", err)
 	}
