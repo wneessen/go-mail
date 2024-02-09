@@ -34,7 +34,7 @@ func EMLToMsgFromReader(r io.Reader) (*Msg, error) {
 		mimever:       MIME10,
 	}
 
-	pm, mbbuf, err := readEMLFromReader(r)
+	pm, bodybuf, err := readEMLFromReader(r)
 	if err != nil || pm == nil {
 		return m, fmt.Errorf("failed to parse EML from reader: %w", err)
 	}
@@ -42,7 +42,7 @@ func EMLToMsgFromReader(r io.Reader) (*Msg, error) {
 	if err = parseEMLHeaders(&pm.Header, m); err != nil {
 		return m, fmt.Errorf("failed to parse EML headers: %w", err)
 	}
-	if err = parseEMLBodyParts(pm, mbbuf, m); err != nil {
+	if err = parseEMLBodyParts(pm, bodybuf, m); err != nil {
 		return m, fmt.Errorf("failed to parse EML body parts: %w", err)
 	}
 
@@ -59,7 +59,7 @@ func EMLToMsgFromFile(fp string) (*Msg, error) {
 		mimever:       MIME10,
 	}
 
-	pm, mbbuf, err := readEML(fp)
+	pm, bodybuf, err := readEML(fp)
 	if err != nil || pm == nil {
 		return m, fmt.Errorf("failed to parse EML file: %w", err)
 	}
@@ -67,7 +67,7 @@ func EMLToMsgFromFile(fp string) (*Msg, error) {
 	if err = parseEMLHeaders(&pm.Header, m); err != nil {
 		return m, fmt.Errorf("failed to parse EML headers: %w", err)
 	}
-	if err = parseEMLBodyParts(pm, mbbuf, m); err != nil {
+	if err = parseEMLBodyParts(pm, bodybuf, m); err != nil {
 		return m, fmt.Errorf("failed to parse EML body parts: %w", err)
 	}
 
@@ -163,27 +163,27 @@ func parseEMLHeaders(mh *nm.Header, m *Msg) error {
 }
 
 // parseEMLBodyParts parses the body of a EML based on the different content types and encodings
-func parseEMLBodyParts(pm *nm.Message, mbbuf *bytes.Buffer, m *Msg) error {
+func parseEMLBodyParts(pm *nm.Message, bodybuf *bytes.Buffer, m *Msg) error {
 	// Extract the transfer encoding of the body
-	mt, par, err := mime.ParseMediaType(pm.Header.Get(HeaderContentType.String()))
+	mediatype, params, err := mime.ParseMediaType(pm.Header.Get(HeaderContentType.String()))
 	if err != nil {
 		return fmt.Errorf("failed to extract content type: %w", err)
 	}
-	if v, ok := par["charset"]; ok {
+	if v, ok := params["charset"]; ok {
 		m.SetCharset(Charset(v))
 	}
 
 	cte := pm.Header.Get(HeaderContentTransferEnc.String())
-	switch strings.ToLower(mt) {
+	switch strings.ToLower(mediatype) {
 	case TypeTextPlain.String():
 		if strings.EqualFold(cte, NoEncoding.String()) {
 			m.SetEncoding(NoEncoding)
-			m.SetBodyString(TypeTextPlain, mbbuf.String())
+			m.SetBodyString(TypeTextPlain, bodybuf.String())
 			break
 		}
 		if strings.EqualFold(cte, EncodingQP.String()) {
 			m.SetEncoding(EncodingQP)
-			qpr := quotedprintable.NewReader(mbbuf)
+			qpr := quotedprintable.NewReader(bodybuf)
 			qpbuf := bytes.Buffer{}
 			if _, err = qpbuf.ReadFrom(qpr); err != nil {
 				return fmt.Errorf("failed to read quoted-printable body: %w", err)
@@ -193,7 +193,7 @@ func parseEMLBodyParts(pm *nm.Message, mbbuf *bytes.Buffer, m *Msg) error {
 		}
 		if strings.EqualFold(cte, EncodingB64.String()) {
 			m.SetEncoding(EncodingB64)
-			b64d := base64.NewDecoder(base64.StdEncoding, mbbuf)
+			b64d := base64.NewDecoder(base64.StdEncoding, bodybuf)
 			b64buf := bytes.Buffer{}
 			if _, err = b64buf.ReadFrom(b64d); err != nil {
 				return fmt.Errorf("failed to read base64 body: %w", err)
@@ -202,59 +202,76 @@ func parseEMLBodyParts(pm *nm.Message, mbbuf *bytes.Buffer, m *Msg) error {
 			break
 		}
 	case TypeMultipartAlternative.String():
-		// TODO: Refactor in its own function
-		b, ok := par["boundary"]
-		if !ok {
-			return fmt.Errorf("no boundary tag found in multipart body")
+		if err := parseEMLMultipartAlternative(params, bodybuf, m); err != nil {
+			return fmt.Errorf("failed to parse multipart/alternative: %w", err)
 		}
-		mpr := multipart.NewReader(mbbuf, b)
-		mp, err := mpr.NextPart()
-		if err != nil {
-			return fmt.Errorf("failed to get next part of multipart message: %w", err)
-		}
-		for err == nil {
-			// TODO: Clean up code
-			mpd, mperr := io.ReadAll(mp)
-			if mperr != nil {
-				_ = mp.Close()
-				return fmt.Errorf("failed to read multipart: %w", err)
-			}
-			mpctc, ok := mp.Header[HeaderContentType.String()]
-			if !ok {
-				return fmt.Errorf("failed to get content-type from part")
-			}
-			mpcts := strings.Split(mpctc[0], "; ")
-			if len(mpcts) > 1 && strings.HasPrefix(strings.ToLower(mpcts[1]), "charset=") {
-				vs := strings.Split(mpcts[1], "=")
-				if len(vs) > 1 {
-					// TODO: We probably want per-part charset instead
-					m.SetCharset(Charset(vs[1]))
-				}
-			}
-			mpcte, ok := mp.Header[HeaderContentTransferEnc.String()]
-			if !ok {
-				return fmt.Errorf("failed to get content-transfer-encoding from part")
-			}
-			m.SetCharset(Charset(mpcts[1]))
-			p := m.newPart(ContentType(mpcts[0]))
-			switch {
-			case strings.EqualFold(mpcte[0], EncodingB64.String()):
-				p.SetEncoding(EncodingB64)
-				cont, err := base64.StdEncoding.DecodeString(string(mpd))
-				if err != nil {
-					return fmt.Errorf("failed to decode base64 part: %w", err)
-				}
-				p.SetContent(string(cont))
-			}
-			m.parts = append(m.parts, p)
-			mp, err = mpr.NextPart()
-		}
-		if err != io.EOF {
-			_ = mp.Close()
+	default:
+	}
+	return nil
+}
+
+// parseEMLMultipartAlternative parses a multipart/alternative body part of a EML
+func parseEMLMultipartAlternative(params map[string]string, bodybuf *bytes.Buffer, m *Msg) error {
+	boundary, ok := params["boundary"]
+	if !ok {
+		return fmt.Errorf("no boundary tag found in multipart body")
+	}
+	mpreader := multipart.NewReader(bodybuf, boundary)
+	mpart, err := mpreader.NextPart()
+	if err != nil {
+		return fmt.Errorf("failed to get next part of multipart message: %w", err)
+	}
+	for err == nil {
+		mpdata, mperr := io.ReadAll(mpart)
+		if mperr != nil {
+			_ = mpart.Close()
 			return fmt.Errorf("failed to read multipart: %w", err)
 		}
 
-	default:
+		mpContentType, ok := mpart.Header[HeaderContentType.String()]
+		if !ok {
+			return fmt.Errorf("failed to get content-type from part")
+		}
+		mpContentTypeSplit := strings.Split(mpContentType[0], "; ")
+		p := m.newPart(ContentType(mpContentTypeSplit[0]))
+		parseEMLMultiPartCharset(mpContentTypeSplit, p)
+
+		mpTransferEnc, ok := mpart.Header[HeaderContentTransferEnc.String()]
+		if !ok {
+			return fmt.Errorf("failed to get content-transfer-encoding from part")
+		}
+		switch {
+		case strings.EqualFold(mpTransferEnc[0], EncodingB64.String()):
+			if err := handleEMLMultiPartBase64Encoding(mpTransferEnc, mpdata, p); err != nil {
+				return fmt.Errorf("failed to handle multipart base64 transfer-encoding: %w", err)
+			}
+		}
+
+		m.parts = append(m.parts, p)
+		mpart, err = mpreader.NextPart()
 	}
+	if !errors.Is(err, io.EOF) {
+		_ = mpart.Close()
+		return fmt.Errorf("failed to read multipart: %w", err)
+	}
+	return nil
+}
+
+func parseEMLMultiPartCharset(mpContentTypeSplit []string, p *Part) {
+	if len(mpContentTypeSplit) > 1 && strings.HasPrefix(strings.ToLower(mpContentTypeSplit[1]), "charset=") {
+		valSplit := strings.Split(mpContentTypeSplit[1], "=")
+		if len(valSplit) > 1 {
+			p.SetCharset(Charset(valSplit[1]))
+		}
+	}
+}
+
+func handleEMLMultiPartBase64Encoding(mpTransferEnc []string, mpdata []byte, p *Part) error {
+	p.SetEncoding(EncodingB64)
+	cont, err := base64.StdEncoding.DecodeString(string(mpdata))
+	if err != nil {
+		return fmt.Errorf("failed to decode base64 part: %w", err)
+	}
+	p.SetContent(string(cont))
 	return nil
 }
