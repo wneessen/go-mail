@@ -261,24 +261,33 @@ func parseEMLMultipartAlternative(params map[string]string, bodybuf *bytes.Buffe
 			_ = mpart.Close()
 			return fmt.Errorf("failed to read multipart: %w", err)
 		}
+		fmt.Printf("CTE: %+v", params)
 
 		mpContentType, ok := mpart.Header[HeaderContentType.String()]
 		if !ok {
 			return fmt.Errorf("failed to get content-type from part")
 		}
-		mpContentTypeSplit := strings.Split(mpContentType[0], "; ")
-		p := m.newPart(ContentType(mpContentTypeSplit[0]))
-		parseEMLMultiPartCharset(mpContentTypeSplit, p)
+		conType, charSet := parseContentType(mpContentType[0])
+		p := m.newPart(ContentType(conType))
+		p.SetCharset(Charset(charSet))
 
 		mpTransferEnc, ok := mpart.Header[HeaderContentTransferEnc.String()]
 		if !ok {
-			return fmt.Errorf("failed to get content-transfer-encoding from part")
+			// If CTE is empty we can assume that it's a quoted-printable CTE since the
+			// GO stdlib multipart packages deletes that header
+			// See: https://cs.opensource.google/go/go/+/refs/tags/go1.22.0:src/mime/multipart/multipart.go;l=161
+			mpTransferEnc = []string{EncodingQP.String()}
 		}
+
 		switch {
 		case strings.EqualFold(mpTransferEnc[0], EncodingB64.String()):
 			if err := handleEMLMultiPartBase64Encoding(mpdata, p); err != nil {
 				return fmt.Errorf("failed to handle multipart base64 transfer-encoding: %w", err)
 			}
+		case strings.EqualFold(mpTransferEnc[0], EncodingQP.String()):
+			p.SetContent(string(mpdata))
+		default:
+			return fmt.Errorf("unsupported Content-Transfer-Encoding")
 		}
 
 		m.parts = append(m.parts, p)
@@ -289,17 +298,6 @@ func parseEMLMultipartAlternative(params map[string]string, bodybuf *bytes.Buffe
 		return fmt.Errorf("failed to read multipart: %w", err)
 	}
 	return nil
-}
-
-// parseEMLMultiPartCharset parses the Charset from a ContentType header and assigns it to a Part
-// TODO: This might be redundant to parseContentType
-func parseEMLMultiPartCharset(mpContentTypeSplit []string, p *Part) {
-	if len(mpContentTypeSplit) > 1 && strings.HasPrefix(strings.ToLower(mpContentTypeSplit[1]), "charset=") {
-		valSplit := strings.Split(mpContentTypeSplit[1], "=")
-		if len(valSplit) > 1 {
-			p.SetCharset(Charset(valSplit[1]))
-		}
-	}
 }
 
 // handleEMLMultiPartBase64Encoding sets the content body of a base64 encoded Part
