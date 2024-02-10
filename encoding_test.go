@@ -41,6 +41,18 @@ func TestContentType_String(t *testing.T) {
 			"application/octet-stream",
 		},
 		{
+			"ContentType: multipart/alternative", TypeMultipartAlternative,
+			"multipart/alternative",
+		},
+		{
+			"ContentType: multipart/mixed", TypeMultipartMixed,
+			"multipart/mixed",
+		},
+		{
+			"ContentType: multipart/related", TypeMultipartRelated,
+			"multipart/related",
+		},
+		{
 			"ContentType: application/pgp-signature", TypePGPSignature,
 			"application/pgp-signature",
 		},

@@ -178,9 +178,6 @@ func parseEMLHeaders(mh *nm.Header, m *Msg) error {
 	for _, h := range commonHeaders {
 		if v := mh.Get(h.String()); v != "" {
 			m.SetGenHeader(h, v)
-			if strings.EqualFold(h.String(), "subject") {
-				fmt.Printf("SUBJECT: %s\n", m.GetGenHeader(HeaderSubject)[0])
-			}
 		}
 	}
 
@@ -204,7 +201,8 @@ func parseEMLBodyParts(pm *nm.Message, bodybuf *bytes.Buffer, m *Msg) error {
 		if err := parseEMLBodyPlain(mediatype, pm, bodybuf, m); err != nil {
 			return fmt.Errorf("failed to parse plain body: %w", err)
 		}
-	case strings.EqualFold(mediatype, TypeMultipartAlternative.String()):
+	case strings.EqualFold(mediatype, TypeMultipartAlternative.String()),
+		strings.EqualFold(mediatype, "multipart/mixed"):
 		if err := parseEMLMultipartAlternative(params, bodybuf, m); err != nil {
 			return fmt.Errorf("failed to parse multipart/alternative body: %w", err)
 		}
@@ -261,7 +259,6 @@ func parseEMLMultipartAlternative(params map[string]string, bodybuf *bytes.Buffe
 			_ = mpart.Close()
 			return fmt.Errorf("failed to read multipart: %w", err)
 		}
-		fmt.Printf("CTE: %+v", params)
 
 		mpContentType, ok := mpart.Header[HeaderContentType.String()]
 		if !ok {

@@ -140,6 +140,8 @@ const (
 const (
 	TypeAppOctetStream       ContentType = "application/octet-stream"
 	TypeMultipartAlternative ContentType = "multipart/alternative"
+	TypeMultipartMixed       ContentType = "multipart/mixed"
+	TypeMultipartRelated     ContentType = "multipart/related"
 	TypePGPSignature         ContentType = "application/pgp-signature"
 	TypePGPEncrypted         ContentType = "application/pgp-encrypted"
 	TypeTextHTML             ContentType = "text/html"
