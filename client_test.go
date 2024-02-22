@@ -97,6 +97,7 @@ func TestNewClientWithOptions(t *testing.T) {
 		{"WithTLSPortPolicy()", WithTLSPortPolicy(TLSOpportunistic), false},
 		{"WithTLSConfig()", WithTLSConfig(&tls.Config{}), false},
 		{"WithTLSConfig(); config is nil", WithTLSConfig(nil), true},
+		{"WithSMTPAuth(NoAuth)", WithSMTPAuth(SMTPAuthNoAuth), false},
 		{"WithSMTPAuth()", WithSMTPAuth(SMTPAuthLogin), false},
 		{
 			"WithSMTPAuthCustom()",
@@ -576,9 +577,9 @@ func TestSetSMTPAuthCustom(t *testing.T) {
 		want  string
 		sf    bool
 	}{
-		{"SMTPAuth: PLAIN", smtp.PlainAuth("", "", "", ""), "PLAIN", false},
 		{"SMTPAuth: CRAM-MD5", smtp.CRAMMD5Auth("", ""), "CRAM-MD5", false},
 		{"SMTPAuth: LOGIN", smtp.LoginAuth("", "", ""), "LOGIN", false},
+		{"SMTPAuth: PLAIN", smtp.PlainAuth("", "", "", ""), "PLAIN", false},
 	}
 	si := smtp.ServerInfo{TLS: true}
 	for _, tt := range tests {
@@ -1405,7 +1406,7 @@ func TestXOAuth2OK(t *testing.T) {
 	}
 	c, err := NewClient("fake.host",
 		WithDialContextFunc(getFakeDialFunc(fake)),
-		WithTLSPolicy(TLSOpportunistic),
+		WithTLSPortPolicy(TLSOpportunistic),
 		WithSMTPAuth(SMTPAuthXOAUTH2),
 		WithUsername("user"),
 		WithPassword("token"))
@@ -1444,7 +1445,7 @@ func TestXOAuth2Unsupported(t *testing.T) {
 	}
 	c, err := NewClient("fake.host",
 		WithDialContextFunc(getFakeDialFunc(fake)),
-		WithTLSPolicy(TLSOpportunistic),
+		WithTLSPortPolicy(TLSOpportunistic),
 		WithSMTPAuth(SMTPAuthXOAUTH2))
 	if err != nil {
 		t.Fatalf("unable to create new client: %v", err)
