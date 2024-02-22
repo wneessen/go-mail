@@ -11,14 +11,19 @@ type SMTPAuthType string
 
 // Supported SMTP AUTH types
 const (
+	// SMTPAuthCramMD5 is the "CRAM-MD5" SASL authentication mechanism as described in RFC 4954
+	SMTPAuthCramMD5 SMTPAuthType = "CRAM-MD5"
+
 	// SMTPAuthLogin is the "LOGIN" SASL authentication mechanism
 	SMTPAuthLogin SMTPAuthType = "LOGIN"
 
+	// SMTPAuthNoAuth is equivalent to performing no authentication at all. It is a convenience
+	// option and should not be used. Instead, for mail servers that do no support/require
+	// authentication, the Client should not be used with the WithSMTPAuth option
+	SMTPAuthNoAuth SMTPAuthType = ""
+
 	// SMTPAuthPlain is the "PLAIN" authentication mechanism as described in RFC 4616
 	SMTPAuthPlain SMTPAuthType = "PLAIN"
-
-	// SMTPAuthCramMD5 is the "CRAM-MD5" SASL authentication mechanism as described in RFC 4954
-	SMTPAuthCramMD5 SMTPAuthType = "CRAM-MD5"
 
 	// SMTPAuthXOAUTH2 is the "XOAUTH2" SASL authentication mechanism.
 	// https://developers.google.com/gmail/imap/xoauth2-protocol
