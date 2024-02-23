@@ -117,6 +117,9 @@ type Msg struct {
 
 	// sendError holds the SendError in case a Msg could not be delivered during the Client.Send operation
 	sendError error
+
+	// noDefaultUserAgent indicates whether the default User Agent will be excluded for the Msg when it's sent.
+	noDefaultUserAgent bool
 }
 
 // SendmailPath is the default system path to the sendmail binary
@@ -189,6 +192,13 @@ func WithMiddleware(mw Middleware) MsgOption {
 func WithPGPType(t PGPType) MsgOption {
 	return func(m *Msg) {
 		m.pgptype = t
+	}
+}
+
+// WithNoDefaultUserAgent configures the Msg to not use the default User Agent
+func WithNoDefaultUserAgent() MsgOption {
+	return func(m *Msg) {
+		m.noDefaultUserAgent = true
 	}
 }
 
@@ -1166,6 +1176,9 @@ func (m *Msg) setEncoder() {
 // checkUserAgent checks if a useragent/x-mailer is set and if not will set a default
 // version string
 func (m *Msg) checkUserAgent() {
+	if m.noDefaultUserAgent {
+		return
+	}
 	_, uaok := m.genHeader[HeaderUserAgent]
 	_, xmok := m.genHeader[HeaderXMailer]
 	if !uaok && !xmok {
