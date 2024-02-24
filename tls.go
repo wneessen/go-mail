@@ -8,17 +8,17 @@ package mail
 type TLSPolicy int
 
 const (
-	// TLSMandatory requires that the connection cto the server is
+	// TLSMandatory requires that the connection to the server is
 	// encrypting using STARTTLS. If the server does not support STARTTLS
 	// the connection will be terminated with an error
 	TLSMandatory TLSPolicy = iota
 
-	// TLSOpportunistic tries cto establish an encrypted connection via the
+	// TLSOpportunistic tries to establish an encrypted connection via the
 	// STARTTLS protocol. If the server does not support this, it will fall
-	// back cto non-encrypted plaintext transmission
+	// back to non-encrypted plaintext transmission
 	TLSOpportunistic
 
-	// NoTLS forces the transaction cto be not encrypted
+	// NoTLS forces the transaction to be not encrypted
 	NoTLS
 )
 
