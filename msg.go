@@ -126,8 +126,8 @@ const SendmailPath = "/usr/sbin/sendmail"
 type MsgOption func(*Msg)
 
 // NewMsg returns a new Msg pointer
-func NewMsg(o ...MsgOption) *Msg {
-	m := &Msg{
+func NewMsg(opts ...MsgOption) *Msg {
+	msg := &Msg{
 		addrHeader:    make(map[AddrHeader][]*mail.Address),
 		charset:       CharsetUTF8,
 		encoding:      EncodingQP,
@@ -137,17 +137,17 @@ func NewMsg(o ...MsgOption) *Msg {
 	}
 
 	// Override defaults with optionally provided MsgOption functions
-	for _, co := range o {
-		if co == nil {
+	for _, option := range opts {
+		if option == nil {
 			continue
 		}
-		co(m)
+		option(msg)
 	}
 
 	// Set the matcing mime.WordEncoder for the Msg
-	m.setEncoder()
+	msg.setEncoder()
 
-	return m
+	return msg
 }
 
 // WithCharset overrides the default message charset
@@ -186,9 +186,9 @@ func WithMiddleware(mw Middleware) MsgOption {
 }
 
 // WithPGPType overrides the default PGPType of the message
-func WithPGPType(t PGPType) MsgOption {
+func WithPGPType(pt PGPType) MsgOption {
 	return func(m *Msg) {
-		m.pgptype = t
+		m.pgptype = pt
 	}
 }
 
@@ -232,20 +232,20 @@ func (m *Msg) Charset() string {
 // For adding address headers like "To:" or "From", see SetAddrHeader
 //
 // Deprecated: This method only exists for compatibility reason. Please use SetGenHeader instead
-func (m *Msg) SetHeader(h Header, v ...string) {
-	m.SetGenHeader(h, v...)
+func (m *Msg) SetHeader(header Header, values ...string) {
+	m.SetGenHeader(header, values...)
 }
 
 // SetGenHeader sets a generic header field of the Msg
 // For adding address headers like "To:" or "From", see SetAddrHeader
-func (m *Msg) SetGenHeader(h Header, v ...string) {
+func (m *Msg) SetGenHeader(header Header, values ...string) {
 	if m.genHeader == nil {
 		m.genHeader = make(map[Header][]string)
 	}
-	for i, hv := range v {
-		v[i] = m.encodeString(hv)
+	for i, val := range values {
+		values[i] = m.encodeString(val)
 	}
-	m.genHeader[h] = v
+	m.genHeader[header] = values
 }
 
 // SetHeaderPreformatted sets a generic header field of the Msg which content is
@@ -253,8 +253,8 @@ func (m *Msg) SetGenHeader(h Header, v ...string) {
 //
 // Deprecated: This method only exists for compatibility reason. Please use
 // SetGenHeaderPreformatted instead
-func (m *Msg) SetHeaderPreformatted(h Header, v string) {
-	m.SetGenHeaderPreformatted(h, v)
+func (m *Msg) SetHeaderPreformatted(header Header, value string) {
+	m.SetGenHeaderPreformatted(header, value)
 }
 
 // SetGenHeaderPreformatted sets a generic header field of the Msg which content is
@@ -268,206 +268,207 @@ func (m *Msg) SetHeaderPreformatted(h Header, v string) {
 // user is respondible for the formating of the message header, go-mail cannot
 // guarantee the fully compliance with the RFC 2822. It is recommended to use
 // SetGenHeader instead.
-func (m *Msg) SetGenHeaderPreformatted(h Header, v string) {
+func (m *Msg) SetGenHeaderPreformatted(header Header, value string) {
 	if m.preformHeader == nil {
 		m.preformHeader = make(map[Header]string)
 	}
-	m.preformHeader[h] = v
+	m.preformHeader[header] = value
 }
 
 // SetAddrHeader sets an address related header field of the Msg
-func (m *Msg) SetAddrHeader(h AddrHeader, v ...string) error {
+func (m *Msg) SetAddrHeader(header AddrHeader, values ...string) error {
 	if m.addrHeader == nil {
 		m.addrHeader = make(map[AddrHeader][]*mail.Address)
 	}
-	var al []*mail.Address
-	for _, av := range v {
-		a, err := mail.ParseAddress(av)
+	var addresses []*mail.Address
+	for _, addrVal := range values {
+		address, err := mail.ParseAddress(addrVal)
 		if err != nil {
-			return fmt.Errorf(errParseMailAddr, av, err)
+			return fmt.Errorf(errParseMailAddr, addrVal, err)
 		}
-		al = append(al, a)
+		addresses = append(addresses, address)
 	}
-	switch h {
+	switch header {
 	case HeaderFrom:
-		if len(al) > 0 {
-			m.addrHeader[h] = []*mail.Address{al[0]}
+		if len(addresses) > 0 {
+			m.addrHeader[header] = []*mail.Address{addresses[0]}
 		}
 	default:
-		m.addrHeader[h] = al
+		m.addrHeader[header] = addresses
 	}
 	return nil
 }
 
 // SetAddrHeaderIgnoreInvalid sets an address related header field of the Msg and ignores invalid address
 // in the validation process
-func (m *Msg) SetAddrHeaderIgnoreInvalid(h AddrHeader, v ...string) {
-	var al []*mail.Address
-	for _, av := range v {
-		a, err := mail.ParseAddress(m.encodeString(av))
+func (m *Msg) SetAddrHeaderIgnoreInvalid(header AddrHeader, values ...string) {
+	var addresses []*mail.Address
+	for _, addrVal := range values {
+		address, err := mail.ParseAddress(m.encodeString(addrVal))
 		if err != nil {
 			continue
 		}
-		al = append(al, a)
+		addresses = append(addresses, address)
 	}
-	m.addrHeader[h] = al
+	m.addrHeader[header] = addresses
 }
 
 // EnvelopeFrom takes and validates a given mail address and sets it as envelope "FROM"
 // addrHeader of the Msg
-func (m *Msg) EnvelopeFrom(f string) error {
-	return m.SetAddrHeader(HeaderEnvelopeFrom, f)
+func (m *Msg) EnvelopeFrom(from string) error {
+	return m.SetAddrHeader(HeaderEnvelopeFrom, from)
 }
 
 // EnvelopeFromFormat takes a name and address, formats them RFC5322 compliant and stores them as
 // the envelope FROM address header field
-func (m *Msg) EnvelopeFromFormat(n, a string) error {
-	return m.SetAddrHeader(HeaderEnvelopeFrom, fmt.Sprintf(`"%s" <%s>`, n, a))
+func (m *Msg) EnvelopeFromFormat(name, addr string) error {
+	return m.SetAddrHeader(HeaderEnvelopeFrom, fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
 
 // From takes and validates a given mail address and sets it as "From" genHeader of the Msg
-func (m *Msg) From(f string) error {
-	return m.SetAddrHeader(HeaderFrom, f)
+func (m *Msg) From(from string) error {
+	return m.SetAddrHeader(HeaderFrom, from)
 }
 
 // FromFormat takes a name and address, formats them RFC5322 compliant and stores them as
 // the From address header field
-func (m *Msg) FromFormat(n, a string) error {
-	return m.SetAddrHeader(HeaderFrom, fmt.Sprintf(`"%s" <%s>`, n, a))
+func (m *Msg) FromFormat(name, addr string) error {
+	return m.SetAddrHeader(HeaderFrom, fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
 
 // To takes and validates a given mail address list sets the To: addresses of the Msg
-func (m *Msg) To(t ...string) error {
-	return m.SetAddrHeader(HeaderTo, t...)
+func (m *Msg) To(rcpts ...string) error {
+	return m.SetAddrHeader(HeaderTo, rcpts...)
 }
 
 // AddTo adds an additional address to the To address header field
-func (m *Msg) AddTo(t string) error {
-	return m.addAddr(HeaderTo, t)
+func (m *Msg) AddTo(rcpt string) error {
+	return m.addAddr(HeaderTo, rcpt)
 }
 
 // AddToFormat takes a name and address, formats them RFC5322 compliant and stores them as
 // as additional To address header field
-func (m *Msg) AddToFormat(n, a string) error {
-	return m.addAddr(HeaderTo, fmt.Sprintf(`"%s" <%s>`, n, a))
+func (m *Msg) AddToFormat(name, addr string) error {
+	return m.addAddr(HeaderTo, fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
 
 // ToIgnoreInvalid takes and validates a given mail address list sets the To: addresses of the Msg
 // Any provided address that is not RFC5322 compliant, will be ignored
-func (m *Msg) ToIgnoreInvalid(t ...string) {
-	m.SetAddrHeaderIgnoreInvalid(HeaderTo, t...)
+func (m *Msg) ToIgnoreInvalid(rcpts ...string) {
+	m.SetAddrHeaderIgnoreInvalid(HeaderTo, rcpts...)
 }
 
 // ToFromString takes and validates a given string of comma separted
 // mail address and sets them as To: addresses of the Msg
-func (m *Msg) ToFromString(v string) error {
-	return m.To(strings.Split(v, ",")...)
+func (m *Msg) ToFromString(rcpts string) error {
+	return m.To(strings.Split(rcpts, ",")...)
 }
 
 // Cc takes and validates a given mail address list sets the Cc: addresses of the Msg
-func (m *Msg) Cc(c ...string) error {
-	return m.SetAddrHeader(HeaderCc, c...)
+func (m *Msg) Cc(rcpts ...string) error {
+	return m.SetAddrHeader(HeaderCc, rcpts...)
 }
 
 // AddCc adds an additional address to the Cc address header field
-func (m *Msg) AddCc(t string) error {
-	return m.addAddr(HeaderCc, t)
+func (m *Msg) AddCc(rcpt string) error {
+	return m.addAddr(HeaderCc, rcpt)
 }
 
 // AddCcFormat takes a name and address, formats them RFC5322 compliant and stores them as
 // as additional Cc address header field
-func (m *Msg) AddCcFormat(n, a string) error {
-	return m.addAddr(HeaderCc, fmt.Sprintf(`"%s" <%s>`, n, a))
+func (m *Msg) AddCcFormat(name, addr string) error {
+	return m.addAddr(HeaderCc, fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
 
 // CcIgnoreInvalid takes and validates a given mail address list sets the Cc: addresses of the Msg
 // Any provided address that is not RFC5322 compliant, will be ignored
-func (m *Msg) CcIgnoreInvalid(c ...string) {
-	m.SetAddrHeaderIgnoreInvalid(HeaderCc, c...)
+func (m *Msg) CcIgnoreInvalid(rcpts ...string) {
+	m.SetAddrHeaderIgnoreInvalid(HeaderCc, rcpts...)
 }
 
 // CcFromString takes and validates a given string of comma separted
 // mail address and sets them as Cc: addresses of the Msg
-func (m *Msg) CcFromString(v string) error {
-	return m.Cc(strings.Split(v, ",")...)
+func (m *Msg) CcFromString(rcpts string) error {
+	return m.Cc(strings.Split(rcpts, ",")...)
 }
 
 // Bcc takes and validates a given mail address list sets the Bcc: addresses of the Msg
-func (m *Msg) Bcc(b ...string) error {
-	return m.SetAddrHeader(HeaderBcc, b...)
+func (m *Msg) Bcc(rcpts ...string) error {
+	return m.SetAddrHeader(HeaderBcc, rcpts...)
 }
 
 // AddBcc adds an additional address to the Bcc address header field
-func (m *Msg) AddBcc(t string) error {
-	return m.addAddr(HeaderBcc, t)
+func (m *Msg) AddBcc(rcpt string) error {
+	return m.addAddr(HeaderBcc, rcpt)
 }
 
 // AddBccFormat takes a name and address, formats them RFC5322 compliant and stores them as
 // as additional Bcc address header field
-func (m *Msg) AddBccFormat(n, a string) error {
-	return m.addAddr(HeaderBcc, fmt.Sprintf(`"%s" <%s>`, n, a))
+func (m *Msg) AddBccFormat(name, addr string) error {
+	return m.addAddr(HeaderBcc, fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
 
 // BccIgnoreInvalid takes and validates a given mail address list sets the Bcc: addresses of the Msg
 // Any provided address that is not RFC5322 compliant, will be ignored
-func (m *Msg) BccIgnoreInvalid(b ...string) {
-	m.SetAddrHeaderIgnoreInvalid(HeaderBcc, b...)
+func (m *Msg) BccIgnoreInvalid(rcpts ...string) {
+	m.SetAddrHeaderIgnoreInvalid(HeaderBcc, rcpts...)
 }
 
 // BccFromString takes and validates a given string of comma separted
 // mail address and sets them as Bcc: addresses of the Msg
-func (m *Msg) BccFromString(v string) error {
-	return m.Bcc(strings.Split(v, ",")...)
+func (m *Msg) BccFromString(rcpts string) error {
+	return m.Bcc(strings.Split(rcpts, ",")...)
 }
 
 // ReplyTo takes and validates a given mail address and sets it as "Reply-To" addrHeader of the Msg
-func (m *Msg) ReplyTo(r string) error {
-	rt, err := mail.ParseAddress(r)
+func (m *Msg) ReplyTo(addr string) error {
+	replyTo, err := mail.ParseAddress(addr)
 	if err != nil {
 		return fmt.Errorf("failed to parse reply-to address: %w", err)
 	}
-	m.SetGenHeader(HeaderReplyTo, rt.String())
+	m.SetGenHeader(HeaderReplyTo, replyTo.String())
 	return nil
 }
 
 // ReplyToFormat takes a name and address, formats them RFC5322 compliant and stores them as
 // the Reply-To header field
-func (m *Msg) ReplyToFormat(n, a string) error {
-	return m.ReplyTo(fmt.Sprintf(`"%s" <%s>`, n, a))
+func (m *Msg) ReplyToFormat(name, addr string) error {
+	return m.ReplyTo(fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
 
 // addAddr adds an additional address to the given addrHeader of the Msg
-func (m *Msg) addAddr(h AddrHeader, a string) error {
-	var al []string
-	for _, ca := range m.addrHeader[h] {
-		al = append(al, ca.String())
+func (m *Msg) addAddr(header AddrHeader, addr string) error {
+	var addresses []string
+	for _, address := range m.addrHeader[header] {
+		addresses = append(addresses, address.String())
 	}
-	al = append(al, a)
-	return m.SetAddrHeader(h, al...)
+	addresses = append(addresses, addr)
+	return m.SetAddrHeader(header, addresses...)
 }
 
 // Subject sets the "Subject" header field of the Msg
-func (m *Msg) Subject(s string) {
-	m.SetGenHeader(HeaderSubject, s)
+func (m *Msg) Subject(subj string) {
+	m.SetGenHeader(HeaderSubject, subj)
 }
 
 // SetMessageID generates a random message id for the mail
 func (m *Msg) SetMessageID() {
-	hn, err := os.Hostname()
+	hostname, err := os.Hostname()
 	if err != nil {
-		hn = "localhost.localdomain"
+		hostname = "localhost.localdomain"
 	}
-	rn, _ := randNum(100000000)
-	rm, _ := randNum(10000)
-	rs, _ := randomStringSecure(17)
-	pid := os.Getpid() * rm
-	mid := fmt.Sprintf("%d.%d%d.%s@%s", pid, rn, rm, rs, hn)
-	m.SetMessageIDWithValue(mid)
+	randNumPrimary, _ := randNum(100000000)
+	randNumSecondary, _ := randNum(10000)
+	randString, _ := randomStringSecure(17)
+	procID := os.Getpid() * randNumSecondary
+	messageID := fmt.Sprintf("%d.%d%d.%s@%s", procID, randNumPrimary, randNumSecondary,
+		randString, hostname)
+	m.SetMessageIDWithValue(messageID)
 }
 
 // SetMessageIDWithValue sets the message id for the mail
-func (m *Msg) SetMessageIDWithValue(v string) {
-	m.SetGenHeader(HeaderMessageID, fmt.Sprintf("<%s>", v))
+func (m *Msg) SetMessageIDWithValue(messageID string) {
+	m.SetGenHeader(HeaderMessageID, fmt.Sprintf("<%s>", messageID))
 }
 
 // SetBulk sets the "Precedence: bulk" and "X-Auto-Response-Suppress: All" genHeaders which are
@@ -481,35 +482,35 @@ func (m *Msg) SetBulk() {
 
 // SetDate sets the Date genHeader field to the current time in a valid format
 func (m *Msg) SetDate() {
-	ts := time.Now().Format(time.RFC1123Z)
-	m.SetGenHeader(HeaderDate, ts)
+	now := time.Now().Format(time.RFC1123Z)
+	m.SetGenHeader(HeaderDate, now)
 }
 
 // SetDateWithValue sets the Date genHeader field to the provided time in a valid format
-func (m *Msg) SetDateWithValue(t time.Time) {
-	m.SetGenHeader(HeaderDate, t.Format(time.RFC1123Z))
+func (m *Msg) SetDateWithValue(timeVal time.Time) {
+	m.SetGenHeader(HeaderDate, timeVal.Format(time.RFC1123Z))
 }
 
 // SetImportance sets the Msg Importance/Priority header to given Importance
-func (m *Msg) SetImportance(i Importance) {
-	if i == ImportanceNormal {
+func (m *Msg) SetImportance(importance Importance) {
+	if importance == ImportanceNormal {
 		return
 	}
-	m.SetGenHeader(HeaderImportance, i.String())
-	m.SetGenHeader(HeaderPriority, i.NumString())
-	m.SetGenHeader(HeaderXPriority, i.XPrioString())
-	m.SetGenHeader(HeaderXMSMailPriority, i.NumString())
+	m.SetGenHeader(HeaderImportance, importance.String())
+	m.SetGenHeader(HeaderPriority, importance.NumString())
+	m.SetGenHeader(HeaderXPriority, importance.XPrioString())
+	m.SetGenHeader(HeaderXMSMailPriority, importance.NumString())
 }
 
 // SetOrganization sets the provided string as Organization header for the Msg
-func (m *Msg) SetOrganization(o string) {
-	m.SetGenHeader(HeaderOrganization, o)
+func (m *Msg) SetOrganization(org string) {
+	m.SetGenHeader(HeaderOrganization, org)
 }
 
 // SetUserAgent sets the User-Agent/X-Mailer header for the Msg
-func (m *Msg) SetUserAgent(a string) {
-	m.SetGenHeader(HeaderUserAgent, a)
-	m.SetGenHeader(HeaderXMailer, a)
+func (m *Msg) SetUserAgent(userAgent string) {
+	m.SetGenHeader(HeaderUserAgent, userAgent)
+	m.SetGenHeader(HeaderXMailer, userAgent)
 }
 
 // IsDelivered will return true if the Msg has been successfully delivered
@@ -521,17 +522,17 @@ func (m *Msg) IsDelivered() bool {
 // as described in RFC8098. It allows to provide a list recipient addresses.
 // Address validation is performed
 // See: https://www.rfc-editor.org/rfc/rfc8098.html
-func (m *Msg) RequestMDNTo(t ...string) error {
-	var tl []string
-	for _, at := range t {
-		a, err := mail.ParseAddress(at)
+func (m *Msg) RequestMDNTo(rcpts ...string) error {
+	var addresses []string
+	for _, addrVal := range rcpts {
+		address, err := mail.ParseAddress(addrVal)
 		if err != nil {
-			return fmt.Errorf(errParseMailAddr, at, err)
+			return fmt.Errorf(errParseMailAddr, addrVal, err)
 		}
-		tl = append(tl, a.String())
+		addresses = append(addresses, address.String())
 	}
 	if _, ok := m.genHeader[HeaderDispositionNotificationTo]; ok {
-		m.genHeader[HeaderDispositionNotificationTo] = tl
+		m.genHeader[HeaderDispositionNotificationTo] = addresses
 	}
 	return nil
 }
@@ -540,77 +541,77 @@ func (m *Msg) RequestMDNTo(t ...string) error {
 // as described in RFC8098. It allows to provide a recipient address with name and address and will format
 // accordingly. Address validation is performed
 // See: https://www.rfc-editor.org/rfc/rfc8098.html
-func (m *Msg) RequestMDNToFormat(n, a string) error {
-	return m.RequestMDNTo(fmt.Sprintf(`%s <%s>`, n, a))
+func (m *Msg) RequestMDNToFormat(name, addr string) error {
+	return m.RequestMDNTo(fmt.Sprintf(`%s <%s>`, name, addr))
 }
 
 // RequestMDNAddTo adds an additional recipient to the recipient list of the MDN
-func (m *Msg) RequestMDNAddTo(t string) error {
-	a, err := mail.ParseAddress(t)
+func (m *Msg) RequestMDNAddTo(rcpt string) error {
+	address, err := mail.ParseAddress(rcpt)
 	if err != nil {
-		return fmt.Errorf(errParseMailAddr, t, err)
+		return fmt.Errorf(errParseMailAddr, rcpt, err)
 	}
-	var tl []string
-	tl = append(tl, m.genHeader[HeaderDispositionNotificationTo]...)
-	tl = append(tl, a.String())
+	var addresses []string
+	addresses = append(addresses, m.genHeader[HeaderDispositionNotificationTo]...)
+	addresses = append(addresses, address.String())
 	if _, ok := m.genHeader[HeaderDispositionNotificationTo]; ok {
-		m.genHeader[HeaderDispositionNotificationTo] = tl
+		m.genHeader[HeaderDispositionNotificationTo] = addresses
 	}
 	return nil
 }
 
 // RequestMDNAddToFormat adds an additional formated recipient to the recipient list of the MDN
-func (m *Msg) RequestMDNAddToFormat(n, a string) error {
-	return m.RequestMDNAddTo(fmt.Sprintf(`"%s" <%s>`, n, a))
+func (m *Msg) RequestMDNAddToFormat(name, addr string) error {
+	return m.RequestMDNAddTo(fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
 
 // GetSender returns the currently set envelope FROM address. If no envelope FROM is set it will use
-// the first mail body FROM address. If ff is true, it will return the full address string including
-// the address name, if set
-func (m *Msg) GetSender(ff bool) (string, error) {
-	f, ok := m.addrHeader[HeaderEnvelopeFrom]
-	if !ok || len(f) == 0 {
-		f, ok = m.addrHeader[HeaderFrom]
-		if !ok || len(f) == 0 {
+// the first mail body FROM address. If useFullAddr is true, it will return the full address string
+// including the address name, if set
+func (m *Msg) GetSender(useFullAddr bool) (string, error) {
+	from, ok := m.addrHeader[HeaderEnvelopeFrom]
+	if !ok || len(from) == 0 {
+		from, ok = m.addrHeader[HeaderFrom]
+		if !ok || len(from) == 0 {
 			return "", ErrNoFromAddress
 		}
 	}
-	if ff {
-		return f[0].String(), nil
+	if useFullAddr {
+		return from[0].String(), nil
 	}
-	return f[0].Address, nil
+	return from[0].Address, nil
 }
 
 // GetRecipients returns a list of the currently set TO/CC/BCC addresses.
 func (m *Msg) GetRecipients() ([]string, error) {
-	var rl []string
-	for _, t := range []AddrHeader{HeaderTo, HeaderCc, HeaderBcc} {
-		al, ok := m.addrHeader[t]
-		if !ok || len(al) == 0 {
+	var rcpts []string
+	for _, addressType := range []AddrHeader{HeaderTo, HeaderCc, HeaderBcc} {
+		addresses, ok := m.addrHeader[addressType]
+		if !ok || len(addresses) == 0 {
 			continue
 		}
-		for _, r := range al {
-			rl = append(rl, r.Address)
+		for _, r := range addresses {
+			rcpts = append(rcpts, r.Address)
 		}
 	}
-	if len(rl) <= 0 {
-		return rl, ErrNoRcptAddresses
+	if len(rcpts) <= 0 {
+		return rcpts, ErrNoRcptAddresses
 	}
-	return rl, nil
+	return rcpts, nil
 }
 
 // GetAddrHeader returns the content of the requested address header of the Msg
-func (m *Msg) GetAddrHeader(h AddrHeader) []*mail.Address {
-	return m.addrHeader[h]
+func (m *Msg) GetAddrHeader(header AddrHeader) []*mail.Address {
+	return m.addrHeader[header]
 }
 
 // GetAddrHeaderString returns the address string of the requested address header of the Msg
-func (m *Msg) GetAddrHeaderString(h AddrHeader) []string {
-	var al []string
-	for _, mh := range m.addrHeader[h] {
-		al = append(al, mh.String())
+func (m *Msg) GetAddrHeaderString(header AddrHeader) []string {
+	var addresses []string
+	for _, mh := range m.addrHeader[header] {
+		addresses = append(addresses, mh.String())
 	}
-	return al
+	return addresses
 }
 
 // GetFrom returns the content of the From address header of the Msg
@@ -654,8 +655,8 @@ func (m *Msg) GetBccString() []string {
 }
 
 // GetGenHeader returns the content of the requested generic header of the Msg
-func (m *Msg) GetGenHeader(h Header) []string {
-	return m.genHeader[h]
+func (m *Msg) GetGenHeader(header Header) []string {
+	return m.genHeader[header]
 }
 
 // GetParts returns the message parts of the Msg
@@ -669,8 +670,8 @@ func (m *Msg) GetAttachments() []*File {
 }
 
 // SetAttachements sets the attachements of the message.
-func (m *Msg) SetAttachements(ff []*File) {
-	m.attachments = ff
+func (m *Msg) SetAttachements(files []*File) {
+	m.attachments = files
 }
 
 // UnsetAllAttachments unset the attachments of the message.
@@ -684,8 +685,8 @@ func (m *Msg) GetEmbeds() []*File {
 }
 
 // SetEmbeds sets the embeds of the message.
-func (m *Msg) SetEmbeds(ff []*File) {
-	m.embeds = ff
+func (m *Msg) SetEmbeds(files []*File) {
+	m.embeds = files
 }
 
 // UnsetAllEmbeds unset the embeds of the message.
@@ -700,16 +701,16 @@ func (m *Msg) UnsetAllParts() {
 }
 
 // SetBodyString sets the body of the message.
-func (m *Msg) SetBodyString(ct ContentType, b string, o ...PartOption) {
-	buf := bytes.NewBufferString(b)
-	w := writeFuncFromBuffer(buf)
-	m.SetBodyWriter(ct, w, o...)
+func (m *Msg) SetBodyString(contentType ContentType, content string, opts ...PartOption) {
+	buffer := bytes.NewBufferString(content)
+	writeFunc := writeFuncFromBuffer(buffer)
+	m.SetBodyWriter(contentType, writeFunc, opts...)
 }
 
 // SetBodyWriter sets the body of the message.
-func (m *Msg) SetBodyWriter(ct ContentType, w func(io.Writer) (int64, error), o ...PartOption) {
-	p := m.newPart(ct, o...)
-	p.w = w
+func (m *Msg) SetBodyWriter(contentType ContentType, writeFunc func(io.Writer) (int64, error), opts ...PartOption) {
+	p := m.newPart(contentType, opts...)
+	p.w = writeFunc
 	m.parts = []*Part{p}
 }
 
