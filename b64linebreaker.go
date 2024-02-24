@@ -20,39 +20,39 @@ type Base64LineBreaker struct {
 	out  io.Writer
 }
 
-var nl = []byte(SingleNewLine)
+var newlineBytes = []byte(SingleNewLine)
 
 // Write writes the data stream and inserts a SingleNewLine when the maximum
 // line length is reached
-func (l *Base64LineBreaker) Write(b []byte) (n int, err error) {
+func (l *Base64LineBreaker) Write(data []byte) (numBytes int, err error) {
 	if l.out == nil {
 		err = fmt.Errorf(ErrNoOutWriter)
 		return
 	}
-	if l.used+len(b) < MaxBodyLength {
-		copy(l.line[l.used:], b)
-		l.used += len(b)
-		return len(b), nil
+	if l.used+len(data) < MaxBodyLength {
+		copy(l.line[l.used:], data)
+		l.used += len(data)
+		return len(data), nil
 	}
 
-	n, err = l.out.Write(l.line[0:l.used])
+	numBytes, err = l.out.Write(l.line[0:l.used])
 	if err != nil {
 		return
 	}
 	excess := MaxBodyLength - l.used
 	l.used = 0
 
-	n, err = l.out.Write(b[0:excess])
+	numBytes, err = l.out.Write(data[0:excess])
 	if err != nil {
 		return
 	}
 
-	n, err = l.out.Write(nl)
+	numBytes, err = l.out.Write(newlineBytes)
 	if err != nil {
 		return
 	}
 
-	return l.Write(b[excess:])
+	return l.Write(data[excess:])
 }
 
 // Close closes the Base64LineBreaker and writes any access data that is still
@@ -63,7 +63,7 @@ func (l *Base64LineBreaker) Close() (err error) {
 		if err != nil {
 			return
 		}
-		_, err = l.out.Write(nl)
+		_, err = l.out.Write(newlineBytes)
 	}
 
 	return
