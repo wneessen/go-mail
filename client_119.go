@@ -18,7 +18,7 @@ func (c *Client) Send(ml ...*Msg) error {
 	for _, m := range ml {
 		m.sendError = nil
 		if m.encoding == NoEncoding {
-			if ok, _ := c.sc.Extension("8BITMIME"); !ok {
+			if ok, _ := c.smtpClient.Extension("8BITMIME"); !ok {
 				se := &SendError{Reason: ErrNoUnencoded, isTemp: false}
 				m.sendError = se
 				errs = append(errs, se)
@@ -42,12 +42,12 @@ func (c *Client) Send(ml ...*Msg) error {
 
 		if c.dsn {
 			if c.dsnmrtype != "" {
-				c.sc.SetDSNMailReturnOption(string(c.dsnmrtype))
+				c.smtpClient.SetDSNMailReturnOption(string(c.dsnmrtype))
 			}
 		}
-		if err := c.sc.Mail(f); err != nil {
+		if err := c.smtpClient.Mail(f); err != nil {
 			se := &SendError{Reason: ErrSMTPMailFrom, errlist: []error{err}, isTemp: isTempError(err)}
-			if reserr := c.sc.Reset(); reserr != nil {
+			if reserr := c.smtpClient.Reset(); reserr != nil {
 				se.errlist = append(se.errlist, reserr)
 			}
 			m.sendError = se
@@ -59,9 +59,9 @@ func (c *Client) Send(ml ...*Msg) error {
 		rse.errlist = make([]error, 0)
 		rse.rcpt = make([]string, 0)
 		rno := strings.Join(c.dsnrntype, ",")
-		c.sc.SetDSNRcptNotifyOption(rno)
+		c.smtpClient.SetDSNRcptNotifyOption(rno)
 		for _, r := range rl {
-			if err := c.sc.Rcpt(r); err != nil {
+			if err := c.smtpClient.Rcpt(r); err != nil {
 				rse.Reason = ErrSMTPRcptTo
 				rse.errlist = append(rse.errlist, err)
 				rse.rcpt = append(rse.rcpt, r)
@@ -70,14 +70,14 @@ func (c *Client) Send(ml ...*Msg) error {
 			}
 		}
 		if failed {
-			if reserr := c.sc.Reset(); reserr != nil {
+			if reserr := c.smtpClient.Reset(); reserr != nil {
 				rse.errlist = append(rse.errlist, err)
 			}
 			m.sendError = rse
 			errs = append(errs, rse)
 			continue
 		}
-		w, err := c.sc.Data()
+		w, err := c.smtpClient.Data()
 		if err != nil {
 			se := &SendError{Reason: ErrSMTPData, errlist: []error{err}, isTemp: isTempError(err)}
 			m.sendError = se

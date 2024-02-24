@@ -49,9 +49,9 @@ func TestNewClient(t *testing.T) {
 			if c.host != tt.host {
 				t.Errorf("failed to create new client. Host expected: %s, got: %s", host, c.host)
 			}
-			if c.cto != DefaultTimeout {
+			if c.connTimeout != DefaultTimeout {
 				t.Errorf("failed to create new client. Timeout expected: %s, got: %s", DefaultTimeout.String(),
-					c.cto.String())
+					c.connTimeout.String())
 			}
 			if c.port != DefaultPort {
 				t.Errorf("failed to create new client. Port expected: %d, got: %d", DefaultPort, c.port)
@@ -205,8 +205,8 @@ func TestWithTimeout(t *testing.T) {
 				t.Errorf("failed to create new client: %s", err)
 				return
 			}
-			if c.cto != tt.want {
-				t.Errorf("failed to set custom timeout. Want: %d, got: %d", tt.want, c.cto)
+			if c.connTimeout != tt.want {
+				t.Errorf("failed to set custom timeout. Want: %d, got: %d", tt.want, c.connTimeout)
 			}
 		})
 	}
@@ -345,8 +345,8 @@ func TestSetSSL(t *testing.T) {
 				return
 			}
 			c.SetSSL(tt.value)
-			if c.ssl != tt.value {
-				t.Errorf("failed to set SSL setting. Got: %t, want: %t", c.ssl, tt.value)
+			if c.useSSL != tt.value {
+				t.Errorf("failed to set SSL setting. Got: %t, want: %t", c.useSSL, tt.value)
 			}
 		})
 	}
@@ -374,8 +374,8 @@ func TestClient_SetSSLPort(t *testing.T) {
 				return
 			}
 			c.SetSSLPort(tt.value, tt.fb)
-			if c.ssl != tt.value {
-				t.Errorf("failed to set SSL setting. Got: %t, want: %t", c.ssl, tt.value)
+			if c.useSSL != tt.value {
+				t.Errorf("failed to set SSL setting. Got: %t, want: %t", c.useSSL, tt.value)
 			}
 			if c.port != tt.port {
 				t.Errorf("failed to set SSLPort, wanted port: %d, got: %d", c.port, tt.port)
@@ -460,8 +460,8 @@ func TestSetSMTPAuth(t *testing.T) {
 				return
 			}
 			c.SetSMTPAuth(tt.value)
-			if string(c.satype) != tt.want {
-				t.Errorf("failed to set SMTP auth type. Expected %s, got: %s", tt.want, string(c.satype))
+			if string(c.smtpAuthType) != tt.want {
+				t.Errorf("failed to set SMTP auth type. Expected %s, got: %s", tt.want, string(c.smtpAuthType))
 			}
 		})
 	}
@@ -590,10 +590,10 @@ func TestSetSMTPAuthCustom(t *testing.T) {
 				return
 			}
 			c.SetSMTPAuthCustom(tt.value)
-			if c.sa == nil {
+			if c.smtpAuth == nil {
 				t.Errorf("failed to set custom SMTP auth method. SMTP Auth method is empty")
 			}
-			p, _, err := c.sa.Start(&si)
+			p, _, err := c.smtpAuth.Start(&si)
 			if err != nil {
 				t.Errorf("SMTP Auth Start() method returned error: %s", err)
 			}
@@ -615,10 +615,10 @@ func TestClient_DialWithContext(t *testing.T) {
 		t.Errorf("failed to dial with context: %s", err)
 		return
 	}
-	if c.co == nil {
+	if c.connection == nil {
 		t.Errorf("DialWithContext didn't fail but no connection found.")
 	}
-	if c.sc == nil {
+	if c.smtpClient == nil {
 		t.Errorf("DialWithContext didn't fail but no SMTP client found.")
 	}
 	if err := c.Close(); err != nil {
@@ -640,10 +640,10 @@ func TestClient_DialWithContext_Fallback(t *testing.T) {
 		t.Errorf("failed to dial with context: %s", err)
 		return
 	}
-	if c.co == nil {
+	if c.connection == nil {
 		t.Errorf("DialWithContext didn't fail but no connection found.")
 	}
-	if c.sc == nil {
+	if c.smtpClient == nil {
 		t.Errorf("DialWithContext didn't fail but no SMTP client found.")
 	}
 	if err := c.Close(); err != nil {
@@ -670,10 +670,10 @@ func TestClient_DialWithContext_Debug(t *testing.T) {
 		t.Errorf("failed to dial with context: %s", err)
 		return
 	}
-	if c.co == nil {
+	if c.connection == nil {
 		t.Errorf("DialWithContext didn't fail but no connection found.")
 	}
-	if c.sc == nil {
+	if c.smtpClient == nil {
 		t.Errorf("DialWithContext didn't fail but no SMTP client found.")
 	}
 	c.SetDebugLog(true)
@@ -694,10 +694,10 @@ func TestClient_DialWithContext_Debug_custom(t *testing.T) {
 		t.Errorf("failed to dial with context: %s", err)
 		return
 	}
-	if c.co == nil {
+	if c.connection == nil {
 		t.Errorf("DialWithContext didn't fail but no connection found.")
 	}
-	if c.sc == nil {
+	if c.smtpClient == nil {
 		t.Errorf("DialWithContext didn't fail but no SMTP client found.")
 	}
 	c.SetDebugLog(true)
@@ -714,7 +714,7 @@ func TestClient_DialWithContextInvalidHost(t *testing.T) {
 	if err != nil {
 		t.Skipf("failed to create test client: %s. Skipping tests", err)
 	}
-	c.co = nil
+	c.connection = nil
 	c.host = "invalid.addr"
 	ctx := context.Background()
 	if err := c.DialWithContext(ctx); err == nil {
@@ -730,7 +730,7 @@ func TestClient_DialWithContextInvalidHELO(t *testing.T) {
 	if err != nil {
 		t.Skipf("failed to create test client: %s. Skipping tests", err)
 	}
-	c.co = nil
+	c.connection = nil
 	c.helo = ""
 	ctx := context.Background()
 	if err := c.DialWithContext(ctx); err == nil {
@@ -762,7 +762,7 @@ func TestClient_checkConn(t *testing.T) {
 	if err != nil {
 		t.Skipf("failed to create test client: %s. Skipping tests", err)
 	}
-	c.co = nil
+	c.connection = nil
 	if err := c.checkConn(); err == nil {
 		t.Errorf("connCheck() should fail but succeeded")
 	}
@@ -799,10 +799,10 @@ func TestClient_DialWithContextOptions(t *testing.T) {
 				return
 			}
 			if !tt.sf {
-				if c.co == nil && !tt.sf {
+				if c.connection == nil && !tt.sf {
 					t.Errorf("DialWithContext didn't fail but no connection found.")
 				}
-				if c.sc == nil && !tt.sf {
+				if c.smtpClient == nil && !tt.sf {
 					t.Errorf("DialWithContext didn't fail but no SMTP client found.")
 				}
 				if err := c.Reset(); err != nil {
@@ -1002,16 +1002,16 @@ func TestClient_DialSendCloseBroken(t *testing.T) {
 				return
 			}
 			if tt.closestart {
-				_ = c.sc.Close()
-				_ = c.co.Close()
+				_ = c.smtpClient.Close()
+				_ = c.connection.Close()
 			}
 			if err := c.Send(m); err != nil && !tt.sf {
 				t.Errorf("Send() failed: %s", err)
 				return
 			}
 			if tt.closeearly {
-				_ = c.sc.Close()
-				_ = c.co.Close()
+				_ = c.smtpClient.Close()
+				_ = c.connection.Close()
 			}
 			if err := c.Close(); err != nil && !tt.sf {
 				t.Errorf("Close() failed: %s", err)
@@ -1062,16 +1062,16 @@ func TestClient_DialSendCloseBrokenWithDSN(t *testing.T) {
 				return
 			}
 			if tt.closestart {
-				_ = c.sc.Close()
-				_ = c.co.Close()
+				_ = c.smtpClient.Close()
+				_ = c.connection.Close()
 			}
 			if err := c.Send(m); err != nil && !tt.sf {
 				t.Errorf("Send() failed: %s", err)
 				return
 			}
 			if tt.closeearly {
-				_ = c.sc.Close()
-				_ = c.co.Close()
+				_ = c.smtpClient.Close()
+				_ = c.connection.Close()
 			}
 			if err := c.Close(); err != nil && !tt.sf {
 				t.Errorf("Close() failed: %s", err)
