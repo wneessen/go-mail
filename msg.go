@@ -933,9 +933,9 @@ func (m *Msg) applyMiddlewares(ms *Msg) *Msg {
 
 // WriteTo writes the formated Msg into a give io.Writer and satisfies the io.WriteTo interface
 func (m *Msg) WriteTo(w io.Writer) (int64, error) {
-	mw := &msgWriter{w: w, c: m.charset, en: m.encoder}
+	mw := &msgWriter{writer: w, charset: m.charset, encoder: m.encoder}
 	mw.writeMsg(m.applyMiddlewares(m))
-	return mw.n, mw.err
+	return mw.bytesWritten, mw.err
 }
 
 // WriteToSkipMiddleware writes the formated Msg into a give io.Writer and satisfies
@@ -950,10 +950,10 @@ func (m *Msg) WriteToSkipMiddleware(w io.Writer, mt MiddlewareType) (int64, erro
 		mwl = append(mwl, m.middlewares[i])
 	}
 	m.middlewares = mwl
-	mw := &msgWriter{w: w, c: m.charset, en: m.encoder}
+	mw := &msgWriter{writer: w, charset: m.charset, encoder: m.encoder}
 	mw.writeMsg(m.applyMiddlewares(m))
 	m.middlewares = omwl
-	return mw.n, mw.err
+	return mw.bytesWritten, mw.err
 }
 
 // Write is an alias method to WriteTo due to compatibility reasons
