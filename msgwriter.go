@@ -284,65 +284,66 @@ func (mw *msgWriter) writeString(s string) {
 
 // writeHeader writes a header into the msgWriter's io.Writer
 func (mw *msgWriter) writeHeader(key Header, values ...string) {
-	wbuf := bytes.Buffer{}
-	cl := MaxHeaderLength - 2
-	wbuf.WriteString(string(key))
-	cl -= len(key)
+	buffer := strings.Builder{}
+	charLength := MaxHeaderLength - 2
+	buffer.WriteString(string(key))
+	charLength -= len(key)
 	if len(values) == 0 {
-		wbuf.WriteString(":\r\n")
+		buffer.WriteString(":\r\n")
 		return
 	}
-	wbuf.WriteString(": ")
-	cl -= 2
+	buffer.WriteString(": ")
+	charLength -= 2
 
-	fs := strings.Join(values, ", ")
-	sfs := strings.Split(fs, " ")
-	for i, v := range sfs {
-		if cl-len(v) <= 1 {
-			wbuf.WriteString(fmt.Sprintf("%s ", SingleNewLine))
-			cl = MaxHeaderLength - 3
+	fullValueStr := strings.Join(values, ", ")
+	words := strings.Split(fullValueStr, " ")
+	for i, val := range words {
+		if charLength-len(val) <= 1 {
+			buffer.WriteString(fmt.Sprintf("%s ", SingleNewLine))
+			charLength = MaxHeaderLength - 3
 		}
-		wbuf.WriteString(v)
-		if i < len(sfs)-1 {
-			wbuf.WriteString(" ")
-			cl -= 1
+		buffer.WriteString(val)
+		if i < len(words)-1 {
+			buffer.WriteString(" ")
+			charLength -= 1
 		}
-		cl -= len(v)
+		charLength -= len(val)
 	}
 
-	bufs := wbuf.String()
-	bufs = strings.ReplaceAll(bufs, fmt.Sprintf(" %s", SingleNewLine), SingleNewLine)
-	mw.writeString(bufs)
+	bufferString := buffer.String()
+	bufferString = strings.ReplaceAll(bufferString, fmt.Sprintf(" %s", SingleNewLine),
+		SingleNewLine)
+	mw.writeString(bufferString)
 	mw.writeString("\r\n")
 }
 
 // writeBody writes an io.Reader into an io.Writer using provided Encoding
-func (mw *msgWriter) writeBody(f func(io.Writer) (int64, error), e Encoding) {
-	var w io.Writer
-	var ew io.WriteCloser
+func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encoding Encoding) {
+	var writer io.Writer
+	var encodedWriter io.WriteCloser
 	var n int64
 	var err error
 	if mw.depth == 0 {
-		w = mw.writer
+		writer = mw.writer
 	}
 	if mw.depth > 0 {
-		w = mw.partWriter
+		writer = mw.partWriter
 	}
-	wbuf := bytes.Buffer{}
-	lb := Base64LineBreaker{}
-	lb.out = &wbuf
+	writeBuffer := bytes.Buffer{}
+	lineBreaker := Base64LineBreaker{}
+	lineBreaker.out = &writeBuffer
 
-	switch e {
+	switch encoding {
 	case EncodingQP:
-		ew = quotedprintable.NewWriter(&wbuf)
+		encodedWriter = quotedprintable.NewWriter(&writeBuffer)
 	case EncodingB64:
-		ew = base64.NewEncoder(base64.StdEncoding, &lb)
+		encodedWriter = base64.NewEncoder(base64.StdEncoding, &lineBreaker)
 	case NoEncoding:
-		_, err = f(&wbuf)
+		_, err = writeFunc(&writeBuffer)
 		if err != nil {
 			mw.err = fmt.Errorf("bodyWriter function: %w", err)
 		}
-		n, err = io.Copy(w, &wbuf)
+		n, err = io.Copy(writer, &writeBuffer)
 		if err != nil && mw.err == nil {
 			mw.err = fmt.Errorf("bodyWriter io.Copy: %w", err)
 		}
@@ -351,22 +352,22 @@ func (mw *msgWriter) writeBody(f func(io.Writer) (int64, error), e Encoding) {
 		}
 		return
 	default:
-		ew = quotedprintable.NewWriter(w)
+		encodedWriter = quotedprintable.NewWriter(writer)
 	}
 
-	_, err = f(ew)
+	_, err = writeFunc(encodedWriter)
 	if err != nil {
 		mw.err = fmt.Errorf("bodyWriter function: %w", err)
 	}
-	err = ew.Close()
+	err = encodedWriter.Close()
 	if err != nil && mw.err == nil {
 		mw.err = fmt.Errorf("bodyWriter close encoded writer: %w", err)
 	}
-	err = lb.Close()
+	err = lineBreaker.Close()
 	if err != nil && mw.err == nil {
 		mw.err = fmt.Errorf("bodyWriter close linebreaker: %w", err)
 	}
-	n, err = io.Copy(w, &wbuf)
+	n, err = io.Copy(writer, &writeBuffer)
 	if err != nil && mw.err == nil {
 		mw.err = fmt.Errorf("bodyWriter io.Copy: %w", err)
 	}
