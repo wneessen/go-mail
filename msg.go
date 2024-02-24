@@ -708,7 +708,10 @@ func (m *Msg) SetBodyString(contentType ContentType, content string, opts ...Par
 }
 
 // SetBodyWriter sets the body of the message.
-func (m *Msg) SetBodyWriter(contentType ContentType, writeFunc func(io.Writer) (int64, error), opts ...PartOption) {
+func (m *Msg) SetBodyWriter(
+	contentType ContentType, writeFunc func(io.Writer) (int64, error),
+	opts ...PartOption,
+) {
 	p := m.newPart(contentType, opts...)
 	p.w = writeFunc
 	m.parts = []*Part{p}
@@ -716,85 +719,88 @@ func (m *Msg) SetBodyWriter(contentType ContentType, writeFunc func(io.Writer) (
 
 // SetBodyHTMLTemplate sets the body of the message from a given html/template.Template pointer
 // The content type will be set to text/html automatically
-func (m *Msg) SetBodyHTMLTemplate(t *ht.Template, d interface{}, o ...PartOption) error {
-	if t == nil {
+func (m *Msg) SetBodyHTMLTemplate(tpl *ht.Template, data interface{}, opts ...PartOption) error {
+	if tpl == nil {
 		return fmt.Errorf(errTplPointerNil)
 	}
-	buf := bytes.Buffer{}
-	if err := t.Execute(&buf, d); err != nil {
+	buffer := bytes.Buffer{}
+	if err := tpl.Execute(&buffer, data); err != nil {
 		return fmt.Errorf(errTplExecuteFailed, err)
 	}
-	w := writeFuncFromBuffer(&buf)
-	m.SetBodyWriter(TypeTextHTML, w, o...)
+	writeFunc := writeFuncFromBuffer(&buffer)
+	m.SetBodyWriter(TypeTextHTML, writeFunc, opts...)
 	return nil
 }
 
 // SetBodyTextTemplate sets the body of the message from a given text/template.Template pointer
 // The content type will be set to text/plain automatically
-func (m *Msg) SetBodyTextTemplate(t *tt.Template, d interface{}, o ...PartOption) error {
-	if t == nil {
+func (m *Msg) SetBodyTextTemplate(tpl *tt.Template, data interface{}, opts ...PartOption) error {
+	if tpl == nil {
 		return fmt.Errorf(errTplPointerNil)
 	}
 	buf := bytes.Buffer{}
-	if err := t.Execute(&buf, d); err != nil {
+	if err := tpl.Execute(&buf, data); err != nil {
 		return fmt.Errorf(errTplExecuteFailed, err)
 	}
-	w := writeFuncFromBuffer(&buf)
-	m.SetBodyWriter(TypeTextPlain, w, o...)
+	writeFunc := writeFuncFromBuffer(&buf)
+	m.SetBodyWriter(TypeTextPlain, writeFunc, opts...)
 	return nil
 }
 
 // AddAlternativeString sets the alternative body of the message.
-func (m *Msg) AddAlternativeString(ct ContentType, b string, o ...PartOption) {
-	buf := bytes.NewBufferString(b)
-	w := writeFuncFromBuffer(buf)
-	m.AddAlternativeWriter(ct, w, o...)
+func (m *Msg) AddAlternativeString(contentType ContentType, content string, opts ...PartOption) {
+	buffer := bytes.NewBufferString(content)
+	writeFunc := writeFuncFromBuffer(buffer)
+	m.AddAlternativeWriter(contentType, writeFunc, opts...)
 }
 
 // AddAlternativeWriter sets the body of the message.
-func (m *Msg) AddAlternativeWriter(ct ContentType, w func(io.Writer) (int64, error), o ...PartOption) {
-	p := m.newPart(ct, o...)
-	p.w = w
-	m.parts = append(m.parts, p)
+func (m *Msg) AddAlternativeWriter(
+	contentType ContentType, writeFunc func(io.Writer) (int64, error),
+	opts ...PartOption,
+) {
+	part := m.newPart(contentType, opts...)
+	part.w = writeFunc
+	m.parts = append(m.parts, part)
 }
 
 // AddAlternativeHTMLTemplate sets the alternative body of the message to a html/template.Template output
 // The content type will be set to text/html automatically
-func (m *Msg) AddAlternativeHTMLTemplate(t *ht.Template, d interface{}, o ...PartOption) error {
-	if t == nil {
+func (m *Msg) AddAlternativeHTMLTemplate(tpl *ht.Template, data interface{}, opts ...PartOption) error {
+	if tpl == nil {
 		return fmt.Errorf(errTplPointerNil)
 	}
-	buf := bytes.Buffer{}
-	if err := t.Execute(&buf, d); err != nil {
+	buffer := bytes.Buffer{}
+	if err := tpl.Execute(&buffer, data); err != nil {
 		return fmt.Errorf(errTplExecuteFailed, err)
 	}
-	w := writeFuncFromBuffer(&buf)
-	m.AddAlternativeWriter(TypeTextHTML, w, o...)
+	writeFunc := writeFuncFromBuffer(&buffer)
+	m.AddAlternativeWriter(TypeTextHTML, writeFunc, opts...)
 	return nil
 }
 
 // AddAlternativeTextTemplate sets the alternative body of the message to a text/template.Template output
 // The content type will be set to text/plain automatically
-func (m *Msg) AddAlternativeTextTemplate(t *tt.Template, d interface{}, o ...PartOption) error {
-	if t == nil {
+func (m *Msg) AddAlternativeTextTemplate(tpl *tt.Template, data interface{}, opts ...PartOption) error {
+	if tpl == nil {
 		return fmt.Errorf(errTplPointerNil)
 	}
-	buf := bytes.Buffer{}
-	if err := t.Execute(&buf, d); err != nil {
+	buffer := bytes.Buffer{}
+	if err := tpl.Execute(&buffer, data); err != nil {
 		return fmt.Errorf(errTplExecuteFailed, err)
 	}
-	w := writeFuncFromBuffer(&buf)
-	m.AddAlternativeWriter(TypeTextPlain, w, o...)
+	writeFunc := writeFuncFromBuffer(&buffer)
+	m.AddAlternativeWriter(TypeTextPlain, writeFunc, opts...)
 	return nil
 }
 
 // AttachFile adds an attachment File to the Msg
-func (m *Msg) AttachFile(n string, o ...FileOption) {
-	f := fileFromFS(n)
-	if f == nil {
+func (m *Msg) AttachFile(name string, opts ...FileOption) {
+	file := fileFromFS(name)
+	if file == nil {
 		return
 	}
-	m.attachments = m.appendFile(m.attachments, f, o...)
+	m.attachments = m.appendFile(m.attachments, file, opts...)
 }
 
 // AttachReader adds an attachment File via io.Reader to the Msg
@@ -803,61 +809,65 @@ func (m *Msg) AttachFile(n string, o ...FileOption) {
 // into memory first, so it can seek through it. Using larger amounts of
 // data on the io.Reader should be avoided. For such, it is recommended to
 // either use AttachFile or AttachReadSeeker instead
-func (m *Msg) AttachReader(n string, r io.Reader, o ...FileOption) error {
-	f, err := fileFromReader(n, r)
+func (m *Msg) AttachReader(name string, reader io.Reader, opts ...FileOption) error {
+	file, err := fileFromReader(name, reader)
 	if err != nil {
 		return err
 	}
-	m.attachments = m.appendFile(m.attachments, f, o...)
+	m.attachments = m.appendFile(m.attachments, file, opts...)
 	return nil
 }
 
 // AttachReadSeeker adds an attachment File via io.ReadSeeker to the Msg
-func (m *Msg) AttachReadSeeker(n string, r io.ReadSeeker, o ...FileOption) {
-	f := fileFromReadSeeker(n, r)
-	m.attachments = m.appendFile(m.attachments, f, o...)
+func (m *Msg) AttachReadSeeker(name string, reader io.ReadSeeker, opts ...FileOption) {
+	file := fileFromReadSeeker(name, reader)
+	m.attachments = m.appendFile(m.attachments, file, opts...)
 }
 
 // AttachHTMLTemplate adds the output of a html/template.Template pointer as File attachment to the Msg
-func (m *Msg) AttachHTMLTemplate(n string, t *ht.Template, d interface{}, o ...FileOption) error {
-	f, err := fileFromHTMLTemplate(n, t, d)
+func (m *Msg) AttachHTMLTemplate(
+	name string, tpl *ht.Template, data interface{}, opts ...FileOption,
+) error {
+	file, err := fileFromHTMLTemplate(name, tpl, data)
 	if err != nil {
 		return fmt.Errorf("failed to attach template: %w", err)
 	}
-	m.attachments = m.appendFile(m.attachments, f, o...)
+	m.attachments = m.appendFile(m.attachments, file, opts...)
 	return nil
 }
 
 // AttachTextTemplate adds the output of a text/template.Template pointer as File attachment to the Msg
-func (m *Msg) AttachTextTemplate(n string, t *tt.Template, d interface{}, o ...FileOption) error {
-	f, err := fileFromTextTemplate(n, t, d)
+func (m *Msg) AttachTextTemplate(
+	name string, tpl *tt.Template, data interface{}, opts ...FileOption,
+) error {
+	file, err := fileFromTextTemplate(name, tpl, data)
 	if err != nil {
 		return fmt.Errorf("failed to attach template: %w", err)
 	}
-	m.attachments = m.appendFile(m.attachments, f, o...)
+	m.attachments = m.appendFile(m.attachments, file, opts...)
 	return nil
 }
 
 // AttachFromEmbedFS adds an attachment File from an embed.FS to the Msg
-func (m *Msg) AttachFromEmbedFS(n string, f *embed.FS, o ...FileOption) error {
-	if f == nil {
+func (m *Msg) AttachFromEmbedFS(name string, fs *embed.FS, opts ...FileOption) error {
+	if fs == nil {
 		return fmt.Errorf("embed.FS must not be nil")
 	}
-	ef, err := fileFromEmbedFS(n, f)
+	file, err := fileFromEmbedFS(name, fs)
 	if err != nil {
 		return err
 	}
-	m.attachments = m.appendFile(m.attachments, ef, o...)
+	m.attachments = m.appendFile(m.attachments, file, opts...)
 	return nil
 }
 
 // EmbedFile adds an embedded File to the Msg
-func (m *Msg) EmbedFile(n string, o ...FileOption) {
-	f := fileFromFS(n)
-	if f == nil {
+func (m *Msg) EmbedFile(name string, opts ...FileOption) {
+	file := fileFromFS(name)
+	if file == nil {
 		return
 	}
-	m.embeds = m.appendFile(m.embeds, f, o...)
+	m.embeds = m.appendFile(m.embeds, file, opts...)
 }
 
 // EmbedReader adds an embedded File from an io.Reader to the Msg
@@ -866,51 +876,55 @@ func (m *Msg) EmbedFile(n string, o ...FileOption) {
 // into memory first, so it can seek through it. Using larger amounts of
 // data on the io.Reader should be avoided. For such, it is recommended to
 // either use EmbedFile or EmbedReadSeeker instead
-func (m *Msg) EmbedReader(n string, r io.Reader, o ...FileOption) error {
-	f, err := fileFromReader(n, r)
+func (m *Msg) EmbedReader(name string, reader io.Reader, opts ...FileOption) error {
+	file, err := fileFromReader(name, reader)
 	if err != nil {
 		return err
 	}
-	m.embeds = m.appendFile(m.embeds, f, o...)
+	m.embeds = m.appendFile(m.embeds, file, opts...)
 	return nil
 }
 
 // EmbedReadSeeker adds an embedded File from an io.ReadSeeker to the Msg
-func (m *Msg) EmbedReadSeeker(n string, r io.ReadSeeker, o ...FileOption) {
-	f := fileFromReadSeeker(n, r)
-	m.embeds = m.appendFile(m.embeds, f, o...)
+func (m *Msg) EmbedReadSeeker(name string, reader io.ReadSeeker, opts ...FileOption) {
+	file := fileFromReadSeeker(name, reader)
+	m.embeds = m.appendFile(m.embeds, file, opts...)
 }
 
 // EmbedHTMLTemplate adds the output of a html/template.Template pointer as embedded File to the Msg
-func (m *Msg) EmbedHTMLTemplate(n string, t *ht.Template, d interface{}, o ...FileOption) error {
-	f, err := fileFromHTMLTemplate(n, t, d)
+func (m *Msg) EmbedHTMLTemplate(
+	name string, tpl *ht.Template, data interface{}, opts ...FileOption,
+) error {
+	file, err := fileFromHTMLTemplate(name, tpl, data)
 	if err != nil {
 		return fmt.Errorf("failed to embed template: %w", err)
 	}
-	m.embeds = m.appendFile(m.embeds, f, o...)
+	m.embeds = m.appendFile(m.embeds, file, opts...)
 	return nil
 }
 
 // EmbedTextTemplate adds the output of a text/template.Template pointer as embedded File to the Msg
-func (m *Msg) EmbedTextTemplate(n string, t *tt.Template, d interface{}, o ...FileOption) error {
-	f, err := fileFromTextTemplate(n, t, d)
+func (m *Msg) EmbedTextTemplate(
+	name string, tpl *tt.Template, data interface{}, opts ...FileOption,
+) error {
+	file, err := fileFromTextTemplate(name, tpl, data)
 	if err != nil {
 		return fmt.Errorf("failed to embed template: %w", err)
 	}
-	m.embeds = m.appendFile(m.embeds, f, o...)
+	m.embeds = m.appendFile(m.embeds, file, opts...)
 	return nil
 }
 
 // EmbedFromEmbedFS adds an embedded File from an embed.FS to the Msg
-func (m *Msg) EmbedFromEmbedFS(n string, f *embed.FS, o ...FileOption) error {
-	if f == nil {
+func (m *Msg) EmbedFromEmbedFS(name string, fs *embed.FS, opts ...FileOption) error {
+	if fs == nil {
 		return fmt.Errorf("embed.FS must not be nil")
 	}
-	ef, err := fileFromEmbedFS(n, f)
+	file, err := fileFromEmbedFS(name, fs)
 	if err != nil {
 		return err
 	}
-	m.embeds = m.appendFile(m.embeds, ef, o...)
+	m.embeds = m.appendFile(m.embeds, file, opts...)
 	return nil
 }
 
@@ -925,73 +939,73 @@ func (m *Msg) Reset() {
 }
 
 // ApplyMiddlewares apply the list of middlewares to a Msg
-func (m *Msg) applyMiddlewares(ms *Msg) *Msg {
-	for _, mw := range m.middlewares {
-		ms = mw.Handle(ms)
+func (m *Msg) applyMiddlewares(msg *Msg) *Msg {
+	for _, middleware := range m.middlewares {
+		msg = middleware.Handle(msg)
 	}
-	return ms
+	return msg
 }
 
 // WriteTo writes the formated Msg into a give io.Writer and satisfies the io.WriteTo interface
-func (m *Msg) WriteTo(w io.Writer) (int64, error) {
-	mw := &msgWriter{writer: w, charset: m.charset, encoder: m.encoder}
+func (m *Msg) WriteTo(writer io.Writer) (int64, error) {
+	mw := &msgWriter{writer: writer, charset: m.charset, encoder: m.encoder}
 	mw.writeMsg(m.applyMiddlewares(m))
 	return mw.bytesWritten, mw.err
 }
 
 // WriteToSkipMiddleware writes the formated Msg into a give io.Writer and satisfies
 // the io.WriteTo interface but will skip the given Middleware
-func (m *Msg) WriteToSkipMiddleware(w io.Writer, mt MiddlewareType) (int64, error) {
-	var omwl, mwl []Middleware
-	omwl = m.middlewares
+func (m *Msg) WriteToSkipMiddleware(writer io.Writer, middleWareType MiddlewareType) (int64, error) {
+	var origMiddlewares, middlewares []Middleware
+	origMiddlewares = m.middlewares
 	for i := range m.middlewares {
-		if m.middlewares[i].Type() == mt {
+		if m.middlewares[i].Type() == middleWareType {
 			continue
 		}
-		mwl = append(mwl, m.middlewares[i])
+		middlewares = append(middlewares, m.middlewares[i])
 	}
-	m.middlewares = mwl
-	mw := &msgWriter{writer: w, charset: m.charset, encoder: m.encoder}
+	m.middlewares = middlewares
+	mw := &msgWriter{writer: writer, charset: m.charset, encoder: m.encoder}
 	mw.writeMsg(m.applyMiddlewares(m))
-	m.middlewares = omwl
+	m.middlewares = origMiddlewares
 	return mw.bytesWritten, mw.err
 }
 
 // Write is an alias method to WriteTo due to compatibility reasons
-func (m *Msg) Write(w io.Writer) (int64, error) {
-	return m.WriteTo(w)
+func (m *Msg) Write(writer io.Writer) (int64, error) {
+	return m.WriteTo(writer)
 }
 
 // appendFile adds a File to the Msg (as attachment or embed)
-func (m *Msg) appendFile(c []*File, f *File, o ...FileOption) []*File {
+func (m *Msg) appendFile(files []*File, file *File, opts ...FileOption) []*File {
 	// Override defaults with optionally provided FileOption functions
-	for _, co := range o {
-		if co == nil {
+	for _, opt := range opts {
+		if opt == nil {
 			continue
 		}
-		co(f)
+		opt(file)
 	}
 
-	if c == nil {
-		return []*File{f}
+	if files == nil {
+		return []*File{file}
 	}
 
-	return append(c, f)
+	return append(files, file)
 }
 
 // WriteToFile stores the Msg as file on disk. It will try to create the given filename
 // Already existing files will be overwritten
-func (m *Msg) WriteToFile(n string) error {
-	f, err := os.Create(n)
+func (m *Msg) WriteToFile(name string) error {
+	file, err := os.Create(name)
 	if err != nil {
 		return fmt.Errorf("failed to create output file: %w", err)
 	}
-	defer func() { _ = f.Close() }()
-	_, err = m.WriteTo(f)
+	defer func() { _ = file.Close() }()
+	_, err = m.WriteTo(file)
 	if err != nil {
 		return fmt.Errorf("failed to write to output file: %w", err)
 	}
-	return f.Close()
+	return file.Close()
 }
 
 // WriteToSendmail returns WriteToSendmailWithCommand with a default sendmail path
@@ -1001,38 +1015,38 @@ func (m *Msg) WriteToSendmail() error {
 
 // WriteToSendmailWithCommand returns WriteToSendmailWithContext with a default timeout
 // of 5 seconds and a given sendmail path
-func (m *Msg) WriteToSendmailWithCommand(sp string) error {
-	tctx, tcfn := context.WithTimeout(context.Background(), time.Second*5)
-	defer tcfn()
-	return m.WriteToSendmailWithContext(tctx, sp)
+func (m *Msg) WriteToSendmailWithCommand(sendmailPath string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	return m.WriteToSendmailWithContext(ctx, sendmailPath)
 }
 
 // WriteToSendmailWithContext opens an pipe to the local sendmail binary and tries to send the
 // mail though that. It takes a context.Context, the path to the sendmail binary and additional
 // arguments for the sendmail binary as parameters
-func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...string) error {
-	ec := exec.CommandContext(ctx, sp)
-	ec.Args = append(ec.Args, "-oi", "-t")
-	ec.Args = append(ec.Args, a...)
+func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sendmailPath string, args ...string) error {
+	cmdCtx := exec.CommandContext(ctx, sendmailPath)
+	cmdCtx.Args = append(cmdCtx.Args, "-oi", "-t")
+	cmdCtx.Args = append(cmdCtx.Args, args...)
 
-	se, err := ec.StderrPipe()
+	stdErr, err := cmdCtx.StderrPipe()
 	if err != nil {
 		return fmt.Errorf("failed to set STDERR pipe: %w", err)
 	}
 
-	si, err := ec.StdinPipe()
+	stdIn, err := cmdCtx.StdinPipe()
 	if err != nil {
 		return fmt.Errorf("failed to set STDIN pipe: %w", err)
 	}
-	if se == nil || si == nil {
+	if stdErr == nil || stdIn == nil {
 		return fmt.Errorf("received nil for STDERR or STDIN pipe")
 	}
 
 	// Start the execution and write to STDIN
-	if err = ec.Start(); err != nil {
+	if err = cmdCtx.Start(); err != nil {
 		return fmt.Errorf("could not start sendmail execution: %w", err)
 	}
-	_, err = m.WriteTo(si)
+	_, err = m.WriteTo(stdIn)
 	if err != nil {
 		if !errors.Is(err, syscall.EPIPE) {
 			return fmt.Errorf("failed to write mail to buffer: %w", err)
@@ -1040,20 +1054,20 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...st
 	}
 
 	// Close STDIN and wait for completion or cancellation of the sendmail executable
-	if err = si.Close(); err != nil {
+	if err = stdIn.Close(); err != nil {
 		return fmt.Errorf("failed to close STDIN pipe: %w", err)
 	}
 
 	// Read the stderr pipe for possible errors
-	serr, err := io.ReadAll(se)
+	sendmailErr, err := io.ReadAll(stdErr)
 	if err != nil {
 		return fmt.Errorf("failed to read STDERR pipe: %w", err)
 	}
-	if len(serr) > 0 {
-		return fmt.Errorf("sendmail command failed: %s", string(serr))
+	if len(sendmailErr) > 0 {
+		return fmt.Errorf("sendmail command failed: %s", string(sendmailErr))
 	}
 
-	if err = ec.Wait(); err != nil {
+	if err = cmdCtx.Wait(); err != nil {
 		return fmt.Errorf("sendmail command execution failed: %w", err)
 	}
 
@@ -1067,24 +1081,24 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sp string, a ...st
 // changes will not be reflected in the Reader. You will have to use Msg.UpdateReader
 // first to update the Reader's buffer with the current Msg content
 func (m *Msg) NewReader() *Reader {
-	r := &Reader{}
-	wbuf := bytes.Buffer{}
-	_, err := m.Write(&wbuf)
+	reader := &Reader{}
+	buffer := bytes.Buffer{}
+	_, err := m.Write(&buffer)
 	if err != nil {
-		r.err = fmt.Errorf("failed to write Msg to Reader buffer: %w", err)
+		reader.err = fmt.Errorf("failed to write Msg to Reader buffer: %w", err)
 	}
-	r.buf = wbuf.Bytes()
-	return r
+	reader.buf = buffer.Bytes()
+	return reader
 }
 
 // UpdateReader will update a Reader with the content of the given Msg and reset the
 // Reader position to the start
-func (m *Msg) UpdateReader(r *Reader) {
-	wbuf := bytes.Buffer{}
-	_, err := m.Write(&wbuf)
-	r.Reset()
-	r.buf = wbuf.Bytes()
-	r.err = err
+func (m *Msg) UpdateReader(reader *Reader) {
+	buffer := bytes.Buffer{}
+	_, err := m.Write(&buffer)
+	reader.Reset()
+	reader.buf = buffer.Bytes()
+	reader.err = err
 }
 
 // HasSendError returns true if the Msg experienced an error during the message delivery and the
@@ -1096,9 +1110,9 @@ func (m *Msg) HasSendError() bool {
 // SendErrorIsTemp returns true if the Msg experienced an error during the message delivery and the
 // corresponding error was of temporary nature and should be retried later
 func (m *Msg) SendErrorIsTemp() bool {
-	var e *SendError
-	if errors.As(m.sendError, &e) && e != nil {
-		return e.isTemp
+	var err *SendError
+	if errors.As(m.sendError, &err) && err != nil {
+		return err.isTemp
 	}
 	return false
 }
@@ -1110,19 +1124,19 @@ func (m *Msg) SendError() error {
 
 // encodeString encodes a string based on the configured message encoder and the corresponding
 // charset for the Msg
-func (m *Msg) encodeString(s string) string {
-	return m.encoder.Encode(string(m.charset), s)
+func (m *Msg) encodeString(str string) string {
+	return m.encoder.Encode(string(m.charset), str)
 }
 
 // hasAlt returns true if the Msg has more than one part
 func (m *Msg) hasAlt() bool {
-	c := 0
-	for _, p := range m.parts {
-		if !p.del {
-			c++
+	count := 0
+	for _, part := range m.parts {
+		if !part.del {
+			count++
 		}
 	}
-	return c > 1 && m.pgptype == 0
+	return count > 1 && m.pgptype == 0
 }
 
 // hasMixed returns true if the Msg has mixed parts
@@ -1141,19 +1155,19 @@ func (m *Msg) hasPGPType() bool {
 }
 
 // newPart returns a new Part for the Msg
-func (m *Msg) newPart(ct ContentType, o ...PartOption) *Part {
+func (m *Msg) newPart(contentType ContentType, opts ...PartOption) *Part {
 	p := &Part{
-		ctype: ct,
+		ctype: contentType,
 		cset:  m.charset,
 		enc:   m.encoding,
 	}
 
 	// Override defaults with optionally provided MsgOption functions
-	for _, co := range o {
-		if co == nil {
+	for _, opt := range opts {
+		if opt == nil {
 			continue
 		}
-		co(p)
+		opt(p)
 	}
 
 	return p
@@ -1187,118 +1201,118 @@ func (m *Msg) addDefaultHeader() {
 }
 
 // fileFromEmbedFS returns a File pointer from a given file in the provided embed.FS
-func fileFromEmbedFS(n string, f *embed.FS) (*File, error) {
-	_, err := f.Open(n)
+func fileFromEmbedFS(name string, fs *embed.FS) (*File, error) {
+	_, err := fs.Open(name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file from embed.FS: %w", err)
 	}
 	return &File{
-		Name:   filepath.Base(n),
+		Name:   filepath.Base(name),
 		Header: make(map[string][]string),
-		Writer: func(w io.Writer) (int64, error) {
-			h, err := f.Open(n)
+		Writer: func(writer io.Writer) (int64, error) {
+			file, err := fs.Open(name)
 			if err != nil {
 				return 0, err
 			}
-			nb, err := io.Copy(w, h)
+			numBytes, err := io.Copy(writer, file)
 			if err != nil {
-				_ = h.Close()
-				return nb, fmt.Errorf("failed to copy file to io.Writer: %w", err)
+				_ = file.Close()
+				return numBytes, fmt.Errorf("failed to copy file to io.Writer: %w", err)
 			}
-			return nb, h.Close()
+			return numBytes, file.Close()
 		},
 	}, nil
 }
 
 // fileFromFS returns a File pointer from a given file in the system's file system
-func fileFromFS(n string) *File {
-	_, err := os.Stat(n)
+func fileFromFS(name string) *File {
+	_, err := os.Stat(name)
 	if err != nil {
 		return nil
 	}
 
 	return &File{
-		Name:   filepath.Base(n),
+		Name:   filepath.Base(name),
 		Header: make(map[string][]string),
-		Writer: func(w io.Writer) (int64, error) {
-			h, err := os.Open(n)
+		Writer: func(writer io.Writer) (int64, error) {
+			file, err := os.Open(name)
 			if err != nil {
 				return 0, err
 			}
-			nb, err := io.Copy(w, h)
+			numBytes, err := io.Copy(writer, file)
 			if err != nil {
-				_ = h.Close()
-				return nb, fmt.Errorf("failed to copy file to io.Writer: %w", err)
+				_ = file.Close()
+				return numBytes, fmt.Errorf("failed to copy file to io.Writer: %w", err)
 			}
-			return nb, h.Close()
+			return numBytes, file.Close()
 		},
 	}
 }
 
 // fileFromReader returns a File pointer from a given io.Reader
-func fileFromReader(n string, r io.Reader) (*File, error) {
-	d, err := io.ReadAll(r)
+func fileFromReader(name string, reader io.Reader) (*File, error) {
+	d, err := io.ReadAll(reader)
 	if err != nil {
 		return &File{}, err
 	}
-	br := bytes.NewReader(d)
+	byteReader := bytes.NewReader(d)
 	return &File{
-		Name:   n,
+		Name:   name,
 		Header: make(map[string][]string),
-		Writer: func(w io.Writer) (int64, error) {
-			rb, cerr := io.Copy(w, br)
-			if cerr != nil {
-				return rb, cerr
+		Writer: func(writer io.Writer) (int64, error) {
+			readBytes, copyErr := io.Copy(writer, byteReader)
+			if copyErr != nil {
+				return readBytes, copyErr
 			}
-			_, cerr = br.Seek(0, io.SeekStart)
-			return rb, cerr
+			_, copyErr = byteReader.Seek(0, io.SeekStart)
+			return readBytes, copyErr
 		},
 	}, nil
 }
 
 // fileFromReadSeeker returns a File pointer from a given io.ReadSeeker
-func fileFromReadSeeker(n string, r io.ReadSeeker) *File {
+func fileFromReadSeeker(name string, reader io.ReadSeeker) *File {
 	return &File{
-		Name:   n,
+		Name:   name,
 		Header: make(map[string][]string),
-		Writer: func(w io.Writer) (int64, error) {
-			rb, err := io.Copy(w, r)
+		Writer: func(writer io.Writer) (int64, error) {
+			readBytes, err := io.Copy(writer, reader)
 			if err != nil {
-				return rb, err
+				return readBytes, err
 			}
-			_, err = r.Seek(0, io.SeekStart)
-			return rb, err
+			_, err = reader.Seek(0, io.SeekStart)
+			return readBytes, err
 		},
 	}
 }
 
 // fileFromHTMLTemplate returns a File pointer form a given html/template.Template
-func fileFromHTMLTemplate(n string, t *ht.Template, d interface{}) (*File, error) {
-	if t == nil {
+func fileFromHTMLTemplate(name string, tpl *ht.Template, data interface{}) (*File, error) {
+	if tpl == nil {
 		return nil, fmt.Errorf(errTplPointerNil)
 	}
-	buf := bytes.Buffer{}
-	if err := t.Execute(&buf, d); err != nil {
+	buffer := bytes.Buffer{}
+	if err := tpl.Execute(&buffer, data); err != nil {
 		return nil, fmt.Errorf(errTplExecuteFailed, err)
 	}
-	return fileFromReader(n, &buf)
+	return fileFromReader(name, &buffer)
 }
 
 // fileFromTextTemplate returns a File pointer form a given text/template.Template
-func fileFromTextTemplate(n string, t *tt.Template, d interface{}) (*File, error) {
-	if t == nil {
+func fileFromTextTemplate(name string, tpl *tt.Template, data interface{}) (*File, error) {
+	if tpl == nil {
 		return nil, fmt.Errorf(errTplPointerNil)
 	}
-	buf := bytes.Buffer{}
-	if err := t.Execute(&buf, d); err != nil {
+	buffer := bytes.Buffer{}
+	if err := tpl.Execute(&buffer, data); err != nil {
 		return nil, fmt.Errorf(errTplExecuteFailed, err)
 	}
-	return fileFromReader(n, &buf)
+	return fileFromReader(name, &buffer)
 }
 
 // getEncoder creates a new mime.WordEncoder based on the encoding setting of the message
-func getEncoder(e Encoding) mime.WordEncoder {
-	switch e {
+func getEncoder(enc Encoding) mime.WordEncoder {
+	switch enc {
 	case EncodingQP:
 		return mime.QEncoding
 	case EncodingB64:
@@ -1310,10 +1324,10 @@ func getEncoder(e Encoding) mime.WordEncoder {
 
 // writeFuncFromBuffer is a common method to convert a byte buffer into a writeFunc as
 // often required by this library
-func writeFuncFromBuffer(buf *bytes.Buffer) func(io.Writer) (int64, error) {
-	w := func(w io.Writer) (int64, error) {
-		nb, err := w.Write(buf.Bytes())
-		return int64(nb), err
+func writeFuncFromBuffer(buffer *bytes.Buffer) func(io.Writer) (int64, error) {
+	writeFunc := func(w io.Writer) (int64, error) {
+		numBytes, err := w.Write(buffer.Bytes())
+		return int64(numBytes), err
 	}
-	return w
+	return writeFunc
 }
