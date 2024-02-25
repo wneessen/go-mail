@@ -649,18 +649,18 @@ func (c *Client) Reset() error {
 
 // DialAndSend establishes a connection to the SMTP server with a
 // default context.Background and sends the mail
-func (c *Client) DialAndSend(ml ...*Msg) error {
+func (c *Client) DialAndSend(messages ...*Msg) error {
 	ctx := context.Background()
-	return c.DialAndSendWithContext(ctx, ml...)
+	return c.DialAndSendWithContext(ctx, messages...)
 }
 
 // DialAndSendWithContext establishes a connection to the SMTP server with a
 // custom context and sends the mail
-func (c *Client) DialAndSendWithContext(ctx context.Context, ml ...*Msg) error {
+func (c *Client) DialAndSendWithContext(ctx context.Context, messages ...*Msg) error {
 	if err := c.DialWithContext(ctx); err != nil {
 		return fmt.Errorf("dial failed: %w", err)
 	}
-	if err := c.Send(ml...); err != nil {
+	if err := c.Send(messages...); err != nil {
 		return fmt.Errorf("send failed: %w", err)
 	}
 	if err := c.Close(); err != nil {
@@ -700,21 +700,21 @@ func (c *Client) tls() error {
 		return ErrNoActiveConnection
 	}
 	if !c.useSSL && c.tlspolicy != NoTLS {
-		est := false
-		st, _ := c.smtpClient.Extension("STARTTLS")
+		hasStartTLS := false
+		extension, _ := c.smtpClient.Extension("STARTTLS")
 		if c.tlspolicy == TLSMandatory {
-			est = true
-			if !st {
+			hasStartTLS = true
+			if !extension {
 				return fmt.Errorf("STARTTLS mode set to: %q, but target host does not support STARTTLS",
 					c.tlspolicy)
 			}
 		}
 		if c.tlspolicy == TLSOpportunistic {
-			if st {
-				est = true
+			if extension {
+				hasStartTLS = true
 			}
 		}
-		if est {
+		if hasStartTLS {
 			if err := c.smtpClient.StartTLS(c.tlsconfig); err != nil {
 				return err
 			}
@@ -730,29 +730,29 @@ func (c *Client) auth() error {
 		return fmt.Errorf("failed to authenticate: %w", err)
 	}
 	if c.smtpAuth == nil && c.smtpAuthType != "" {
-		sa, sat := c.smtpClient.Extension("AUTH")
-		if !sa {
+		hasSMTPAuth, smtpAuthType := c.smtpClient.Extension("AUTH")
+		if !hasSMTPAuth {
 			return fmt.Errorf("server does not support SMTP AUTH")
 		}
 
 		switch c.smtpAuthType {
 		case SMTPAuthPlain:
-			if !strings.Contains(sat, string(SMTPAuthPlain)) {
+			if !strings.Contains(smtpAuthType, string(SMTPAuthPlain)) {
 				return ErrPlainAuthNotSupported
 			}
 			c.smtpAuth = smtp.PlainAuth("", c.user, c.pass, c.host)
 		case SMTPAuthLogin:
-			if !strings.Contains(sat, string(SMTPAuthLogin)) {
+			if !strings.Contains(smtpAuthType, string(SMTPAuthLogin)) {
 				return ErrLoginAuthNotSupported
 			}
 			c.smtpAuth = smtp.LoginAuth(c.user, c.pass, c.host)
 		case SMTPAuthCramMD5:
-			if !strings.Contains(sat, string(SMTPAuthCramMD5)) {
+			if !strings.Contains(smtpAuthType, string(SMTPAuthCramMD5)) {
 				return ErrCramMD5AuthNotSupported
 			}
 			c.smtpAuth = smtp.CRAMMD5Auth(c.user, c.pass)
 		case SMTPAuthXOAUTH2:
-			if !strings.Contains(sat, string(SMTPAuthXOAUTH2)) {
+			if !strings.Contains(smtpAuthType, string(SMTPAuthXOAUTH2)) {
 				return ErrXOauth2AuthNotSupported
 			}
 			c.smtpAuth = smtp.XOAuth2Auth(c.user, c.pass)
