@@ -1087,7 +1087,7 @@ func (m *Msg) NewReader() *Reader {
 	if err != nil {
 		reader.err = fmt.Errorf("failed to write Msg to Reader buffer: %w", err)
 	}
-	reader.buf = buffer.Bytes()
+	reader.buffer = buffer.Bytes()
 	return reader
 }
 
@@ -1097,7 +1097,7 @@ func (m *Msg) UpdateReader(reader *Reader) {
 	buffer := bytes.Buffer{}
 	_, err := m.Write(&buffer)
 	reader.Reset()
-	reader.buf = buffer.Bytes()
+	reader.buffer = buffer.Bytes()
 	reader.err = err
 }
 

@@ -65,7 +65,7 @@ func TestReader_Read_error(t *testing.T) {
 
 // TestReader_Read_empty tests the Reader.Read method with an empty buffer
 func TestReader_Read_empty(t *testing.T) {
-	r := Reader{buf: []byte{}}
+	r := Reader{buffer: []byte{}}
 	p := make([]byte, 1)
 	p[0] = 'a'
 	_, err := r.Read(p)
@@ -76,7 +76,7 @@ func TestReader_Read_empty(t *testing.T) {
 
 // TestReader_Read_nil tests the Reader.Read method with a nil buffer
 func TestReader_Read_nil(t *testing.T) {
-	r := Reader{buf: nil, off: -10}
+	r := Reader{buffer: nil, offset: -10}
 	p := make([]byte, 0)
 	_, err := r.Read(p)
 	if err != nil && !errors.Is(err, io.EOF) {
