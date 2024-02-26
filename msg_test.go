@@ -3174,7 +3174,7 @@ func TestMsg_checkUserAgent(t *testing.T) {
 		{
 			name:               "check default user agent",
 			noDefaultUserAgent: false,
-			wantUserAgent:      "go-mail v0.4.1 // https://github.com/wneessen/go-mail",
+			wantUserAgent:      fmt.Sprintf("go-mail v%s // https://github.com/wneessen/go-mail", VERSION),
 			sf:                 false,
 		},
 		{
