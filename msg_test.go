@@ -3161,3 +3161,53 @@ func TestMsg_BccFromString(t *testing.T) {
 		})
 	}
 }
+
+// TestMsg_checkUserAgent tests the checkUserAgent method of the Msg
+func TestMsg_checkUserAgent(t *testing.T) {
+	tests := []struct {
+		name               string
+		noDefaultUserAgent bool
+		genHeader          map[Header][]string
+		wantUserAgent      string
+		sf                 bool
+	}{
+		{
+			name:               "check default user agent",
+			noDefaultUserAgent: false,
+			wantUserAgent:      "go-mail v0.4.1 // https://github.com/wneessen/go-mail",
+			sf:                 false,
+		},
+		{
+			name:               "check no default user agent",
+			noDefaultUserAgent: true,
+			wantUserAgent:      "",
+			sf:                 true,
+		},
+		{
+			name:               "check if ua and xm is already set",
+			noDefaultUserAgent: false,
+			genHeader: map[Header][]string{
+				HeaderUserAgent: {"custom UA"},
+				HeaderXMailer:   {"custom XM"},
+			},
+			wantUserAgent: "custom UA",
+			sf:            false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msg := &Msg{
+				noDefaultUserAgent: tt.noDefaultUserAgent,
+				genHeader:          tt.genHeader,
+			}
+			msg.checkUserAgent()
+			gotUserAgent := ""
+			if val, ok := msg.genHeader[HeaderUserAgent]; ok {
+				gotUserAgent = val[0] // Assuming the first one is the needed value
+			}
+			if gotUserAgent != tt.wantUserAgent && !tt.sf {
+				t.Errorf("UserAgent got = %v, want = %v", gotUserAgent, tt.wantUserAgent)
+			}
+		})
+	}
+}
