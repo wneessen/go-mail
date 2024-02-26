@@ -3211,3 +3211,11 @@ func TestMsg_checkUserAgent(t *testing.T) {
 		})
 	}
 }
+
+// TestNewMsgWithMIMEVersion tests WithMIMEVersion and Msg.SetMIMEVersion
+func TestNewMsgWithNoDefaultUserAgent(t *testing.T) {
+	m := NewMsg(WithNoDefaultUserAgent())
+	if m.noDefaultUserAgent != true {
+		t.Errorf("WithNoDefaultUserAgent() failed. Expected: %t, got: %t", true, false)
+	}
+}
