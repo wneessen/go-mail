@@ -42,8 +42,8 @@ func randomStringSecure(length int) (string, error) {
 			}
 			char, rest = binary.BigEndian.Uint64(randPool), letterIdxMax
 		}
-		if idx := int(char & letterIdxMask); idx < charRangeLength {
-			randString.WriteByte(cr[idx])
+		if i := int(char & letterIdxMask); i < charRangeLength {
+			randString.WriteByte(cr[i])
 			idx--
 		}
 		char >>= letterIdxBits
