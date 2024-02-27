@@ -723,7 +723,7 @@ func (m *Msg) SetBodyWriter(
 	opts ...PartOption,
 ) {
 	p := m.newPart(contentType, opts...)
-	p.w = writeFunc
+	p.writeFunc = writeFunc
 	m.parts = []*Part{p}
 }
 
@@ -770,7 +770,7 @@ func (m *Msg) AddAlternativeWriter(
 	opts ...PartOption,
 ) {
 	part := m.newPart(contentType, opts...)
-	part.w = writeFunc
+	part.writeFunc = writeFunc
 	m.parts = append(m.parts, part)
 }
 
@@ -1142,7 +1142,7 @@ func (m *Msg) encodeString(str string) string {
 func (m *Msg) hasAlt() bool {
 	count := 0
 	for _, part := range m.parts {
-		if !part.del {
+		if !part.isDeleted {
 			count++
 		}
 	}
@@ -1167,9 +1167,9 @@ func (m *Msg) hasPGPType() bool {
 // newPart returns a new Part for the Msg
 func (m *Msg) newPart(contentType ContentType, opts ...PartOption) *Part {
 	p := &Part{
-		ctype: contentType,
-		cset:  m.charset,
-		enc:   m.encoding,
+		contentType: contentType,
+		charset:     m.charset,
+		encoding:    m.encoding,
 	}
 
 	// Override defaults with optionally provided MsgOption functions

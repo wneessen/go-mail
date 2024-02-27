@@ -1251,7 +1251,7 @@ func TestMsg_SetBodyString(t *testing.T) {
 			}
 			part := m.parts[0]
 			res := bytes.Buffer{}
-			if _, err := part.w(&res); err != nil && !tt.sf {
+			if _, err := part.writeFunc(&res); err != nil && !tt.sf {
 				t.Errorf("WriteFunc of part failed: %s", err)
 			}
 			if res.String() != tt.want {
@@ -1286,7 +1286,7 @@ func TestMsg_AddAlternativeString(t *testing.T) {
 			}
 			apart := m.parts[1]
 			res := bytes.Buffer{}
-			if _, err := apart.w(&res); err != nil && !tt.sf {
+			if _, err := apart.writeFunc(&res); err != nil && !tt.sf {
 				t.Errorf("WriteFunc of part failed: %s", err)
 			}
 			if res.String() != tt.want {

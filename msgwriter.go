@@ -114,7 +114,7 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 	}
 
 	for _, part := range msg.parts {
-		if !part.del {
+		if !part.isDeleted {
 			mw.writePart(part, msg.charset)
 		}
 	}
@@ -249,12 +249,12 @@ func (mw *msgWriter) newPart(header map[string][]string) {
 
 // writePart writes the corresponding part to the Msg body
 func (mw *msgWriter) writePart(part *Part, charset Charset) {
-	partCharset := part.cset
+	partCharset := part.charset
 	if partCharset.String() == "" {
 		partCharset = charset
 	}
-	contentType := fmt.Sprintf("%s; charset=%s", part.ctype, partCharset)
-	contentTransferEnc := part.enc.String()
+	contentType := fmt.Sprintf("%s; charset=%s", part.contentType, partCharset)
+	contentTransferEnc := part.encoding.String()
 	if mw.depth == 0 {
 		mw.writeHeader(HeaderContentType, contentType)
 		mw.writeHeader(HeaderContentTransferEnc, contentTransferEnc)
@@ -262,14 +262,14 @@ func (mw *msgWriter) writePart(part *Part, charset Charset) {
 	}
 	if mw.depth > 0 {
 		mimeHeader := textproto.MIMEHeader{}
-		if part.desc != "" {
-			mimeHeader.Add(string(HeaderContentDescription), part.desc)
+		if part.description != "" {
+			mimeHeader.Add(string(HeaderContentDescription), part.description)
 		}
 		mimeHeader.Add(string(HeaderContentType), contentType)
 		mimeHeader.Add(string(HeaderContentTransferEnc), contentTransferEnc)
 		mw.newPart(mimeHeader)
 	}
-	mw.writeBody(part.w, part.enc)
+	mw.writeBody(part.writeFunc, part.encoding)
 }
 
 // writeString writes a string into the msgWriter's io.Writer interface
