@@ -22,54 +22,53 @@ const (
 	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
 )
 
-// randomStringSecure returns a random, n long string of characters. The character set is based
-// on the s (special chars) and h (human readable) boolean arguments. This method uses the
+// randomStringSecure returns a random, string of length characters. This method uses the
 // crypto/random package and therfore is cryptographically secure
-func randomStringSecure(n int) (string, error) {
-	rs := strings.Builder{}
-	rs.Grow(n)
-	crl := len(cr)
+func randomStringSecure(length int) (string, error) {
+	randString := strings.Builder{}
+	randString.Grow(length)
+	charRangeLength := len(cr)
 
-	rp := make([]byte, 8)
-	_, err := rand.Read(rp)
+	randPool := make([]byte, 8)
+	_, err := rand.Read(randPool)
 	if err != nil {
-		return rs.String(), err
+		return randString.String(), err
 	}
-	for i, c, r := n-1, binary.BigEndian.Uint64(rp), letterIdxMax; i >= 0; {
-		if r == 0 {
-			_, err := rand.Read(rp)
+	for idx, char, rest := length-1, binary.BigEndian.Uint64(randPool), letterIdxMax; idx >= 0; {
+		if rest == 0 {
+			_, err = rand.Read(randPool)
 			if err != nil {
-				return rs.String(), err
+				return randString.String(), err
 			}
-			c, r = binary.BigEndian.Uint64(rp), letterIdxMax
+			char, rest = binary.BigEndian.Uint64(randPool), letterIdxMax
 		}
-		if idx := int(c & letterIdxMask); idx < crl {
-			rs.WriteByte(cr[idx])
-			i--
+		if idx := int(char & letterIdxMask); idx < charRangeLength {
+			randString.WriteByte(cr[idx])
+			idx--
 		}
-		c >>= letterIdxBits
-		r--
+		char >>= letterIdxBits
+		rest--
 	}
 
-	return rs.String(), nil
+	return randString.String(), nil
 }
 
-// randNum returns a random number with a maximum value of n
-func randNum(n int) (int, error) {
-	if n <= 0 {
-		return 0, fmt.Errorf("provided number is <= 0: %d", n)
+// randNum returns a random number with a maximum value of length
+func randNum(length int) (int, error) {
+	if length <= 0 {
+		return 0, fmt.Errorf("provided number is <= 0: %d", length)
 	}
-	mbi := big.NewInt(int64(n))
-	if !mbi.IsUint64() {
-		return 0, fmt.Errorf("big.NewInt() generation returned negative value: %d", mbi)
+	length64 := big.NewInt(int64(length))
+	if !length64.IsUint64() {
+		return 0, fmt.Errorf("big.NewInt() generation returned negative value: %d", length64)
 	}
-	rn64, err := rand.Int(rand.Reader, mbi)
+	randNum64, err := rand.Int(rand.Reader, length64)
 	if err != nil {
 		return 0, err
 	}
-	rn := int(rn64.Int64())
-	if rn < 0 {
-		return 0, fmt.Errorf("generated random number does not fit as int64: %d", rn64)
+	randomNum := int(randNum64.Int64())
+	if randomNum < 0 {
+		return 0, fmt.Errorf("generated random number does not fit as int64: %d", randNum64)
 	}
-	return rn, nil
+	return randomNum, nil
 }
