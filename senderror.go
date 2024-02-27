@@ -71,34 +71,34 @@ func (e *SendError) Error() string {
 		return "unknown reason"
 	}
 
-	var em strings.Builder
-	em.WriteString(e.Reason.String())
+	var errMessage strings.Builder
+	errMessage.WriteString(e.Reason.String())
 	if len(e.errlist) > 0 {
-		em.WriteRune(':')
+		errMessage.WriteRune(':')
 		for i := range e.errlist {
-			em.WriteRune(' ')
-			em.WriteString(e.errlist[i].Error())
+			errMessage.WriteRune(' ')
+			errMessage.WriteString(e.errlist[i].Error())
 			if i != len(e.errlist)-1 {
-				em.WriteString(", ")
+				errMessage.WriteString(", ")
 			}
 		}
 	}
 	if len(e.rcpt) > 0 {
-		em.WriteString(", affected recipient(s): ")
+		errMessage.WriteString(", affected recipient(s): ")
 		for i := range e.rcpt {
-			em.WriteString(e.rcpt[i])
+			errMessage.WriteString(e.rcpt[i])
 			if i != len(e.rcpt)-1 {
-				em.WriteString(", ")
+				errMessage.WriteString(", ")
 			}
 		}
 	}
-	return em.String()
+	return errMessage.String()
 }
 
 // Is implements the errors.Is functionality and compares the SendErrReason
-func (e *SendError) Is(et error) bool {
+func (e *SendError) Is(errType error) bool {
 	var t *SendError
-	if errors.As(et, &t) && t != nil {
+	if errors.As(errType, &t) && t != nil {
 		return e.Reason == t.Reason && e.isTemp == t.isTemp
 	}
 	return false
@@ -143,6 +143,6 @@ func (r SendErrReason) String() string {
 
 // isTempError checks the given SMTP error and returns true if the given error is of temporary nature
 // and should be retried
-func isTempError(e error) bool {
-	return e.Error()[0] == '4'
+func isTempError(err error) bool {
+	return err.Error()[0] == '4'
 }

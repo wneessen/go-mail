@@ -14,18 +14,18 @@ type PartOption func(*Part)
 
 // Part is a part of the Msg
 type Part struct {
-	ctype ContentType
-	cset  Charset
-	desc  string
-	enc   Encoding
-	del   bool
-	w     func(io.Writer) (int64, error)
+	contentType ContentType
+	charset     Charset
+	description string
+	encoding    Encoding
+	isDeleted   bool
+	writeFunc   func(io.Writer) (int64, error)
 }
 
 // GetContent executes the WriteFunc of the Part and returns the content as byte slice
 func (p *Part) GetContent() ([]byte, error) {
 	var b bytes.Buffer
-	if _, err := p.w(&b); err != nil {
+	if _, err := p.writeFunc(&b); err != nil {
 		return nil, err
 	}
 	return b.Bytes(), nil
@@ -33,83 +33,83 @@ func (p *Part) GetContent() ([]byte, error) {
 
 // GetCharset returns the currently set Charset of the Part
 func (p *Part) GetCharset() Charset {
-	return p.cset
+	return p.charset
 }
 
 // GetContentType returns the currently set ContentType of the Part
 func (p *Part) GetContentType() ContentType {
-	return p.ctype
+	return p.contentType
 }
 
 // GetEncoding returns the currently set Encoding of the Part
 func (p *Part) GetEncoding() Encoding {
-	return p.enc
+	return p.encoding
 }
 
 // GetWriteFunc returns the currently set WriterFunc of the Part
 func (p *Part) GetWriteFunc() func(io.Writer) (int64, error) {
-	return p.w
+	return p.writeFunc
 }
 
 // GetDescription returns the currently set Content-Description of the Part
 func (p *Part) GetDescription() string {
-	return p.desc
+	return p.description
 }
 
 // SetContent overrides the content of the Part with the given string
-func (p *Part) SetContent(c string) {
-	buf := bytes.NewBufferString(c)
-	p.w = writeFuncFromBuffer(buf)
+func (p *Part) SetContent(content string) {
+	buffer := bytes.NewBufferString(content)
+	p.writeFunc = writeFuncFromBuffer(buffer)
 }
 
 // SetContentType overrides the ContentType of the Part
-func (p *Part) SetContentType(c ContentType) {
-	p.ctype = c
+func (p *Part) SetContentType(contentType ContentType) {
+	p.contentType = contentType
 }
 
 // SetCharset overrides the Charset of the Part
-func (p *Part) SetCharset(c Charset) {
-	p.cset = c
+func (p *Part) SetCharset(charset Charset) {
+	p.charset = charset
 }
 
 // SetEncoding creates a new mime.WordEncoder based on the encoding setting of the message
-func (p *Part) SetEncoding(e Encoding) {
-	p.enc = e
+func (p *Part) SetEncoding(encoding Encoding) {
+	p.encoding = encoding
 }
 
 // SetDescription overrides the Content-Description of the Part
-func (p *Part) SetDescription(d string) {
-	p.desc = d
+func (p *Part) SetDescription(description string) {
+	p.description = description
 }
 
 // SetWriteFunc overrides the WriteFunc of the Part
-func (p *Part) SetWriteFunc(w func(io.Writer) (int64, error)) {
-	p.w = w
+func (p *Part) SetWriteFunc(writeFunc func(io.Writer) (int64, error)) {
+	p.writeFunc = writeFunc
 }
 
 // Delete removes the current part from the parts list of the Msg by setting the
-// del flag to true. The msgWriter will skip it then
+// isDeleted flag to true. The msgWriter will skip it then
 func (p *Part) Delete() {
-	p.del = true
+	p.isDeleted = true
 }
 
 // WithPartCharset overrides the default Part charset
-func WithPartCharset(c Charset) PartOption {
+func WithPartCharset(charset Charset) PartOption {
 	return func(p *Part) {
-		p.cset = c
+		p.charset = charset
 	}
 }
 
 // WithPartEncoding overrides the default Part encoding
-func WithPartEncoding(e Encoding) PartOption {
+func WithPartEncoding(encoding Encoding) PartOption {
 	return func(p *Part) {
-		p.enc = e
+		p.encoding = encoding
 	}
 }
 
 // WithPartContentDescription overrides the default Part Content-Description
-func WithPartContentDescription(d string) PartOption {
+func WithPartContentDescription(description string) PartOption {
 	return func(p *Part) {
-		p.desc = d
+		p.description = description
 	}
 }

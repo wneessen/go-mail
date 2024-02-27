@@ -1251,7 +1251,7 @@ func TestMsg_SetBodyString(t *testing.T) {
 			}
 			part := m.parts[0]
 			res := bytes.Buffer{}
-			if _, err := part.w(&res); err != nil && !tt.sf {
+			if _, err := part.writeFunc(&res); err != nil && !tt.sf {
 				t.Errorf("WriteFunc of part failed: %s", err)
 			}
 			if res.String() != tt.want {
@@ -1286,7 +1286,7 @@ func TestMsg_AddAlternativeString(t *testing.T) {
 			}
 			apart := m.parts[1]
 			res := bytes.Buffer{}
-			if _, err := apart.w(&res); err != nil && !tt.sf {
+			if _, err := apart.writeFunc(&res); err != nil && !tt.sf {
 				t.Errorf("WriteFunc of part failed: %s", err)
 			}
 			if res.String() != tt.want {
@@ -3174,7 +3174,7 @@ func TestMsg_checkUserAgent(t *testing.T) {
 		{
 			name:               "check default user agent",
 			noDefaultUserAgent: false,
-			wantUserAgent:      "go-mail v0.4.1 // https://github.com/wneessen/go-mail",
+			wantUserAgent:      fmt.Sprintf("go-mail v%s // https://github.com/wneessen/go-mail", VERSION),
 			sf:                 false,
 		},
 		{
@@ -3209,5 +3209,13 @@ func TestMsg_checkUserAgent(t *testing.T) {
 				t.Errorf("UserAgent got = %v, want = %v", gotUserAgent, tt.wantUserAgent)
 			}
 		})
+	}
+}
+
+// TestNewMsgWithMIMEVersion tests WithMIMEVersion and Msg.SetMIMEVersion
+func TestNewMsgWithNoDefaultUserAgent(t *testing.T) {
+	m := NewMsg(WithNoDefaultUserAgent())
+	if m.noDefaultUserAgent != true {
+		t.Errorf("WithNoDefaultUserAgent() failed. Expected: %t, got: %t", true, false)
 	}
 }

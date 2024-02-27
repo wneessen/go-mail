@@ -31,15 +31,15 @@ func TestPartEncoding(t *testing.T) {
 				t.Errorf("newPart() WithPartEncoding() failed: no part returned")
 				return
 			}
-			if part.enc.String() != tt.want {
+			if part.encoding.String() != tt.want {
 				t.Errorf("newPart() WithPartEncoding() failed: expected encoding: %s, got: %s", tt.want,
-					part.enc.String())
+					part.encoding.String())
 			}
-			part.enc = ""
+			part.encoding = ""
 			part.SetEncoding(tt.enc)
-			if part.enc.String() != tt.want {
+			if part.encoding.String() != tt.want {
 				t.Errorf("newPart() SetEncoding() failed: expected encoding: %s, got: %s", tt.want,
-					part.enc.String())
+					part.encoding.String())
 			}
 		})
 	}
@@ -64,9 +64,9 @@ func TestWithPartCharset(t *testing.T) {
 				t.Errorf("newPart() WithPartCharset() failed: no part returned")
 				return
 			}
-			if part.cset.String() != tt.want {
+			if part.charset.String() != tt.want {
 				t.Errorf("newPart() WithPartCharset() failed: expected charset: %s, got: %s",
-					tt.want, part.cset.String())
+					tt.want, part.charset.String())
 			}
 		})
 	}
@@ -89,14 +89,14 @@ func TestPart_WithPartContentDescription(t *testing.T) {
 				t.Errorf("newPart() WithPartContentDescription() failed: no part returned")
 				return
 			}
-			if part.desc != tt.desc {
+			if part.description != tt.desc {
 				t.Errorf("newPart() WithPartContentDescription() failed: expected: %s, got: %s", tt.desc,
-					part.desc)
+					part.description)
 			}
-			part.desc = ""
+			part.description = ""
 			part.SetDescription(tt.desc)
-			if part.desc != tt.desc {
-				t.Errorf("newPart() SetDescription() failed: expected: %s, got: %s", tt.desc, part.desc)
+			if part.description != tt.desc {
+				t.Errorf("newPart() SetDescription() failed: expected: %s, got: %s", tt.desc, part.description)
 			}
 		})
 	}
@@ -236,7 +236,7 @@ func TestPart_GetContentBroken(t *testing.T) {
 		t.Errorf("failed: %s", err)
 		return
 	}
-	pl[0].w = func(io.Writer) (int64, error) {
+	pl[0].writeFunc = func(io.Writer) (int64, error) {
 		return 0, fmt.Errorf("broken")
 	}
 	_, err = pl[0].GetContent()
@@ -314,8 +314,8 @@ func TestPart_SetDescription(t *testing.T) {
 		t.Errorf("Part.GetDescription failed. Expected empty description but got: %s", pd)
 	}
 	pl[0].SetDescription(d)
-	if pl[0].desc != d {
-		t.Errorf("Part.SetDescription failed. Expected desc to be: %s, got: %s", d, pd)
+	if pl[0].description != d {
+		t.Errorf("Part.SetDescription failed. Expected description to be: %s, got: %s", d, pd)
 	}
 	pd = pl[0].GetDescription()
 	if pd != d {
@@ -334,8 +334,8 @@ func TestPart_Delete(t *testing.T) {
 		return
 	}
 	pl[0].Delete()
-	if !pl[0].del {
-		t.Errorf("Delete failed. Expected: %t, got: %t", true, pl[0].del)
+	if !pl[0].isDeleted {
+		t.Errorf("Delete failed. Expected: %t, got: %t", true, pl[0].isDeleted)
 	}
 }
 

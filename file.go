@@ -23,17 +23,17 @@ type File struct {
 }
 
 // WithFileName sets the filename of the File
-func WithFileName(n string) FileOption {
+func WithFileName(name string) FileOption {
 	return func(f *File) {
-		f.Name = n
+		f.Name = name
 	}
 }
 
 // WithFileDescription sets an optional file description of the File that will be
 // added as Content-Description part
-func WithFileDescription(d string) FileOption {
+func WithFileDescription(description string) FileOption {
 	return func(f *File) {
-		f.Desc = d
+		f.Desc = description
 	}
 }
 
@@ -41,12 +41,12 @@ func WithFileDescription(d string) FileOption {
 // Base64 encoding but there might be exceptions, where this might come handy.
 // Please note that quoted-printable should never be used for attachments/embeds. If this
 // is provided as argument, the function will automatically override back to Base64
-func WithFileEncoding(e Encoding) FileOption {
+func WithFileEncoding(encoding Encoding) FileOption {
 	return func(f *File) {
-		if e == EncodingQP {
+		if encoding == EncodingQP {
 			return
 		}
-		f.Enc = e
+		f.Enc = encoding
 	}
 }
 
@@ -56,19 +56,19 @@ func WithFileEncoding(e Encoding) FileOption {
 // could not be guessed. In some cases, however, it might be needed to force
 // this to a specific type. For such situations this override method can
 // be used
-func WithFileContentType(t ContentType) FileOption {
+func WithFileContentType(contentType ContentType) FileOption {
 	return func(f *File) {
-		f.ContentType = t
+		f.ContentType = contentType
 	}
 }
 
 // setHeader sets header fields to a File
-func (f *File) setHeader(h Header, v string) {
-	f.Header.Set(string(h), v)
+func (f *File) setHeader(header Header, value string) {
+	f.Header.Set(string(header), value)
 }
 
 // getHeader return header fields of a File
-func (f *File) getHeader(h Header) (string, bool) {
-	v := f.Header.Get(string(h))
+func (f *File) getHeader(header Header) (string, bool) {
+	v := f.Header.Get(string(header))
 	return v, v != ""
 }

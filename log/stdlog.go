@@ -12,7 +12,7 @@ import (
 
 // Stdlog is the default logger that satisfies the Logger interface
 type Stdlog struct {
-	l     Level
+	level Level
 	err   *log.Logger
 	warn  *log.Logger
 	info  *log.Logger
@@ -24,45 +24,45 @@ type Stdlog struct {
 const CallDepth = 2
 
 // New returns a new Stdlog type that satisfies the Logger interface
-func New(o io.Writer, l Level) *Stdlog {
+func New(output io.Writer, level Level) *Stdlog {
 	lf := log.Lmsgprefix | log.LstdFlags
 	return &Stdlog{
-		l:     l,
-		err:   log.New(o, "ERROR: ", lf),
-		warn:  log.New(o, " WARN: ", lf),
-		info:  log.New(o, " INFO: ", lf),
-		debug: log.New(o, "DEBUG: ", lf),
+		level: level,
+		err:   log.New(output, "ERROR: ", lf),
+		warn:  log.New(output, " WARN: ", lf),
+		info:  log.New(output, " INFO: ", lf),
+		debug: log.New(output, "DEBUG: ", lf),
 	}
 }
 
 // Debugf performs a Printf() on the debug logger
-func (l *Stdlog) Debugf(lo Log) {
-	if l.l >= LevelDebug {
-		f := fmt.Sprintf("%s %s", lo.directionPrefix(), lo.Format)
-		_ = l.debug.Output(CallDepth, fmt.Sprintf(f, lo.Messages...))
+func (l *Stdlog) Debugf(log Log) {
+	if l.level >= LevelDebug {
+		format := fmt.Sprintf("%s %s", log.directionPrefix(), log.Format)
+		_ = l.debug.Output(CallDepth, fmt.Sprintf(format, log.Messages...))
 	}
 }
 
 // Infof performs a Printf() on the info logger
-func (l *Stdlog) Infof(lo Log) {
-	if l.l >= LevelInfo {
-		f := fmt.Sprintf("%s %s", lo.directionPrefix(), lo.Format)
-		_ = l.info.Output(CallDepth, fmt.Sprintf(f, lo.Messages...))
+func (l *Stdlog) Infof(log Log) {
+	if l.level >= LevelInfo {
+		format := fmt.Sprintf("%s %s", log.directionPrefix(), log.Format)
+		_ = l.info.Output(CallDepth, fmt.Sprintf(format, log.Messages...))
 	}
 }
 
 // Warnf performs a Printf() on the warn logger
-func (l *Stdlog) Warnf(lo Log) {
-	if l.l >= LevelWarn {
-		f := fmt.Sprintf("%s %s", lo.directionPrefix(), lo.Format)
-		_ = l.warn.Output(CallDepth, fmt.Sprintf(f, lo.Messages...))
+func (l *Stdlog) Warnf(log Log) {
+	if l.level >= LevelWarn {
+		format := fmt.Sprintf("%s %s", log.directionPrefix(), log.Format)
+		_ = l.warn.Output(CallDepth, fmt.Sprintf(format, log.Messages...))
 	}
 }
 
 // Errorf performs a Printf() on the error logger
-func (l *Stdlog) Errorf(lo Log) {
-	if l.l >= LevelError {
-		f := fmt.Sprintf("%s %s", lo.directionPrefix(), lo.Format)
-		_ = l.err.Output(CallDepth, fmt.Sprintf(f, lo.Messages...))
+func (l *Stdlog) Errorf(log Log) {
+	if l.level >= LevelError {
+		format := fmt.Sprintf("%s %s", log.directionPrefix(), log.Format)
+		_ = l.err.Output(CallDepth, fmt.Sprintf(format, log.Messages...))
 	}
 }

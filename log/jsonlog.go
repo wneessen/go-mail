@@ -15,68 +15,68 @@ import (
 
 // JSONlog is the default structured JSON logger that satisfies the Logger interface
 type JSONlog struct {
-	l   Level
-	log *slog.Logger
+	level Level
+	log   *slog.Logger
 }
 
 // NewJSON returns a new JSONlog type that satisfies the Logger interface
-func NewJSON(o io.Writer, l Level) *JSONlog {
-	lo := slog.HandlerOptions{}
-	switch l {
+func NewJSON(output io.Writer, level Level) *JSONlog {
+	logOpts := slog.HandlerOptions{}
+	switch level {
 	case LevelDebug:
-		lo.Level = slog.LevelDebug
+		logOpts.Level = slog.LevelDebug
 	case LevelInfo:
-		lo.Level = slog.LevelInfo
+		logOpts.Level = slog.LevelInfo
 	case LevelWarn:
-		lo.Level = slog.LevelWarn
+		logOpts.Level = slog.LevelWarn
 	case LevelError:
-		lo.Level = slog.LevelError
+		logOpts.Level = slog.LevelError
 	default:
-		lo.Level = slog.LevelDebug
+		logOpts.Level = slog.LevelDebug
 	}
-	lh := slog.NewJSONHandler(o, &lo)
+	logHandler := slog.NewJSONHandler(output, &logOpts)
 	return &JSONlog{
-		l:   l,
-		log: slog.New(lh),
+		level: level,
+		log:   slog.New(logHandler),
 	}
 }
 
 // Debugf logs a debug message via the structured JSON logger
-func (l *JSONlog) Debugf(lo Log) {
-	if l.l >= LevelDebug {
+func (l *JSONlog) Debugf(log Log) {
+	if l.level >= LevelDebug {
 		l.log.WithGroup(DirString).With(
-			slog.String(DirFromString, lo.directionFrom()),
-			slog.String(DirToString, lo.directionTo()),
-		).Debug(fmt.Sprintf(lo.Format, lo.Messages...))
+			slog.String(DirFromString, log.directionFrom()),
+			slog.String(DirToString, log.directionTo()),
+		).Debug(fmt.Sprintf(log.Format, log.Messages...))
 	}
 }
 
 // Infof logs a info message via the structured JSON logger
-func (l *JSONlog) Infof(lo Log) {
-	if l.l >= LevelInfo {
+func (l *JSONlog) Infof(log Log) {
+	if l.level >= LevelInfo {
 		l.log.WithGroup(DirString).With(
-			slog.String(DirFromString, lo.directionFrom()),
-			slog.String(DirToString, lo.directionTo()),
-		).Info(fmt.Sprintf(lo.Format, lo.Messages...))
+			slog.String(DirFromString, log.directionFrom()),
+			slog.String(DirToString, log.directionTo()),
+		).Info(fmt.Sprintf(log.Format, log.Messages...))
 	}
 }
 
 // Warnf logs a warn message via the structured JSON logger
-func (l *JSONlog) Warnf(lo Log) {
-	if l.l >= LevelWarn {
+func (l *JSONlog) Warnf(log Log) {
+	if l.level >= LevelWarn {
 		l.log.WithGroup(DirString).With(
-			slog.String(DirFromString, lo.directionFrom()),
-			slog.String(DirToString, lo.directionTo()),
-		).Warn(fmt.Sprintf(lo.Format, lo.Messages...))
+			slog.String(DirFromString, log.directionFrom()),
+			slog.String(DirToString, log.directionTo()),
+		).Warn(fmt.Sprintf(log.Format, log.Messages...))
 	}
 }
 
 // Errorf logs a warn message via the structured JSON logger
-func (l *JSONlog) Errorf(lo Log) {
-	if l.l >= LevelError {
+func (l *JSONlog) Errorf(log Log) {
+	if l.level >= LevelError {
 		l.log.WithGroup(DirString).With(
-			slog.String(DirFromString, lo.directionFrom()),
-			slog.String(DirToString, lo.directionTo()),
-		).Error(fmt.Sprintf(lo.Format, lo.Messages...))
+			slog.String(DirFromString, log.directionFrom()),
+			slog.String(DirToString, log.directionTo()),
+		).Error(fmt.Sprintf(log.Format, log.Messages...))
 	}
 }

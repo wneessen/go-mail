@@ -30,8 +30,8 @@ type jsonDir struct {
 func TestNewJSON(t *testing.T) {
 	var b bytes.Buffer
 	l := NewJSON(&b, LevelDebug)
-	if l.l != LevelDebug {
-		t.Error("Expected level to be LevelDebug, got ", l.l)
+	if l.level != LevelDebug {
+		t.Error("Expected level to be LevelDebug, got ", l.level)
 	}
 	if l.log == nil {
 		t.Error("logger not initialized")
@@ -81,7 +81,7 @@ func TestJSONDebugf(t *testing.T) {
 	}
 
 	b.Reset()
-	l.l = LevelInfo
+	l.level = LevelInfo
 	l.Debugf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []interface{}{"foo"}})
 	if b.String() != "" {
 		t.Error("Debug message was not expected to be logged")
@@ -131,7 +131,7 @@ func TestJSONDebugf_WithDefault(t *testing.T) {
 	}
 
 	b.Reset()
-	l.l = LevelInfo
+	l.level = LevelInfo
 	l.Debugf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []interface{}{"foo"}})
 	if b.String() != "" {
 		t.Error("Debug message was not expected to be logged")
@@ -181,7 +181,7 @@ func TestJSONInfof(t *testing.T) {
 	}
 
 	b.Reset()
-	l.l = LevelWarn
+	l.level = LevelWarn
 	l.Infof(Log{Direction: DirServerToClient, Format: "test %s", Messages: []interface{}{"foo"}})
 	if b.String() != "" {
 		t.Error("Info message was not expected to be logged")
@@ -231,7 +231,7 @@ func TestJSONWarnf(t *testing.T) {
 	}
 
 	b.Reset()
-	l.l = LevelError
+	l.level = LevelError
 	l.Warnf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []interface{}{"foo"}})
 	if b.String() != "" {
 		t.Error("Warn message was not expected to be logged")
@@ -281,7 +281,7 @@ func TestJSONErrorf(t *testing.T) {
 	}
 
 	b.Reset()
-	l.l = -99
+	l.level = -99
 	l.Errorf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []interface{}{"foo"}})
 	if b.String() != "" {
 		t.Error("Error message was not expected to be logged")

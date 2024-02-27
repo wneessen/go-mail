@@ -87,11 +87,11 @@ type DialContextFunc func(ctx context.Context, network, address string) (net.Con
 
 // Client is the SMTP client struct
 type Client struct {
-	// co is the net.Conn that the smtp.Client is based on
-	co net.Conn
+	// connection is the net.Conn that the smtp.Client is based on
+	connection net.Conn
 
 	// Timeout for the SMTP server connection
-	cto time.Duration
+	connTimeout time.Duration
 
 	// dsn indicates that we want to use DSN for the Client
 	dsn bool
@@ -102,8 +102,8 @@ type Client struct {
 	// dsnrntype defines the DSNRcptNotifyOption in case DSN is enabled
 	dsnrntype []string
 
-	// enc indicates if a Client connection is encrypted or not
-	enc bool
+	// isEncrypted indicates if a Client connection is encrypted or not
+	isEncrypted bool
 
 	// noNoop indicates the Noop is to be skipped
 	noNoop bool
@@ -121,17 +121,17 @@ type Client struct {
 	port         int
 	fallbackPort int
 
-	// sa is a pointer to smtp.Auth
-	sa smtp.Auth
+	// smtpAuth is a pointer to smtp.Auth
+	smtpAuth smtp.Auth
 
-	// satype represents the authentication type for SMTP AUTH
-	satype SMTPAuthType
+	// smtpAuthType represents the authentication type for SMTP AUTH
+	smtpAuthType SMTPAuthType
 
-	// sc is the smtp.Client that is set up when using the Dial*() methods
-	sc *smtp.Client
+	// smtpClient is the smtp.Client that is set up when using the Dial*() methods
+	smtpClient *smtp.Client
 
 	// Use SSL for the connection
-	ssl bool
+	useSSL bool
 
 	// tlspolicy sets the client to use the provided TLSPolicy for the STARTTLS protocol
 	tlspolicy TLSPolicy
@@ -142,11 +142,11 @@ type Client struct {
 	// user is the SMTP AUTH username
 	user string
 
-	// dl enables the debug logging on the SMTP client
-	dl bool
+	// useDebugLog enables the debug logging on the SMTP client
+	useDebugLog bool
 
-	// l is a logger that implements the log.Logger interface
-	l log.Logger
+	// logger is a logger that implements the log.Logger interface
+	logger log.Logger
 
 	// dialContextFunc is a custom DialContext function to dial target SMTP server
 	dialContextFunc DialContextFunc
@@ -198,13 +198,13 @@ var (
 )
 
 // NewClient returns a new Session client object
-func NewClient(h string, o ...Option) (*Client, error) {
+func NewClient(host string, opts ...Option) (*Client, error) {
 	c := &Client{
-		cto:       DefaultTimeout,
-		host:      h,
-		port:      DefaultPort,
-		tlsconfig: &tls.Config{ServerName: h, MinVersion: DefaultTLSMinVersion},
-		tlspolicy: DefaultTLSPolicy,
+		connTimeout: DefaultTimeout,
+		host:        host,
+		port:        DefaultPort,
+		tlsconfig:   &tls.Config{ServerName: host, MinVersion: DefaultTLSMinVersion},
+		tlspolicy:   DefaultTLSPolicy,
 	}
 
 	// Set default HELO/EHLO hostname
@@ -213,11 +213,11 @@ func NewClient(h string, o ...Option) (*Client, error) {
 	}
 
 	// Override defaults with optionally provided Option functions
-	for _, co := range o {
-		if co == nil {
+	for _, opt := range opts {
+		if opt == nil {
 			continue
 		}
-		if err := co(c); err != nil {
+		if err := opt(c); err != nil {
 			return c, fmt.Errorf("failed to apply option: %w", err)
 		}
 	}
@@ -231,23 +231,23 @@ func NewClient(h string, o ...Option) (*Client, error) {
 }
 
 // WithPort overrides the default connection port
-func WithPort(p int) Option {
+func WithPort(port int) Option {
 	return func(c *Client) error {
-		if p < 1 || p > 65535 {
+		if port < 1 || port > 65535 {
 			return ErrInvalidPort
 		}
-		c.port = p
+		c.port = port
 		return nil
 	}
 }
 
 // WithTimeout overrides the default connection timeout
-func WithTimeout(t time.Duration) Option {
+func WithTimeout(timeout time.Duration) Option {
 	return func(c *Client) error {
-		if t <= 0 {
+		if timeout <= 0 {
 			return ErrInvalidTimeout
 		}
-		c.cto = t
+		c.connTimeout = timeout
 		return nil
 	}
 }
@@ -257,7 +257,7 @@ func WithTimeout(t time.Duration) Option {
 // Deprecated: use WithSSLPort instead.
 func WithSSL() Option {
 	return func(c *Client) error {
-		c.ssl = true
+		c.useSSL = true
 		return nil
 	}
 }
@@ -267,9 +267,9 @@ func WithSSL() Option {
 //
 // When the SSL connection fails and fallback is set to true,
 // the client will attempt to connect on port 25 using plaintext.
-func WithSSLPort(fb bool) Option {
+func WithSSLPort(fallback bool) Option {
 	return func(c *Client) error {
-		c.SetSSLPort(true, fb)
+		c.SetSSLPort(true, fallback)
 		return nil
 	}
 }
@@ -278,26 +278,26 @@ func WithSSLPort(fb bool) Option {
 // to StdErr
 func WithDebugLog() Option {
 	return func(c *Client) error {
-		c.dl = true
+		c.useDebugLog = true
 		return nil
 	}
 }
 
 // WithLogger overrides the default log.Logger that is used for debug logging
-func WithLogger(l log.Logger) Option {
+func WithLogger(logger log.Logger) Option {
 	return func(c *Client) error {
-		c.l = l
+		c.logger = logger
 		return nil
 	}
 }
 
 // WithHELO tells the client to use the provided string as HELO/EHLO greeting host
-func WithHELO(h string) Option {
+func WithHELO(helo string) Option {
 	return func(c *Client) error {
-		if h == "" {
+		if helo == "" {
 			return ErrInvalidHELO
 		}
-		c.helo = h
+		c.helo = helo
 		return nil
 	}
 }
@@ -305,9 +305,9 @@ func WithHELO(h string) Option {
 // WithTLSPolicy tells the client to use the provided TLSPolicy
 //
 // Deprecated: use WithTLSPortPolicy instead.
-func WithTLSPolicy(p TLSPolicy) Option {
+func WithTLSPolicy(policy TLSPolicy) Option {
 	return func(c *Client) error {
-		c.tlspolicy = p
+		c.tlspolicy = policy
 		return nil
 	}
 }
@@ -319,52 +319,52 @@ func WithTLSPolicy(p TLSPolicy) Option {
 // If the connection fails with TLSOpportunistic,
 // a plaintext connection is attempted on port 25 as a fallback.
 // NoTLS will allways use port 25.
-func WithTLSPortPolicy(p TLSPolicy) Option {
+func WithTLSPortPolicy(policy TLSPolicy) Option {
 	return func(c *Client) error {
-		c.SetTLSPortPolicy(p)
+		c.SetTLSPortPolicy(policy)
 		return nil
 	}
 }
 
 // WithTLSConfig tells the client to use the provided *tls.Config
-func WithTLSConfig(co *tls.Config) Option {
+func WithTLSConfig(tlsconfig *tls.Config) Option {
 	return func(c *Client) error {
-		if co == nil {
+		if tlsconfig == nil {
 			return ErrInvalidTLSConfig
 		}
-		c.tlsconfig = co
+		c.tlsconfig = tlsconfig
 		return nil
 	}
 }
 
 // WithSMTPAuth tells the client to use the provided SMTPAuthType for authentication
-func WithSMTPAuth(t SMTPAuthType) Option {
+func WithSMTPAuth(authtype SMTPAuthType) Option {
 	return func(c *Client) error {
-		c.satype = t
+		c.smtpAuthType = authtype
 		return nil
 	}
 }
 
 // WithSMTPAuthCustom tells the client to use the provided smtp.Auth for SMTP authentication
-func WithSMTPAuthCustom(a smtp.Auth) Option {
+func WithSMTPAuthCustom(smtpAuth smtp.Auth) Option {
 	return func(c *Client) error {
-		c.sa = a
+		c.smtpAuth = smtpAuth
 		return nil
 	}
 }
 
 // WithUsername tells the client to use the provided string as username for authentication
-func WithUsername(u string) Option {
+func WithUsername(username string) Option {
 	return func(c *Client) error {
-		c.user = u
+		c.user = username
 		return nil
 	}
 }
 
 // WithPassword tells the client to use the provided string as password/secret for authentication
-func WithPassword(p string) Option {
+func WithPassword(password string) Option {
 	return func(c *Client) error {
-		c.pass = p
+		c.pass = password
 		return nil
 	}
 }
@@ -386,9 +386,9 @@ func WithDSN() Option {
 // as described in the RFC 1891 and set the MAIL FROM Return option type to the
 // given DSNMailReturnOption
 // See: https://www.rfc-editor.org/rfc/rfc1891
-func WithDSNMailReturnType(mro DSNMailReturnOption) Option {
+func WithDSNMailReturnType(option DSNMailReturnOption) Option {
 	return func(c *Client) error {
-		switch mro {
+		switch option {
 		case DSNMailReturnHeadersOnly:
 		case DSNMailReturnFull:
 		default:
@@ -396,7 +396,7 @@ func WithDSNMailReturnType(mro DSNMailReturnOption) Option {
 		}
 
 		c.dsn = true
-		c.dsnmrtype = mro
+		c.dsnmrtype = option
 		return nil
 	}
 }
@@ -404,13 +404,13 @@ func WithDSNMailReturnType(mro DSNMailReturnOption) Option {
 // WithDSNRcptNotifyType enables the Client to request DSNs as described in the RFC 1891
 // and sets the RCPT TO notify options to the given list of DSNRcptNotifyOption
 // See: https://www.rfc-editor.org/rfc/rfc1891
-func WithDSNRcptNotifyType(rno ...DSNRcptNotifyOption) Option {
+func WithDSNRcptNotifyType(opts ...DSNRcptNotifyOption) Option {
 	return func(c *Client) error {
-		var rnol []string
+		var rcptOpts []string
 		var ns, nns bool
-		if len(rno) > 0 {
-			for _, crno := range rno {
-				switch crno {
+		if len(opts) > 0 {
+			for _, opt := range opts {
+				switch opt {
 				case DSNRcptNotifyNever:
 					ns = true
 				case DSNRcptNotifySuccess:
@@ -422,7 +422,7 @@ func WithDSNRcptNotifyType(rno ...DSNRcptNotifyOption) Option {
 				default:
 					return ErrInvalidDSNRcptNotifyOption
 				}
-				rnol = append(rnol, string(crno))
+				rcptOpts = append(rcptOpts, string(opt))
 			}
 		}
 		if ns && nns {
@@ -430,7 +430,7 @@ func WithDSNRcptNotifyType(rno ...DSNRcptNotifyOption) Option {
 		}
 
 		c.dsn = true
-		c.dsnrntype = rnol
+		c.dsnrntype = rcptOpts
 		return nil
 	}
 }
@@ -445,9 +445,9 @@ func WithoutNoop() Option {
 }
 
 // WithDialContextFunc overrides the default DialContext for connecting SMTP server
-func WithDialContextFunc(f DialContextFunc) Option {
+func WithDialContextFunc(dialCtxFunc DialContextFunc) Option {
 	return func(c *Client) error {
-		c.dialContextFunc = f
+		c.dialContextFunc = dialCtxFunc
 		return nil
 	}
 }
@@ -463,8 +463,8 @@ func (c *Client) ServerAddr() string {
 }
 
 // SetTLSPolicy overrides the current TLSPolicy with the given TLSPolicy value
-func (c *Client) SetTLSPolicy(p TLSPolicy) {
-	c.tlspolicy = p
+func (c *Client) SetTLSPolicy(policy TLSPolicy) {
+	c.tlspolicy = policy
 }
 
 // SetTLSPortPolicy overrides the current TLSPolicy with the given TLSPolicy
@@ -474,22 +474,22 @@ func (c *Client) SetTLSPolicy(p TLSPolicy) {
 // If the connection fails with TLSOpportunistic, a plaintext connection is
 // attempted on port 25 as a fallback.
 // NoTLS will allways use port 25.
-func (c *Client) SetTLSPortPolicy(p TLSPolicy) {
+func (c *Client) SetTLSPortPolicy(policy TLSPolicy) {
 	c.port = DefaultPortTLS
 
-	if p == TLSOpportunistic {
+	if policy == TLSOpportunistic {
 		c.fallbackPort = DefaultPort
 	}
-	if p == NoTLS {
+	if policy == NoTLS {
 		c.port = DefaultPort
 	}
 
-	c.tlspolicy = p
+	c.tlspolicy = policy
 }
 
 // SetSSL tells the Client wether to use SSL or not
-func (c *Client) SetSSL(s bool) {
-	c.ssl = s
+func (c *Client) SetSSL(ssl bool) {
+	c.useSSL = ssl
 }
 
 // SetSSLPort tells the Client wether or not to use SSL and fallback.
@@ -499,124 +499,124 @@ func (c *Client) SetSSL(s bool) {
 // Port 25 is used when SSL is unset (false).
 // When the SSL connection fails and fb is set to true,
 // the client will attempt to connect on port 25 using plaintext.
-func (c *Client) SetSSLPort(ssl bool, fb bool) {
+func (c *Client) SetSSLPort(ssl bool, fallback bool) {
 	c.port = DefaultPort
 	if ssl {
 		c.port = DefaultPortSSL
 	}
 
 	c.fallbackPort = 0
-	if fb {
+	if fallback {
 		c.fallbackPort = DefaultPort
 	}
 
-	c.ssl = ssl
+	c.useSSL = ssl
 }
 
 // SetDebugLog tells the Client whether debug logging is enabled or not
-func (c *Client) SetDebugLog(v bool) {
-	c.dl = v
-	if c.sc != nil {
-		c.sc.SetDebugLog(v)
+func (c *Client) SetDebugLog(val bool) {
+	c.useDebugLog = val
+	if c.smtpClient != nil {
+		c.smtpClient.SetDebugLog(val)
 	}
 }
 
 // SetLogger tells the Client which log.Logger to use
-func (c *Client) SetLogger(l log.Logger) {
-	c.l = l
-	if c.sc != nil {
-		c.sc.SetLogger(l)
+func (c *Client) SetLogger(logger log.Logger) {
+	c.logger = logger
+	if c.smtpClient != nil {
+		c.smtpClient.SetLogger(logger)
 	}
 }
 
 // SetTLSConfig overrides the current *tls.Config with the given *tls.Config value
-func (c *Client) SetTLSConfig(co *tls.Config) error {
-	if co == nil {
+func (c *Client) SetTLSConfig(tlsconfig *tls.Config) error {
+	if tlsconfig == nil {
 		return ErrInvalidTLSConfig
 	}
-	c.tlsconfig = co
+	c.tlsconfig = tlsconfig
 	return nil
 }
 
 // SetUsername overrides the current username string with the given value
-func (c *Client) SetUsername(u string) {
-	c.user = u
+func (c *Client) SetUsername(username string) {
+	c.user = username
 }
 
 // SetPassword overrides the current password string with the given value
-func (c *Client) SetPassword(p string) {
-	c.pass = p
+func (c *Client) SetPassword(password string) {
+	c.pass = password
 }
 
 // SetSMTPAuth overrides the current SMTP AUTH type setting with the given value
-func (c *Client) SetSMTPAuth(a SMTPAuthType) {
-	c.satype = a
+func (c *Client) SetSMTPAuth(authtype SMTPAuthType) {
+	c.smtpAuthType = authtype
 }
 
 // SetSMTPAuthCustom overrides the current SMTP AUTH setting with the given custom smtp.Auth
-func (c *Client) SetSMTPAuthCustom(sa smtp.Auth) {
-	c.sa = sa
+func (c *Client) SetSMTPAuthCustom(smtpAuth smtp.Auth) {
+	c.smtpAuth = smtpAuth
 }
 
 // setDefaultHelo retrieves the current hostname and sets it as HELO/EHLO hostname
 func (c *Client) setDefaultHelo() error {
-	hn, err := os.Hostname()
+	hostname, err := os.Hostname()
 	if err != nil {
-		return fmt.Errorf("failed cto read local hostname: %w", err)
+		return fmt.Errorf("failed to read local hostname: %w", err)
 	}
-	c.helo = hn
+	c.helo = hostname
 	return nil
 }
 
-// DialWithContext establishes a connection cto the SMTP server with a given context.Context
-func (c *Client) DialWithContext(pc context.Context) error {
-	ctx, cfn := context.WithDeadline(pc, time.Now().Add(c.cto))
-	defer cfn()
+// DialWithContext establishes a connection to the SMTP server with a given context.Context
+func (c *Client) DialWithContext(dialCtx context.Context) error {
+	ctx, cancel := context.WithDeadline(dialCtx, time.Now().Add(c.connTimeout))
+	defer cancel()
 
 	if c.dialContextFunc == nil {
-		nd := net.Dialer{}
-		c.dialContextFunc = nd.DialContext
+		netDialer := net.Dialer{}
+		c.dialContextFunc = netDialer.DialContext
 
-		if c.ssl {
-			td := tls.Dialer{NetDialer: &nd, Config: c.tlsconfig}
-			c.enc = true
-			c.dialContextFunc = td.DialContext
+		if c.useSSL {
+			tlsDialer := tls.Dialer{NetDialer: &netDialer, Config: c.tlsconfig}
+			c.isEncrypted = true
+			c.dialContextFunc = tlsDialer.DialContext
 		}
 	}
 	var err error
-	c.co, err = c.dialContextFunc(ctx, "tcp", c.ServerAddr())
+	c.connection, err = c.dialContextFunc(ctx, "tcp", c.ServerAddr())
 	if err != nil && c.fallbackPort != 0 {
 		// TODO: should we somehow log or append the previous error?
-		c.co, err = c.dialContextFunc(ctx, "tcp", c.serverFallbackAddr())
+		c.connection, err = c.dialContextFunc(ctx, "tcp", c.serverFallbackAddr())
 	}
 	if err != nil {
 		return err
 	}
 
-	sc, err := smtp.NewClient(c.co, c.host)
+	client, err := smtp.NewClient(c.connection, c.host)
 	if err != nil {
 		return err
 	}
-	if sc == nil {
+	if client == nil {
 		return fmt.Errorf("SMTP client is nil")
 	}
-	c.sc = sc
+	c.smtpClient = client
 
-	if c.l != nil {
-		c.sc.SetLogger(c.l)
+	if c.logger != nil {
+		c.smtpClient.SetLogger(c.logger)
 	}
-	if c.dl {
-		c.sc.SetDebugLog(true)
+	if c.useDebugLog {
+		c.smtpClient.SetDebugLog(true)
 	}
-	if err := c.sc.Hello(c.helo); err != nil {
+	if err = c.smtpClient.Hello(c.helo); err != nil {
 		return err
 	}
 
-	if err := c.tls(); err != nil {
+	if err = c.tls(); err != nil {
 		return err
 	}
 
-	if err := c.auth(); err != nil {
+	if err = c.auth(); err != nil {
 		return err
 	}
 
@@ -628,7 +628,7 @@ func (c *Client) Close() error {
 	if err := c.checkConn(); err != nil {
 		return err
 	}
-	if err := c.sc.Quit(); err != nil {
+	if err := c.smtpClient.Quit(); err != nil {
 		return fmt.Errorf("failed to close SMTP client: %w", err)
 	}
 
@@ -640,7 +640,7 @@ func (c *Client) Reset() error {
 	if err := c.checkConn(); err != nil {
 		return err
 	}
-	if err := c.sc.Reset(); err != nil {
+	if err := c.smtpClient.Reset(); err != nil {
 		return fmt.Errorf("failed to send RSET to SMTP client: %w", err)
 	}
 
@@ -649,18 +649,18 @@ func (c *Client) Reset() error {
 
 // DialAndSend establishes a connection to the SMTP server with a
 // default context.Background and sends the mail
-func (c *Client) DialAndSend(ml ...*Msg) error {
+func (c *Client) DialAndSend(messages ...*Msg) error {
 	ctx := context.Background()
-	return c.DialAndSendWithContext(ctx, ml...)
+	return c.DialAndSendWithContext(ctx, messages...)
 }
 
 // DialAndSendWithContext establishes a connection to the SMTP server with a
 // custom context and sends the mail
-func (c *Client) DialAndSendWithContext(ctx context.Context, ml ...*Msg) error {
+func (c *Client) DialAndSendWithContext(ctx context.Context, messages ...*Msg) error {
 	if err := c.DialWithContext(ctx); err != nil {
 		return fmt.Errorf("dial failed: %w", err)
 	}
-	if err := c.Send(ml...); err != nil {
+	if err := c.Send(messages...); err != nil {
 		return fmt.Errorf("send failed: %w", err)
 	}
 	if err := c.Close(); err != nil {
@@ -672,17 +672,17 @@ func (c *Client) DialAndSendWithContext(ctx context.Context, ml ...*Msg) error {
 // checkConn makes sure that a required server connection is available and extends the
 // connection deadline
 func (c *Client) checkConn() error {
-	if c.co == nil {
+	if c.connection == nil {
 		return ErrNoActiveConnection
 	}
 
 	if !c.noNoop {
-		if err := c.sc.Noop(); err != nil {
+		if err := c.smtpClient.Noop(); err != nil {
 			return ErrNoActiveConnection
 		}
 	}
 
-	if err := c.co.SetDeadline(time.Now().Add(c.cto)); err != nil {
+	if err := c.connection.SetDeadline(time.Now().Add(c.connTimeout)); err != nil {
 		return ErrDeadlineExtendFailed
 	}
 	return nil
@@ -696,30 +696,30 @@ func (c *Client) serverFallbackAddr() string {
 
 // tls tries to make sure that the STARTTLS requirements are satisfied
 func (c *Client) tls() error {
-	if c.co == nil {
+	if c.connection == nil {
 		return ErrNoActiveConnection
 	}
-	if !c.ssl && c.tlspolicy != NoTLS {
-		est := false
-		st, _ := c.sc.Extension("STARTTLS")
+	if !c.useSSL && c.tlspolicy != NoTLS {
+		hasStartTLS := false
+		extension, _ := c.smtpClient.Extension("STARTTLS")
 		if c.tlspolicy == TLSMandatory {
-			est = true
-			if !st {
+			hasStartTLS = true
+			if !extension {
 				return fmt.Errorf("STARTTLS mode set to: %q, but target host does not support STARTTLS",
 					c.tlspolicy)
 			}
 		}
 		if c.tlspolicy == TLSOpportunistic {
-			if st {
-				est = true
+			if extension {
+				hasStartTLS = true
 			}
 		}
-		if est {
-			if err := c.sc.StartTLS(c.tlsconfig); err != nil {
+		if hasStartTLS {
+			if err := c.smtpClient.StartTLS(c.tlsconfig); err != nil {
 				return err
 			}
 		}
-		_, c.enc = c.sc.TLSConnectionState()
+		_, c.isEncrypted = c.smtpClient.TLSConnectionState()
 	}
 	return nil
 }
@@ -729,40 +729,40 @@ func (c *Client) auth() error {
 	if err := c.checkConn(); err != nil {
 		return fmt.Errorf("failed to authenticate: %w", err)
 	}
-	if c.sa == nil && c.satype != "" {
-		sa, sat := c.sc.Extension("AUTH")
-		if !sa {
+	if c.smtpAuth == nil && c.smtpAuthType != "" {
+		hasSMTPAuth, smtpAuthType := c.smtpClient.Extension("AUTH")
+		if !hasSMTPAuth {
 			return fmt.Errorf("server does not support SMTP AUTH")
 		}
 
-		switch c.satype {
+		switch c.smtpAuthType {
 		case SMTPAuthPlain:
-			if !strings.Contains(sat, string(SMTPAuthPlain)) {
+			if !strings.Contains(smtpAuthType, string(SMTPAuthPlain)) {
 				return ErrPlainAuthNotSupported
 			}
-			c.sa = smtp.PlainAuth("", c.user, c.pass, c.host)
+			c.smtpAuth = smtp.PlainAuth("", c.user, c.pass, c.host)
 		case SMTPAuthLogin:
-			if !strings.Contains(sat, string(SMTPAuthLogin)) {
+			if !strings.Contains(smtpAuthType, string(SMTPAuthLogin)) {
 				return ErrLoginAuthNotSupported
 			}
-			c.sa = smtp.LoginAuth(c.user, c.pass, c.host)
+			c.smtpAuth = smtp.LoginAuth(c.user, c.pass, c.host)
 		case SMTPAuthCramMD5:
-			if !strings.Contains(sat, string(SMTPAuthCramMD5)) {
+			if !strings.Contains(smtpAuthType, string(SMTPAuthCramMD5)) {
 				return ErrCramMD5AuthNotSupported
 			}
-			c.sa = smtp.CRAMMD5Auth(c.user, c.pass)
+			c.smtpAuth = smtp.CRAMMD5Auth(c.user, c.pass)
 		case SMTPAuthXOAUTH2:
-			if !strings.Contains(sat, string(SMTPAuthXOAUTH2)) {
+			if !strings.Contains(smtpAuthType, string(SMTPAuthXOAUTH2)) {
 				return ErrXOauth2AuthNotSupported
 			}
-			c.sa = smtp.XOAuth2Auth(c.user, c.pass)
+			c.smtpAuth = smtp.XOAuth2Auth(c.user, c.pass)
 		default:
-			return fmt.Errorf("unsupported SMTP AUTH type %q", c.satype)
+			return fmt.Errorf("unsupported SMTP AUTH type %q", c.smtpAuthType)
 		}
 	}
 
-	if c.sa != nil {
-		if err := c.sc.Auth(c.sa); err != nil {
+	if c.smtpAuth != nil {
+		if err := c.smtpClient.Auth(c.smtpAuth); err != nil {
 			return fmt.Errorf("SMTP AUTH failed: %w", err)
 		}
 	}
