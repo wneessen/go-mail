@@ -13,30 +13,30 @@ import (
 )
 
 // Send sends out the mail message
-func (c *Client) Send(ml ...*Msg) (rerr error) {
+func (c *Client) Send(messages ...*Msg) (returnErr error) {
 	if err := c.checkConn(); err != nil {
-		rerr = &SendError{Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err)}
+		returnErr = &SendError{Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err)}
 		return
 	}
-	for _, m := range ml {
-		m.sendError = nil
-		if m.encoding == NoEncoding {
+	for _, message := range messages {
+		message.sendError = nil
+		if message.encoding == NoEncoding {
 			if ok, _ := c.smtpClient.Extension("8BITMIME"); !ok {
-				m.sendError = &SendError{Reason: ErrNoUnencoded, isTemp: false}
-				rerr = errors.Join(rerr, m.sendError)
+				message.sendError = &SendError{Reason: ErrNoUnencoded, isTemp: false}
+				returnErr = errors.Join(returnErr, message.sendError)
 				continue
 			}
 		}
-		f, err := m.GetSender(false)
+		from, err := message.GetSender(false)
 		if err != nil {
-			m.sendError = &SendError{Reason: ErrGetSender, errlist: []error{err}, isTemp: isTempError(err)}
-			rerr = errors.Join(rerr, m.sendError)
+			message.sendError = &SendError{Reason: ErrGetSender, errlist: []error{err}, isTemp: isTempError(err)}
+			returnErr = errors.Join(returnErr, message.sendError)
 			continue
 		}
-		rl, err := m.GetRecipients()
+		rcpts, err := message.GetRecipients()
 		if err != nil {
-			m.sendError = &SendError{Reason: ErrGetRcpts, errlist: []error{err}, isTemp: isTempError(err)}
-			rerr = errors.Join(rerr, m.sendError)
+			message.sendError = &SendError{Reason: ErrGetRcpts, errlist: []error{err}, isTemp: isTempError(err)}
+			returnErr = errors.Join(returnErr, message.sendError)
 			continue
 		}
 
@@ -45,65 +45,65 @@ func (c *Client) Send(ml ...*Msg) (rerr error) {
 				c.smtpClient.SetDSNMailReturnOption(string(c.dsnmrtype))
 			}
 		}
-		if err := c.smtpClient.Mail(f); err != nil {
-			m.sendError = &SendError{Reason: ErrSMTPMailFrom, errlist: []error{err}, isTemp: isTempError(err)}
-			rerr = errors.Join(rerr, m.sendError)
-			if reserr := c.smtpClient.Reset(); reserr != nil {
-				rerr = errors.Join(rerr, reserr)
+		if err = c.smtpClient.Mail(from); err != nil {
+			message.sendError = &SendError{Reason: ErrSMTPMailFrom, errlist: []error{err}, isTemp: isTempError(err)}
+			returnErr = errors.Join(returnErr, message.sendError)
+			if resetSendErr := c.smtpClient.Reset(); resetSendErr != nil {
+				returnErr = errors.Join(returnErr, resetSendErr)
 			}
 			continue
 		}
 		failed := false
-		rse := &SendError{}
-		rse.errlist = make([]error, 0)
-		rse.rcpt = make([]string, 0)
-		rno := strings.Join(c.dsnrntype, ",")
-		c.smtpClient.SetDSNRcptNotifyOption(rno)
-		for _, r := range rl {
-			if err := c.smtpClient.Rcpt(r); err != nil {
-				rse.Reason = ErrSMTPRcptTo
-				rse.errlist = append(rse.errlist, err)
-				rse.rcpt = append(rse.rcpt, r)
-				rse.isTemp = isTempError(err)
+		rcptSendErr := &SendError{}
+		rcptSendErr.errlist = make([]error, 0)
+		rcptSendErr.rcpt = make([]string, 0)
+		rcptNotifyOpt := strings.Join(c.dsnrntype, ",")
+		c.smtpClient.SetDSNRcptNotifyOption(rcptNotifyOpt)
+		for _, rcpt := range rcpts {
+			if err = c.smtpClient.Rcpt(rcpt); err != nil {
+				rcptSendErr.Reason = ErrSMTPRcptTo
+				rcptSendErr.errlist = append(rcptSendErr.errlist, err)
+				rcptSendErr.rcpt = append(rcptSendErr.rcpt, rcpt)
+				rcptSendErr.isTemp = isTempError(err)
 				failed = true
 			}
 		}
 		if failed {
-			if reserr := c.smtpClient.Reset(); reserr != nil {
-				rerr = errors.Join(rerr, reserr)
+			if resetSendErr := c.smtpClient.Reset(); resetSendErr != nil {
+				returnErr = errors.Join(returnErr, resetSendErr)
 			}
-			m.sendError = rse
-			rerr = errors.Join(rerr, m.sendError)
+			message.sendError = rcptSendErr
+			returnErr = errors.Join(returnErr, message.sendError)
 			continue
 		}
-		w, err := c.smtpClient.Data()
+		writer, err := c.smtpClient.Data()
 		if err != nil {
-			m.sendError = &SendError{Reason: ErrSMTPData, errlist: []error{err}, isTemp: isTempError(err)}
-			rerr = errors.Join(rerr, m.sendError)
+			message.sendError = &SendError{Reason: ErrSMTPData, errlist: []error{err}, isTemp: isTempError(err)}
+			returnErr = errors.Join(returnErr, message.sendError)
 			continue
 		}
-		_, err = m.WriteTo(w)
+		_, err = message.WriteTo(writer)
 		if err != nil {
-			m.sendError = &SendError{Reason: ErrWriteContent, errlist: []error{err}, isTemp: isTempError(err)}
-			rerr = errors.Join(rerr, m.sendError)
+			message.sendError = &SendError{Reason: ErrWriteContent, errlist: []error{err}, isTemp: isTempError(err)}
+			returnErr = errors.Join(returnErr, message.sendError)
 			continue
 		}
-		m.isDelivered = true
+		message.isDelivered = true
 
-		if err := w.Close(); err != nil {
-			m.sendError = &SendError{Reason: ErrSMTPDataClose, errlist: []error{err}, isTemp: isTempError(err)}
-			rerr = errors.Join(rerr, m.sendError)
+		if err = writer.Close(); err != nil {
+			message.sendError = &SendError{Reason: ErrSMTPDataClose, errlist: []error{err}, isTemp: isTempError(err)}
+			returnErr = errors.Join(returnErr, message.sendError)
 			continue
 		}
 
-		if err := c.Reset(); err != nil {
-			m.sendError = &SendError{Reason: ErrSMTPReset, errlist: []error{err}, isTemp: isTempError(err)}
-			rerr = errors.Join(rerr, m.sendError)
+		if err = c.Reset(); err != nil {
+			message.sendError = &SendError{Reason: ErrSMTPReset, errlist: []error{err}, isTemp: isTempError(err)}
+			returnErr = errors.Join(returnErr, message.sendError)
 			continue
 		}
-		if err := c.checkConn(); err != nil {
-			m.sendError = &SendError{Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err)}
-			rerr = errors.Join(rerr, m.sendError)
+		if err = c.checkConn(); err != nil {
+			message.sendError = &SendError{Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err)}
+			returnErr = errors.Join(returnErr, message.sendError)
 		}
 	}
 
