@@ -10,6 +10,11 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps: 
-    - uses: actions/checkout@v2
+    - name: Harden Runner
+      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2.7.0
     - name: REUSE Compliance Check
-      uses: fsfe/reuse-action@v1
+      uses: fsfe/reuse-action@28cf8f33bc50f4c306f52e38fe3826717dea63dc # v1.3.0
