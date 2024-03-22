@@ -22,12 +22,17 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2.7.0
         with:
           fetch-depth: 0
           
       - name: Setup Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3.5.0
         with:
           go-version: '1.22.x'
           
@@ -35,12 +40,12 @@ jobs:
         run: |
           go test -v -race --coverprofile=./cov.out ./...
 
-      - uses: sonarsource/sonarqube-scan-action@master
+      - uses: sonarsource/sonarqube-scan-action@9ad16418d1dd6d28912bc0047ee387e90181ce1c # master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           
-      - uses: sonarsource/sonarqube-quality-gate-action@master
+      - uses: sonarsource/sonarqube-quality-gate-action@f9fe214a5be5769c40619de2fff2726c36d2d5eb # master
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
