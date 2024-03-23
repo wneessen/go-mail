@@ -466,7 +466,7 @@ func (e errorWriter) Close() error {
 func FuzzBase64LineBreaker_Write(f *testing.F) {
 	f.Add([]byte("abc"))
 	f.Add([]byte("def"))
-	f.Add([]uint8{00, 01, 02, 30, 255})
+	f.Add([]uint8{0o0, 0o1, 0o2, 30, 255})
 	buf := bytes.Buffer{}
 	bw := bufio.NewWriter(&buf)
 	f.Fuzz(func(t *testing.T, data []byte) {
