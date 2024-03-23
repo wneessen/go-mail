@@ -461,3 +461,14 @@ func (e errorWriter) Write([]byte) (int, error) {
 func (e errorWriter) Close() error {
 	return fmt.Errorf("supposed to always fail")
 }
+
+func FuzzBase64LineBreaker_Write(f *testing.F) {
+	f.Add([]byte(logoB64))
+	buf := bytes.Buffer{}
+	f.Fuzz(func(t *testing.T, data []byte) {
+		b := &Base64LineBreaker{out: &buf}
+		if _, err := b.Write(data); err != nil {
+			t.Errorf("failed to write to B64LineBreaker: %s", err)
+		}
+	})
+}
