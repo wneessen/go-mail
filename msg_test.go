@@ -3219,3 +3219,31 @@ func TestNewMsgWithNoDefaultUserAgent(t *testing.T) {
 		t.Errorf("WithNoDefaultUserAgent() failed. Expected: %t, got: %t", true, false)
 	}
 }
+
+// Fuzzing tests
+func FuzzMsg_Subject(f *testing.F) {
+	f.Add("Testsubject")
+	f.Add("")
+	f.Add("This is a longer test subject.")
+	f.Add("Let's add some umlauts: üäöß")
+	f.Add("Or even emojis: ☝️💪👍")
+	f.Fuzz(func(t *testing.T, data string) {
+		m := NewMsg()
+		m.Subject(data)
+		m.Reset()
+	})
+}
+
+func FuzzMsg_From(f *testing.F) {
+	f.Add("Toni Tester <toni@tester.com>")
+	f.Add("<tester@example.com>")
+	f.Add("mail@server.com")
+	f.Fuzz(func(t *testing.T, data string) {
+		m := NewMsg()
+		if err := m.From(data); err != nil &&
+			!strings.Contains(err.Error(), "failed to parse mail address") {
+			t.Errorf("failed set set FROM address: %s", err)
+		}
+		m.Reset()
+	})
+}
