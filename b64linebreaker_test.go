@@ -5,6 +5,7 @@
 package mail
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/base64"
 	"fmt"
@@ -463,12 +464,18 @@ func (e errorWriter) Close() error {
 }
 
 func FuzzBase64LineBreaker_Write(f *testing.F) {
-	f.Add([]byte(logoB64))
+	f.Add([]byte("abc"))
+	f.Add([]byte("def"))
+	f.Add([]uint8{00, 01, 02, 30, 255})
 	buf := bytes.Buffer{}
+	bw := bufio.NewWriter(&buf)
 	f.Fuzz(func(t *testing.T, data []byte) {
-		b := &Base64LineBreaker{out: &buf}
+		b := &Base64LineBreaker{out: bw}
 		if _, err := b.Write(data); err != nil {
 			t.Errorf("failed to write to B64LineBreaker: %s", err)
+		}
+		if err := b.Close(); err != nil {
+			t.Errorf("failed to close B64LineBreaker: %s", err)
 		}
 	})
 }
