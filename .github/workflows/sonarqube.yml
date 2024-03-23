@@ -3,6 +3,10 @@
 # SPDX-License-Identifier: CC0-1.0
 
 name: SonarQube
+
+permissions:
+  contents: read
+
 on:
   push:
     branches:
