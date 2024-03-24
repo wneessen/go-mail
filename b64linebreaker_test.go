@@ -384,6 +384,11 @@ LjI4MiIgc3R5bGU9ImZpbGw6I2ZmYjI1YztzdHJva2U6IzAwMDtzdHJva2Utd2lkdGg6NC45NXB4
 OyIvPjwvZz48L3N2Zz4=
 `
 
+var (
+	mockErr        = errors.New("mock write error")
+	mockNewlineErr = errors.New("mock newline error")
+)
+
 // TestBase64LineBreaker tests the Write and Close methods of the Base64LineBreaker
 func TestBase64LineBreaker(t *testing.T) {
 	l, err := os.Open("assets/gopher2.svg")
@@ -440,39 +445,40 @@ func TestBase64LineBreakerFailures(t *testing.T) {
 
 func TestBase64LineBreaker_WriteAndClose(t *testing.T) {
 	tests := []struct {
-		name          string
-		data          []byte
-		expectedWrite string
+		name   string
+		data   []byte
+		writer io.Writer
 	}{
 		{
-			name:          "Write data within MaxBodyLength",
-			data:          []byte("testdata"),
-			expectedWrite: "testdata",
+			name:   "Write data within MaxBodyLength",
+			data:   []byte("testdata"),
+			writer: &mockWriterExcess{writeError: mockErr},
 		},
 		{
-			name:          "Write data exceeds MaxBodyLength",
-			data:          []byte("verylongtestdata"),
-			expectedWrite: "verylongtest",
+			name: "Write data exceeds MaxBodyLength",
+			data: []byte("verylongtestdataverylongtestdataverylongtestdata" +
+				"verylongtestdataverylongtestdataverylongtestdata"),
+			writer: &mockWriterExcess{writeError: mockErr},
+		},
+		{
+			name: "Write data exceeds MaxBodyLength with newline",
+			data: []byte("verylongtestdataverylongtestdataverylongtestdata" +
+				"verylongtestdataverylongtestdataverylongtestdata"),
+			writer: &mockWriterNewline{writeError: mockErr},
 		},
 	}
 
-	var mockErr = errors.New("mock write error")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var buf bytes.Buffer
-			blr := &Base64LineBreaker{out: &buf}
-			mw := &mockWriter{writeError: mockErr}
-			blr.out = mw
+			blr := &Base64LineBreaker{out: tt.writer}
 
 			_, err := blr.Write(tt.data)
-			if err != nil && !errors.Is(err, mockErr) {
+			if err != nil && !errors.Is(err, mockErr) && !errors.Is(err, mockNewlineErr) {
 				t.Errorf("Unexpected error while writing: %v", err)
-				return
 			}
 			err = blr.Close()
-			if err != nil && !errors.Is(err, mockErr) {
+			if err != nil && !errors.Is(err, mockErr) && !errors.Is(err, mockNewlineErr) {
 				t.Errorf("Unexpected error while closing: %v", err)
-				return
 			}
 		})
 	}
@@ -504,14 +510,33 @@ func (e errorWriter) Close() error {
 	return fmt.Errorf("supposed to always fail")
 }
 
-// MockWriter is a mock implementation of io.Writer used for testing.
-type mockWriter struct {
+type mockWriterExcess struct {
+	writeError error
+}
+type mockWriterNewline struct {
 	writeError error
 }
 
-// Write writes the data into a buffer.
-func (w *mockWriter) Write(p []byte) (n int, err error) {
-	return 0, w.writeError
+func (w *mockWriterExcess) Write(p []byte) (n int, err error) {
+	switch len(p) {
+	case 0:
+		return 0, nil
+	case 2:
+		return 2, nil
+	default:
+		return len(p), mockErr
+	}
+}
+
+func (w *mockWriterNewline) Write(p []byte) (n int, err error) {
+	switch len(p) {
+	case 0:
+		return 0, nil
+	case 2:
+		return 2, mockNewlineErr
+	default:
+		return len(p), nil
+	}
 }
 
 func FuzzBase64LineBreaker_Write(f *testing.F) {
