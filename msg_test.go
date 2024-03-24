@@ -2582,6 +2582,22 @@ func TestMsg_WriteToTempFile(t *testing.T) {
 	_ = os.Remove(f)
 }
 
+// TestMsg_WriteToTempFile_fail will test the output to temporary files
+// with failure
+func TestMsg_WriteToTempFile_fail(t *testing.T) {
+	m := NewMsg()
+	_ = m.From("Toni Tester <tester@example.com>")
+	_ = m.To("Ellenor Tester <ellinor@example.com>")
+	m.SetBodyString(TypeTextPlain, "This is a test")
+	_ = os.Setenv("TMPDIR", "/does/not/exist")
+	f, err := m.WriteToTempFile()
+	if err == nil {
+		t.Error("write message to temporary output file was supposed to fail, but didn't")
+	}
+	_ = os.Unsetenv("TMPDIR")
+	_ = os.Remove(f)
+}
+
 // TestMsg_WriteToFile will test the output to a file
 func TestMsg_WriteToFile(t *testing.T) {
 	f, err := os.CreateTemp("", "go-mail-test_*.eml")
