@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -437,6 +438,46 @@ func TestBase64LineBreakerFailures(t *testing.T) {
 	}
 }
 
+func TestBase64LineBreaker_WriteAndClose(t *testing.T) {
+	tests := []struct {
+		name          string
+		data          []byte
+		expectedWrite string
+	}{
+		{
+			name:          "Write data within MaxBodyLength",
+			data:          []byte("testdata"),
+			expectedWrite: "testdata",
+		},
+		{
+			name:          "Write data exceeds MaxBodyLength",
+			data:          []byte("verylongtestdata"),
+			expectedWrite: "verylongtest",
+		},
+	}
+
+	var mockErr = errors.New("mock write error")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			blr := &Base64LineBreaker{out: &buf}
+			mw := &mockWriter{writeError: mockErr}
+			blr.out = mw
+
+			_, err := blr.Write(tt.data)
+			if err != nil && !errors.Is(err, mockErr) {
+				t.Errorf("Unexpected error while writing: %v", err)
+				return
+			}
+			err = blr.Close()
+			if err != nil && !errors.Is(err, mockErr) {
+				t.Errorf("Unexpected error while closing: %v", err)
+				return
+			}
+		})
+	}
+}
+
 // removeNewLines removes any newline characters from the given data
 func removeNewLines(data []byte) []byte {
 	result := make([]byte, len(data))
@@ -461,6 +502,16 @@ func (e errorWriter) Write([]byte) (int, error) {
 
 func (e errorWriter) Close() error {
 	return fmt.Errorf("supposed to always fail")
+}
+
+// MockWriter is a mock implementation of io.Writer used for testing.
+type mockWriter struct {
+	writeError error
+}
+
+// Write writes the data into a buffer.
+func (w *mockWriter) Write(p []byte) (n int, err error) {
+	return 0, w.writeError
 }
 
 func FuzzBase64LineBreaker_Write(f *testing.F) {
