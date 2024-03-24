@@ -385,8 +385,8 @@ OyIvPjwvZz48L3N2Zz4=
 `
 
 var (
-	mockErr        = errors.New("mock write error")
-	mockNewlineErr = errors.New("mock newline error")
+	errMockDefault = errors.New("mock write error")
+	errMockNewline = errors.New("mock newline error")
 )
 
 // TestBase64LineBreaker tests the Write and Close methods of the Base64LineBreaker
@@ -452,19 +452,19 @@ func TestBase64LineBreaker_WriteAndClose(t *testing.T) {
 		{
 			name:   "Write data within MaxBodyLength",
 			data:   []byte("testdata"),
-			writer: &mockWriterExcess{writeError: mockErr},
+			writer: &mockWriterExcess{writeError: errMockDefault},
 		},
 		{
 			name: "Write data exceeds MaxBodyLength",
 			data: []byte("verylongtestdataverylongtestdataverylongtestdata" +
 				"verylongtestdataverylongtestdataverylongtestdata"),
-			writer: &mockWriterExcess{writeError: mockErr},
+			writer: &mockWriterExcess{writeError: errMockDefault},
 		},
 		{
 			name: "Write data exceeds MaxBodyLength with newline",
 			data: []byte("verylongtestdataverylongtestdataverylongtestdata" +
 				"verylongtestdataverylongtestdataverylongtestdata"),
-			writer: &mockWriterNewline{writeError: mockErr},
+			writer: &mockWriterNewline{writeError: errMockDefault},
 		},
 	}
 
@@ -473,11 +473,11 @@ func TestBase64LineBreaker_WriteAndClose(t *testing.T) {
 			blr := &Base64LineBreaker{out: tt.writer}
 
 			_, err := blr.Write(tt.data)
-			if err != nil && !errors.Is(err, mockErr) && !errors.Is(err, mockNewlineErr) {
+			if err != nil && !errors.Is(err, errMockDefault) && !errors.Is(err, errMockNewline) {
 				t.Errorf("Unexpected error while writing: %v", err)
 			}
 			err = blr.Close()
-			if err != nil && !errors.Is(err, mockErr) && !errors.Is(err, mockNewlineErr) {
+			if err != nil && !errors.Is(err, errMockDefault) && !errors.Is(err, errMockNewline) {
 				t.Errorf("Unexpected error while closing: %v", err)
 			}
 		})
@@ -524,7 +524,7 @@ func (w *mockWriterExcess) Write(p []byte) (n int, err error) {
 	case 2:
 		return 2, nil
 	default:
-		return len(p), mockErr
+		return len(p), errMockDefault
 	}
 }
 
@@ -533,7 +533,7 @@ func (w *mockWriterNewline) Write(p []byte) (n int, err error) {
 	case 0:
 		return 0, nil
 	case 2:
-		return 2, mockNewlineErr
+		return 2, errMockNewline
 	default:
 		return len(p), nil
 	}
