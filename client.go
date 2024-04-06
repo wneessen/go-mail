@@ -253,8 +253,6 @@ func WithTimeout(timeout time.Duration) Option {
 }
 
 // WithSSL tells the client to use a SSL/TLS connection
-//
-// Deprecated: use WithSSLPort instead.
 func WithSSL() Option {
 	return func(c *Client) error {
 		c.useSSL = true
@@ -262,11 +260,16 @@ func WithSSL() Option {
 	}
 }
 
-// WithSSLPort tells the client to use a SSL/TLS connection.
-// It automatically sets the port to 465.
+// WithSSLPort tells the Client wether or not to use SSL and fallback.
+// The correct port is automatically set.
 //
-// When the SSL connection fails and fallback is set to true,
+// Port 465 is used when SSL set (true).
+// Port 25 is used when SSL is unset (false).
+// When the SSL connection fails and fb is set to true,
 // the client will attempt to connect on port 25 using plaintext.
+//
+// Note: If a different port has already been set otherwise, the port-choosing
+// and fallback automatism will be skipped.
 func WithSSLPort(fallback bool) Option {
 	return func(c *Client) error {
 		c.SetSSLPort(true, fallback)
@@ -304,7 +307,8 @@ func WithHELO(helo string) Option {
 
 // WithTLSPolicy tells the client to use the provided TLSPolicy
 //
-// Deprecated: use WithTLSPortPolicy instead.
+// Note: To follow best-practices for SMTP TLS connections, it is recommended
+// to use WithTLSPortPolicy instead.
 func WithTLSPolicy(policy TLSPolicy) Option {
 	return func(c *Client) error {
 		c.tlspolicy = policy
@@ -319,6 +323,9 @@ func WithTLSPolicy(policy TLSPolicy) Option {
 // If the connection fails with TLSOpportunistic,
 // a plaintext connection is attempted on port 25 as a fallback.
 // NoTLS will allways use port 25.
+//
+// Note: If a different port has already been set otherwise, the port-choosing
+// and fallback automatism will be skipped.
 func WithTLSPortPolicy(policy TLSPolicy) Option {
 	return func(c *Client) error {
 		c.SetTLSPortPolicy(policy)
@@ -463,6 +470,9 @@ func (c *Client) ServerAddr() string {
 }
 
 // SetTLSPolicy overrides the current TLSPolicy with the given TLSPolicy value
+//
+// Note: To follow best-practices for SMTP TLS connections, it is recommended
+// to use SetTLSPortPolicy instead.
 func (c *Client) SetTLSPolicy(policy TLSPolicy) {
 	c.tlspolicy = policy
 }
@@ -474,14 +484,19 @@ func (c *Client) SetTLSPolicy(policy TLSPolicy) {
 // If the connection fails with TLSOpportunistic, a plaintext connection is
 // attempted on port 25 as a fallback.
 // NoTLS will allways use port 25.
+//
+// Note: If a different port has already been set otherwise, the port-choosing
+// and fallback automatism will be skipped.
 func (c *Client) SetTLSPortPolicy(policy TLSPolicy) {
-	c.port = DefaultPortTLS
+	if c.port == DefaultPort {
+		c.port = DefaultPortTLS
 
-	if policy == TLSOpportunistic {
-		c.fallbackPort = DefaultPort
-	}
-	if policy == NoTLS {
-		c.port = DefaultPort
+		if policy == TLSOpportunistic {
+			c.fallbackPort = DefaultPort
+		}
+		if policy == NoTLS {
+			c.port = DefaultPort
+		}
 	}
 
 	c.tlspolicy = policy
@@ -499,15 +514,19 @@ func (c *Client) SetSSL(ssl bool) {
 // Port 25 is used when SSL is unset (false).
 // When the SSL connection fails and fb is set to true,
 // the client will attempt to connect on port 25 using plaintext.
+//
+// Note: If a different port has already been set otherwise, the port-choosing
+// and fallback automatism will be skipped.
 func (c *Client) SetSSLPort(ssl bool, fallback bool) {
-	c.port = DefaultPort
-	if ssl {
-		c.port = DefaultPortSSL
-	}
+	if c.port == DefaultPort {
+		if ssl {
+			c.port = DefaultPortSSL
+		}
 
-	c.fallbackPort = 0
-	if fallback {
-		c.fallbackPort = DefaultPort
+		c.fallbackPort = 0
+		if fallback {
+			c.fallbackPort = DefaultPort
+		}
 	}
 
 	c.useSSL = ssl
