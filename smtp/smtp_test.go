@@ -777,9 +777,9 @@ func TestClient_SetLogger(t *testing.T) {
 	if c.logger == nil {
 		t.Errorf("Expected Logger to be set but received nil")
 	}
-	c.logger.Debugf(log.Log{Direction: log.DirServerToClient, Format: "", Messages: []interface{}{"test"}})
+	c.logger.Debugf(log.Log{Direction: log.DirServerToClient, Format: "%s", Messages: []interface{}{"test"}})
 	c.SetLogger(nil)
-	c.logger.Debugf(log.Log{Direction: log.DirServerToClient, Format: "", Messages: []interface{}{"test"}})
+	c.logger.Debugf(log.Log{Direction: log.DirServerToClient, Format: "%s", Messages: []interface{}{"test"}})
 }
 
 var newClientServer = `220 hello world
