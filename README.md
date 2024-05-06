@@ -85,6 +85,13 @@ alter a given mail message to their needs without relying on `go-mail` to suppor
 To get our users started with message middleware, we've created a collection of useful middlewares. It can be 
 found in a seperate repository: [go-mail-middlware](https://github.com/wneessen/go-mail-middleware).
 
+## Merch
+Thanks to our wonderful friends at [HelloTux](https://www.hellotux.com) we can offer great go-mail merchandising. All merch articles are embroidery 
+to provide the best and most long-lasting quality possible.
+
+If you want to support the open source community and represent your favourite Go mail library with some cool drip, check out our merch shop at: 
+[https://www.hellotux.com/go-mail](https://www.hellotux.com/go-mail).
+
 ## Examples
 
 We provide example code in both our GoDocs as well as on our official Website (see [Documentation](#documentation)). For a quick start into go-mail
