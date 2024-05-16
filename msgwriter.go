@@ -89,11 +89,11 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 	}
 
 	if msg.hasMixed() {
-		mw.startMP("mixed", msg.boundary)
+		mw.startMP(MIMEMixed, msg.boundary)
 		mw.writeString(DoubleNewLine)
 	}
 	if msg.hasRelated() {
-		mw.startMP("related", msg.boundary)
+		mw.startMP(MIMERelated, msg.boundary)
 		mw.writeString(DoubleNewLine)
 	}
 	if msg.hasAlt() {
