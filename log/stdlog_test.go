@@ -13,8 +13,8 @@ import (
 func TestNew(t *testing.T) {
 	var b bytes.Buffer
 	l := New(&b, LevelDebug)
-	if l.l != LevelDebug {
-		t.Error("Expected level to be LevelDebug, got ", l.l)
+	if l.level != LevelDebug {
+		t.Error("Expected level to be LevelDebug, got ", l.level)
 	}
 	if l.err == nil || l.warn == nil || l.info == nil || l.debug == nil {
 		t.Error("Loggers not initialized")
@@ -37,7 +37,7 @@ func TestDebugf(t *testing.T) {
 	}
 
 	b.Reset()
-	l.l = LevelInfo
+	l.level = LevelInfo
 	l.Debugf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []interface{}{"foo"}})
 	if b.String() != "" {
 		t.Error("Debug message was not expected to be logged")
@@ -60,7 +60,7 @@ func TestInfof(t *testing.T) {
 	}
 
 	b.Reset()
-	l.l = LevelWarn
+	l.level = LevelWarn
 	l.Infof(Log{Direction: DirServerToClient, Format: "test %s", Messages: []interface{}{"foo"}})
 	if b.String() != "" {
 		t.Error("Info message was not expected to be logged")
@@ -83,7 +83,7 @@ func TestWarnf(t *testing.T) {
 	}
 
 	b.Reset()
-	l.l = LevelError
+	l.level = LevelError
 	l.Warnf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []interface{}{"foo"}})
 	if b.String() != "" {
 		t.Error("Warn message was not expected to be logged")
@@ -106,7 +106,7 @@ func TestErrorf(t *testing.T) {
 	}
 
 	b.Reset()
-	l.l = LevelError - 1
+	l.level = LevelError - 1
 	l.Errorf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []interface{}{"foo"}})
 	if b.String() != "" {
 		t.Error("Error message was not expected to be logged")

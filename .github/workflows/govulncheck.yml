@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: CC0-1.0
 
-name: REUSE Compliance Check
+name: Govulncheck Security Scan
 
 on: [push, pull_request]
 
@@ -17,7 +17,5 @@ jobs:
       uses: step-security/harden-runner@a4aa98b93cab29d9b1101a6143fb8bce00e2eac4 # v2.7.1
       with:
         egress-policy: audit
-
-    - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2.7.0
-    - name: REUSE Compliance Check
-      uses: fsfe/reuse-action@a46482ca367aef4454a87620aa37c2be4b2f8106 # v3.0.0
+    - name: Run govulncheck
+      uses: golang/govulncheck-action@3a32958c2706f7048305d5a2e53633d7e37e97d0 # v1.0.2

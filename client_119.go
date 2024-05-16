@@ -10,123 +10,123 @@ package mail
 import "strings"
 
 // Send sends out the mail message
-func (c *Client) Send(ml ...*Msg) error {
+func (c *Client) Send(messages ...*Msg) error {
 	if cerr := c.checkConn(); cerr != nil {
 		return &SendError{Reason: ErrConnCheck, errlist: []error{cerr}, isTemp: isTempError(cerr)}
 	}
 	var errs []*SendError
-	for _, m := range ml {
-		m.sendError = nil
-		if m.encoding == NoEncoding {
-			if ok, _ := c.sc.Extension("8BITMIME"); !ok {
-				se := &SendError{Reason: ErrNoUnencoded, isTemp: false}
-				m.sendError = se
-				errs = append(errs, se)
+	for _, message := range messages {
+		message.sendError = nil
+		if message.encoding == NoEncoding {
+			if ok, _ := c.smtpClient.Extension("8BITMIME"); !ok {
+				sendErr := &SendError{Reason: ErrNoUnencoded, isTemp: false}
+				message.sendError = sendErr
+				errs = append(errs, sendErr)
 				continue
 			}
 		}
-		f, err := m.GetSender(false)
+		from, err := message.GetSender(false)
 		if err != nil {
-			se := &SendError{Reason: ErrGetSender, errlist: []error{err}, isTemp: isTempError(err)}
-			m.sendError = se
-			errs = append(errs, se)
+			sendErr := &SendError{Reason: ErrGetSender, errlist: []error{err}, isTemp: isTempError(err)}
+			message.sendError = sendErr
+			errs = append(errs, sendErr)
 			continue
 		}
-		rl, err := m.GetRecipients()
+		rcpts, err := message.GetRecipients()
 		if err != nil {
-			se := &SendError{Reason: ErrGetRcpts, errlist: []error{err}, isTemp: isTempError(err)}
-			m.sendError = se
-			errs = append(errs, se)
+			sendErr := &SendError{Reason: ErrGetRcpts, errlist: []error{err}, isTemp: isTempError(err)}
+			message.sendError = sendErr
+			errs = append(errs, sendErr)
 			continue
 		}
 
 		if c.dsn {
 			if c.dsnmrtype != "" {
-				c.sc.SetDSNMailReturnOption(string(c.dsnmrtype))
+				c.smtpClient.SetDSNMailReturnOption(string(c.dsnmrtype))
 			}
 		}
-		if err := c.sc.Mail(f); err != nil {
-			se := &SendError{Reason: ErrSMTPMailFrom, errlist: []error{err}, isTemp: isTempError(err)}
-			if reserr := c.sc.Reset(); reserr != nil {
-				se.errlist = append(se.errlist, reserr)
+		if err = c.smtpClient.Mail(from); err != nil {
+			sendErr := &SendError{Reason: ErrSMTPMailFrom, errlist: []error{err}, isTemp: isTempError(err)}
+			if resetSendErr := c.smtpClient.Reset(); resetSendErr != nil {
+				sendErr.errlist = append(sendErr.errlist, resetSendErr)
 			}
-			m.sendError = se
-			errs = append(errs, se)
+			message.sendError = sendErr
+			errs = append(errs, sendErr)
 			continue
 		}
 		failed := false
-		rse := &SendError{}
-		rse.errlist = make([]error, 0)
-		rse.rcpt = make([]string, 0)
-		rno := strings.Join(c.dsnrntype, ",")
-		c.sc.SetDSNRcptNotifyOption(rno)
-		for _, r := range rl {
-			if err := c.sc.Rcpt(r); err != nil {
-				rse.Reason = ErrSMTPRcptTo
-				rse.errlist = append(rse.errlist, err)
-				rse.rcpt = append(rse.rcpt, r)
-				rse.isTemp = isTempError(err)
+		rcptSendErr := &SendError{}
+		rcptSendErr.errlist = make([]error, 0)
+		rcptSendErr.rcpt = make([]string, 0)
+		rcptNotifyOpt := strings.Join(c.dsnrntype, ",")
+		c.smtpClient.SetDSNRcptNotifyOption(rcptNotifyOpt)
+		for _, rcpt := range rcpts {
+			if err = c.smtpClient.Rcpt(rcpt); err != nil {
+				rcptSendErr.Reason = ErrSMTPRcptTo
+				rcptSendErr.errlist = append(rcptSendErr.errlist, err)
+				rcptSendErr.rcpt = append(rcptSendErr.rcpt, rcpt)
+				rcptSendErr.isTemp = isTempError(err)
 				failed = true
 			}
 		}
 		if failed {
-			if reserr := c.sc.Reset(); reserr != nil {
-				rse.errlist = append(rse.errlist, err)
+			if resetSendErr := c.smtpClient.Reset(); resetSendErr != nil {
+				rcptSendErr.errlist = append(rcptSendErr.errlist, err)
 			}
-			m.sendError = rse
-			errs = append(errs, rse)
+			message.sendError = rcptSendErr
+			errs = append(errs, rcptSendErr)
 			continue
 		}
-		w, err := c.sc.Data()
+		writer, err := c.smtpClient.Data()
 		if err != nil {
-			se := &SendError{Reason: ErrSMTPData, errlist: []error{err}, isTemp: isTempError(err)}
-			m.sendError = se
-			errs = append(errs, se)
+			sendErr := &SendError{Reason: ErrSMTPData, errlist: []error{err}, isTemp: isTempError(err)}
+			message.sendError = sendErr
+			errs = append(errs, sendErr)
 			continue
 		}
-		_, err = m.WriteTo(w)
+		_, err = message.WriteTo(writer)
 		if err != nil {
-			se := &SendError{Reason: ErrWriteContent, errlist: []error{err}, isTemp: isTempError(err)}
-			m.sendError = se
-			errs = append(errs, se)
+			sendErr := &SendError{Reason: ErrWriteContent, errlist: []error{err}, isTemp: isTempError(err)}
+			message.sendError = sendErr
+			errs = append(errs, sendErr)
 			continue
 		}
-		m.isDelivered = true
+		message.isDelivered = true
 
-		if err := w.Close(); err != nil {
-			se := &SendError{Reason: ErrSMTPDataClose, errlist: []error{err}, isTemp: isTempError(err)}
-			m.sendError = se
-			errs = append(errs, se)
+		if err = writer.Close(); err != nil {
+			sendErr := &SendError{Reason: ErrSMTPDataClose, errlist: []error{err}, isTemp: isTempError(err)}
+			message.sendError = sendErr
+			errs = append(errs, sendErr)
 			continue
 		}
 
-		if err := c.Reset(); err != nil {
-			se := &SendError{Reason: ErrSMTPReset, errlist: []error{err}, isTemp: isTempError(err)}
-			m.sendError = se
-			errs = append(errs, se)
+		if err = c.Reset(); err != nil {
+			sendErr := &SendError{Reason: ErrSMTPReset, errlist: []error{err}, isTemp: isTempError(err)}
+			message.sendError = sendErr
+			errs = append(errs, sendErr)
 			continue
 		}
-		if err := c.checkConn(); err != nil {
-			se := &SendError{Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err)}
-			m.sendError = se
-			errs = append(errs, se)
+		if err = c.checkConn(); err != nil {
+			sendErr := &SendError{Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err)}
+			message.sendError = sendErr
+			errs = append(errs, sendErr)
 			continue
 		}
 	}
 
 	if len(errs) > 0 {
 		if len(errs) > 1 {
-			re := &SendError{Reason: ErrAmbiguous}
+			returnErr := &SendError{Reason: ErrAmbiguous}
 			for i := range errs {
-				re.errlist = append(re.errlist, errs[i].errlist...)
-				re.rcpt = append(re.rcpt, errs[i].rcpt...)
+				returnErr.errlist = append(returnErr.errlist, errs[i].errlist...)
+				returnErr.rcpt = append(returnErr.rcpt, errs[i].rcpt...)
 			}
 
 			// We assume that the isTemp flag from the last error we received should be the
 			// indicator for the returned isTemp flag as well
-			re.isTemp = errs[len(errs)-1].isTemp
+			returnErr.isTemp = errs[len(errs)-1].isTemp
 
-			return re
+			return returnErr
 		}
 		return errs[0]
 	}

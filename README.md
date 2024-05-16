@@ -11,7 +11,9 @@ SPDX-License-Identifier: CC0-1.0
 [![Go Report Card](https://goreportcard.com/badge/github.com/wneessen/go-mail)](https://goreportcard.com/report/github.com/wneessen/go-mail) 
 [![Mentioned in Awesome Go](https://awesome.re/mentioned-badge-flat.svg)](https://github.com/avelino/awesome-go)
 [![#go-mail on Discord](https://img.shields.io/badge/Discord-%23go%E2%80%93mail-blue.svg)](https://discord.gg/ysQXkaccXk) 
-[![REUSE status](https://api.reuse.software/badge/github.com/wneessen/go-mail)](https://api.reuse.software/info/github.com/wneessen/go-mail) 
+[![REUSE status](https://api.reuse.software/badge/github.com/wneessen/go-mail)](https://api.reuse.software/info/github.com/wneessen/go-mail)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/8701/badge)](https://www.bestpractices.dev/projects/8701)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/wneessen/go-mail/badge)](https://securityscorecards.dev/viewer/?uri=github.com/wneessen/go-mail)
 <a href="https://ko-fi.com/D1D24V9IX"><img src="https://uploads-ssl.webflow.com/5c14e387dab576fe667689cf/5cbed8a4ae2b88347c06c923_BuyMeACoffee_blue.png" height="20" alt="buy ma a coffee"></a>
 
 <p align="center"><img src="./assets/gopher2.svg" width="250" alt="go-mail logo"/></p>
@@ -82,6 +84,13 @@ alter a given mail message to their needs without relying on `go-mail` to suppor
 
 To get our users started with message middleware, we've created a collection of useful middlewares. It can be 
 found in a seperate repository: [go-mail-middlware](https://github.com/wneessen/go-mail-middleware).
+
+## Merch
+Thanks to our wonderful friends at [HelloTux](https://www.hellotux.com) we can offer great go-mail merchandising. All merch articles are embroidery 
+to provide the best and most long-lasting quality possible.
+
+If you want to support the open source community and represent your favourite Go mail library with some cool drip, check out our merch shop at: 
+[https://www.hellotux.com/go-mail](https://www.hellotux.com/go-mail).
 
 ## Examples
 

@@ -28,7 +28,7 @@ func (bw *brokenWriter) Write([]byte) (int, error) {
 // TestMsgWriter_Write tests the WriteTo() method of the msgWriter
 func TestMsgWriter_Write(t *testing.T) {
 	bw := &brokenWriter{}
-	mw := &msgWriter{w: bw, c: CharsetUTF8, en: mime.QEncoding}
+	mw := &msgWriter{writer: bw, charset: CharsetUTF8, encoder: mime.QEncoding}
 	_, err := mw.Write([]byte("test"))
 	if err == nil {
 		t.Errorf("msgWriter WriteTo() with brokenWriter should fail, but didn't")
@@ -55,7 +55,7 @@ func TestMsgWriter_writeMsg(t *testing.T) {
 	m.SetBodyString(TypeTextPlain, "This is the body")
 	m.AddAlternativeString(TypeTextHTML, "This is the alternative body")
 	buf := bytes.Buffer{}
-	mw := &msgWriter{w: &buf, c: CharsetUTF8, en: mime.QEncoding}
+	mw := &msgWriter{writer: &buf, charset: CharsetUTF8, encoder: mime.QEncoding}
 	mw.writeMsg(m)
 	ms := buf.String()
 
@@ -134,7 +134,7 @@ func TestMsgWriter_writeMsg_PGP(t *testing.T) {
 	m.Subject("This is a subject")
 	m.SetBodyString(TypeTextPlain, "This is the body")
 	buf := bytes.Buffer{}
-	mw := &msgWriter{w: &buf, c: CharsetUTF8, en: mime.QEncoding}
+	mw := &msgWriter{writer: &buf, charset: CharsetUTF8, encoder: mime.QEncoding}
 	mw.writeMsg(m)
 	ms := buf.String()
 	if !strings.Contains(ms, `encrypted; protocol="application/pgp-encrypted"`) {
@@ -147,7 +147,7 @@ func TestMsgWriter_writeMsg_PGP(t *testing.T) {
 	m.Subject("This is a subject")
 	m.SetBodyString(TypeTextPlain, "This is the body")
 	buf = bytes.Buffer{}
-	mw = &msgWriter{w: &buf, c: CharsetUTF8, en: mime.QEncoding}
+	mw = &msgWriter{writer: &buf, charset: CharsetUTF8, encoder: mime.QEncoding}
 	mw.writeMsg(m)
 	ms = buf.String()
 	if !strings.Contains(ms, `signed; protocol="application/pgp-signature"`) {

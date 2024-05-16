@@ -35,237 +35,241 @@ const DoubleNewLine = "\r\n\r\n"
 
 // msgWriter handles the I/O to the io.WriteCloser of the SMTP client
 type msgWriter struct {
-	c   Charset
-	d   int8
-	en  mime.WordEncoder
-	err error
-	mpw [3]*multipart.Writer
-	n   int64
-	pw  io.Writer
-	w   io.Writer
+	bytesWritten    int64
+	charset         Charset
+	depth           int8
+	encoder         mime.WordEncoder
+	err             error
+	multiPartWriter [3]*multipart.Writer
+	partWriter      io.Writer
+	writer          io.Writer
 }
 
 // Write implements the io.Writer interface for msgWriter
-func (mw *msgWriter) Write(p []byte) (int, error) {
+func (mw *msgWriter) Write(payload []byte) (int, error) {
 	if mw.err != nil {
 		return 0, fmt.Errorf("failed to write due to previous error: %w", mw.err)
 	}
 
 	var n int
-	n, mw.err = mw.w.Write(p)
-	mw.n += int64(n)
+	n, mw.err = mw.writer.Write(payload)
+	mw.bytesWritten += int64(n)
 	return n, mw.err
 }
 
 // writeMsg formats the message and sends it to its io.Writer
-func (mw *msgWriter) writeMsg(m *Msg) {
-	m.addDefaultHeader()
-	m.checkUserAgent()
-	mw.writeGenHeader(m)
-	mw.writePreformattedGenHeader(m)
+func (mw *msgWriter) writeMsg(msg *Msg) {
+	msg.addDefaultHeader()
+	msg.checkUserAgent()
+	mw.writeGenHeader(msg)
+	mw.writePreformattedGenHeader(msg)
 
 	// Set the FROM header (or envelope FROM if FROM is empty)
-	hf := true
-	f, ok := m.addrHeader[HeaderFrom]
-	if !ok || (len(f) == 0 || f == nil) {
-		f, ok = m.addrHeader[HeaderEnvelopeFrom]
-		if !ok || (len(f) == 0 || f == nil) {
-			hf = false
+	hasFrom := true
+	from, ok := msg.addrHeader[HeaderFrom]
+	if !ok || (len(from) == 0 || from == nil) {
+		from, ok = msg.addrHeader[HeaderEnvelopeFrom]
+		if !ok || (len(from) == 0 || from == nil) {
+			hasFrom = false
 		}
 	}
-	if hf && (len(f) > 0 && f[0] != nil) {
-		mw.writeHeader(Header(HeaderFrom), f[0].String())
+	if hasFrom && (len(from) > 0 && from[0] != nil) {
+		mw.writeHeader(Header(HeaderFrom), from[0].String())
 	}
 
 	// Set the rest of the address headers
-	for _, t := range []AddrHeader{HeaderTo, HeaderCc} {
-		if al, ok := m.addrHeader[t]; ok {
-			var v []string
-			for _, a := range al {
-				v = append(v, a.String())
+	for _, to := range []AddrHeader{HeaderTo, HeaderCc} {
+		if addresses, ok := msg.addrHeader[to]; ok {
+			var val []string
+			for _, addr := range addresses {
+				val = append(val, addr.String())
 			}
-			mw.writeHeader(Header(t), v...)
+			mw.writeHeader(Header(to), val...)
 		}
 	}
 
-	if m.hasMixed() {
-		mw.startMP("mixed", m.boundary)
+	if msg.hasMixed() {
+		mw.startMP("mixed", msg.boundary)
 		mw.writeString(DoubleNewLine)
 	}
-	if m.hasRelated() {
-		mw.startMP("related", m.boundary)
+	if msg.hasRelated() {
+		mw.startMP("related", msg.boundary)
 		mw.writeString(DoubleNewLine)
 	}
-	if m.hasAlt() {
-		mw.startMP(MIMEAlternative, m.boundary)
+	if msg.hasAlt() {
+		mw.startMP(MIMEAlternative, msg.boundary)
 		mw.writeString(DoubleNewLine)
 	}
-	if m.hasPGPType() {
-		switch m.pgptype {
+	if msg.hasPGPType() {
+		switch msg.pgptype {
 		case PGPEncrypt:
-			mw.startMP(`encrypted; protocol="application/pgp-encrypted"`, m.boundary)
+			mw.startMP(`encrypted; protocol="application/pgp-encrypted"`,
+				msg.boundary)
 		case PGPSignature:
-			mw.startMP(`signed; protocol="application/pgp-signature";`, m.boundary)
+			mw.startMP(`signed; protocol="application/pgp-signature";`,
+				msg.boundary)
+		default:
 		}
 		mw.writeString(DoubleNewLine)
 	}
 
-	for _, p := range m.parts {
-		if !p.del {
-			mw.writePart(p, m.charset)
+	for _, part := range msg.parts {
+		if !part.isDeleted {
+			mw.writePart(part, msg.charset)
 		}
 	}
 
-	if m.hasAlt() {
+	if msg.hasAlt() {
 		mw.stopMP()
 	}
 
 	// Add embeds
-	mw.addFiles(m.embeds, false)
-	if m.hasRelated() {
+	mw.addFiles(msg.embeds, false)
+	if msg.hasRelated() {
 		mw.stopMP()
 	}
 
 	// Add attachments
-	mw.addFiles(m.attachments, true)
-	if m.hasMixed() {
+	mw.addFiles(msg.attachments, true)
+	if msg.hasMixed() {
 		mw.stopMP()
 	}
 }
 
 // writeGenHeader writes out all generic headers to the msgWriter
-func (mw *msgWriter) writeGenHeader(m *Msg) {
-	gk := make([]string, 0, len(m.genHeader))
-	for k := range m.genHeader {
-		gk = append(gk, string(k))
+func (mw *msgWriter) writeGenHeader(msg *Msg) {
+	keys := make([]string, 0, len(msg.genHeader))
+	for key := range msg.genHeader {
+		keys = append(keys, string(key))
 	}
-	sort.Strings(gk)
-	for _, k := range gk {
-		mw.writeHeader(Header(k), m.genHeader[Header(k)]...)
+	sort.Strings(keys)
+	for _, key := range keys {
+		mw.writeHeader(Header(key), msg.genHeader[Header(key)]...)
 	}
 }
 
 // writePreformatedHeader writes out all preformated generic headers to the msgWriter
-func (mw *msgWriter) writePreformattedGenHeader(m *Msg) {
-	for k, v := range m.preformHeader {
-		mw.writeString(fmt.Sprintf("%s: %s%s", k, v, SingleNewLine))
+func (mw *msgWriter) writePreformattedGenHeader(msg *Msg) {
+	for key, val := range msg.preformHeader {
+		mw.writeString(fmt.Sprintf("%s: %s%s", key, val, SingleNewLine))
 	}
 }
 
 // startMP writes a multipart beginning
-func (mw *msgWriter) startMP(mt MIMEType, b string) {
-	mp := multipart.NewWriter(mw)
-	if b != "" {
-		mw.err = mp.SetBoundary(b)
+func (mw *msgWriter) startMP(mimeType MIMEType, boundary string) {
+	multiPartWriter := multipart.NewWriter(mw)
+	if boundary != "" {
+		mw.err = multiPartWriter.SetBoundary(boundary)
 	}
 
-	ct := fmt.Sprintf("multipart/%s;\r\n boundary=%s", mt, mp.Boundary())
-	mw.mpw[mw.d] = mp
+	contentType := fmt.Sprintf("multipart/%s;\r\n boundary=%s", mimeType,
+		multiPartWriter.Boundary())
+	mw.multiPartWriter[mw.depth] = multiPartWriter
 
-	if mw.d == 0 {
-		mw.writeString(fmt.Sprintf("%s: %s", HeaderContentType, ct))
+	if mw.depth == 0 {
+		mw.writeString(fmt.Sprintf("%s: %s", HeaderContentType, contentType))
 	}
-	if mw.d > 0 {
-		mw.newPart(map[string][]string{"Content-Type": {ct}})
+	if mw.depth > 0 {
+		mw.newPart(map[string][]string{"Content-Type": {contentType}})
 	}
-	mw.d++
+	mw.depth++
 }
 
 // stopMP closes the multipart
 func (mw *msgWriter) stopMP() {
-	if mw.d > 0 {
-		mw.err = mw.mpw[mw.d-1].Close()
-		mw.d--
+	if mw.depth > 0 {
+		mw.err = mw.multiPartWriter[mw.depth-1].Close()
+		mw.depth--
 	}
 }
 
 // addFiles adds the attachments/embeds file content to the mail body
-func (mw *msgWriter) addFiles(fl []*File, a bool) {
-	for _, f := range fl {
-		e := EncodingB64
-		if _, ok := f.getHeader(HeaderContentType); !ok {
-			mt := mime.TypeByExtension(filepath.Ext(f.Name))
-			if mt == "" {
-				mt = "application/octet-stream"
+func (mw *msgWriter) addFiles(files []*File, isAttachment bool) {
+	for _, file := range files {
+		encoding := EncodingB64
+		if _, ok := file.getHeader(HeaderContentType); !ok {
+			mimeType := mime.TypeByExtension(filepath.Ext(file.Name))
+			if mimeType == "" {
+				mimeType = "application/octet-stream"
 			}
-			if f.ContentType != "" {
-				mt = string(f.ContentType)
+			if file.ContentType != "" {
+				mimeType = string(file.ContentType)
 			}
-			f.setHeader(HeaderContentType, fmt.Sprintf(`%s; name="%s"`, mt,
-				mw.en.Encode(mw.c.String(), f.Name)))
+			file.setHeader(HeaderContentType, fmt.Sprintf(`%s; name="%s"`, mimeType,
+				mw.encoder.Encode(mw.charset.String(), file.Name)))
 		}
 
-		if _, ok := f.getHeader(HeaderContentTransferEnc); !ok {
-			if f.Enc != "" {
-				e = f.Enc
+		if _, ok := file.getHeader(HeaderContentTransferEnc); !ok {
+			if file.Enc != "" {
+				encoding = file.Enc
 			}
-			f.setHeader(HeaderContentTransferEnc, string(e))
+			file.setHeader(HeaderContentTransferEnc, string(encoding))
 		}
 
-		if f.Desc != "" {
-			if _, ok := f.getHeader(HeaderContentDescription); !ok {
-				f.setHeader(HeaderContentDescription, f.Desc)
+		if file.Desc != "" {
+			if _, ok := file.getHeader(HeaderContentDescription); !ok {
+				file.setHeader(HeaderContentDescription, file.Desc)
 			}
 		}
 
-		if _, ok := f.getHeader(HeaderContentDisposition); !ok {
-			d := "inline"
-			if a {
-				d = "attachment"
+		if _, ok := file.getHeader(HeaderContentDisposition); !ok {
+			disposition := "inline"
+			if isAttachment {
+				disposition = "attachment"
 			}
-			f.setHeader(HeaderContentDisposition, fmt.Sprintf(`%s; filename="%s"`, d,
-				mw.en.Encode(mw.c.String(), f.Name)))
+			file.setHeader(HeaderContentDisposition, fmt.Sprintf(`%s; filename="%s"`,
+				disposition, mw.encoder.Encode(mw.charset.String(), file.Name)))
 		}
 
-		if !a {
-			if _, ok := f.getHeader(HeaderContentID); !ok {
-				f.setHeader(HeaderContentID, fmt.Sprintf("<%s>", f.Name))
+		if !isAttachment {
+			if _, ok := file.getHeader(HeaderContentID); !ok {
+				file.setHeader(HeaderContentID, fmt.Sprintf("<%s>", file.Name))
 			}
 		}
-		if mw.d == 0 {
-			for h, v := range f.Header {
-				mw.writeHeader(Header(h), v...)
+		if mw.depth == 0 {
+			for header, val := range file.Header {
+				mw.writeHeader(Header(header), val...)
 			}
 			mw.writeString(SingleNewLine)
 		}
-		if mw.d > 0 {
-			mw.newPart(f.Header)
+		if mw.depth > 0 {
+			mw.newPart(file.Header)
 		}
 
 		if mw.err == nil {
-			mw.writeBody(f.Writer, e)
+			mw.writeBody(file.Writer, encoding)
 		}
 	}
 }
 
 // newPart creates a new MIME multipart io.Writer and sets the partwriter to it
-func (mw *msgWriter) newPart(h map[string][]string) {
-	mw.pw, mw.err = mw.mpw[mw.d-1].CreatePart(h)
+func (mw *msgWriter) newPart(header map[string][]string) {
+	mw.partWriter, mw.err = mw.multiPartWriter[mw.depth-1].CreatePart(header)
 }
 
 // writePart writes the corresponding part to the Msg body
-func (mw *msgWriter) writePart(p *Part, cs Charset) {
-	pcs := p.cset
-	if pcs.String() == "" {
-		pcs = cs
+func (mw *msgWriter) writePart(part *Part, charset Charset) {
+	partCharset := part.charset
+	if partCharset.String() == "" {
+		partCharset = charset
 	}
-	ct := fmt.Sprintf("%s; charset=%s", p.ctype, pcs)
-	cte := p.enc.String()
-	if mw.d == 0 {
-		mw.writeHeader(HeaderContentType, ct)
-		mw.writeHeader(HeaderContentTransferEnc, cte)
+	contentType := fmt.Sprintf("%s; charset=%s", part.contentType, partCharset)
+	contentTransferEnc := part.encoding.String()
+	if mw.depth == 0 {
+		mw.writeHeader(HeaderContentType, contentType)
+		mw.writeHeader(HeaderContentTransferEnc, contentTransferEnc)
 		mw.writeString(SingleNewLine)
 	}
-	if mw.d > 0 {
-		mh := textproto.MIMEHeader{}
-		if p.desc != "" {
-			mh.Add(string(HeaderContentDescription), p.desc)
+	if mw.depth > 0 {
+		mimeHeader := textproto.MIMEHeader{}
+		if part.description != "" {
+			mimeHeader.Add(string(HeaderContentDescription), part.description)
 		}
-		mh.Add(string(HeaderContentType), ct)
-		mh.Add(string(HeaderContentTransferEnc), cte)
-		mw.newPart(mh)
+		mimeHeader.Add(string(HeaderContentType), contentType)
+		mimeHeader.Add(string(HeaderContentTransferEnc), contentTransferEnc)
+		mw.newPart(mimeHeader)
 	}
-	mw.writeBody(p.w, p.enc)
+	mw.writeBody(part.writeFunc, part.encoding)
 }
 
 // writeString writes a string into the msgWriter's io.Writer interface
@@ -274,102 +278,103 @@ func (mw *msgWriter) writeString(s string) {
 		return
 	}
 	var n int
-	n, mw.err = io.WriteString(mw.w, s)
-	mw.n += int64(n)
+	n, mw.err = io.WriteString(mw.writer, s)
+	mw.bytesWritten += int64(n)
 }
 
 // writeHeader writes a header into the msgWriter's io.Writer
-func (mw *msgWriter) writeHeader(k Header, vl ...string) {
-	wbuf := bytes.Buffer{}
-	cl := MaxHeaderLength - 2
-	wbuf.WriteString(string(k))
-	cl -= len(k)
-	if len(vl) == 0 {
-		wbuf.WriteString(":\r\n")
+func (mw *msgWriter) writeHeader(key Header, values ...string) {
+	buffer := strings.Builder{}
+	charLength := MaxHeaderLength - 2
+	buffer.WriteString(string(key))
+	charLength -= len(key)
+	if len(values) == 0 {
+		buffer.WriteString(":\r\n")
 		return
 	}
-	wbuf.WriteString(": ")
-	cl -= 2
+	buffer.WriteString(": ")
+	charLength -= 2
 
-	fs := strings.Join(vl, ", ")
-	sfs := strings.Split(fs, " ")
-	for i, v := range sfs {
-		if cl-len(v) <= 1 {
-			wbuf.WriteString(fmt.Sprintf("%s ", SingleNewLine))
-			cl = MaxHeaderLength - 3
+	fullValueStr := strings.Join(values, ", ")
+	words := strings.Split(fullValueStr, " ")
+	for i, val := range words {
+		if charLength-len(val) <= 1 {
+			buffer.WriteString(fmt.Sprintf("%s ", SingleNewLine))
+			charLength = MaxHeaderLength - 3
 		}
-		wbuf.WriteString(v)
-		if i < len(sfs)-1 {
-			wbuf.WriteString(" ")
-			cl -= 1
+		buffer.WriteString(val)
+		if i < len(words)-1 {
+			buffer.WriteString(" ")
+			charLength -= 1
 		}
-		cl -= len(v)
+		charLength -= len(val)
 	}
 
-	bufs := wbuf.String()
-	bufs = strings.ReplaceAll(bufs, fmt.Sprintf(" %s", SingleNewLine), SingleNewLine)
-	mw.writeString(bufs)
+	bufferString := buffer.String()
+	bufferString = strings.ReplaceAll(bufferString, fmt.Sprintf(" %s", SingleNewLine),
+		SingleNewLine)
+	mw.writeString(bufferString)
 	mw.writeString("\r\n")
 }
 
 // writeBody writes an io.Reader into an io.Writer using provided Encoding
-func (mw *msgWriter) writeBody(f func(io.Writer) (int64, error), e Encoding) {
-	var w io.Writer
-	var ew io.WriteCloser
+func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encoding Encoding) {
+	var writer io.Writer
+	var encodedWriter io.WriteCloser
 	var n int64
 	var err error
-	if mw.d == 0 {
-		w = mw.w
+	if mw.depth == 0 {
+		writer = mw.writer
 	}
-	if mw.d > 0 {
-		w = mw.pw
+	if mw.depth > 0 {
+		writer = mw.partWriter
 	}
-	wbuf := bytes.Buffer{}
-	lb := Base64LineBreaker{}
-	lb.out = &wbuf
+	writeBuffer := bytes.Buffer{}
+	lineBreaker := Base64LineBreaker{}
+	lineBreaker.out = &writeBuffer
 
-	switch e {
+	switch encoding {
 	case EncodingQP:
-		ew = quotedprintable.NewWriter(&wbuf)
+		encodedWriter = quotedprintable.NewWriter(&writeBuffer)
 	case EncodingB64:
-		ew = base64.NewEncoder(base64.StdEncoding, &lb)
+		encodedWriter = base64.NewEncoder(base64.StdEncoding, &lineBreaker)
 	case NoEncoding:
-		_, err = f(&wbuf)
+		_, err = writeFunc(&writeBuffer)
 		if err != nil {
 			mw.err = fmt.Errorf("bodyWriter function: %w", err)
 		}
-		n, err = io.Copy(w, &wbuf)
+		n, err = io.Copy(writer, &writeBuffer)
 		if err != nil && mw.err == nil {
 			mw.err = fmt.Errorf("bodyWriter io.Copy: %w", err)
 		}
-		if mw.d == 0 {
-			mw.n += n
+		if mw.depth == 0 {
+			mw.bytesWritten += n
 		}
 		return
 	default:
-		ew = quotedprintable.NewWriter(w)
+		encodedWriter = quotedprintable.NewWriter(writer)
 	}
 
-	_, err = f(ew)
+	_, err = writeFunc(encodedWriter)
 	if err != nil {
 		mw.err = fmt.Errorf("bodyWriter function: %w", err)
 	}
-	err = ew.Close()
+	err = encodedWriter.Close()
 	if err != nil && mw.err == nil {
 		mw.err = fmt.Errorf("bodyWriter close encoded writer: %w", err)
 	}
-	err = lb.Close()
+	err = lineBreaker.Close()
 	if err != nil && mw.err == nil {
 		mw.err = fmt.Errorf("bodyWriter close linebreaker: %w", err)
 	}
-	n, err = io.Copy(w, &wbuf)
+	n, err = io.Copy(writer, &writeBuffer)
 	if err != nil && mw.err == nil {
 		mw.err = fmt.Errorf("bodyWriter io.Copy: %w", err)
 	}
 
 	// Since the part writer uses the WriteTo() method, we don't need to add the
 	// bytes twice
-	if mw.d == 0 {
-		mw.n += n
+	if mw.depth == 0 {
+		mw.bytesWritten += n
 	}
 }

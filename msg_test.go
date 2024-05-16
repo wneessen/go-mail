@@ -1251,7 +1251,7 @@ func TestMsg_SetBodyString(t *testing.T) {
 			}
 			part := m.parts[0]
 			res := bytes.Buffer{}
-			if _, err := part.w(&res); err != nil && !tt.sf {
+			if _, err := part.writeFunc(&res); err != nil && !tt.sf {
 				t.Errorf("WriteFunc of part failed: %s", err)
 			}
 			if res.String() != tt.want {
@@ -1286,7 +1286,7 @@ func TestMsg_AddAlternativeString(t *testing.T) {
 			}
 			apart := m.parts[1]
 			res := bytes.Buffer{}
-			if _, err := apart.w(&res); err != nil && !tt.sf {
+			if _, err := apart.writeFunc(&res); err != nil && !tt.sf {
 				t.Errorf("WriteFunc of part failed: %s", err)
 			}
 			if res.String() != tt.want {
@@ -3160,4 +3160,90 @@ func TestMsg_BccFromString(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestMsg_checkUserAgent tests the checkUserAgent method of the Msg
+func TestMsg_checkUserAgent(t *testing.T) {
+	tests := []struct {
+		name               string
+		noDefaultUserAgent bool
+		genHeader          map[Header][]string
+		wantUserAgent      string
+		sf                 bool
+	}{
+		{
+			name:               "check default user agent",
+			noDefaultUserAgent: false,
+			wantUserAgent:      fmt.Sprintf("go-mail v%s // https://github.com/wneessen/go-mail", VERSION),
+			sf:                 false,
+		},
+		{
+			name:               "check no default user agent",
+			noDefaultUserAgent: true,
+			wantUserAgent:      "",
+			sf:                 true,
+		},
+		{
+			name:               "check if ua and xm is already set",
+			noDefaultUserAgent: false,
+			genHeader: map[Header][]string{
+				HeaderUserAgent: {"custom UA"},
+				HeaderXMailer:   {"custom XM"},
+			},
+			wantUserAgent: "custom UA",
+			sf:            false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msg := &Msg{
+				noDefaultUserAgent: tt.noDefaultUserAgent,
+				genHeader:          tt.genHeader,
+			}
+			msg.checkUserAgent()
+			gotUserAgent := ""
+			if val, ok := msg.genHeader[HeaderUserAgent]; ok {
+				gotUserAgent = val[0] // Assuming the first one is the needed value
+			}
+			if gotUserAgent != tt.wantUserAgent && !tt.sf {
+				t.Errorf("UserAgent got = %v, want = %v", gotUserAgent, tt.wantUserAgent)
+			}
+		})
+	}
+}
+
+// TestNewMsgWithMIMEVersion tests WithMIMEVersion and Msg.SetMIMEVersion
+func TestNewMsgWithNoDefaultUserAgent(t *testing.T) {
+	m := NewMsg(WithNoDefaultUserAgent())
+	if m.noDefaultUserAgent != true {
+		t.Errorf("WithNoDefaultUserAgent() failed. Expected: %t, got: %t", true, false)
+	}
+}
+
+// Fuzzing tests
+func FuzzMsg_Subject(f *testing.F) {
+	f.Add("Testsubject")
+	f.Add("")
+	f.Add("This is a longer test subject.")
+	f.Add("Let's add some umlauts: üäöß")
+	f.Add("Or even emojis: ☝️💪👍")
+	f.Fuzz(func(t *testing.T, data string) {
+		m := NewMsg()
+		m.Subject(data)
+		m.Reset()
+	})
+}
+
+func FuzzMsg_From(f *testing.F) {
+	f.Add("Toni Tester <toni@tester.com>")
+	f.Add("<tester@example.com>")
+	f.Add("mail@server.com")
+	f.Fuzz(func(t *testing.T, data string) {
+		m := NewMsg()
+		if err := m.From(data); err != nil &&
+			!strings.Contains(err.Error(), "failed to parse mail address") {
+			t.Errorf("failed set set FROM address: %s", err)
+		}
+		m.Reset()
+	})
 }
