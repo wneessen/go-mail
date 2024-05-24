@@ -1042,12 +1042,12 @@ func TestSendMail(t *testing.T) {
 
 		tc := textproto.NewConn(conn)
 		for i := 0; i < len(data) && data[i] != ""; i++ {
-			if err := tc.PrintfLine(data[i]); err != nil {
+			if err := tc.PrintfLine("%s", data[i]); err != nil {
 				t.Errorf("printing to textproto failed: %s", err)
 			}
 			for len(data[i]) >= 4 && data[i][3] == '-' {
 				i++
-				if err := tc.PrintfLine(data[i]); err != nil {
+				if err := tc.PrintfLine("%s", data[i]); err != nil {
 					t.Errorf("printing to textproto failed: %s", err)
 				}
 			}
