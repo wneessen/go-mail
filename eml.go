@@ -112,26 +112,8 @@ func parseEMLHeaders(mailHeader *netmail.Header, msg *Msg) error {
 	}
 
 	// Extract content type, charset and encoding first
-	if value := mailHeader.Get(HeaderContentTransferEnc.String()); value != "" {
-		switch {
-		case strings.EqualFold(value, EncodingQP.String()):
-			msg.SetEncoding(EncodingQP)
-		case strings.EqualFold(value, EncodingB64.String()):
-			msg.SetEncoding(EncodingB64)
-		default:
-			msg.SetEncoding(NoEncoding)
-		}
-	}
-	if value := mailHeader.Get(HeaderContentType.String()); value != "" {
-		contentType, charSet := parseContentType(value)
-		if charSet != "" {
-			msg.SetCharset(Charset(charSet))
-		}
-		msg.setEncoder()
-		if contentType != "" {
-			msg.SetGenHeader(HeaderContentType, contentType)
-		}
-	}
+	parseEMLEncoding(mailHeader, msg)
+	parseEMLContentTypeCharset(mailHeader, msg)
 
 	// Extract address headers
 	if value := mailHeader.Get(HeaderFrom.String()); value != "" {
@@ -295,6 +277,34 @@ func parseEMLMultipartAlternative(params map[string]string, bodybuf *bytes.Buffe
 		return fmt.Errorf("failed to read multipart: %w", err)
 	}
 	return nil
+}
+
+// parseEMLEncoding parses and determines the encoding of the message
+func parseEMLEncoding(mailHeader *netmail.Header, msg *Msg) {
+	if value := mailHeader.Get(HeaderContentTransferEnc.String()); value != "" {
+		switch {
+		case strings.EqualFold(value, EncodingQP.String()):
+			msg.SetEncoding(EncodingQP)
+		case strings.EqualFold(value, EncodingB64.String()):
+			msg.SetEncoding(EncodingB64)
+		default:
+			msg.SetEncoding(NoEncoding)
+		}
+	}
+}
+
+// parseEMLContentTypeCharset parses and determines the charset and content type of the message
+func parseEMLContentTypeCharset(mailHeader *netmail.Header, msg *Msg) {
+	if value := mailHeader.Get(HeaderContentType.String()); value != "" {
+		contentType, charSet := parseContentType(value)
+		if charSet != "" {
+			msg.SetCharset(Charset(charSet))
+		}
+		msg.setEncoder()
+		if contentType != "" {
+			msg.SetGenHeader(HeaderContentType, contentType)
+		}
+	}
 }
 
 // handleEMLMultiPartBase64Encoding sets the content body of a base64 encoded Part
