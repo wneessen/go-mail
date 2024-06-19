@@ -184,8 +184,8 @@ func parseEMLBodyParts(parsedMsg *netmail.Message, bodybuf *bytes.Buffer, msg *M
 			return fmt.Errorf("failed to parse plain body: %w", err)
 		}
 	case strings.EqualFold(mediatype, TypeMultipartAlternative.String()),
-		strings.EqualFold(mediatype, "multipart/mixed"):
-		if err = parseEMLMultipartAlternative(params, bodybuf, msg); err != nil {
+		strings.EqualFold(mediatype, TypeMultipartMixed.String()):
+		if err = parseEMLMultipart(params, bodybuf, msg); err != nil {
 			return fmt.Errorf("failed to parse multipart/alternative body: %w", err)
 		}
 	default:
@@ -224,8 +224,8 @@ func parseEMLBodyPlain(mediatype string, parsedMsg *netmail.Message, bodybuf *by
 	return fmt.Errorf("unsupported Content-Transfer-Encoding")
 }
 
-// parseEMLMultipartAlternative parses a multipart/alternative body part of a EML
-func parseEMLMultipartAlternative(params map[string]string, bodybuf *bytes.Buffer, msg *Msg) error {
+// parseEMLMultipart parses a multipart body part of a EML
+func parseEMLMultipart(params map[string]string, bodybuf *bytes.Buffer, msg *Msg) error {
 	boundary, ok := params["boundary"]
 	if !ok {
 		return fmt.Errorf("no boundary tag found in multipart body")
@@ -236,6 +236,16 @@ func parseEMLMultipartAlternative(params map[string]string, bodybuf *bytes.Buffe
 		return fmt.Errorf("failed to get next part of multipart message: %w", err)
 	}
 	for err == nil {
+		if contentDisposition, ok := multiPart.Header[HeaderContentDisposition.String()]; ok {
+			cdType, optional := parseMultiPartHeader(contentDisposition[0])
+			fmt.Println("CTD:", cdType)
+			fmt.Printf("optional: %+v\n", optional)
+			if err = msg.AttachReader("", multiPart); err != nil {
+				return fmt.Errorf("failed to attach multipart body: %w", err)
+			}
+			return nil
+		}
+
 		multiPartData, mperr := io.ReadAll(multiPart)
 		if mperr != nil {
 			_ = multiPart.Close()
@@ -246,9 +256,11 @@ func parseEMLMultipartAlternative(params map[string]string, bodybuf *bytes.Buffe
 		if !ok {
 			return fmt.Errorf("failed to get content-type from part")
 		}
-		contentType, charSet := parseContentType(multiPartContentType[0])
-		p := msg.newPart(ContentType(contentType))
-		p.SetCharset(Charset(charSet))
+		contentType, optional := parseMultiPartHeader(multiPartContentType[0])
+		part := msg.newPart(ContentType(contentType))
+		if charset, ok := optional["charset"]; ok {
+			part.SetCharset(Charset(charset))
+		}
 
 		mutliPartTransferEnc, ok := multiPart.Header[HeaderContentTransferEnc.String()]
 		if !ok {
@@ -260,16 +272,16 @@ func parseEMLMultipartAlternative(params map[string]string, bodybuf *bytes.Buffe
 
 		switch {
 		case strings.EqualFold(mutliPartTransferEnc[0], EncodingB64.String()):
-			if err := handleEMLMultiPartBase64Encoding(multiPartData, p); err != nil {
+			if err := handleEMLMultiPartBase64Encoding(multiPartData, part); err != nil {
 				return fmt.Errorf("failed to handle multipart base64 transfer-encoding: %w", err)
 			}
 		case strings.EqualFold(mutliPartTransferEnc[0], EncodingQP.String()):
-			p.SetContent(string(multiPartData))
+			part.SetContent(string(multiPartData))
 		default:
 			return fmt.Errorf("unsupported Content-Transfer-Encoding")
 		}
 
-		msg.parts = append(msg.parts, p)
+		msg.parts = append(msg.parts, part)
 		multiPart, err = multipartReader.NextPart()
 	}
 	if !errors.Is(err, io.EOF) {
@@ -296,9 +308,9 @@ func parseEMLEncoding(mailHeader *netmail.Header, msg *Msg) {
 // parseEMLContentTypeCharset parses and determines the charset and content type of the message
 func parseEMLContentTypeCharset(mailHeader *netmail.Header, msg *Msg) {
 	if value := mailHeader.Get(HeaderContentType.String()); value != "" {
-		contentType, charSet := parseContentType(value)
-		if charSet != "" {
-			msg.SetCharset(Charset(charSet))
+		contentType, optional := parseMultiPartHeader(value)
+		if charset, ok := optional["charset"]; ok {
+			msg.SetCharset(Charset(charset))
 		}
 		msg.setEncoder()
 		if contentType != "" {
@@ -318,18 +330,16 @@ func handleEMLMultiPartBase64Encoding(multiPartData []byte, part *Part) error {
 	return nil
 }
 
-// parseContentType parses the Content-Type header and returns the type and charse as
-// separate string values
-func parseContentType(contentTypeHeader string) (contentType string, charSet string) {
-	contentTypeSplit := strings.SplitN(contentTypeHeader, "; ", 2)
-	if len(contentTypeSplit) != 2 {
-		return
-	}
-	contentType = contentTypeSplit[0]
-	if strings.HasPrefix(strings.ToLower(contentTypeSplit[1]), "charset=") {
-		charSetSplit := strings.SplitN(contentTypeSplit[1], "=", 2)
-		if len(charSetSplit) == 2 {
-			charSet = charSetSplit[1]
+// parseMultiPartHeader parses a multipart header and returns the value and optional parts as
+// separate map
+func parseMultiPartHeader(multiPartHeader string) (header string, optional map[string]string) {
+	optional = make(map[string]string)
+	headerSplit := strings.SplitN(multiPartHeader, "; ", 2)
+	header = headerSplit[0]
+	if len(headerSplit) == 2 {
+		optSplit := strings.SplitN(headerSplit[1], "=", 2)
+		if len(optSplit) == 2 {
+			optional[optSplit[0]] = optSplit[1]
 		}
 	}
 	return
