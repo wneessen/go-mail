@@ -5,6 +5,8 @@
 package mail
 
 import (
+	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -143,15 +145,68 @@ func TestEMLToMsgFromString(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m, err := EMLToMsgFromString(tt.eml)
+			msg, err := EMLToMsgFromString(tt.eml)
 			if err != nil {
-				t.Errorf("failed to parse EML: %s", err)
+				t.Errorf("failed to parse EML: %subject", err)
 			}
-			if m.Encoding() != tt.enc {
-				t.Errorf("EMLToMsgFromString failed: expected encoding: %s, but got: %s", tt.enc, m.Encoding())
+			if msg.Encoding() != tt.enc {
+				t.Errorf("EMLToMsgFromString failed: expected encoding: %subject, but got: %subject", tt.enc, msg.Encoding())
 			}
-			if s := m.GetGenHeader(HeaderSubject); len(s) > 0 && !strings.EqualFold(s[0], tt.sub) {
-				t.Errorf("EMLToMsgFromString failed: expected subject: %s, but got: %s", tt.sub, s[0])
+			if subject := msg.GetGenHeader(HeaderSubject); len(subject) > 0 && !strings.EqualFold(subject[0], tt.sub) {
+				t.Errorf("EMLToMsgFromString failed: expected subject: %subject, but got: %subject",
+					tt.sub, subject[0])
+			}
+		})
+	}
+}
+
+func TestEMLToMsgFromFile(t *testing.T) {
+	tests := []struct {
+		name string
+		eml  string
+		enc  string
+		sub  string
+	}{
+		{
+			"Plain text no encoding", exampleMailPlainNoEnc, "8bit",
+			"Example mail // plain text without encoding",
+		},
+		{
+			"Plain text quoted-printable", exampleMailPlainQP, "quoted-printable",
+			"Example mail // plain text quoted-printable",
+		},
+		{
+			"Plain text base64", exampleMailPlainB64, "base64",
+			"Example mail // plain text base64",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir, err := os.MkdirTemp("", fmt.Sprintf("*-%s", tt.name))
+			if err != nil {
+				t.Errorf("failed to create temp dir: %s", err)
+				return
+			}
+			defer func() {
+				if err = os.RemoveAll(tempDir); err != nil {
+					t.Error("failed to remove temp dir:", err)
+				}
+			}()
+			err = os.WriteFile(fmt.Sprintf("%s/%s.eml", tempDir, tt.name), []byte(tt.eml), 0666)
+			if err != nil {
+				t.Error("failed to write mail to temp file:", err)
+				return
+			}
+			msg, err := EMLToMsgFromFile(fmt.Sprintf("%s/%s.eml", tempDir, tt.name))
+			if err != nil {
+				t.Errorf("failed to parse EML: %subject", err)
+			}
+			if msg.Encoding() != tt.enc {
+				t.Errorf("EMLToMsgFromString failed: expected encoding: %subject, but got: %subject", tt.enc, msg.Encoding())
+			}
+			if subject := msg.GetGenHeader(HeaderSubject); len(subject) > 0 && !strings.EqualFold(subject[0], tt.sub) {
+				t.Errorf("EMLToMsgFromString failed: expected subject: %subject, but got: %subject",
+					tt.sub, subject[0])
 			}
 		})
 	}
