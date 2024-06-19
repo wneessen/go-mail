@@ -365,6 +365,5 @@ func parseEMLAttachmentEmbed(contentDisposition []string, multiPart *multipart.P
 			return fmt.Errorf("failed to embed multipart body: %w", err)
 		}
 	}
-	fmt.Printf("FOUND Content: %s\n", cdType)
 	return nil
 }

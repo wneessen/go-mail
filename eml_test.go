@@ -121,6 +121,37 @@ RGVhciBDdXN0b21lciwKClRoaXMgaXMgYSB0ZXN0IG1haWwuIFBsZWFzZSBkbyBub3QgcmVwbHkg
 dG8gdGhpcy4gQWxzbyB0aGlzIGxpbmUgaXMgdmVyeSBsb25nIHNvIGl0CnNob3VsZCBiZSB3cmFw
 cGVkLgoKClRoYW5rIHlvdXIgZm9yIHlvdXIgYnVzaW5lc3MhClRoZSBnby1tYWlsIHRlYW0KCi0t
 ClRoaXMgaXMgYSBzaWduYXR1cmU=`
+	exampleMailPlainB64WithAttachment = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // plain text base64 with attachment
+User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: multipart/mixed;
+ boundary=45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+Content-Transfer-Encoding: base64
+Content-Type: text/plain; charset=UTF-8
+
+RGVhciBDdXN0b21lciwKClRoaXMgaXMgYSB0ZXN0IG1haWwuIFBsZWFzZSBkbyBub3QgcmVwbHkg
+dG8gdGhpcy4gQWxzbyB0aGlzIGxpbmUgaXMgdmVyeSBsb25nIHNvIGl0CnNob3VsZCBiZSB3cmFw
+cGVkLgoKClRoYW5rIHlvdXIgZm9yIHlvdXIgYnVzaW5lc3MhClRoZSBnby1tYWlsIHRlYW0KCi0t
+ClRoaXMgaXMgYSBzaWduYXR1cmU=
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+Content-Disposition: attachment; filename="test.attachment"
+Content-Transfer-Encoding: base64
+Content-Type: application/octet-stream; name="test.attachment"
+
+VGhpcyBpcyBhIHNpbXBsZSB0ZXN0IHRleHQgZmlsZSBhdHRhY2htZW50LgoKSXQgCiAgaGFzCiAg
+ICAgc2V2ZXJhbAogICAgICAgICAgICBuZXdsaW5lcwoJICAgICAgICAgICAgYW5kCgkgICAgc3Bh
+Y2VzCiAgICAgaW4KICBpdAouCgpBcyB3ZWxsIGFzIGFuIGVtb2ppOiDwn5mCCg==
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7--`
 )
 
 func TestEMLToMsgFromString(t *testing.T) {
@@ -147,13 +178,13 @@ func TestEMLToMsgFromString(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			msg, err := EMLToMsgFromString(tt.eml)
 			if err != nil {
-				t.Errorf("failed to parse EML: %subject", err)
+				t.Errorf("failed to parse EML: %s", err)
 			}
 			if msg.Encoding() != tt.enc {
-				t.Errorf("EMLToMsgFromString failed: expected encoding: %subject, but got: %subject", tt.enc, msg.Encoding())
+				t.Errorf("EMLToMsgFromString failed: expected encoding: %s, but got: %s", tt.enc, msg.Encoding())
 			}
 			if subject := msg.GetGenHeader(HeaderSubject); len(subject) > 0 && !strings.EqualFold(subject[0], tt.sub) {
-				t.Errorf("EMLToMsgFromString failed: expected subject: %subject, but got: %subject",
+				t.Errorf("EMLToMsgFromString failed: expected subject: %s, but got: %s",
 					tt.sub, subject[0])
 			}
 		})
@@ -199,13 +230,13 @@ func TestEMLToMsgFromFile(t *testing.T) {
 			}
 			msg, err := EMLToMsgFromFile(fmt.Sprintf("%s/%s.eml", tempDir, tt.name))
 			if err != nil {
-				t.Errorf("failed to parse EML: %subject", err)
+				t.Errorf("failed to parse EML: %s", err)
 			}
 			if msg.Encoding() != tt.enc {
-				t.Errorf("EMLToMsgFromString failed: expected encoding: %subject, but got: %subject", tt.enc, msg.Encoding())
+				t.Errorf("EMLToMsgFromString failed: expected encoding: %s, but got: %s", tt.enc, msg.Encoding())
 			}
 			if subject := msg.GetGenHeader(HeaderSubject); len(subject) > 0 && !strings.EqualFold(subject[0], tt.sub) {
-				t.Errorf("EMLToMsgFromString failed: expected subject: %subject, but got: %subject",
+				t.Errorf("EMLToMsgFromString failed: expected subject: %s, but got: %s",
 					tt.sub, subject[0])
 			}
 		})
@@ -230,5 +261,35 @@ func TestEMLToMsgFromStringBrokenDate(t *testing.T) {
 	d := da[0]
 	if d != now.Format(time.RFC1123Z) {
 		t.Errorf("EML with no date expected: %s, got: %s", now.Format(time.RFC1123Z), d)
+	}
+}
+
+func TestEMLToMsgFromStringWithAttachment(t *testing.T) {
+	wantSubject := "Example mail // plain text base64 with attachment"
+	msg, err := EMLToMsgFromString(exampleMailPlainB64WithAttachment)
+	if err != nil {
+		t.Errorf("EML with attachment failed: %s", err)
+	}
+	if subject := msg.GetGenHeader(HeaderSubject); len(subject) > 0 && !strings.EqualFold(subject[0], wantSubject) {
+		t.Errorf("EMLToMsgFromString of EML with attachment failed: expected subject: %s, but got: %s",
+			wantSubject, subject[0])
+	}
+	if len(msg.attachments) != 1 {
+		t.Errorf("EMLToMsgFromString of EML with attachment failed: expected no. of attachments: %d, but got: %d",
+			1, len(msg.attachments))
+	}
+	contentTypeHeader := msg.GetGenHeader(HeaderContentType)
+	if len(contentTypeHeader) != 1 {
+		t.Errorf("EMLToMsgFromString of EML with attachment failed: expected no. of content-type header: %d, "+
+			"but got: %d", 1, len(contentTypeHeader))
+	}
+	contentTypeSplit := strings.SplitN(contentTypeHeader[0], "; ", 2)
+	if len(contentTypeSplit) != 2 {
+		t.Error("failed to split Content-Type header")
+		return
+	}
+	if !strings.EqualFold(contentTypeSplit[0], "multipart/mixed") {
+		t.Errorf("EMLToMsgFromString of EML with attachment failed: expected content-type: %s, "+
+			"but got: %s", "multipart/mixed", contentTypeSplit[0])
 	}
 }
