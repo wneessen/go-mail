@@ -231,19 +231,23 @@ func parseEMLMultipart(params map[string]string, bodybuf *bytes.Buffer, msg *Msg
 		return fmt.Errorf("no boundary tag found in multipart body")
 	}
 	multipartReader := multipart.NewReader(bodybuf, boundary)
+ReadNextPart:
 	multiPart, err := multipartReader.NextPart()
-	if err != nil {
+	defer func() {
+		if multiPart != nil {
+			_ = multiPart.Close()
+		}
+	}()
+	if err != nil && !errors.Is(err, io.EOF) {
 		return fmt.Errorf("failed to get next part of multipart message: %w", err)
 	}
 	for err == nil {
+		// Content-Disposition header means we have an attachment or embed
 		if contentDisposition, ok := multiPart.Header[HeaderContentDisposition.String()]; ok {
-			cdType, optional := parseMultiPartHeader(contentDisposition[0])
-			fmt.Println("CTD:", cdType)
-			fmt.Printf("optional: %+v\n", optional)
-			if err = msg.AttachReader("", multiPart); err != nil {
-				return fmt.Errorf("failed to attach multipart body: %w", err)
+			if err := parseEMLAttachmentEmbed(contentDisposition, multiPart, msg); err != nil {
+				return fmt.Errorf("failed to parse attachment/embed: %w", err)
 			}
-			return nil
+			goto ReadNextPart
 		}
 
 		multiPartData, mperr := io.ReadAll(multiPart)
@@ -285,7 +289,6 @@ func parseEMLMultipart(params map[string]string, bodybuf *bytes.Buffer, msg *Msg
 		multiPart, err = multipartReader.NextPart()
 	}
 	if !errors.Is(err, io.EOF) {
-		_ = multiPart.Close()
 		return fmt.Errorf("failed to read multipart: %w", err)
 	}
 	return nil
@@ -343,4 +346,25 @@ func parseMultiPartHeader(multiPartHeader string) (header string, optional map[s
 		}
 	}
 	return
+}
+
+// parseEMLAttachmentEmbed parses a multipart that is an attachment or embed
+func parseEMLAttachmentEmbed(contentDisposition []string, multiPart *multipart.Part, msg *Msg) error {
+	cdType, optional := parseMultiPartHeader(contentDisposition[0])
+	filename := "generic.attachment"
+	if name, ok := optional["filename"]; ok {
+		filename = name[1 : len(name)-1]
+	}
+	switch strings.ToLower(cdType) {
+	case "attachment":
+		if err := msg.AttachReader(filename, multiPart); err != nil {
+			return fmt.Errorf("failed to attach multipart body: %w", err)
+		}
+	case "inline":
+		if err := msg.EmbedReader(filename, multiPart); err != nil {
+			return fmt.Errorf("failed to embed multipart body: %w", err)
+		}
+	}
+	fmt.Printf("FOUND Content: %s\n", cdType)
+	return nil
 }
