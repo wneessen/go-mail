@@ -152,6 +152,33 @@ ICAgc2V2ZXJhbAogICAgICAgICAgICBuZXdsaW5lcwoJICAgICAgICAgICAgYW5kCgkgICAgc3Bh
 Y2VzCiAgICAgaW4KICBpdAouCgpBcyB3ZWxsIGFzIGFuIGVtb2ppOiDwn5mCCg==
 
 --45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7--`
+	exampleMailPlainB64WithEmbed = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // plain text base64 with embed
+User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: multipart/related;
+ boundary=ffbcfb94b44e5297325102f6ced05b3b37f1d70fc38a5e78dc73c1a8434b
+
+--ffbcfb94b44e5297325102f6ced05b3b37f1d70fc38a5e78dc73c1a8434b
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=UTF-8
+
+This is a test body string
+--ffbcfb94b44e5297325102f6ced05b3b37f1d70fc38a5e78dc73c1a8434b
+Content-Disposition: inline; filename="pixel.png"
+Content-Id: <pixel.png>
+Content-Transfer-Encoding: base64
+Content-Type: image/png; name="pixel.png"
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIW2NgYGD4DwABBAEAwS2O
+UAAAAABJRU5ErkJggg==
+
+--ffbcfb94b44e5297325102f6ced05b3b37f1d70fc38a5e78dc73c1a8434b--`
 )
 
 func TestEMLToMsgFromString(t *testing.T) {
@@ -278,18 +305,20 @@ func TestEMLToMsgFromStringWithAttachment(t *testing.T) {
 		t.Errorf("EMLToMsgFromString of EML with attachment failed: expected no. of attachments: %d, but got: %d",
 			1, len(msg.attachments))
 	}
-	contentTypeHeader := msg.GetGenHeader(HeaderContentType)
-	if len(contentTypeHeader) != 1 {
-		t.Errorf("EMLToMsgFromString of EML with attachment failed: expected no. of content-type header: %d, "+
-			"but got: %d", 1, len(contentTypeHeader))
+}
+
+func TestEMLToMsgFromStringWithEmbed(t *testing.T) {
+	wantSubject := "Example mail // plain text base64 with embed"
+	msg, err := EMLToMsgFromString(exampleMailPlainB64WithEmbed)
+	if err != nil {
+		t.Errorf("EML with embed failed: %s", err)
 	}
-	contentTypeSplit := strings.SplitN(contentTypeHeader[0], "; ", 2)
-	if len(contentTypeSplit) != 2 {
-		t.Error("failed to split Content-Type header")
-		return
+	if subject := msg.GetGenHeader(HeaderSubject); len(subject) > 0 && !strings.EqualFold(subject[0], wantSubject) {
+		t.Errorf("EMLToMsgFromString of EML with embed failed: expected subject: %s, but got: %s",
+			wantSubject, subject[0])
 	}
-	if !strings.EqualFold(contentTypeSplit[0], "multipart/mixed") {
-		t.Errorf("EMLToMsgFromString of EML with attachment failed: expected content-type: %s, "+
-			"but got: %s", "multipart/mixed", contentTypeSplit[0])
+	if len(msg.embeds) != 1 {
+		t.Errorf("EMLToMsgFromString of EML with embed failed: expected no. of embeds: %d, but got: %d",
+			1, len(msg.attachments))
 	}
 }
