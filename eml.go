@@ -70,6 +70,7 @@ func EMLToMsgFromFile(filePath string) (*Msg, error) {
 	if err = parseEMLBodyParts(parsedMsg, bodybuf, msg); err != nil {
 		return msg, fmt.Errorf("failed to parse EML body parts: %w", err)
 	}
+	//fmt.Printf("FOO: %+v\n", msg)
 
 	return msg, nil
 }
@@ -159,6 +160,10 @@ func parseEMLHeaders(mailHeader *netmail.Header, msg *Msg) error {
 	// Extract common headers
 	for _, header := range commonHeaders {
 		if value := mailHeader.Get(header.String()); value != "" {
+			if strings.EqualFold(header.String(), HeaderContentType.String()) &&
+				strings.HasPrefix(value, TypeMultipartMixed.String()) {
+				continue
+			}
 			msg.SetGenHeader(header, value)
 		}
 	}
@@ -184,9 +189,10 @@ func parseEMLBodyParts(parsedMsg *netmail.Message, bodybuf *bytes.Buffer, msg *M
 			return fmt.Errorf("failed to parse plain body: %w", err)
 		}
 	case strings.EqualFold(mediatype, TypeMultipartAlternative.String()),
-		strings.EqualFold(mediatype, TypeMultipartMixed.String()):
+		strings.EqualFold(mediatype, TypeMultipartMixed.String()),
+		strings.EqualFold(mediatype, TypeMultipartRelated.String()):
 		if err = parseEMLMultipart(params, bodybuf, msg); err != nil {
-			return fmt.Errorf("failed to parse multipart/alternative body: %w", err)
+			return fmt.Errorf("failed to parse multipart body: %w", err)
 		}
 	default:
 	}
@@ -242,9 +248,27 @@ ReadNextPart:
 		return fmt.Errorf("failed to get next part of multipart message: %w", err)
 	}
 	for err == nil {
+		// Multipart/related parts need to be parsed seperately
+		if contentTypeSlice, ok := multiPart.Header[HeaderContentType.String()]; ok && len(contentTypeSlice) == 1 {
+			contentType, _ := parseMultiPartHeader(contentTypeSlice[0])
+			if strings.EqualFold(contentType, TypeMultipartRelated.String()) {
+				relatedPart := &netmail.Message{
+					Header: netmail.Header(multiPart.Header),
+					Body:   multiPart,
+				}
+				relatedBuf := &bytes.Buffer{}
+				if _, err = relatedBuf.ReadFrom(multiPart); err != nil {
+					return fmt.Errorf("failed to read related multipart message to buffer: %w", err)
+				}
+				if err := parseEMLBodyParts(relatedPart, relatedBuf, msg); err != nil {
+					return fmt.Errorf("failed to parse related multipart body: %w", err)
+				}
+			}
+		}
+
 		// Content-Disposition header means we have an attachment or embed
 		if contentDisposition, ok := multiPart.Header[HeaderContentDisposition.String()]; ok {
-			if err := parseEMLAttachmentEmbed(contentDisposition, multiPart, msg); err != nil {
+			if err = parseEMLAttachmentEmbed(contentDisposition, multiPart, msg); err != nil {
 				return fmt.Errorf("failed to parse attachment/embed: %w", err)
 			}
 			goto ReadNextPart
@@ -261,6 +285,9 @@ ReadNextPart:
 			return fmt.Errorf("failed to get content-type from part")
 		}
 		contentType, optional := parseMultiPartHeader(multiPartContentType[0])
+		if strings.EqualFold(contentType, TypeMultipartRelated.String()) {
+			goto ReadNextPart
+		}
 		part := msg.newPart(ContentType(contentType))
 		if charset, ok := optional["charset"]; ok {
 			part.SetCharset(Charset(charset))
@@ -316,7 +343,7 @@ func parseEMLContentTypeCharset(mailHeader *netmail.Header, msg *Msg) {
 			msg.SetCharset(Charset(charset))
 		}
 		msg.setEncoder()
-		if contentType != "" {
+		if contentType != "" && !strings.EqualFold(contentType, TypeMultipartMixed.String()) {
 			msg.SetGenHeader(HeaderContentType, contentType)
 		}
 	}
