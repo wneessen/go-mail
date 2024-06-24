@@ -39,11 +39,8 @@ func EMLToMsgFromReader(reader io.Reader) (*Msg, error) {
 		return msg, fmt.Errorf("failed to parse EML from reader: %w", err)
 	}
 
-	if err = parseEMLHeaders(&parsedMsg.Header, msg); err != nil {
-		return msg, fmt.Errorf("failed to parse EML headers: %w", err)
-	}
-	if err = parseEMLBodyParts(parsedMsg, bodybuf, msg); err != nil {
-		return msg, fmt.Errorf("failed to parse EML body parts: %w", err)
+	if err := parseEML(parsedMsg, bodybuf, msg); err != nil {
+		return msg, fmt.Errorf("failed to parse EML contents: %w", err)
 	}
 
 	return msg, nil
@@ -64,15 +61,22 @@ func EMLToMsgFromFile(filePath string) (*Msg, error) {
 		return msg, fmt.Errorf("failed to parse EML file: %w", err)
 	}
 
-	if err = parseEMLHeaders(&parsedMsg.Header, msg); err != nil {
-		return msg, fmt.Errorf("failed to parse EML headers: %w", err)
+	if err := parseEML(parsedMsg, bodybuf, msg); err != nil {
+		return msg, fmt.Errorf("failed to parse EML contents: %w", err)
 	}
-	if err = parseEMLBodyParts(parsedMsg, bodybuf, msg); err != nil {
-		return msg, fmt.Errorf("failed to parse EML body parts: %w", err)
-	}
-	//fmt.Printf("FOO: %+v\n", msg)
 
 	return msg, nil
+}
+
+// parseEML parses the EML's headers and body and inserts the parsed values into the Msg
+func parseEML(parsedMsg *netmail.Message, bodybuf *bytes.Buffer, msg *Msg) error {
+	if err := parseEMLHeaders(&parsedMsg.Header, msg); err != nil {
+		return fmt.Errorf("failed to parse EML headers: %w", err)
+	}
+	if err := parseEMLBodyParts(parsedMsg, bodybuf, msg); err != nil {
+		return fmt.Errorf("failed to parse EML body parts: %w", err)
+	}
+	return nil
 }
 
 // readEML opens an EML file and uses net/mail to parse the header and body
