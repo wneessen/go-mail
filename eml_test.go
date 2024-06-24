@@ -5,6 +5,7 @@
 package mail
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -21,6 +22,115 @@ User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
 X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Dear Customer,
+
+This is a test mail. Please do not reply to this. Also this line is very long so it
+should be wrapped.
+
+
+Thank your for your business!
+The go-mail team
+
+--
+This is a signature`
+	exampleMailPlainBrokenBody = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // plain text without encoding
+User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
+
+This plain text body should not be parsed as Base64.
+`
+	exampleMailPlainNoContentType = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // plain text without encoding
+User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+
+This plain text body should not be parsed as Base64.
+`
+	exampleMailPlainUnknownContentType = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // plain text without encoding
+User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: application/unknown; charset=UTF-8
+Content-Transfer-Encoding: base64
+
+This plain text body should not be parsed as Base64.
+`
+	exampleMailPlainBrokenHeader = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version = 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // plain text without encoding
+User-Agent = go-mail v0.4.0 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+From = "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding = 8bit
+
+Dear Customer,
+
+This is a test mail. Please do not reply to this. Also this line is very long so it
+should be wrapped.
+
+
+Thank your for your business!
+The go-mail team
+
+--
+This is a signature`
+	exampleMailPlainBrokenFrom = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // plain text without encoding
+User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+From: Toni Tester" go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Dear Customer,
+
+This is a test mail. Please do not reply to this. Also this line is very long so it
+should be wrapped.
+
+
+Thank your for your business!
+The go-mail team
+
+--
+This is a signature`
+	exampleMailPlainBrokenTo = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // plain text without encoding
+User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: go-mail+test.go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -99,6 +209,28 @@ This is a test mail. Please do not reply to this. Also this line is very lo=
 ng so it
 should be wrapped.
 
+Thank your for your business!
+The go-mail team
+
+--
+This is a signature`
+	exampleMailPlainUnsupportedTransferEnc = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // plain text quoted-printable
+User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: unknown
+
+Dear Customer,
+
+This is a test mail. Please do not reply to this. Also this line is very long so it should be wrapped.
+㋛
+This is not ==D3
 
 Thank your for your business!
 The go-mail team
@@ -136,6 +268,37 @@ Content-Type: multipart/mixed;
 --45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
 Content-Transfer-Encoding: base64
 Content-Type: text/plain; charset=UTF-8
+
+RGVhciBDdXN0b21lciwKClRoaXMgaXMgYSB0ZXN0IG1haWwuIFBsZWFzZSBkbyBub3QgcmVwbHkg
+dG8gdGhpcy4gQWxzbyB0aGlzIGxpbmUgaXMgdmVyeSBsb25nIHNvIGl0CnNob3VsZCBiZSB3cmFw
+cGVkLgoKClRoYW5rIHlvdXIgZm9yIHlvdXIgYnVzaW5lc3MhClRoZSBnby1tYWlsIHRlYW0KCi0t
+ClRoaXMgaXMgYSBzaWduYXR1cmU=
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+Content-Disposition: attachment; filename="test.attachment"
+Content-Transfer-Encoding: base64
+Content-Type: application/octet-stream; name="test.attachment"
+
+VGhpcyBpcyBhIHNpbXBsZSB0ZXN0IHRleHQgZmlsZSBhdHRhY2htZW50LgoKSXQgCiAgaGFzCiAg
+ICAgc2V2ZXJhbAogICAgICAgICAgICBuZXdsaW5lcwoJICAgICAgICAgICAgYW5kCgkgICAgc3Bh
+Y2VzCiAgICAgaW4KICBpdAouCgpBcyB3ZWxsIGFzIGFuIGVtb2ppOiDwn5mCCg==
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7--`
+	exampleMailPlainB64BrokenBody = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // plain text base64 with attachment
+User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: multipart/mixed;
+ boundary=45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+Content-Transfer-Encoding = base64
+Content-Type = text/plain; charset=UTF-8
 
 RGVhciBDdXN0b21lciwKClRoaXMgaXMgYSB0ZXN0IG1haWwuIFBsZWFzZSBkbyBub3QgcmVwbHkg
 dG8gdGhpcy4gQWxzbyB0aGlzIGxpbmUgaXMgdmVyeSBsb25nIHNvIGl0CnNob3VsZCBiZSB3cmFw
@@ -270,6 +433,51 @@ func TestEMLToMsgFromFile(t *testing.T) {
 	}
 }
 
+func TestEMLToMsgFromReaderFailing(t *testing.T) {
+	mailbuf := bytes.Buffer{}
+	mailbuf.WriteString(exampleMailPlainBrokenFrom)
+	_, err := EMLToMsgFromReader(&mailbuf)
+	if err == nil {
+		t.Error("EML from Reader with broken FROM was supposed to fail, but didn't")
+	}
+	mailbuf.Reset()
+	mailbuf.WriteString(exampleMailPlainBrokenHeader)
+	_, err = EMLToMsgFromReader(&mailbuf)
+	if err == nil {
+		t.Error("EML from Reader with broken header was supposed to fail, but didn't")
+	}
+	mailbuf.Reset()
+	mailbuf.WriteString(exampleMailPlainB64BrokenBody)
+	_, err = EMLToMsgFromReader(&mailbuf)
+	if err == nil {
+		t.Error("EML from Reader with broken body was supposed to fail, but didn't")
+	}
+	mailbuf.Reset()
+	mailbuf.WriteString(exampleMailPlainBrokenBody)
+	_, err = EMLToMsgFromReader(&mailbuf)
+	if err == nil {
+		t.Error("EML from Reader with broken body was supposed to fail, but didn't")
+	}
+	mailbuf.Reset()
+	mailbuf.WriteString(exampleMailPlainUnknownContentType)
+	_, err = EMLToMsgFromReader(&mailbuf)
+	if err == nil {
+		t.Error("EML from Reader with unknown content type was supposed to fail, but didn't")
+	}
+	mailbuf.Reset()
+	mailbuf.WriteString(exampleMailPlainNoContentType)
+	_, err = EMLToMsgFromReader(&mailbuf)
+	if err == nil {
+		t.Error("EML from Reader with no content type was supposed to fail, but didn't")
+	}
+	mailbuf.Reset()
+	mailbuf.WriteString(exampleMailPlainUnsupportedTransferEnc)
+	_, err = EMLToMsgFromReader(&mailbuf)
+	if err == nil {
+		t.Error("EML from Reader with unsupported Transer-Encoding was supposed to fail, but didn't")
+	}
+}
+
 func TestEMLToMsgFromStringBrokenDate(t *testing.T) {
 	_, err := EMLToMsgFromString(exampleMailPlainNoEncInvalidDate)
 	if err == nil {
@@ -288,6 +496,20 @@ func TestEMLToMsgFromStringBrokenDate(t *testing.T) {
 	d := da[0]
 	if d != now.Format(time.RFC1123Z) {
 		t.Errorf("EML with no date expected: %s, got: %s", now.Format(time.RFC1123Z), d)
+	}
+}
+
+func TestEMLToMsgFromStringBrokenFrom(t *testing.T) {
+	_, err := EMLToMsgFromString(exampleMailPlainBrokenFrom)
+	if err == nil {
+		t.Error("EML with broken FROM was supposed to fail, but didn't")
+	}
+}
+
+func TestEMLToMsgFromStringBrokenTo(t *testing.T) {
+	_, err := EMLToMsgFromString(exampleMailPlainBrokenTo)
+	if err == nil {
+		t.Error("EML with broken TO was supposed to fail, but didn't")
 	}
 }
 
