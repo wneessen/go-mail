@@ -403,22 +403,13 @@ func TestEMLToMsgFromFile(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tempDir, err := os.MkdirTemp("", fmt.Sprintf("*-%s", tt.name))
-			if err != nil {
-				t.Errorf("failed to create temp dir: %s", err)
-				return
-			}
+			tempDir, tempFile, err := stringToTempFile(tt.eml, tt.name)
 			defer func() {
 				if err = os.RemoveAll(tempDir); err != nil {
 					t.Error("failed to remove temp dir:", err)
 				}
 			}()
-			err = os.WriteFile(fmt.Sprintf("%s/%s.eml", tempDir, tt.name), []byte(tt.eml), 0666)
-			if err != nil {
-				t.Error("failed to write mail to temp file:", err)
-				return
-			}
-			msg, err := EMLToMsgFromFile(fmt.Sprintf("%s/%s.eml", tempDir, tt.name))
+			msg, err := EMLToMsgFromFile(tempFile)
 			if err != nil {
 				t.Errorf("failed to parse EML: %s", err)
 			}
@@ -434,47 +425,105 @@ func TestEMLToMsgFromFile(t *testing.T) {
 }
 
 func TestEMLToMsgFromReaderFailing(t *testing.T) {
-	mailbuf := bytes.Buffer{}
-	mailbuf.WriteString(exampleMailPlainBrokenFrom)
-	_, err := EMLToMsgFromReader(&mailbuf)
+	mailbuf := bytes.NewBufferString(exampleMailPlainBrokenFrom)
+	_, err := EMLToMsgFromReader(mailbuf)
 	if err == nil {
 		t.Error("EML from Reader with broken FROM was supposed to fail, but didn't")
 	}
 	mailbuf.Reset()
 	mailbuf.WriteString(exampleMailPlainBrokenHeader)
-	_, err = EMLToMsgFromReader(&mailbuf)
+	_, err = EMLToMsgFromReader(mailbuf)
 	if err == nil {
 		t.Error("EML from Reader with broken header was supposed to fail, but didn't")
 	}
 	mailbuf.Reset()
 	mailbuf.WriteString(exampleMailPlainB64BrokenBody)
-	_, err = EMLToMsgFromReader(&mailbuf)
+	_, err = EMLToMsgFromReader(mailbuf)
 	if err == nil {
 		t.Error("EML from Reader with broken body was supposed to fail, but didn't")
 	}
 	mailbuf.Reset()
 	mailbuf.WriteString(exampleMailPlainBrokenBody)
-	_, err = EMLToMsgFromReader(&mailbuf)
+	_, err = EMLToMsgFromReader(mailbuf)
 	if err == nil {
 		t.Error("EML from Reader with broken body was supposed to fail, but didn't")
 	}
 	mailbuf.Reset()
 	mailbuf.WriteString(exampleMailPlainUnknownContentType)
-	_, err = EMLToMsgFromReader(&mailbuf)
+	_, err = EMLToMsgFromReader(mailbuf)
 	if err == nil {
 		t.Error("EML from Reader with unknown content type was supposed to fail, but didn't")
 	}
 	mailbuf.Reset()
 	mailbuf.WriteString(exampleMailPlainNoContentType)
-	_, err = EMLToMsgFromReader(&mailbuf)
+	_, err = EMLToMsgFromReader(mailbuf)
 	if err == nil {
 		t.Error("EML from Reader with no content type was supposed to fail, but didn't")
 	}
 	mailbuf.Reset()
 	mailbuf.WriteString(exampleMailPlainUnsupportedTransferEnc)
-	_, err = EMLToMsgFromReader(&mailbuf)
+	_, err = EMLToMsgFromReader(mailbuf)
 	if err == nil {
 		t.Error("EML from Reader with unsupported Transer-Encoding was supposed to fail, but didn't")
+	}
+}
+
+func TestEMLToMsgFromFileFailing(t *testing.T) {
+	tempDir, tempFile, err := stringToTempFile(exampleMailPlainBrokenFrom, "testmail")
+	_, err = EMLToMsgFromFile(tempFile)
+	if err == nil {
+		t.Error("EML from Reader with broken FROM was supposed to fail, but didn't")
+	}
+	if err = os.RemoveAll(tempDir); err != nil {
+		t.Error("failed to remove temp dir:", err)
+	}
+	tempDir, tempFile, err = stringToTempFile(exampleMailPlainBrokenHeader, "testmail")
+	_, err = EMLToMsgFromFile(tempFile)
+	if err == nil {
+		t.Error("EML from Reader with broken header was supposed to fail, but didn't")
+	}
+	if err = os.RemoveAll(tempDir); err != nil {
+		t.Error("failed to remove temp dir:", err)
+	}
+	tempDir, tempFile, err = stringToTempFile(exampleMailPlainB64BrokenBody, "testmail")
+	_, err = EMLToMsgFromFile(tempFile)
+	if err == nil {
+		t.Error("EML from Reader with broken body was supposed to fail, but didn't")
+	}
+	if err = os.RemoveAll(tempDir); err != nil {
+		t.Error("failed to remove temp dir:", err)
+	}
+	tempDir, tempFile, err = stringToTempFile(exampleMailPlainBrokenBody, "testmail")
+	_, err = EMLToMsgFromFile(tempFile)
+	if err == nil {
+		t.Error("EML from Reader with broken body was supposed to fail, but didn't")
+	}
+	if err = os.RemoveAll(tempDir); err != nil {
+		t.Error("failed to remove temp dir:", err)
+	}
+	tempDir, tempFile, err = stringToTempFile(exampleMailPlainUnknownContentType, "testmail")
+	_, err = EMLToMsgFromFile(tempFile)
+	if err == nil {
+		t.Error("EML from Reader with unknown content type was supposed to fail, but didn't")
+	}
+	if err = os.RemoveAll(tempDir); err != nil {
+		t.Error("failed to remove temp dir:", err)
+	}
+	tempDir, tempFile, err = stringToTempFile(exampleMailPlainNoContentType, "testmail")
+	_, err = EMLToMsgFromFile(tempFile)
+	if err == nil {
+		t.Error("EML from Reader with no content type was supposed to fail, but didn't")
+	}
+	if err = os.RemoveAll(tempDir); err != nil {
+		t.Error("failed to remove temp dir:", err)
+	}
+	tempDir, tempFile, err = stringToTempFile(exampleMailPlainUnsupportedTransferEnc, "testmail")
+	_, err = EMLToMsgFromFile(tempFile)
+	if err == nil {
+		t.Error("EML from Reader with unsupported Transer-Encoding was supposed to fail, but didn't")
+	}
+	if err = os.RemoveAll(tempDir); err != nil {
+		t.Error("failed to remove temp dir:", err)
 	}
 }
 
@@ -543,4 +592,18 @@ func TestEMLToMsgFromStringWithEmbed(t *testing.T) {
 		t.Errorf("EMLToMsgFromString of EML with embed failed: expected no. of embeds: %d, but got: %d",
 			1, len(msg.attachments))
 	}
+}
+
+// stringToTempFile is a helper method that will create a temporary file form a give data string
+func stringToTempFile(data, name string) (string, string, error) {
+	tempDir, err := os.MkdirTemp("", fmt.Sprintf("*-%s", name))
+	if err != nil {
+		return tempDir, "", fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	filePath := fmt.Sprintf("%s/%s", tempDir, name)
+	err = os.WriteFile(filePath, []byte(data), 0666)
+	if err != nil {
+		return tempDir, "", fmt.Errorf("failed to write data to temp file: %w", err)
+	}
+	return tempDir, filePath, nil
 }
