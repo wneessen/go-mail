@@ -195,6 +195,7 @@ func parseEMLBodyParts(parsedMsg *netmail.Message, bodybuf *bytes.Buffer, msg *M
 			return fmt.Errorf("failed to parse multipart body: %w", err)
 		}
 	default:
+		return fmt.Errorf("failed to parse body, unknown content type: %s", mediatype)
 	}
 	return nil
 }
