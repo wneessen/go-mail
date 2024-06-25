@@ -369,10 +369,11 @@ func handleEMLMultiPartBase64Encoding(multiPartData []byte, part *Part) error {
 // separate map
 func parseMultiPartHeader(multiPartHeader string) (header string, optional map[string]string) {
 	optional = make(map[string]string)
-	headerSplit := strings.SplitN(multiPartHeader, "; ", 2)
+	headerSplit := strings.SplitN(multiPartHeader, ";", 2)
 	header = headerSplit[0]
 	if len(headerSplit) == 2 {
-		optSplit := strings.SplitN(headerSplit[1], "=", 2)
+		optString := strings.TrimLeft(headerSplit[1], " ")
+		optSplit := strings.SplitN(optString, "=", 2)
 		if len(optSplit) == 2 {
 			optional[optSplit[0]] = optSplit[1]
 		}
