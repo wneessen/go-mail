@@ -142,7 +142,7 @@ func parseEMLHeaders(mailHeader *netmail.Header, msg *Msg) error {
 				addrStrings = append(addrStrings, addr.String())
 			}
 			if err = addrFunc(addrStrings...); err != nil {
-				return fmt.Errorf(`failed to parse %q header: %w`, HeaderTo, err)
+				return fmt.Errorf(`failed to parse %q header: %w`, addrHeader, err)
 			}
 		}
 	}
