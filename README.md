@@ -57,6 +57,7 @@ Some of the features of this library:
 * [X] Debug logging of SMTP traffic
 * [X] Custom error types for delivery errors
 * [X] Custom dial-context functions for more control over the connection (proxing, DNS hooking, etc.)
+* [X] Output a go-mail message as EML file and parse EML file into a go-mail message
 
 go-mail works like a programatic email client and provides lots of methods and functionalities you would consider
 standard in a MUA.
