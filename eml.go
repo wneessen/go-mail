@@ -253,7 +253,7 @@ ReadNextPart:
 		return fmt.Errorf("failed to get next part of multipart message: %w", err)
 	}
 	for err == nil {
-		// Multipart/related parts need to be parsed seperately
+		// Multipart/related and Multipart/alternative parts need to be parsed seperately
 		if contentTypeSlice, ok := multiPart.Header[HeaderContentType.String()]; ok && len(contentTypeSlice) == 1 {
 			contentType, _ := parseMultiPartHeader(contentTypeSlice[0])
 			fmt.Printf("CONTENT-TYPE: %s\n", contentType)
