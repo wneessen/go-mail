@@ -132,17 +132,20 @@ const (
 
 // List of MIME versions
 const (
-	// Mime10 is the MIME Version 1.0
-	Mime10 MIMEVersion = "1.0"
+	// MIME10 is the MIME Version 1.0
+	MIME10 MIMEVersion = "1.0"
 )
 
 // List of common content types
 const (
-	TypeTextPlain      ContentType = "text/plain"
-	TypeTextHTML       ContentType = "text/html"
-	TypeAppOctetStream ContentType = "application/octet-stream"
-	TypePGPSignature   ContentType = "application/pgp-signature"
-	TypePGPEncrypted   ContentType = "application/pgp-encrypted"
+	TypeAppOctetStream       ContentType = "application/octet-stream"
+	TypeMultipartAlternative ContentType = "multipart/alternative"
+	TypeMultipartMixed       ContentType = "multipart/mixed"
+	TypeMultipartRelated     ContentType = "multipart/related"
+	TypePGPSignature         ContentType = "application/pgp-signature"
+	TypePGPEncrypted         ContentType = "application/pgp-encrypted"
+	TypeTextHTML             ContentType = "text/html"
+	TypeTextPlain            ContentType = "text/plain"
 )
 
 // List of MIMETypes
@@ -152,12 +155,17 @@ const (
 	MIMERelated     MIMEType = "related"
 )
 
-// String is a standard method to convert an Encoding into a printable format
-func (e Encoding) String() string {
-	return string(e)
-}
-
 // String is a standard method to convert an Charset into a printable format
 func (c Charset) String() string {
 	return string(c)
+}
+
+// String is a standard method to convert an ContentType into a printable format
+func (c ContentType) String() string {
+	return string(c)
+}
+
+// String is a standard method to convert an Encoding into a printable format
+func (e Encoding) String() string {
+	return string(e)
 }

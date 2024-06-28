@@ -87,6 +87,7 @@ func TestHeader_String(t *testing.T) {
 		{"Header: Organization", HeaderOrganization, "Organization"},
 		{"Header: Precedence", HeaderPrecedence, "Precedence"},
 		{"Header: Priority", HeaderPriority, "Priority"},
+		{"Header: HeaderReferences", HeaderReferences, "References"},
 		{"Header: Reply-To", HeaderReplyTo, "Reply-To"},
 		{"Header: Subject", HeaderSubject, "Subject"},
 		{"Header: User-Agent", HeaderUserAgent, "User-Agent"},

@@ -137,7 +137,7 @@ func TestNewMsgWithMIMEVersion(t *testing.T) {
 		value MIMEVersion
 		want  MIMEVersion
 	}{
-		{"MIME version is 1.0", Mime10, "1.0"},
+		{"MIME version is 1.0", MIME10, "1.0"},
 	}
 
 	for _, tt := range tests {
