@@ -256,7 +256,9 @@ ReadNextPart:
 		// Multipart/related parts need to be parsed seperately
 		if contentTypeSlice, ok := multiPart.Header[HeaderContentType.String()]; ok && len(contentTypeSlice) == 1 {
 			contentType, _ := parseMultiPartHeader(contentTypeSlice[0])
-			if strings.EqualFold(contentType, TypeMultipartRelated.String()) {
+			fmt.Printf("CONTENT-TYPE: %s\n", contentType)
+			if strings.EqualFold(contentType, TypeMultipartRelated.String()) ||
+				strings.EqualFold(contentType, TypeMultipartAlternative.String()) {
 				relatedPart := &netmail.Message{
 					Header: netmail.Header(multiPart.Header),
 					Body:   multiPart,
