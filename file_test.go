@@ -56,6 +56,32 @@ func TestFile_WithFileDescription(t *testing.T) {
 	}
 }
 
+// TestFile_WithContentID tests the WithFileContentID option
+func TestFile_WithContentID(t *testing.T) {
+	tests := []struct {
+		name      string
+		contentid string
+	}{
+		{"File Content-ID: test", "test"},
+		{"File Content-ID: empty", ""},
+	}
+	for _, tt := range tests {
+		m := NewMsg()
+		t.Run(tt.name, func(t *testing.T) {
+			m.AttachFile("file.go", WithFileContentID(tt.contentid))
+			al := m.GetAttachments()
+			if len(al) <= 0 {
+				t.Errorf("AttachFile() failed. Attachment list is empty")
+			}
+			a := al[0]
+			if a.Header.Get(HeaderContentID.String()) != tt.contentid {
+				t.Errorf("WithFileContentID() failed. Expected: %s, got: %s", tt.contentid,
+					a.Header.Get(HeaderContentID.String()))
+			}
+		})
+	}
+}
+
 // TestFile_WithFileEncoding tests the WithFileEncoding option
 func TestFile_WithFileEncoding(t *testing.T) {
 	tests := []struct {
