@@ -22,6 +22,13 @@ type File struct {
 	Writer      func(w io.Writer) (int64, error)
 }
 
+// WithContentID sets the Content-ID header for the File
+func WithContentID(id string) FileOption {
+	return func(f *File) {
+		f.Header.Set(HeaderContentID.String(), id)
+	}
+}
+
 // WithFileName sets the filename of the File
 func WithFileName(name string) FileOption {
 	return func(f *File) {
