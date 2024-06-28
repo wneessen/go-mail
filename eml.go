@@ -388,13 +388,28 @@ func parseEMLAttachmentEmbed(contentDisposition []string, multiPart *multipart.P
 	if name, ok := optional["filename"]; ok {
 		filename = name[1 : len(name)-1]
 	}
+
+	var dataReader io.Reader
+	dataReader = multiPart
+	contentTransferEnc, _ := parseMultiPartHeader(multiPart.Header.Get(HeaderContentTransferEnc.String()))
+	b64Decoder := base64.NewDecoder(base64.StdEncoding, multiPart)
+	if strings.EqualFold(contentTransferEnc, EncodingB64.String()) {
+		dataReader = b64Decoder
+	}
+
 	switch strings.ToLower(cdType) {
 	case "attachment":
-		if err := msg.AttachReader(filename, multiPart); err != nil {
+		if err := msg.AttachReader(filename, dataReader); err != nil {
 			return fmt.Errorf("failed to attach multipart body: %w", err)
 		}
 	case "inline":
-		if err := msg.EmbedReader(filename, multiPart); err != nil {
+		if contentID, _ := parseMultiPartHeader(multiPart.Header.Get(HeaderContentID.String())); contentID != "" {
+			if err := msg.EmbedReader(filename, dataReader, WithContentID(contentID)); err != nil {
+				return fmt.Errorf("failed to embed multipart body: %w", err)
+			}
+			return nil
+		}
+		if err := msg.EmbedReader(filename, dataReader); err != nil {
 			return fmt.Errorf("failed to embed multipart body: %w", err)
 		}
 	}
