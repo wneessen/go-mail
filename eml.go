@@ -405,7 +405,7 @@ func parseEMLAttachmentEmbed(contentDisposition []string, multiPart *multipart.P
 		}
 	case "inline":
 		if contentID, _ := parseMultiPartHeader(multiPart.Header.Get(HeaderContentID.String())); contentID != "" {
-			if err := msg.EmbedReader(filename, dataReader, WithContentID(contentID)); err != nil {
+			if err := msg.EmbedReader(filename, dataReader, WithFileContentID(contentID)); err != nil {
 				return fmt.Errorf("failed to embed multipart body: %w", err)
 			}
 			return nil
