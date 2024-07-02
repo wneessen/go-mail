@@ -2855,6 +2855,19 @@ func TestMsg_GetBccString(t *testing.T) {
 	}
 }
 
+// TestMsg_GetBoundary will test the Msg.GetBoundary method
+func TestMsg_GetBoundary(t *testing.T) {
+	b := "random_boundary_string"
+	m := NewMsg()
+	if boundary := m.GetBoundary(); boundary != "" {
+		t.Errorf("GetBoundary failed. Expected empty string, but got: %s", boundary)
+	}
+	m = NewMsg(WithBoundary(b))
+	if boundary := m.GetBoundary(); boundary != b {
+		t.Errorf("GetBoundary failed. Expected boundary: %s, got: %s", b, boundary)
+	}
+}
+
 // TestMsg_AttachEmbedReader_consecutive tests the Msg.AttachReader and Msg.EmbedReader
 // methods with consecutive calls to Msg.WriteTo to make sure the attachments are not
 // lost (see Github issue #110)

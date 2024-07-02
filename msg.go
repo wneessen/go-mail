@@ -679,6 +679,11 @@ func (m *Msg) GetAttachments() []*File {
 	return m.attachments
 }
 
+// GetBoundary returns the boundary of the Msg
+func (m *Msg) GetBoundary() string {
+	return m.boundary
+}
+
 // SetAttachements sets the attachements of the message.
 func (m *Msg) SetAttachements(files []*File) {
 	m.attachments = files
