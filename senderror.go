@@ -56,10 +56,11 @@ const (
 
 // SendError is an error wrapper for delivery errors of the Msg
 type SendError struct {
-	Reason  SendErrReason
-	isTemp  bool
-	errlist []error
-	rcpt    []string
+	affectedMsg *Msg
+	errlist     []error
+	isTemp      bool
+	rcpt        []string
+	Reason      SendErrReason
 }
 
 // SendErrReason represents a comparable reason on why the delivery failed
