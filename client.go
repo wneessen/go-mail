@@ -683,7 +683,7 @@ func (c *Client) DialAndSendWithContext(ctx context.Context, messages ...*Msg) e
 		return fmt.Errorf("send failed: %w", err)
 	}
 	if err := c.Close(); err != nil {
-		return fmt.Errorf("failed to close connction: %w", err)
+		return fmt.Errorf("failed to close connection: %w", err)
 	}
 	return nil
 }
