@@ -27,6 +27,9 @@ const (
 	// EncodingQP represents the "quoted-printable" encoding as specified in RFC 2045.
 	EncodingQP Encoding = "quoted-printable"
 
+	// EncodingUSASCII represents encoding with only US-ASCII characters (aka 7Bit)
+	EncodingUSASCII Encoding = "7bit"
+
 	// NoEncoding avoids any character encoding (except of the mail headers)
 	NoEncoding Encoding = "8bit"
 )

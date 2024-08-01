@@ -16,6 +16,7 @@ func TestEncoding_String(t *testing.T) {
 		{"Encoding: Base64", EncodingB64, "base64"},
 		{"Encoding: QP", EncodingQP, "quoted-printable"},
 		{"Encoding: None/8bit", NoEncoding, "8bit"},
+		{"Encoding: US-ASCII/7bit", EncodingUSASCII, "7bit"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
