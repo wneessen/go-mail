@@ -207,6 +207,12 @@ func parseEMLBodyParts(parsedMsg *netmail.Message, bodybuf *bytes.Buffer, msg *M
 // parseEMLBodyPlain parses the mail body of plain type mails
 func parseEMLBodyPlain(mediatype string, parsedMsg *netmail.Message, bodybuf *bytes.Buffer, msg *Msg) error {
 	contentTransferEnc := parsedMsg.Header.Get(HeaderContentTransferEnc.String())
+	// According to RFC2045, if no Content-Transfer-Encoding is set, we can imply 7bit US-ASCII encoding
+	if contentTransferEnc == "" || strings.EqualFold(contentTransferEnc, EncodingUSASCII.String()) {
+		msg.SetEncoding(EncodingUSASCII)
+		msg.SetBodyString(ContentType(mediatype), bodybuf.String())
+		return nil
+	}
 	if strings.EqualFold(contentTransferEnc, NoEncoding.String()) {
 		msg.SetEncoding(NoEncoding)
 		msg.SetBodyString(ContentType(mediatype), bodybuf.String())
@@ -308,14 +314,22 @@ ReadNextPart:
 		}
 
 		switch {
+		case strings.EqualFold(mutliPartTransferEnc[0], EncodingUSASCII.String()):
+			part.SetEncoding(EncodingUSASCII)
+			part.SetContent(string(multiPartData))
+		case strings.EqualFold(mutliPartTransferEnc[0], NoEncoding.String()):
+			part.SetEncoding(NoEncoding)
+			part.SetContent(string(multiPartData))
 		case strings.EqualFold(mutliPartTransferEnc[0], EncodingB64.String()):
-			if err := handleEMLMultiPartBase64Encoding(multiPartData, part); err != nil {
+			part.SetEncoding(EncodingB64)
+			if err = handleEMLMultiPartBase64Encoding(multiPartData, part); err != nil {
 				return fmt.Errorf("failed to handle multipart base64 transfer-encoding: %w", err)
 			}
 		case strings.EqualFold(mutliPartTransferEnc[0], EncodingQP.String()):
+			part.SetEncoding(EncodingQP)
 			part.SetContent(string(multiPartData))
 		default:
-			return fmt.Errorf("unsupported Content-Transfer-Encoding")
+			return fmt.Errorf("unsupported Content-Transfer-Encoding: %s", mutliPartTransferEnc[0])
 		}
 
 		msg.parts = append(msg.parts, part)
