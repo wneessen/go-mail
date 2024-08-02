@@ -14,6 +14,16 @@ import (
 )
 
 const (
+	// RFC 5322 example mail
+	// See: https://datatracker.ietf.org/doc/html/rfc5322#appendix-A.1.1
+	exampleMailRFC5322A11 = `From: John Doe <jdoe@machine.example>
+To: Mary Smith <mary@example.net>
+Subject: Saying Hello
+Date: Fri, 21 Nov 1997 09:55:06 -0600
+Message-ID: <1234@local.machine.example>
+
+This is a message just to say hello.
+So, "Hello".`
 	exampleMailPlainNoEnc = `Date: Wed, 01 Nov 2023 00:00:00 +0000
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
@@ -71,18 +81,6 @@ To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: base64
-
-This plain text body should not be parsed as Base64.
-`
-	exampleMailPlainNoContentType = `Date: Wed, 01 Nov 2023 00:00:00 +0000
-MIME-Version: 1.0
-Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
-Subject: Example mail // plain text without encoding
-User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
-From: "Toni Tester" <go-mail@go-mail.dev>
-To: <go-mail+test@go-mail.dev>
-Cc: <go-mail+cc@go-mail.dev>
 
 This plain text body should not be parsed as Base64.
 `
@@ -624,6 +622,10 @@ func TestEMLToMsgFromString(t *testing.T) {
 		sub  string
 	}{
 		{
+			"RFC5322 A1.1", exampleMailRFC5322A11, "7bit",
+			"Saying Hello",
+		},
+		{
 			"Plain text no encoding (7bit)", exampleMailPlain7Bit, "7bit",
 			"Example mail // plain text without encoding",
 		},
@@ -731,12 +733,6 @@ func TestEMLToMsgFromReaderFailing(t *testing.T) {
 		t.Error("EML from Reader with unknown content type was supposed to fail, but didn't")
 	}
 	mailbuf.Reset()
-	mailbuf.WriteString(exampleMailPlainNoContentType)
-	_, err = EMLToMsgFromReader(mailbuf)
-	if err == nil {
-		t.Error("EML from Reader with no content type was supposed to fail, but didn't")
-	}
-	mailbuf.Reset()
 	mailbuf.WriteString(exampleMailPlainUnsupportedTransferEnc)
 	_, err = EMLToMsgFromReader(mailbuf)
 	if err == nil {
@@ -796,17 +792,6 @@ func TestEMLToMsgFromFileFailing(t *testing.T) {
 	_, err = EMLToMsgFromFile(tempFile)
 	if err == nil {
 		t.Error("EML from Reader with unknown content type was supposed to fail, but didn't")
-	}
-	if err = os.RemoveAll(tempDir); err != nil {
-		t.Error("failed to remove temp dir:", err)
-	}
-	tempDir, tempFile, err = stringToTempFile(exampleMailPlainNoContentType, "testmail")
-	if err != nil {
-		t.Errorf("failed to write EML string to temp file: %s", err)
-	}
-	_, err = EMLToMsgFromFile(tempFile)
-	if err == nil {
-		t.Error("EML from Reader with no content type was supposed to fail, but didn't")
 	}
 	if err = os.RemoveAll(tempDir); err != nil {
 		t.Error("failed to remove temp dir:", err)

@@ -180,7 +180,15 @@ func parseEMLBodyParts(parsedMsg *netmail.Message, bodybuf *bytes.Buffer, msg *M
 	// Extract the transfer encoding of the body
 	mediatype, params, err := mime.ParseMediaType(parsedMsg.Header.Get(HeaderContentType.String()))
 	if err != nil {
-		return fmt.Errorf("failed to extract content type: %w", err)
+		switch {
+		// If no Content-Type header is found, we assume that this is a plain text, 7bit, US-ASCII mail
+		case strings.EqualFold(err.Error(), "mime: no media type"):
+			mediatype = TypeTextPlain.String()
+			params = make(map[string]string)
+			params["charset"] = CharsetASCII.String()
+		default:
+			return fmt.Errorf("failed to extract content type: %w", err)
+		}
 	}
 	if value, ok := params["charset"]; ok {
 		msg.SetCharset(Charset(value))
