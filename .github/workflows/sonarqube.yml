@@ -44,7 +44,7 @@ jobs:
         run: |
           go test -v -race --coverprofile=./cov.out ./...
 
-      - uses: sonarsource/sonarqube-scan-action@aecaf43ae57e412bd97d70ef9ce6076e672fe0a9 # master
+      - uses: sonarsource/sonarqube-scan-action@0c0f3958d90fc466625f1d1af1f47bddd4cc6bd1 # master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
