@@ -1413,7 +1413,7 @@ func TestMsg_SetAttachments(t *testing.T) {
 			for _, f := range tt.files {
 				files = append(files, &File{Name: f})
 			}
-			m.SetAttachements(files)
+			m.SetAttachments(files)
 			if len(m.attachments) != len(files) {
 				t.Errorf("SetAttachements() failed. Number of attachments expected: %d, got: %d", len(files),
 					len(m.attachments))
@@ -1448,7 +1448,7 @@ func TestMsg_UnsetAllAttachments(t *testing.T) {
 			for _, f := range tt.attachments {
 				files = append(files, &File{Name: f})
 			}
-			m.SetAttachements(files)
+			m.SetAttachments(files)
 
 			if len(m.attachments) != len(files) {
 				t.Errorf("SetAttachements() failed. Number of attachments expected: %d, got: %d", len(files),
@@ -1610,7 +1610,7 @@ func TestMsg_UnsetAllParts(t *testing.T) {
 			for _, f := range tt.attachments {
 				attachments = append(attachments, &File{Name: f})
 			}
-			m.SetAttachements(attachments)
+			m.SetAttachments(attachments)
 			if len(m.attachments) != len(attachments) {
 				t.Errorf("SetAttachements() failed. Number of attachments files expected: %d, got: %d",
 					len(attachments), len(m.attachments))

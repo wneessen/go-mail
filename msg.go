@@ -684,9 +684,16 @@ func (m *Msg) GetBoundary() string {
 	return m.boundary
 }
 
-// SetAttachements sets the attachements of the message.
-func (m *Msg) SetAttachements(files []*File) {
+// SetAttachments sets the attachments of the message.
+func (m *Msg) SetAttachments(files []*File) {
 	m.attachments = files
+}
+
+// SetAttachements sets the attachments of the message.
+//
+// Deprecated: use SetAttachments instead.
+func (m *Msg) SetAttachements(files []*File) {
+	m.SetAttachments(files)
 }
 
 // UnsetAllAttachments unset the attachments of the message.
