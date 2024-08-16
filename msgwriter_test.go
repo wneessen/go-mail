@@ -122,7 +122,7 @@ func TestMsgWriter_writeMsg(t *testing.T) {
 			em += fmt.Sprintf("* incorrect %q field", ea[e])
 		}
 		em += fmt.Sprintf("\n\nFull message:\n%s", ms)
-		t.Errorf(em)
+		t.Error(em)
 	}
 }
 

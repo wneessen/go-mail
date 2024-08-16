@@ -743,7 +743,7 @@ func (m *Msg) SetBodyWriter(
 // The content type will be set to text/html automatically
 func (m *Msg) SetBodyHTMLTemplate(tpl *ht.Template, data interface{}, opts ...PartOption) error {
 	if tpl == nil {
-		return fmt.Errorf(errTplPointerNil)
+		return errors.New(errTplPointerNil)
 	}
 	buffer := bytes.Buffer{}
 	if err := tpl.Execute(&buffer, data); err != nil {
@@ -758,7 +758,7 @@ func (m *Msg) SetBodyHTMLTemplate(tpl *ht.Template, data interface{}, opts ...Pa
 // The content type will be set to text/plain automatically
 func (m *Msg) SetBodyTextTemplate(tpl *tt.Template, data interface{}, opts ...PartOption) error {
 	if tpl == nil {
-		return fmt.Errorf(errTplPointerNil)
+		return errors.New(errTplPointerNil)
 	}
 	buf := bytes.Buffer{}
 	if err := tpl.Execute(&buf, data); err != nil {
@@ -790,7 +790,7 @@ func (m *Msg) AddAlternativeWriter(
 // The content type will be set to text/html automatically
 func (m *Msg) AddAlternativeHTMLTemplate(tpl *ht.Template, data interface{}, opts ...PartOption) error {
 	if tpl == nil {
-		return fmt.Errorf(errTplPointerNil)
+		return errors.New(errTplPointerNil)
 	}
 	buffer := bytes.Buffer{}
 	if err := tpl.Execute(&buffer, data); err != nil {
@@ -805,7 +805,7 @@ func (m *Msg) AddAlternativeHTMLTemplate(tpl *ht.Template, data interface{}, opt
 // The content type will be set to text/plain automatically
 func (m *Msg) AddAlternativeTextTemplate(tpl *tt.Template, data interface{}, opts ...PartOption) error {
 	if tpl == nil {
-		return fmt.Errorf(errTplPointerNil)
+		return errors.New(errTplPointerNil)
 	}
 	buffer := bytes.Buffer{}
 	if err := tpl.Execute(&buffer, data); err != nil {
@@ -1314,7 +1314,7 @@ func fileFromReadSeeker(name string, reader io.ReadSeeker) *File {
 // fileFromHTMLTemplate returns a File pointer form a given html/template.Template
 func fileFromHTMLTemplate(name string, tpl *ht.Template, data interface{}) (*File, error) {
 	if tpl == nil {
-		return nil, fmt.Errorf(errTplPointerNil)
+		return nil, errors.New(errTplPointerNil)
 	}
 	buffer := bytes.Buffer{}
 	if err := tpl.Execute(&buffer, data); err != nil {
@@ -1326,7 +1326,7 @@ func fileFromHTMLTemplate(name string, tpl *ht.Template, data interface{}) (*Fil
 // fileFromTextTemplate returns a File pointer form a given text/template.Template
 func fileFromTextTemplate(name string, tpl *tt.Template, data interface{}) (*File, error) {
 	if tpl == nil {
-		return nil, fmt.Errorf(errTplPointerNil)
+		return nil, errors.New(errTplPointerNil)
 	}
 	buffer := bytes.Buffer{}
 	if err := tpl.Execute(&buffer, data); err != nil {
