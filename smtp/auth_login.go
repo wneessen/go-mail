@@ -20,13 +20,15 @@ const (
 	// extension.
 	//
 	// See: https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-xlogin/.
-	LoginXUsernameChallenge = "Username:"
+	LoginXUsernameChallenge      = "Username:"
+	LoginXUsernameLowerChallenge = "username:"
 
 	// LoginXPasswordChallenge represents the Password Challenge response sent by the SMTP server per the AUTH LOGIN
 	// extension.
 	//
 	//	See: https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-xlogin/.
-	LoginXPasswordChallenge = "Password:"
+	LoginXPasswordChallenge      = "Password:"
+	LoginXPasswordLowerChallenge = "password:"
 
 	// LoginXDraftUsernameChallenge represents the Username Challenge response sent by the SMTP server per the IETF
 	// draft AUTH LOGIN extension. It should be noted this extension is an expired draft which was never formally
@@ -76,9 +78,9 @@ func (a *loginAuth) Start(server *ServerInfo) (string, []byte, error) {
 func (a *loginAuth) Next(fromServer []byte, more bool) ([]byte, error) {
 	if more {
 		switch string(fromServer) {
-		case LoginXUsernameChallenge, LoginXDraftUsernameChallenge:
+		case LoginXUsernameChallenge, LoginXUsernameLowerChallenge, LoginXDraftUsernameChallenge:
 			return []byte(a.username), nil
-		case LoginXPasswordChallenge, LoginXDraftPasswordChallenge:
+		case LoginXPasswordChallenge, LoginXPasswordLowerChallenge, LoginXDraftPasswordChallenge:
 			return []byte(a.password), nil
 		default:
 			return nil, fmt.Errorf("unexpected server response: %s", string(fromServer))
