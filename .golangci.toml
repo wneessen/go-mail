@@ -3,8 +3,9 @@
 ## SPDX-License-Identifier: MIT
 
 [run]
-go = "1.22"
+go = "1.23"
 tests = true
+exclude-dirs = ["examples"]
 
 [linters]
 enable = ["stylecheck", "whitespace", "containedctx", "contextcheck", "decorder",
