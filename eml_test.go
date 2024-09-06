@@ -14,6 +14,16 @@ import (
 )
 
 const (
+	// RFC 5322 example mail
+	// See: https://datatracker.ietf.org/doc/html/rfc5322#appendix-A.1.1
+	exampleMailRFC5322A11 = `From: John Doe <jdoe@machine.example>
+To: Mary Smith <mary@example.net>
+Subject: Saying Hello
+Date: Fri, 21 Nov 1997 09:55:06 -0600
+Message-ID: <1234@local.machine.example>
+
+This is a message just to say hello.
+So, "Hello".`
 	exampleMailPlainNoEnc = `Date: Wed, 01 Nov 2023 00:00:00 +0000
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
@@ -37,6 +47,29 @@ The go-mail team
 
 --
 This is a signature`
+	exampleMailPlain7Bit = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // plain text without encoding
+User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
+
+Dear Customer,
+
+This is a test mail. Please do not reply to this. Also this line is very long so it
+should be wrapped.
+
+
+Thank your for your business!
+The go-mail team
+
+--
+This is a signature`
 	exampleMailPlainBrokenBody = `Date: Wed, 01 Nov 2023 00:00:00 +0000
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
@@ -48,18 +81,6 @@ To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: base64
-
-This plain text body should not be parsed as Base64.
-`
-	exampleMailPlainNoContentType = `Date: Wed, 01 Nov 2023 00:00:00 +0000
-MIME-Version: 1.0
-Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
-Subject: Example mail // plain text without encoding
-User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
-From: "Toni Tester" <go-mail@go-mail.dev>
-To: <go-mail+test@go-mail.dev>
-Cc: <go-mail+cc@go-mail.dev>
 
 This plain text body should not be parsed as Base64.
 `
@@ -525,6 +546,72 @@ hw22iFHl7YlpOmedZvtMTfQffXeXnvI+rTKNxguyvDKvB7U4qQAAAAlwSFlzAAALEwAACxMBAJqc
 GAAAABFJREFUCJljnMoAA0wMNGcCAEQrAKk9oHKhAAAAAElFTkSuQmCC
 
 --fe785e0384e2607697cc2ecb17cce003003bb7ca9112104f3e8ce727edb5--`
+	exampleMultiPart7BitBase64 = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // 7bit with base64 attachment
+User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: multipart/mixed;
+ boundary="------------26A45336F6C6196BD8BBA2A2"
+
+This is a multi-part message in MIME format.
+--------------26A45336F6C6196BD8BBA2A2
+Content-Type: text/plain; charset=US-ASCII; format=flowed
+Content-Transfer-Encoding: 7bit
+
+testtest
+testtest
+testtest
+testtest
+testtest
+testtest
+
+--------------26A45336F6C6196BD8BBA2A2
+Content-Type: text/plain; charset=UTF-8;
+ name="testfile.txt"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment;
+ filename="testfile.txt"
+
+VGhpcyBpcyBhIHRlc3QgaW4gQmFzZTY0
+--------------26A45336F6C6196BD8BBA2A2--`
+	exampleMultiPart8BitBase64 = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // 8bit with base64 attachment
+User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: multipart/mixed;
+ boundary="------------26A45336F6C6196BD8BBA2A2"
+
+This is a multi-part message in MIME format.
+--------------26A45336F6C6196BD8BBA2A2
+Content-Type: text/plain; charset=US-ASCII; format=flowed
+Content-Transfer-Encoding: 8bit
+
+testtest
+testtest
+testtest
+testtest
+testtest
+testtest
+
+--------------26A45336F6C6196BD8BBA2A2
+Content-Type: text/plain; charset=UTF-8;
+ name="testfile.txt"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment;
+ filename="testfile.txt"
+
+VGhpcyBpcyBhIHRlc3QgaW4gQmFzZTY0
+--------------26A45336F6C6196BD8BBA2A2--`
 )
 
 func TestEMLToMsgFromString(t *testing.T) {
@@ -534,6 +621,14 @@ func TestEMLToMsgFromString(t *testing.T) {
 		enc  string
 		sub  string
 	}{
+		{
+			"RFC5322 A1.1", exampleMailRFC5322A11, "7bit",
+			"Saying Hello",
+		},
+		{
+			"Plain text no encoding (7bit)", exampleMailPlain7Bit, "7bit",
+			"Example mail // plain text without encoding",
+		},
 		{
 			"Plain text no encoding", exampleMailPlainNoEnc, "8bit",
 			"Example mail // plain text without encoding",
@@ -638,12 +733,6 @@ func TestEMLToMsgFromReaderFailing(t *testing.T) {
 		t.Error("EML from Reader with unknown content type was supposed to fail, but didn't")
 	}
 	mailbuf.Reset()
-	mailbuf.WriteString(exampleMailPlainNoContentType)
-	_, err = EMLToMsgFromReader(mailbuf)
-	if err == nil {
-		t.Error("EML from Reader with no content type was supposed to fail, but didn't")
-	}
-	mailbuf.Reset()
 	mailbuf.WriteString(exampleMailPlainUnsupportedTransferEnc)
 	_, err = EMLToMsgFromReader(mailbuf)
 	if err == nil {
@@ -703,17 +792,6 @@ func TestEMLToMsgFromFileFailing(t *testing.T) {
 	_, err = EMLToMsgFromFile(tempFile)
 	if err == nil {
 		t.Error("EML from Reader with unknown content type was supposed to fail, but didn't")
-	}
-	if err = os.RemoveAll(tempDir); err != nil {
-		t.Error("failed to remove temp dir:", err)
-	}
-	tempDir, tempFile, err = stringToTempFile(exampleMailPlainNoContentType, "testmail")
-	if err != nil {
-		t.Errorf("failed to write EML string to temp file: %s", err)
-	}
-	_, err = EMLToMsgFromFile(tempFile)
-	if err == nil {
-		t.Error("EML from Reader with no content type was supposed to fail, but didn't")
 	}
 	if err = os.RemoveAll(tempDir); err != nil {
 		t.Error("failed to remove temp dir:", err)
@@ -863,6 +941,58 @@ func TestEMLToMsgFromStringMultipartMixedAlternativeRelated(t *testing.T) {
 	if !hasAlternative {
 		t.Error("EMLToMsgFromString of EML multipart mixed, related, alternative failed: expected Alternative " +
 			"but got none")
+	}
+}
+
+func TestEMLToMsgFromStringMultipartMixedWith7Bit(t *testing.T) {
+	wantSubject := "Example mail // 7bit with base64 attachment"
+	msg, err := EMLToMsgFromString(exampleMultiPart7BitBase64)
+	if err != nil {
+		t.Errorf("EML multipart mixed with 7bit: %s", err)
+	}
+	if subject := msg.GetGenHeader(HeaderSubject); len(subject) > 0 && !strings.EqualFold(subject[0], wantSubject) {
+		t.Errorf("EMLToMsgFromString of EML multipart mixed with 7bit: expected subject: %s,"+
+			" but got: %s", wantSubject, subject[0])
+	}
+	if len(msg.parts) != 1 {
+		t.Errorf("EMLToMsgFromString of EML multipart mixed with 7bit failed: expected 1 part, got: %d",
+			len(msg.parts))
+		return
+	}
+	if !strings.EqualFold(msg.parts[0].GetEncoding().String(), EncodingUSASCII.String()) {
+		t.Errorf("EMLToMsgFromString of EML multipart mixed with 7bit failed: expected encoding: %s, got %s",
+			EncodingUSASCII.String(), msg.parts[0].GetEncoding().String())
+	}
+	if len(msg.attachments) != 1 {
+		t.Errorf("EMLToMsgFromString of EML multipart mixed with 7bit failed: expected 1 attachment, got: %d",
+			len(msg.attachments))
+		return
+	}
+}
+
+func TestEMLToMsgFromStringMultipartMixedWith8Bit(t *testing.T) {
+	wantSubject := "Example mail // 8bit with base64 attachment"
+	msg, err := EMLToMsgFromString(exampleMultiPart8BitBase64)
+	if err != nil {
+		t.Errorf("EML multipart mixed with 8bit: %s", err)
+	}
+	if subject := msg.GetGenHeader(HeaderSubject); len(subject) > 0 && !strings.EqualFold(subject[0], wantSubject) {
+		t.Errorf("EMLToMsgFromString of EML multipart mixed with 8bit: expected subject: %s,"+
+			" but got: %s", wantSubject, subject[0])
+	}
+	if len(msg.parts) != 1 {
+		t.Errorf("EMLToMsgFromString of EML multipart mixed with 8bit failed: expected 1 part, got: %d",
+			len(msg.parts))
+		return
+	}
+	if !strings.EqualFold(msg.parts[0].GetEncoding().String(), NoEncoding.String()) {
+		t.Errorf("EMLToMsgFromString of EML multipart mixed with 8bit failed: expected encoding: %s, got %s",
+			NoEncoding.String(), msg.parts[0].GetEncoding().String())
+	}
+	if len(msg.attachments) != 1 {
+		t.Errorf("EMLToMsgFromString of EML multipart mixed with 8bit failed: expected 1 attachment, got: %d",
+			len(msg.attachments))
+		return
 	}
 }
 

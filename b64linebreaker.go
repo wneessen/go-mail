@@ -5,7 +5,7 @@
 package mail
 
 import (
-	"fmt"
+	"errors"
 	"io"
 )
 
@@ -26,7 +26,7 @@ var newlineBytes = []byte(SingleNewLine)
 // line length is reached
 func (l *Base64LineBreaker) Write(data []byte) (numBytes int, err error) {
 	if l.out == nil {
-		err = fmt.Errorf(ErrNoOutWriter)
+		err = errors.New(ErrNoOutWriter)
 		return
 	}
 	if l.used+len(data) < MaxBodyLength {
