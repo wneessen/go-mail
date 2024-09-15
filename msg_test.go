@@ -3233,6 +3233,14 @@ func TestNewMsgWithNoDefaultUserAgent(t *testing.T) {
 	}
 }
 
+// TestWithSMimeSinging tests WithSMimeSinging
+func TestWithSMimeSinging(t *testing.T) {
+	m := NewMsg(WithSMimeSinging())
+	if m.sMimeSinging != true {
+		t.Errorf("WithSMimeSinging() failed. Expected: %t, got: %t", true, false)
+	}
+}
+
 // Fuzzing tests
 func FuzzMsg_Subject(f *testing.F) {
 	f.Add("Testsubject")

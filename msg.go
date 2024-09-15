@@ -120,6 +120,9 @@ type Msg struct {
 
 	// noDefaultUserAgent indicates whether the default User Agent will be excluded for the Msg when it's sent.
 	noDefaultUserAgent bool
+
+	// sMimeSinging indicates whether the message should be singed with S/MIME when it's sent.
+	sMimeSinging bool
 }
 
 // SendmailPath is the default system path to the sendmail binary
@@ -199,6 +202,13 @@ func WithPGPType(pt PGPType) MsgOption {
 func WithNoDefaultUserAgent() MsgOption {
 	return func(m *Msg) {
 		m.noDefaultUserAgent = true
+	}
+}
+
+// WithSMimeSinging configures the Msg to be S/MIME singed sent.
+func WithSMimeSinging() MsgOption {
+	return func(m *Msg) {
+		m.sMimeSinging = true
 	}
 }
 
