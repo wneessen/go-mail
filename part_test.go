@@ -102,6 +102,35 @@ func TestPart_WithPartContentDescription(t *testing.T) {
 	}
 }
 
+// TestPart_withContentDisposition tests the WithContentDisposition method
+func TestPart_withContentDisposition(t *testing.T) {
+	tests := []struct {
+		name        string
+		disposition Disposition
+	}{
+		{"Part disposition: test", "test"},
+		{"Part disposition: empty", ""},
+	}
+	for _, tt := range tests {
+		m := NewMsg()
+		t.Run(tt.name, func(t *testing.T) {
+			part := m.newPart(TypeTextPlain, WithContentDisposition(tt.disposition), nil)
+			if part == nil {
+				t.Errorf("newPart() WithPartContentDescription() failed: no part returned")
+				return
+			}
+			if part.disposition != tt.disposition {
+				t.Errorf("newPart() WithContentDisposition() failed: expected: %s, got: %s", tt.disposition, part.description)
+			}
+			part.disposition = ""
+			part.SetDisposition(tt.disposition)
+			if part.disposition != tt.disposition {
+				t.Errorf("newPart() SetDisposition() failed: expected: %s, got: %s", tt.disposition, part.description)
+			}
+		})
+	}
+}
+
 // TestPartContentType tests Part.SetContentType
 func TestPart_SetContentType(t *testing.T) {
 	tests := []struct {
@@ -320,6 +349,31 @@ func TestPart_SetDescription(t *testing.T) {
 	pd = pl[0].GetDescription()
 	if pd != d {
 		t.Errorf("Part.GetDescription failed. Expected: %s, got: %s", d, pd)
+	}
+}
+
+// TestPart_SetDisposition tests Part.SetDisposition
+func TestPart_SetDisposition(t *testing.T) {
+	c := "This is a test"
+	d := Disposition("test-disposition")
+	m := NewMsg()
+	m.SetBodyString(TypeTextPlain, c)
+	pl, err := getPartList(m)
+	if err != nil {
+		t.Errorf("failed: %s", err)
+		return
+	}
+	pd := pl[0].GetDisposition()
+	if pd != "" {
+		t.Errorf("Part.GetDisposition failed. Expected empty description but got: %s", pd)
+	}
+	pl[0].SetDisposition(d)
+	if pl[0].disposition != d {
+		t.Errorf("Part.SetDisposition failed. Expected description to be: %s, got: %s", d, pd)
+	}
+	pd = pl[0].GetDisposition()
+	if pd != d {
+		t.Errorf("Part.GetDisposition failed. Expected: %s, got: %s", d, pd)
 	}
 }
 

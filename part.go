@@ -17,6 +17,7 @@ type Part struct {
 	contentType ContentType
 	charset     Charset
 	description string
+	disposition Disposition
 	encoding    Encoding
 	isDeleted   bool
 	writeFunc   func(io.Writer) (int64, error)
@@ -56,6 +57,11 @@ func (p *Part) GetDescription() string {
 	return p.description
 }
 
+// GetDisposition returns the currently set Content-Disposition of the Part
+func (p *Part) GetDisposition() Disposition {
+	return p.disposition
+}
+
 // SetContent overrides the content of the Part with the given string
 func (p *Part) SetContent(content string) {
 	buffer := bytes.NewBufferString(content)
@@ -80,6 +86,11 @@ func (p *Part) SetEncoding(encoding Encoding) {
 // SetDescription overrides the Content-Description of the Part
 func (p *Part) SetDescription(description string) {
 	p.description = description
+}
+
+// SetDisposition overrides the Content-Disposition of the Part
+func (p *Part) SetDisposition(disposition Disposition) {
+	p.disposition = disposition
 }
 
 // SetWriteFunc overrides the WriteFunc of the Part
@@ -111,5 +122,12 @@ func WithPartEncoding(encoding Encoding) PartOption {
 func WithPartContentDescription(description string) PartOption {
 	return func(p *Part) {
 		p.description = description
+	}
+}
+
+// WithContentDisposition overrides the default Part Content-Disposition
+func WithContentDisposition(disposition Disposition) PartOption {
+	return func(p *Part) {
+		p.disposition = disposition
 	}
 }
