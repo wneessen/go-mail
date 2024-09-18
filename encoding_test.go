@@ -61,6 +61,11 @@ func TestContentType_String(t *testing.T) {
 			"ContentType: application/pgp-encrypted", TypePGPEncrypted,
 			"application/pgp-encrypted",
 		},
+
+		{
+			"ContentType: pkcs7-signature", typeSMimeSigned,
+			`application/pkcs7-signature; name="smime.p7s"; smime-type=signed-data`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -117,6 +122,25 @@ func TestCharset_String(t *testing.T) {
 			if tt.c.String() != tt.want {
 				t.Errorf("wrong string for Charset returned. Expected: %s, got: %s",
 					tt.want, tt.c.String())
+			}
+		})
+	}
+}
+
+// TestDisposition_String tests the string method of the Disposition object
+func TestDisposition_String(t *testing.T) {
+	tests := []struct {
+		name string
+		d    Disposition
+		want string
+	}{
+		{"Disposition: S/Mime", DispositionSMime, `attachment; filename="smime.p7s"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.d.String() != tt.want {
+				t.Errorf("wrong string for Disposition returned. Expected: %s, got: %s",
+					tt.want, tt.d.String())
 			}
 		})
 	}

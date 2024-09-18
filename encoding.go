@@ -19,6 +19,9 @@ type MIMEVersion string
 // MIMEType represents the MIME type for the mail
 type MIMEType string
 
+// Disposition represents a content disposition for the Msg
+type Disposition string
+
 // List of supported encodings
 const (
 	// EncodingB64 represents the Base64 encoding as specified in RFC 2045.
@@ -149,6 +152,7 @@ const (
 	TypePGPEncrypted         ContentType = "application/pgp-encrypted"
 	TypeTextHTML             ContentType = "text/html"
 	TypeTextPlain            ContentType = "text/plain"
+	typeSMimeSigned          ContentType = `application/pkcs7-signature; name="smime.p7s"`
 )
 
 // List of MIMETypes
@@ -156,6 +160,12 @@ const (
 	MIMEAlternative MIMEType = "alternative"
 	MIMEMixed       MIMEType = "mixed"
 	MIMERelated     MIMEType = "related"
+	MIMESMime       MIMEType = `signed; protocol="application/pkcs7-signature"; micalg=sha256`
+)
+
+// List of common content disposition
+const (
+	DispositionSMime Disposition = `attachment; filename="smime.p7s"`
 )
 
 // String is a standard method to convert an Charset into a printable format
@@ -171,4 +181,9 @@ func (c ContentType) String() string {
 // String is a standard method to convert an Encoding into a printable format
 func (e Encoding) String() string {
 	return string(e)
+}
+
+// String is a standard method to convert an Disposition into a printable format
+func (d Disposition) String() string {
+	return string(d)
 }
