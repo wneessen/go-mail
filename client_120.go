@@ -24,9 +24,9 @@ func (c *Client) Send(messages ...*Msg) (returnErr error) {
 		returnErr = errors.Join(errs...)
 	}()
 
-	for _, message := range messages {
+	for id, message := range messages {
 		if sendErr := c.sendSingleMsg(message); sendErr != nil {
-			message.sendError = sendErr
+			messages[id].sendError = sendErr
 			errs = append(errs, sendErr)
 		}
 	}
