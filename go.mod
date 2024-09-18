@@ -5,3 +5,5 @@
 module github.com/wneessen/go-mail
 
 go 1.16
+
+require go.mozilla.org/pkcs7 v0.9.0

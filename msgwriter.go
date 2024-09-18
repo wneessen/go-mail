@@ -88,6 +88,10 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 		}
 	}
 
+	if msg.hasSMime() {
+		mw.startMP(MIMESMime, msg.boundary)
+		mw.writeString(DoubleNewLine)
+	}
 	if msg.hasMixed() {
 		mw.startMP(MIMEMixed, msg.boundary)
 		mw.writeString(DoubleNewLine)
@@ -96,7 +100,7 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 		mw.startMP(MIMERelated, msg.boundary)
 		mw.writeString(DoubleNewLine)
 	}
-	if msg.hasAlt() {
+	if msg.hasAlt() && !msg.hasSMime() {
 		mw.startMP(MIMEAlternative, msg.boundary)
 		mw.writeString(DoubleNewLine)
 	}
@@ -264,6 +268,9 @@ func (mw *msgWriter) writePart(part *Part, charset Charset) {
 		mimeHeader := textproto.MIMEHeader{}
 		if part.description != "" {
 			mimeHeader.Add(string(HeaderContentDescription), part.description)
+		}
+		if part.disposition != "" {
+			mimeHeader.Add(string(HeaderContentDisposition), part.disposition.String())
 		}
 		mimeHeader.Add(string(HeaderContentType), contentType)
 		mimeHeader.Add(string(HeaderContentTransferEnc), contentTransferEnc)
