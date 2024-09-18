@@ -121,8 +121,8 @@ type Msg struct {
 	// noDefaultUserAgent indicates whether the default User Agent will be excluded for the Msg when it's sent.
 	noDefaultUserAgent bool
 
-	// sMimeSinging indicates whether the message should be singed with S/MIME when it's sent.
-	sMimeSinging bool
+	// SMime represents a middleware used to sign messages with S/MIME
+	sMime *SMime
 }
 
 // SendmailPath is the default system path to the sendmail binary
@@ -205,11 +205,14 @@ func WithNoDefaultUserAgent() MsgOption {
 	}
 }
 
-// WithSMimeSinging configures the Msg to be S/MIME singed sent.
-func WithSMimeSinging() MsgOption {
-	return func(m *Msg) {
-		m.sMimeSinging = true
+// SignWithSMime configures the Msg to be signed with S/MIME
+func (m *Msg) SignWithSMime(privateKey *rsa.PrivateKey, certificate *x509.Certificate) error {
+	sMime, err := NewSMime(privateKey, certificate)
+	if err != nil {
+		return err
 	}
+	m.sMime = sMime
+	return nil
 }
 
 // SetCharset sets the encoding charset of the Msg
@@ -1174,6 +1177,11 @@ func (m *Msg) hasAlt() bool {
 // hasMixed returns true if the Msg has mixed parts
 func (m *Msg) hasMixed() bool {
 	return m.pgptype == 0 && ((len(m.parts) > 0 && len(m.attachments) > 0) || len(m.attachments) > 1)
+}
+
+// hasSMime returns true if the Msg has should be signed with S/MIME
+func (m *Msg) hasSMime() bool {
+	return m.sMime != nil
 }
 
 // hasRelated returns true if the Msg has related parts

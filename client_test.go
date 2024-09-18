@@ -6,15 +6,10 @@ package mail
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
 	"crypto/tls"
-	"crypto/x509"
-	"crypto/x509/pkix"
 	"errors"
 	"fmt"
 	"io"
-	"math/big"
 	"net"
 	"os"
 	"strconv"
@@ -122,7 +117,6 @@ func TestNewClientWithOptions(t *testing.T) {
 		{"WithDialContextFunc()", WithDialContextFunc(func(ctx context.Context, network, address string) (net.Conn, error) {
 			return nil, nil
 		}), false},
-		{"WithSMimeConfig()", WithSMimeConfig(&SMimeAuthConfig{}), true},
 		{
 			"WithDSNRcptNotifyType() NEVER combination",
 			WithDSNRcptNotifyType(DSNRcptNotifySuccess, DSNRcptNotifyNever), true,
@@ -758,43 +752,6 @@ func TestClient_DialWithContextInvalidAuth(t *testing.T) {
 	if err := c.DialWithContext(ctx); err == nil {
 		t.Errorf("dial succeeded but was supposed to fail")
 		return
-	}
-}
-
-// TestWithSMime tests the WithSMime method with invalid SMimeAuthConfig for the Client object
-func TestWithSMime_InvalidConfig(t *testing.T) {
-	_, err := NewClient(DefaultHost, WithSMimeConfig(&SMimeAuthConfig{}))
-	if !errors.Is(err, ErrInvalidSMimeAuthConfig) {
-		t.Errorf("failed to check sMimeAuthConfig values correctly: %s", err)
-	}
-}
-
-// TestWithSMime tests the WithSMime method with valid SMimeAuthConfig that is loaded from dummy certificate for the Client object
-func TestWithSMime_ValidConfig(t *testing.T) {
-	privateKey, err := getDummyPrivateKey()
-	if err != nil {
-		t.Errorf("failed to load dummy private key: %s", err)
-	}
-
-	certificate, err := getDummyCertificate(privateKey)
-	if err != nil {
-		t.Errorf("failed to load dummy certificate: %s", err)
-	}
-
-	sMimeAuthConfig := &SMimeAuthConfig{PrivateKey: privateKey, Certificate: certificate}
-	c, err := NewClient(DefaultHost, WithSMimeConfig(sMimeAuthConfig))
-	if err != nil {
-		t.Errorf("failed to create new client: %s", err)
-	}
-
-	if c.sMimeAuthConfig != sMimeAuthConfig {
-		t.Errorf("failed to set smeAuthConfig. Expected %v, got: %v", sMimeAuthConfig, c.sMimeAuthConfig)
-	}
-	if c.sMimeAuthConfig.PrivateKey != sMimeAuthConfig.PrivateKey {
-		t.Errorf("failed to set smeAuthConfig.PrivateKey Expected %v, got: %v", sMimeAuthConfig, c.sMimeAuthConfig)
-	}
-	if c.sMimeAuthConfig.Certificate != sMimeAuthConfig.Certificate {
-		t.Errorf("failed to set smeAuthConfig.Certificate Expected %v, got: %v", sMimeAuthConfig, c.sMimeAuthConfig)
 	}
 }
 
@@ -1524,37 +1481,6 @@ func getFakeDialFunc(conn net.Conn) DialContextFunc {
 	return func(ctx context.Context, network, address string) (net.Conn, error) {
 		return conn, nil
 	}
-}
-
-func getDummyPrivateKey() (*rsa.PrivateKey, error) {
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, err
-	}
-	return privateKey, nil
-}
-
-func getDummyCertificate(privateKey *rsa.PrivateKey) (*x509.Certificate, error) {
-	template := &x509.Certificate{
-		SerialNumber: big.NewInt(1234),
-		Subject:      pkix.Name{Organization: []string{"My Organization"}},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().AddDate(1, 0, 0),
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-	}
-
-	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &privateKey.PublicKey, privateKey)
-	if err != nil {
-		return nil, err
-	}
-
-	cert, err := x509.ParseCertificate(certDER)
-	if err != nil {
-		return nil, err
-	}
-
-	return cert, nil
 }
 
 type faker struct {

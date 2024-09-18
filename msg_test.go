@@ -3233,11 +3233,33 @@ func TestNewMsgWithNoDefaultUserAgent(t *testing.T) {
 	}
 }
 
-// TestWithSMimeSinging tests WithSMimeSinging
-func TestWithSMimeSinging(t *testing.T) {
-	m := NewMsg(WithSMimeSinging())
-	if m.sMimeSinging != true {
-		t.Errorf("WithSMimeSinging() failed. Expected: %t, got: %t", true, false)
+// TestWithSMimeSinging_ValidPrivateKey tests WithSMimeSinging with given privateKey
+func TestWithSMimeSinging_ValidPrivateKey(t *testing.T) {
+	privateKey, err := getDummyPrivateKey()
+	if err != nil {
+		t.Errorf("failed to load dummy private key: %s", err)
+	}
+	certificate, err := getDummyCertificate(privateKey)
+	if err != nil {
+		t.Errorf("failed to load dummy certificate: %s", err)
+	}
+
+	m := NewMsg()
+	if err := m.SignWithSMime(privateKey, certificate); err != nil {
+		t.Errorf("failed to set sMime. Cause: %v", err)
+	}
+	if m.sMime.privateKey != privateKey {
+		t.Errorf("WithSMimeSinging. Expected %v, got: %v", privateKey, m.sMime.privateKey)
+	}
+}
+
+// TestWithSMimeSinging_InvalidPrivateKey tests WithSMimeSinging with given invalid privateKey
+func TestWithSMimeSinging_InvalidPrivateKey(t *testing.T) {
+	m := NewMsg()
+
+	err := m.SignWithSMime(nil, nil)
+	if !errors.Is(err, ErrInvalidPrivateKey) {
+		t.Errorf("failed to check sMimeAuthConfig values correctly: %s", err)
 	}
 }
 

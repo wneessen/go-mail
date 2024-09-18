@@ -127,9 +127,6 @@ type Client struct {
 	// smtpAuthType represents the authentication type for SMTP AUTH
 	smtpAuthType SMTPAuthType
 
-	// SMimeAuthConfig represents the authentication type for s/mime crypto key material
-	sMimeAuthConfig *SMimeAuthConfig
-
 	// smtpClient is the smtp.Client that is set up when using the Dial*() methods
 	smtpClient *smtp.Client
 
@@ -170,9 +167,6 @@ var (
 
 	// ErrInvalidTLSConfig should be used if an empty tls.Config is provided
 	ErrInvalidTLSConfig = errors.New("invalid TLS config")
-
-	// ErrInvalidSMimeAuthConfig should be used if the values in the struct SMimeAuthConfig are empty
-	ErrInvalidSMimeAuthConfig = errors.New("invalid S/MIME authentication config")
 
 	// ErrNoHostname should be used if a Client has no hostname set
 	ErrNoHostname = errors.New("hostname for client cannot be empty")
@@ -461,17 +455,6 @@ func WithoutNoop() Option {
 func WithDialContextFunc(dialCtxFunc DialContextFunc) Option {
 	return func(c *Client) error {
 		c.dialContextFunc = dialCtxFunc
-		return nil
-	}
-}
-
-// WithSMimeConfig tells the client to use the provided SMIMEAuth for s/mime crypto key material authentication
-func WithSMimeConfig(sMimeAuthConfig *SMimeAuthConfig) Option {
-	return func(c *Client) error {
-		if sMimeAuthConfig.Certificate == nil && sMimeAuthConfig.PrivateKey == nil {
-			return ErrInvalidSMimeAuthConfig
-		}
-		c.sMimeAuthConfig = sMimeAuthConfig
 		return nil
 	}
 }
