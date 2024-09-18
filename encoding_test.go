@@ -64,7 +64,7 @@ func TestContentType_String(t *testing.T) {
 
 		{
 			"ContentType: pkcs7-signature", typeSMimeSigned,
-			`application/pkcs7-signature; name="smime.p7s"; smime-type=signed-data`,
+			`application/pkcs7-signature; name="smime.p7s"`,
 		},
 	}
 	for _, tt := range tests {
