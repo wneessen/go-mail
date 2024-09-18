@@ -117,6 +117,7 @@ func TestNewClientWithOptions(t *testing.T) {
 		{"WithDialContextFunc()", WithDialContextFunc(func(ctx context.Context, network, address string) (net.Conn, error) {
 			return nil, nil
 		}), false},
+
 		{
 			"WithDSNRcptNotifyType() NEVER combination",
 			WithDSNRcptNotifyType(DSNRcptNotifySuccess, DSNRcptNotifyNever), true,
