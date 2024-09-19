@@ -65,7 +65,7 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 		}
 		return retError
 	}
-	failed := false
+	hasError := false
 	rcptSendErr := &SendError{}
 	rcptSendErr.errlist = make([]error, 0)
 	rcptSendErr.rcpt = make([]string, 0)
@@ -77,10 +77,10 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 			rcptSendErr.errlist = append(rcptSendErr.errlist, err)
 			rcptSendErr.rcpt = append(rcptSendErr.rcpt, rcpt)
 			rcptSendErr.isTemp = isTempError(err)
-			failed = true
+			hasError = true
 		}
 	}
-	if failed {
+	if hasError {
 		if resetSendErr := c.smtpClient.Reset(); resetSendErr != nil {
 			rcptSendErr.errlist = append(rcptSendErr.errlist, resetSendErr)
 		}
