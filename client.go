@@ -793,7 +793,7 @@ func (c *Client) auth() error {
 func (c *Client) sendSingleMsg(message *Msg) error {
 	if message.encoding == NoEncoding {
 		if ok, _ := c.smtpClient.Extension("8BITMIME"); !ok {
-			return &SendError{Reason: ErrNoUnencoded, isTemp: false}
+			return &SendError{Reason: ErrNoUnencoded, isTemp: false, affectedMsg: message}
 		}
 	}
 	from, err := message.GetSender(false)
@@ -813,14 +813,15 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 		}
 	}
 	if err = c.smtpClient.Mail(from); err != nil {
-		retError := &SendError{Reason: ErrSMTPMailFrom, errlist: []error{err}, isTemp: isTempError(err)}
+		retError := &SendError{Reason: ErrSMTPMailFrom, errlist: []error{err}, isTemp: isTempError(err),
+			affectedMsg: message}
 		if resetSendErr := c.smtpClient.Reset(); resetSendErr != nil {
 			retError.errlist = append(retError.errlist, resetSendErr)
 		}
 		return retError
 	}
 	hasError := false
-	rcptSendErr := &SendError{}
+	rcptSendErr := &SendError{affectedMsg: message}
 	rcptSendErr.errlist = make([]error, 0)
 	rcptSendErr.rcpt = make([]string, 0)
 	rcptNotifyOpt := strings.Join(c.dsnrntype, ",")
@@ -842,23 +843,28 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 	}
 	writer, err := c.smtpClient.Data()
 	if err != nil {
-		return &SendError{Reason: ErrSMTPData, errlist: []error{err}, isTemp: isTempError(err)}
+		return &SendError{Reason: ErrSMTPData, errlist: []error{err}, isTemp: isTempError(err),
+			affectedMsg: message}
 	}
 	_, err = message.WriteTo(writer)
 	if err != nil {
-		return &SendError{Reason: ErrWriteContent, errlist: []error{err}, isTemp: isTempError(err)}
+		return &SendError{Reason: ErrWriteContent, errlist: []error{err}, isTemp: isTempError(err),
+			affectedMsg: message}
 	}
 	message.isDelivered = true
 
 	if err = writer.Close(); err != nil {
-		return &SendError{Reason: ErrSMTPDataClose, errlist: []error{err}, isTemp: isTempError(err)}
+		return &SendError{Reason: ErrSMTPDataClose, errlist: []error{err}, isTemp: isTempError(err),
+			affectedMsg: message}
 	}
 
 	if err = c.Reset(); err != nil {
-		return &SendError{Reason: ErrSMTPReset, errlist: []error{err}, isTemp: isTempError(err)}
+		return &SendError{Reason: ErrSMTPReset, errlist: []error{err}, isTemp: isTempError(err),
+			affectedMsg: message}
 	}
 	if err = c.checkConn(); err != nil {
-		return &SendError{Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err)}
+		return &SendError{Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err),
+			affectedMsg: message}
 	}
 	return nil
 }
