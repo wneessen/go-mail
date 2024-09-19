@@ -476,6 +476,17 @@ func (m *Msg) SetMessageID() {
 	m.SetMessageIDWithValue(messageID)
 }
 
+// GetMessageID returns the message ID of the Msg as string value. If no message ID
+// is set, an empty string will be returned
+func (m *Msg) GetMessageID() string {
+	if msgidheader, ok := m.genHeader[HeaderMessageID]; ok {
+		if len(msgidheader) > 0 {
+			return msgidheader[0]
+		}
+	}
+	return ""
+}
+
 // SetMessageIDWithValue sets the message id for the mail
 func (m *Msg) SetMessageIDWithValue(messageID string) {
 	m.SetGenHeader(HeaderMessageID, fmt.Sprintf("<%s>", messageID))
