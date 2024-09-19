@@ -9,8 +9,8 @@ package mail
 
 // Send sends out the mail message
 func (c *Client) Send(messages ...*Msg) error {
-	if cerr := c.checkConn(); cerr != nil {
-		return &SendError{Reason: ErrConnCheck, errlist: []error{cerr}, isTemp: isTempError(cerr)}
+	if err := c.checkConn(); err != nil {
+		return &SendError{Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err)}
 	}
 	var errs []*SendError
 	for _, message := range messages {
