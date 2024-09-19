@@ -629,7 +629,7 @@ func TestClient_DialWithContext(t *testing.T) {
 // TestClient_DialWithContext_Fallback tests the Client.DialWithContext method with the fallback
 // port functionality
 func TestClient_DialWithContext_Fallback(t *testing.T) {
-	c, err := getTestConnection(true)
+	c, err := getTestConnectionNoTestPort(true)
 	if err != nil {
 		t.Skipf("failed to create test client: %s. Skipping tests", err)
 	}
@@ -1302,6 +1302,50 @@ func getTestConnection(auth bool) (*Client, error) {
 	return c, nil
 }
 
+// getTestConnectionNoTestPort takes environment variables (except the port) to establish a
+// connection to a real SMTP server to test all functionality that requires a connection
+func getTestConnectionNoTestPort(auth bool) (*Client, error) {
+	if os.Getenv("TEST_SKIP_ONLINE") != "" {
+		return nil, fmt.Errorf("env variable TEST_SKIP_ONLINE is set. Skipping online tests")
+	}
+	th := os.Getenv("TEST_HOST")
+	if th == "" {
+		return nil, fmt.Errorf("no TEST_HOST set")
+	}
+	sv := false
+	if sve := os.Getenv("TEST_TLS_SKIP_VERIFY"); sve != "" {
+		sv = true
+	}
+	c, err := NewClient(th)
+	if err != nil {
+		return c, err
+	}
+	c.tlsconfig.InsecureSkipVerify = sv
+	if auth {
+		st := os.Getenv("TEST_SMTPAUTH_TYPE")
+		if st != "" {
+			c.SetSMTPAuth(SMTPAuthType(st))
+		}
+		u := os.Getenv("TEST_SMTPAUTH_USER")
+		if u != "" {
+			c.SetUsername(u)
+		}
+		p := os.Getenv("TEST_SMTPAUTH_PASS")
+		if p != "" {
+			c.SetPassword(p)
+		}
+		// We don't want to log authentication data in tests
+		c.SetDebugLog(false)
+	}
+	if err := c.DialWithContext(context.Background()); err != nil {
+		return c, fmt.Errorf("connection to test server failed: %w", err)
+	}
+	if err := c.Close(); err != nil {
+		return c, fmt.Errorf("disconnect from test server failed: %w", err)
+	}
+	return c, nil
+}
+
 // getTestClient takes environment variables to establish a client without connecting
 // to the SMTP server
 func getTestClient(auth bool) (*Client, error) {
@@ -1357,7 +1401,14 @@ func getTestConnectionWithDSN(auth bool) (*Client, error) {
 	if th == "" {
 		return nil, fmt.Errorf("no TEST_HOST set")
 	}
-	c, err := NewClient(th, WithDSN())
+	tp := 25
+	if tps := os.Getenv("TEST_PORT"); tps != "" {
+		tpi, err := strconv.Atoi(tps)
+		if err == nil {
+			tp = tpi
+		}
+	}
+	c, err := NewClient(th, WithDSN(), WithPort(tp))
 	if err != nil {
 		return c, err
 	}
