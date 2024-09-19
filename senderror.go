@@ -93,6 +93,11 @@ func (e *SendError) Error() string {
 			}
 		}
 	}
+	if e.affectedMsg != nil && e.affectedMsg.GetMessageID() != "" {
+		errMessage.WriteString(", affected message ID: ")
+		errMessage.WriteString(e.affectedMsg.GetMessageID())
+	}
+
 	return errMessage.String()
 }
 
