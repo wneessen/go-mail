@@ -145,6 +145,24 @@ func TestSendError_MsgNil(t *testing.T) {
 	}
 }
 
+func TestSendError_IsFail(t *testing.T) {
+	err1 := returnSendError(ErrAmbiguous, false)
+	err2 := returnSendError(ErrSMTPMailFrom, false)
+	if errors.Is(err1, err2) {
+		t.Errorf("error mismatch, ErrAmbiguous should not be equal to ErrSMTPMailFrom")
+	}
+}
+
+func TestSendError_ErrorMulti(t *testing.T) {
+	expected := `ambiguous reason, check Msg.SendError for message specific reasons, ` +
+		`affected recipient(s): <email1@domain.tld>, <email2@domain.tld>`
+	err := &SendError{Reason: ErrAmbiguous, isTemp: false, affectedMsg: nil,
+		rcpt: []string{"<email1@domain.tld>", "<email2@domain.tld>"}}
+	if err.Error() != expected {
+		t.Errorf("error mismatch, expected: %s, got: %s", expected, err.Error())
+	}
+}
+
 // returnSendError is a helper method to retunr a SendError with a specific reason
 func returnSendError(r SendErrReason, t bool) error {
 	message := NewMsg()
