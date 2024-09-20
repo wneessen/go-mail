@@ -1270,7 +1270,7 @@ func TestClient_SendErrorNoEncoding(t *testing.T) {
 			return
 		}
 	}()
-	time.Sleep(time.Millisecond * 300) // wait until tcp server has been settled
+	time.Sleep(time.Millisecond * 300)
 
 	message := NewMsg()
 	if err := message.From("valid-from@domain.tld"); err != nil {
@@ -1336,7 +1336,7 @@ func TestClient_SendErrorMailFrom(t *testing.T) {
 			return
 		}
 	}()
-	time.Sleep(time.Millisecond * 300) // wait until tcp server has been settled
+	time.Sleep(time.Millisecond * 300)
 
 	message := NewMsg()
 	if err := message.From("invalid-from@domain.tld"); err != nil {
@@ -1401,7 +1401,7 @@ func TestClient_SendErrorMailFromReset(t *testing.T) {
 			return
 		}
 	}()
-	time.Sleep(time.Millisecond * 300) // wait until tcp server has been settled
+	time.Sleep(time.Millisecond * 300)
 
 	message := NewMsg()
 	if err := message.From("invalid-from@domain.tld"); err != nil {
@@ -1475,7 +1475,7 @@ func TestClient_SendErrorToReset(t *testing.T) {
 			return
 		}
 	}()
-	time.Sleep(time.Millisecond * 300) // wait until tcp server has been settled
+	time.Sleep(time.Millisecond * 300)
 
 	message := NewMsg()
 	if err := message.From("valid-from@domain.tld"); err != nil {
