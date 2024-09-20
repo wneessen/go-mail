@@ -1663,6 +1663,68 @@ func TestClient_SendErrorDataWrite(t *testing.T) {
 	}
 }
 
+func TestClient_SendErrorReset(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, true); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 300)
+
+	message := NewMsg()
+	if err := message.From("valid-from@domain.tld"); err != nil {
+		t.Errorf("failed to set FROM address: %s", err)
+		return
+	}
+	if err := message.To("valid-to@domain.tld"); err != nil {
+		t.Errorf("failed to set TO address: %s", err)
+		return
+	}
+	message.Subject("Test subject")
+	message.SetBodyString(TypeTextPlain, "Test body")
+	message.SetMessageIDWithValue("this.is.a.message.id")
+
+	client, err := NewClient(TestServerAddr, WithPort(TestServerPort),
+		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
+		WithUsername("toni@tester.com"),
+		WithPassword("V3ryS3cr3t+"))
+	if err != nil {
+		t.Errorf("unable to create new client: %s", err)
+	}
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to test server: %s", err)
+	}
+	if err = client.Send(message); err == nil {
+		t.Error("expected Send() to fail but didn't")
+	}
+
+	var sendErr *SendError
+	if !errors.As(err, &sendErr) {
+		t.Errorf("expected *SendError type as returned error, but got %T", sendErr)
+	}
+	if errors.As(err, &sendErr) {
+		if sendErr.IsTemp() {
+			t.Errorf("expected permanent error but IsTemp() returned true")
+		}
+		if sendErr.Reason != ErrSMTPReset {
+			t.Errorf("expected ErrSMTPReset error, but got %s", sendErr.Reason)
+		}
+		if !strings.EqualFold(sendErr.MessageID(), "<this.is.a.message.id>") {
+			t.Errorf("expected message ID: %q, but got %q", "<this.is.a.message.id>",
+				sendErr.MessageID())
+		}
+	}
+
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close server connection: %s", err)
+	}
+}
+
 // getTestConnection takes environment variables to establish a connection to a real
 // SMTP server to test all functionality that requires a connection
 func getTestConnection(auth bool) (*Client, error) {
