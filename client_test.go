@@ -1259,6 +1259,72 @@ func TestClient_DialAndSendWithContext_withSendError(t *testing.T) {
 	}
 }
 
+func TestClient_SendErrorNoEncoding(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	featureSet := "250-AUTH PLAIN\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 300) // wait until tcp server has been settled
+
+	message := NewMsg()
+	if err := message.From("invalid-from@domain.tld"); err != nil {
+		t.Errorf("failed to set FROM address: %s", err)
+		return
+	}
+	if err := message.To("invalid-to@domain.tld"); err != nil {
+		t.Errorf("failed to set TO address: %s", err)
+		return
+	}
+	message.Subject("Test subject")
+	message.SetBodyString(TypeTextPlain, "Test body")
+	message.SetMessageIDWithValue("this.is.a.message.id")
+	message.SetEncoding(NoEncoding)
+
+	client, err := NewClient(TestServerAddr, WithPort(TestServerPort),
+		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
+		WithUsername("toni@tester.com"),
+		WithPassword("V3ryS3cr3t+"))
+	if err != nil {
+		t.Errorf("unable to create new client: %s", err)
+	}
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to test server: %s", err)
+	}
+	if err = client.Send(message); err == nil {
+		t.Error("expected Send() to fail but didn't")
+	}
+
+	var sendErr *SendError
+	if !errors.As(err, &sendErr) {
+		t.Errorf("expected *SendError type as returned error, but got %T", sendErr)
+	}
+	if errors.As(err, &sendErr) {
+		if sendErr.IsTemp() {
+			t.Errorf("expected permanent error but IsTemp() returned true")
+		}
+		if sendErr.Reason != ErrNoUnencoded {
+			t.Errorf("expected ErrNoUnencoded error, but got %s", sendErr.Reason)
+		}
+		if !strings.EqualFold(sendErr.MessageID(), "<this.is.a.message.id>") {
+			t.Errorf("expected message ID: %q, but got %q", "<this.is.a.message.id>",
+				sendErr.MessageID())
+		}
+		if sendErr.Msg() == nil {
+			t.Errorf("expected message to be set, but got nil")
+		}
+	}
+
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close server connection: %s", err)
+	}
+}
+
 // getTestConnection takes environment variables to establish a connection to a real
 // SMTP server to test all functionality that requires a connection
 func getTestConnection(auth bool) (*Client, error) {
@@ -1561,9 +1627,9 @@ func simpleSMTPServer(ctx context.Context, featureSet string) error {
 	}
 
 	defer func() {
-		fmt.Printf("closing listener\n")
 		if err := listener.Close(); err != nil {
 			fmt.Printf("unable to close listener: %s\n", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -1614,10 +1680,11 @@ func handleTestServerConnection(connection net.Conn, featureSet string) {
 	data, err := reader.ReadString('\n')
 	if err != nil {
 		fmt.Printf("unable to read from connection: %s\n", err)
+		return
 	}
 	if !strings.HasPrefix(data, "EHLO") && !strings.HasPrefix(data, "HELO") {
 		fmt.Printf("expected EHLO, got %q", data)
-		os.Exit(1)
+		return
 	}
 	if err = writeLine("250-localhost.localdomain\r\n" + featureSet); err != nil {
 		fmt.Printf("unable to write to connection: %s\n", err)
@@ -1628,7 +1695,6 @@ func handleTestServerConnection(connection net.Conn, featureSet string) {
 		data, err = reader.ReadString('\n')
 		if err != nil {
 			if err == io.EOF {
-				fmt.Println("Connection closed by client.")
 				break
 			}
 			fmt.Println("Error reading data:", err)
@@ -1688,6 +1754,5 @@ func handleTestServerConnection(connection net.Conn, featureSet string) {
 		default:
 			_ = writeLine("500 5.5.2 Error: bad syntax")
 		}
-		fmt.Printf("DATA received: %s", datastring)
 	}
 }
