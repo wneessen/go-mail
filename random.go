@@ -7,8 +7,6 @@ package mail
 import (
 	"crypto/rand"
 	"encoding/binary"
-	"fmt"
-	"math/big"
 	"strings"
 )
 
@@ -51,24 +49,4 @@ func randomStringSecure(length int) (string, error) {
 	}
 
 	return randString.String(), nil
-}
-
-// randNum returns a random number with a maximum value of length
-func randNum(length int) (int, error) {
-	if length <= 0 {
-		return 0, fmt.Errorf("provided number is <= 0: %d", length)
-	}
-	length64 := big.NewInt(int64(length))
-	if !length64.IsUint64() {
-		return 0, fmt.Errorf("big.NewInt() generation returned negative value: %d", length64)
-	}
-	randNum64, err := rand.Int(rand.Reader, length64)
-	if err != nil {
-		return 0, err
-	}
-	randomNum := int(randNum64.Int64())
-	if randomNum < 0 {
-		return 0, fmt.Errorf("generated random number does not fit as int64: %d", randNum64)
-	}
-	return randomNum, nil
 }

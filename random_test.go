@@ -55,16 +55,17 @@ func TestRandomNum(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.testName, func(t *testing.T) {
-			rn, err := randNum(tc.max)
-			if err != nil {
-				t.Errorf("random number generation failed: %s", err)
-			}
-			if rn < 0 {
-				t.Errorf("random number generation failed: %d is smaller than zero", rn)
-			}
+			rn := randNum(tc.max)
 			if rn > tc.max {
 				t.Errorf("random number generation failed: %d is bigger than given value %d", rn, tc.max)
 			}
 		})
+	}
+}
+
+func TestRandomNumZero(t *testing.T) {
+	rn := randNum(0)
+	if rn != 0 {
+		t.Errorf("random number generation failed: %d is not zero", rn)
 	}
 }

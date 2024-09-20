@@ -467,8 +467,8 @@ func (m *Msg) SetMessageID() {
 	if err != nil {
 		hostname = "localhost.localdomain"
 	}
-	randNumPrimary, _ := randNum(100000000)
-	randNumSecondary, _ := randNum(10000)
+	randNumPrimary := randNum(100000000)
+	randNumSecondary := randNum(10000)
 	randString, _ := randomStringSecure(17)
 	procID := os.Getpid() * randNumSecondary
 	messageID := fmt.Sprintf("%d.%d%d.%s@%s", procID, randNumPrimary, randNumSecondary,

@@ -108,6 +108,13 @@ func TestSendError_MessageID(t *testing.T) {
 	}
 }
 
+func TestSendError_MessageIDNil(t *testing.T) {
+	var se *SendError
+	if se.MessageID() != "" {
+		t.Error("expected empty string on nil-senderror")
+	}
+}
+
 func TestSendError_Msg(t *testing.T) {
 	var se *SendError
 	err := returnSendError(ErrAmbiguous, false)
@@ -128,6 +135,33 @@ func TestSendError_Msg(t *testing.T) {
 			t.Errorf("sendError message from expected: %s, but got: %s", "<toni.tester@domain.tld>",
 				from[0])
 		}
+	}
+}
+
+func TestSendError_MsgNil(t *testing.T) {
+	var se *SendError
+	if se.Msg() != nil {
+		t.Error("expected nil on nil-senderror")
+	}
+}
+
+func TestSendError_IsFail(t *testing.T) {
+	err1 := returnSendError(ErrAmbiguous, false)
+	err2 := returnSendError(ErrSMTPMailFrom, false)
+	if errors.Is(err1, err2) {
+		t.Errorf("error mismatch, ErrAmbiguous should not be equal to ErrSMTPMailFrom")
+	}
+}
+
+func TestSendError_ErrorMulti(t *testing.T) {
+	expected := `ambiguous reason, check Msg.SendError for message specific reasons, ` +
+		`affected recipient(s): <email1@domain.tld>, <email2@domain.tld>`
+	err := &SendError{
+		Reason: ErrAmbiguous, isTemp: false, affectedMsg: nil,
+		rcpt: []string{"<email1@domain.tld>", "<email2@domain.tld>"},
+	}
+	if err.Error() != expected {
+		t.Errorf("error mismatch, expected: %s, got: %s", expected, err.Error())
 	}
 }
 
