@@ -5,6 +5,7 @@
 package mail
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -21,11 +22,18 @@ import (
 	"github.com/wneessen/go-mail/smtp"
 )
 
-// DefaultHost is used as default hostname for the Client
-const DefaultHost = "localhost"
-
-// TestRcpt
-const TestRcpt = "go-mail@mytrashmailer.com"
+const (
+	// DefaultHost is used as default hostname for the Client
+	DefaultHost = "localhost"
+	// TestRcpt is a trash mail address to send test mails to
+	TestRcpt = "go-mail@mytrashmailer.com"
+	// TestServerProto is the protocol used for the simple SMTP test server
+	TestServerProto = "tcp"
+	// TestServerAddr is the address the simple SMTP test server listens on
+	TestServerAddr = "127.0.0.1"
+	// TestServerPort is the port the simple SMTP test server listens on
+	TestServerPort = 2526
+)
 
 // TestNewClient tests the NewClient() method with its default options
 func TestNewClient(t *testing.T) {
@@ -1545,3 +1553,141 @@ func (f faker) RemoteAddr() net.Addr             { return nil }
 func (f faker) SetDeadline(time.Time) error      { return nil }
 func (f faker) SetReadDeadline(time.Time) error  { return nil }
 func (f faker) SetWriteDeadline(time.Time) error { return nil }
+
+func simpleSMTPServer(ctx context.Context, featureSet string) error {
+	listener, err := net.Listen(TestServerProto, fmt.Sprintf("%s:%d", TestServerAddr, TestServerPort))
+	if err != nil {
+		return fmt.Errorf("unable to listen on %s://%s: %w", TestServerProto, TestServerAddr, err)
+	}
+
+	defer func() {
+		fmt.Printf("closing listener\n")
+		if err := listener.Close(); err != nil {
+			fmt.Printf("unable to close listener: %s\n", err)
+		}
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			connection, err := listener.Accept()
+			var opErr *net.OpError
+			if err != nil {
+				if errors.As(err, &opErr) && opErr.Temporary() {
+					continue
+				}
+				return fmt.Errorf("unable to accept connection: %w", err)
+			}
+			handleTestServerConnection(connection, featureSet)
+		}
+	}
+}
+
+func handleTestServerConnection(connection net.Conn, featureSet string) {
+	defer func() {
+		if err := connection.Close(); err != nil {
+			fmt.Printf("unable to close connection: %s\n", err)
+		}
+	}()
+
+	reader := bufio.NewReader(connection)
+	writer := bufio.NewWriter(connection)
+
+	writeLine := func(data string) error {
+		_, err := writer.WriteString(data + "\r\n")
+		if err != nil {
+			return fmt.Errorf("unable to write line: %w", err)
+		}
+		return writer.Flush()
+	}
+	writeOK := func() {
+		_ = writeLine("250 2.0.0 OK")
+	}
+
+	if err := writeLine("220 go-mail test server ready ESMTP"); err != nil {
+		fmt.Printf("unable to write to client: %s\n", err)
+		return
+	}
+
+	data, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Printf("unable to read from connection: %s\n", err)
+	}
+	if !strings.HasPrefix(data, "EHLO") && !strings.HasPrefix(data, "HELO") {
+		fmt.Printf("expected EHLO, got %q", data)
+		os.Exit(1)
+	}
+	if err = writeLine("250-localhost.localdomain\r\n" + featureSet); err != nil {
+		fmt.Printf("unable to write to connection: %s\n", err)
+		return
+	}
+
+	for {
+		data, err = reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				fmt.Println("Connection closed by client.")
+				break
+			}
+			fmt.Println("Error reading data:", err)
+			break
+		}
+
+		var datastring string
+		data = strings.TrimSpace(data)
+		switch {
+		case strings.HasPrefix(data, "MAIL FROM:"):
+			from := strings.TrimPrefix(data, "MAIL FROM:")
+			from = strings.ReplaceAll(from, "BODY=8BITMIME", "")
+			from = strings.ReplaceAll(from, "SMTPUTF8", "")
+			from = strings.TrimSpace(from)
+			if !strings.EqualFold(from, "<invalid-from@domain.tld>") {
+				_ = writeLine(fmt.Sprintf("503 5.1.2 Invalid from: %s", from))
+				break
+			}
+			writeOK()
+		case strings.HasPrefix(data, "RCPT TO:"):
+			to := strings.TrimPrefix(data, "RCPT TO:")
+			if !strings.EqualFold(to, "<invalid-to@domain.tld>") {
+				_ = writeLine(fmt.Sprintf("500 5.1.2 Invalid to: %s", to))
+				break
+			}
+			writeOK()
+		case strings.HasPrefix(data, "AUTH PLAIN"):
+			auth := strings.TrimPrefix(data, "AUTH PLAIN ")
+			if !strings.EqualFold(auth, "AHRvbmlAdGVzdGVyLmNvbQBWM3J5UzNjcjN0Kw==") {
+				_ = writeLine("535 5.7.8 Error: authentication failed")
+				break
+			}
+			_ = writeLine("235 2.7.0 Authentication successful")
+		case strings.EqualFold(data, "DATA"):
+			_ = writeLine("354 End data with <CR><LF>.<CR><LF>")
+			for {
+				ddata, derr := reader.ReadString('\n')
+				if derr != nil {
+					fmt.Printf("failed to read DATA data from connection: %s\n", derr)
+					break
+				}
+				ddata = strings.TrimSpace(ddata)
+				if ddata == "." {
+					_ = writeLine("250 2.0.0 Ok: queued as 1234567890")
+					break
+				}
+				datastring += ddata + "\n"
+			}
+		case strings.EqualFold(data, "noop"),
+			strings.EqualFold(data, "rset"),
+			strings.EqualFold(data, "vrfy"):
+			writeOK()
+			break
+		case strings.EqualFold(data, "quit"):
+			_ = writeLine("221 2.0.0 Bye")
+			break
+		default:
+			_ = writeLine("500 5.5.2 Error: bad syntax")
+		}
+		fmt.Printf("DATA received: %s", datastring)
+	}
+}
