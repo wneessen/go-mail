@@ -108,6 +108,13 @@ func TestSendError_MessageID(t *testing.T) {
 	}
 }
 
+func TestSendError_MessageIDNil(t *testing.T) {
+	var se *SendError
+	if se.MessageID() != "" {
+		t.Error("expected empty string on nil-senderror")
+	}
+}
+
 func TestSendError_Msg(t *testing.T) {
 	var se *SendError
 	err := returnSendError(ErrAmbiguous, false)
@@ -128,6 +135,13 @@ func TestSendError_Msg(t *testing.T) {
 			t.Errorf("sendError message from expected: %s, but got: %s", "<toni.tester@domain.tld>",
 				from[0])
 		}
+	}
+}
+
+func TestSendError_MsgNil(t *testing.T) {
+	var se *SendError
+	if se.Msg() != nil {
+		t.Error("expected nil on nil-senderror")
 	}
 }
 
