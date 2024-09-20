@@ -1265,7 +1265,7 @@ func TestClient_SendErrorNoEncoding(t *testing.T) {
 
 	featureSet := "250-AUTH PLAIN\r\n250-DSN\r\n250 SMTPUTF8"
 	go func() {
-		if err := simpleSMTPServer(ctx, featureSet); err != nil {
+		if err := simpleSMTPServer(ctx, featureSet, false); err != nil {
 			t.Errorf("failed to start test server: %s", err)
 			return
 		}
@@ -1273,11 +1273,11 @@ func TestClient_SendErrorNoEncoding(t *testing.T) {
 	time.Sleep(time.Millisecond * 300) // wait until tcp server has been settled
 
 	message := NewMsg()
-	if err := message.From("invalid-from@domain.tld"); err != nil {
+	if err := message.From("valid-from@domain.tld"); err != nil {
 		t.Errorf("failed to set FROM address: %s", err)
 		return
 	}
-	if err := message.To("invalid-to@domain.tld"); err != nil {
+	if err := message.To("valid-to@domain.tld"); err != nil {
 		t.Errorf("failed to set TO address: %s", err)
 		return
 	}
@@ -1317,6 +1317,344 @@ func TestClient_SendErrorNoEncoding(t *testing.T) {
 		}
 		if sendErr.Msg() == nil {
 			t.Errorf("expected message to be set, but got nil")
+		}
+	}
+
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close server connection: %s", err)
+	}
+}
+
+func TestClient_SendErrorMailFrom(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, false); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 300) // wait until tcp server has been settled
+
+	message := NewMsg()
+	if err := message.From("invalid-from@domain.tld"); err != nil {
+		t.Errorf("failed to set FROM address: %s", err)
+		return
+	}
+	if err := message.To("valid-to@domain.tld"); err != nil {
+		t.Errorf("failed to set TO address: %s", err)
+		return
+	}
+	message.Subject("Test subject")
+	message.SetBodyString(TypeTextPlain, "Test body")
+	message.SetMessageIDWithValue("this.is.a.message.id")
+
+	client, err := NewClient(TestServerAddr, WithPort(TestServerPort),
+		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
+		WithUsername("toni@tester.com"),
+		WithPassword("V3ryS3cr3t+"))
+	if err != nil {
+		t.Errorf("unable to create new client: %s", err)
+	}
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to test server: %s", err)
+	}
+	if err = client.Send(message); err == nil {
+		t.Error("expected Send() to fail but didn't")
+	}
+
+	var sendErr *SendError
+	if !errors.As(err, &sendErr) {
+		t.Errorf("expected *SendError type as returned error, but got %T", sendErr)
+	}
+	if errors.As(err, &sendErr) {
+		if sendErr.IsTemp() {
+			t.Errorf("expected permanent error but IsTemp() returned true")
+		}
+		if sendErr.Reason != ErrSMTPMailFrom {
+			t.Errorf("expected ErrSMTPMailFrom error, but got %s", sendErr.Reason)
+		}
+		if !strings.EqualFold(sendErr.MessageID(), "<this.is.a.message.id>") {
+			t.Errorf("expected message ID: %q, but got %q", "<this.is.a.message.id>",
+				sendErr.MessageID())
+		}
+		if sendErr.Msg() == nil {
+			t.Errorf("expected message to be set, but got nil")
+		}
+	}
+
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close server connection: %s", err)
+	}
+}
+
+func TestClient_SendErrorMailFromReset(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, true); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 300) // wait until tcp server has been settled
+
+	message := NewMsg()
+	if err := message.From("invalid-from@domain.tld"); err != nil {
+		t.Errorf("failed to set FROM address: %s", err)
+		return
+	}
+	if err := message.To("valid-to@domain.tld"); err != nil {
+		t.Errorf("failed to set TO address: %s", err)
+		return
+	}
+	message.Subject("Test subject")
+	message.SetBodyString(TypeTextPlain, "Test body")
+	message.SetMessageIDWithValue("this.is.a.message.id")
+
+	client, err := NewClient(TestServerAddr, WithPort(TestServerPort),
+		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
+		WithUsername("toni@tester.com"),
+		WithPassword("V3ryS3cr3t+"))
+	if err != nil {
+		t.Errorf("unable to create new client: %s", err)
+	}
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to test server: %s", err)
+	}
+	if err = client.Send(message); err == nil {
+		t.Error("expected Send() to fail but didn't")
+	}
+
+	var sendErr *SendError
+	if !errors.As(err, &sendErr) {
+		t.Errorf("expected *SendError type as returned error, but got %T", sendErr)
+	}
+	if errors.As(err, &sendErr) {
+		if sendErr.IsTemp() {
+			t.Errorf("expected permanent error but IsTemp() returned true")
+		}
+		if sendErr.Reason != ErrSMTPMailFrom {
+			t.Errorf("expected ErrSMTPMailFrom error, but got %s", sendErr.Reason)
+		}
+		if !strings.EqualFold(sendErr.MessageID(), "<this.is.a.message.id>") {
+			t.Errorf("expected message ID: %q, but got %q", "<this.is.a.message.id>",
+				sendErr.MessageID())
+		}
+		if len(sendErr.errlist) != 2 {
+			t.Errorf("expected 2 errors, but got %d", len(sendErr.errlist))
+			return
+		}
+		if !strings.EqualFold(sendErr.errlist[0].Error(), "503 5.1.2 Invalid from: <invalid-from@domain.tld>") {
+			t.Errorf("expected error: %q, but got %q",
+				"503 5.1.2 Invalid from: <invalid-from@domain.tld>", sendErr.errlist[0].Error())
+		}
+		if !strings.EqualFold(sendErr.errlist[1].Error(), "500 5.1.2 Error: reset failed") {
+			t.Errorf("expected error: %q, but got %q",
+				"500 5.1.2 Error: reset failed", sendErr.errlist[1].Error())
+		}
+	}
+
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close server connection: %s", err)
+	}
+}
+
+func TestClient_SendErrorToReset(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, true); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 300) // wait until tcp server has been settled
+
+	message := NewMsg()
+	if err := message.From("valid-from@domain.tld"); err != nil {
+		t.Errorf("failed to set FROM address: %s", err)
+		return
+	}
+	if err := message.To("invalid-to@domain.tld"); err != nil {
+		t.Errorf("failed to set TO address: %s", err)
+		return
+	}
+	message.Subject("Test subject")
+	message.SetBodyString(TypeTextPlain, "Test body")
+	message.SetMessageIDWithValue("this.is.a.message.id")
+
+	client, err := NewClient(TestServerAddr, WithPort(TestServerPort),
+		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
+		WithUsername("toni@tester.com"),
+		WithPassword("V3ryS3cr3t+"))
+	if err != nil {
+		t.Errorf("unable to create new client: %s", err)
+	}
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to test server: %s", err)
+	}
+	if err = client.Send(message); err == nil {
+		t.Error("expected Send() to fail but didn't")
+	}
+
+	var sendErr *SendError
+	if !errors.As(err, &sendErr) {
+		t.Errorf("expected *SendError type as returned error, but got %T", sendErr)
+	}
+	if errors.As(err, &sendErr) {
+		if sendErr.IsTemp() {
+			t.Errorf("expected permanent error but IsTemp() returned true")
+		}
+		if sendErr.Reason != ErrSMTPRcptTo {
+			t.Errorf("expected ErrSMTPRcptTo error, but got %s", sendErr.Reason)
+		}
+		if !strings.EqualFold(sendErr.MessageID(), "<this.is.a.message.id>") {
+			t.Errorf("expected message ID: %q, but got %q", "<this.is.a.message.id>",
+				sendErr.MessageID())
+		}
+		if len(sendErr.errlist) != 2 {
+			t.Errorf("expected 2 errors, but got %d", len(sendErr.errlist))
+			return
+		}
+		if !strings.EqualFold(sendErr.errlist[0].Error(), "500 5.1.2 Invalid to: <invalid-to@domain.tld>") {
+			t.Errorf("expected error: %q, but got %q",
+				"500 5.1.2 Invalid to: <invalid-to@domain.tld>", sendErr.errlist[0].Error())
+		}
+		if !strings.EqualFold(sendErr.errlist[1].Error(), "500 5.1.2 Error: reset failed") {
+			t.Errorf("expected error: %q, but got %q",
+				"500 5.1.2 Error: reset failed", sendErr.errlist[1].Error())
+		}
+	}
+
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close server connection: %s", err)
+	}
+}
+
+func TestClient_SendErrorDataClose(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, false); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 300)
+
+	message := NewMsg()
+	if err := message.From("valid-from@domain.tld"); err != nil {
+		t.Errorf("failed to set FROM address: %s", err)
+		return
+	}
+	if err := message.To("valid-to@domain.tld"); err != nil {
+		t.Errorf("failed to set TO address: %s", err)
+		return
+	}
+	message.Subject("Test subject")
+	message.SetBodyString(TypeTextPlain, "DATA close should fail")
+	message.SetMessageIDWithValue("this.is.a.message.id")
+
+	client, err := NewClient(TestServerAddr, WithPort(TestServerPort),
+		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
+		WithUsername("toni@tester.com"),
+		WithPassword("V3ryS3cr3t+"))
+	if err != nil {
+		t.Errorf("unable to create new client: %s", err)
+	}
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to test server: %s", err)
+	}
+	if err = client.Send(message); err == nil {
+		t.Error("expected Send() to fail but didn't")
+	}
+
+	var sendErr *SendError
+	if !errors.As(err, &sendErr) {
+		t.Errorf("expected *SendError type as returned error, but got %T", sendErr)
+	}
+	if errors.As(err, &sendErr) {
+		if sendErr.IsTemp() {
+			t.Errorf("expected permanent error but IsTemp() returned true")
+		}
+		if sendErr.Reason != ErrSMTPDataClose {
+			t.Errorf("expected ErrSMTPDataClose error, but got %s", sendErr.Reason)
+		}
+		if !strings.EqualFold(sendErr.MessageID(), "<this.is.a.message.id>") {
+			t.Errorf("expected message ID: %q, but got %q", "<this.is.a.message.id>",
+				sendErr.MessageID())
+		}
+	}
+
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close server connection: %s", err)
+	}
+}
+
+func TestClient_SendErrorDataWrite(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, false); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 300)
+
+	message := NewMsg()
+	if err := message.From("valid-from@domain.tld"); err != nil {
+		t.Errorf("failed to set FROM address: %s", err)
+		return
+	}
+	if err := message.To("valid-to@domain.tld"); err != nil {
+		t.Errorf("failed to set TO address: %s", err)
+		return
+	}
+	message.Subject("Test subject")
+	message.SetBodyString(TypeTextPlain, "DATA write should fail")
+	message.SetMessageIDWithValue("this.is.a.message.id")
+	message.SetGenHeader("X-Test-Header", "DATA write should fail")
+
+	client, err := NewClient(TestServerAddr, WithPort(TestServerPort),
+		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
+		WithUsername("toni@tester.com"),
+		WithPassword("V3ryS3cr3t+"))
+	if err != nil {
+		t.Errorf("unable to create new client: %s", err)
+	}
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to test server: %s", err)
+	}
+	if err = client.Send(message); err == nil {
+		t.Error("expected Send() to fail but didn't")
+	}
+
+	var sendErr *SendError
+	if !errors.As(err, &sendErr) {
+		t.Errorf("expected *SendError type as returned error, but got %T", sendErr)
+	}
+	if errors.As(err, &sendErr) {
+		if sendErr.IsTemp() {
+			t.Errorf("expected permanent error but IsTemp() returned true")
+		}
+		if sendErr.Reason != ErrSMTPDataClose {
+			t.Errorf("expected ErrSMTPDataClose error, but got %s", sendErr.Reason)
+		}
+		if !strings.EqualFold(sendErr.MessageID(), "<this.is.a.message.id>") {
+			t.Errorf("expected message ID: %q, but got %q", "<this.is.a.message.id>",
+				sendErr.MessageID())
 		}
 	}
 
@@ -1620,7 +1958,10 @@ func (f faker) SetDeadline(time.Time) error      { return nil }
 func (f faker) SetReadDeadline(time.Time) error  { return nil }
 func (f faker) SetWriteDeadline(time.Time) error { return nil }
 
-func simpleSMTPServer(ctx context.Context, featureSet string) error {
+// simpleSMTPServer starts a simple TCP server that resonds to SMTP commands.
+// The provided featureSet represents in what the server responds to EHLO command
+// failReset controls if a RSET succeeds
+func simpleSMTPServer(ctx context.Context, featureSet string, failReset bool) error {
 	listener, err := net.Listen(TestServerProto, fmt.Sprintf("%s:%d", TestServerAddr, TestServerPort))
 	if err != nil {
 		return fmt.Errorf("unable to listen on %s://%s: %w", TestServerProto, TestServerAddr, err)
@@ -1646,12 +1987,12 @@ func simpleSMTPServer(ctx context.Context, featureSet string) error {
 				}
 				return fmt.Errorf("unable to accept connection: %w", err)
 			}
-			handleTestServerConnection(connection, featureSet)
+			handleTestServerConnection(connection, featureSet, failReset)
 		}
 	}
 }
 
-func handleTestServerConnection(connection net.Conn, featureSet string) {
+func handleTestServerConnection(connection net.Conn, featureSet string, failReset bool) {
 	defer func() {
 		if err := connection.Close(); err != nil {
 			fmt.Printf("unable to close connection: %s\n", err)
@@ -1709,14 +2050,15 @@ func handleTestServerConnection(connection net.Conn, featureSet string) {
 			from = strings.ReplaceAll(from, "BODY=8BITMIME", "")
 			from = strings.ReplaceAll(from, "SMTPUTF8", "")
 			from = strings.TrimSpace(from)
-			if !strings.EqualFold(from, "<invalid-from@domain.tld>") {
+			if !strings.EqualFold(from, "<valid-from@domain.tld>") {
 				_ = writeLine(fmt.Sprintf("503 5.1.2 Invalid from: %s", from))
 				break
 			}
 			writeOK()
 		case strings.HasPrefix(data, "RCPT TO:"):
 			to := strings.TrimPrefix(data, "RCPT TO:")
-			if !strings.EqualFold(to, "<invalid-to@domain.tld>") {
+			to = strings.TrimSpace(to)
+			if !strings.EqualFold(to, "<valid-to@domain.tld>") {
 				_ = writeLine(fmt.Sprintf("500 5.1.2 Invalid to: %s", to))
 				break
 			}
@@ -1737,15 +2079,29 @@ func handleTestServerConnection(connection net.Conn, featureSet string) {
 					break
 				}
 				ddata = strings.TrimSpace(ddata)
+				if strings.EqualFold(ddata, "DATA write should fail") {
+					_ = writeLine("500 5.0.0 Error during DATA transmission")
+					break
+				}
 				if ddata == "." {
+					if strings.Contains(datastring, "DATA close should fail") {
+						_ = writeLine("500 5.0.0 Error during DATA closing")
+						break
+					}
 					_ = writeLine("250 2.0.0 Ok: queued as 1234567890")
 					break
 				}
 				datastring += ddata + "\n"
 			}
 		case strings.EqualFold(data, "noop"),
-			strings.EqualFold(data, "rset"),
 			strings.EqualFold(data, "vrfy"):
+			writeOK()
+			break
+		case strings.EqualFold(data, "rset"):
+			if failReset {
+				_ = writeLine("500 5.1.2 Error: reset failed")
+				break
+			}
 			writeOK()
 			break
 		case strings.EqualFold(data, "quit"):
