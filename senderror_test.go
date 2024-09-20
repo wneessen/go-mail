@@ -83,6 +83,13 @@ func TestSendError_IsTemp(t *testing.T) {
 	}
 }
 
+func TestSendError_IsTempNil(t *testing.T) {
+	var se *SendError
+	if se.IsTemp() {
+		t.Error("expected false on nil-senderror")
+	}
+}
+
 // returnSendError is a helper method to retunr a SendError with a specific reason
 func returnSendError(r SendErrReason, t bool) error {
 	return &SendError{Reason: r, isTemp: t}

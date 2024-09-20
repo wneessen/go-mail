@@ -805,6 +805,21 @@ func TestMsg_SetMessageIDRandomness(t *testing.T) {
 	}
 }
 
+func TestMsg_GetMessageID(t *testing.T) {
+	expected := "this.is.a.message.id"
+	msg := NewMsg()
+	msg.SetMessageIDWithValue(expected)
+	val := msg.GetMessageID()
+	if !strings.EqualFold(val, fmt.Sprintf("<%s>", expected)) {
+		t.Errorf("GetMessageID() failed. Expected: %s, got: %s", fmt.Sprintf("<%s>", expected), val)
+	}
+	msg.genHeader[HeaderMessageID] = nil
+	val = msg.GetMessageID()
+	if val != "" {
+		t.Errorf("GetMessageID() failed. Expected empty string, got: %s", val)
+	}
+}
+
 // TestMsg_FromFormat tests the FromFormat and EnvelopeFrom methods for the Msg object
 func TestMsg_FromFormat(t *testing.T) {
 	tests := []struct {

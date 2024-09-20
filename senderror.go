@@ -56,10 +56,11 @@ const (
 
 // SendError is an error wrapper for delivery errors of the Msg
 type SendError struct {
-	Reason  SendErrReason
-	isTemp  bool
-	errlist []error
-	rcpt    []string
+	affectedMsg *Msg
+	errlist     []error
+	isTemp      bool
+	rcpt        []string
+	Reason      SendErrReason
 }
 
 // SendErrReason represents a comparable reason on why the delivery failed
@@ -92,6 +93,11 @@ func (e *SendError) Error() string {
 			}
 		}
 	}
+	if e.affectedMsg != nil && e.affectedMsg.GetMessageID() != "" {
+		errMessage.WriteString(", affected message ID: ")
+		errMessage.WriteString(e.affectedMsg.GetMessageID())
+	}
+
 	return errMessage.String()
 }
 
