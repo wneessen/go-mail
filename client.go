@@ -798,13 +798,17 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 	}
 	from, err := message.GetSender(false)
 	if err != nil {
-		return &SendError{Reason: ErrGetSender, errlist: []error{err}, isTemp: isTempError(err),
-			affectedMsg: message}
+		return &SendError{
+			Reason: ErrGetSender, errlist: []error{err}, isTemp: isTempError(err),
+			affectedMsg: message,
+		}
 	}
 	rcpts, err := message.GetRecipients()
 	if err != nil {
-		return &SendError{Reason: ErrGetRcpts, errlist: []error{err}, isTemp: isTempError(err),
-			affectedMsg: message}
+		return &SendError{
+			Reason: ErrGetRcpts, errlist: []error{err}, isTemp: isTempError(err),
+			affectedMsg: message,
+		}
 	}
 
 	if c.dsn {
@@ -813,8 +817,10 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 		}
 	}
 	if err = c.smtpClient.Mail(from); err != nil {
-		retError := &SendError{Reason: ErrSMTPMailFrom, errlist: []error{err}, isTemp: isTempError(err),
-			affectedMsg: message}
+		retError := &SendError{
+			Reason: ErrSMTPMailFrom, errlist: []error{err}, isTemp: isTempError(err),
+			affectedMsg: message,
+		}
 		if resetSendErr := c.smtpClient.Reset(); resetSendErr != nil {
 			retError.errlist = append(retError.errlist, resetSendErr)
 		}
@@ -843,28 +849,38 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 	}
 	writer, err := c.smtpClient.Data()
 	if err != nil {
-		return &SendError{Reason: ErrSMTPData, errlist: []error{err}, isTemp: isTempError(err),
-			affectedMsg: message}
+		return &SendError{
+			Reason: ErrSMTPData, errlist: []error{err}, isTemp: isTempError(err),
+			affectedMsg: message,
+		}
 	}
 	_, err = message.WriteTo(writer)
 	if err != nil {
-		return &SendError{Reason: ErrWriteContent, errlist: []error{err}, isTemp: isTempError(err),
-			affectedMsg: message}
+		return &SendError{
+			Reason: ErrWriteContent, errlist: []error{err}, isTemp: isTempError(err),
+			affectedMsg: message,
+		}
 	}
 	message.isDelivered = true
 
 	if err = writer.Close(); err != nil {
-		return &SendError{Reason: ErrSMTPDataClose, errlist: []error{err}, isTemp: isTempError(err),
-			affectedMsg: message}
+		return &SendError{
+			Reason: ErrSMTPDataClose, errlist: []error{err}, isTemp: isTempError(err),
+			affectedMsg: message,
+		}
 	}
 
 	if err = c.Reset(); err != nil {
-		return &SendError{Reason: ErrSMTPReset, errlist: []error{err}, isTemp: isTempError(err),
-			affectedMsg: message}
+		return &SendError{
+			Reason: ErrSMTPReset, errlist: []error{err}, isTemp: isTempError(err),
+			affectedMsg: message,
+		}
 	}
 	if err = c.checkConn(); err != nil {
-		return &SendError{Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err),
-			affectedMsg: message}
+		return &SendError{
+			Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err),
+			affectedMsg: message,
+		}
 	}
 	return nil
 }
