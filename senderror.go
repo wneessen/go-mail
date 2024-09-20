@@ -118,6 +118,23 @@ func (e *SendError) IsTemp() bool {
 	return e.isTemp
 }
 
+// MessageID returns the message ID of the affected Msg that caused the error
+// If no message ID was set for the Msg, an empty string will be returned
+func (e *SendError) MessageID() string {
+	if e == nil || e.affectedMsg == nil {
+		return ""
+	}
+	return e.affectedMsg.GetMessageID()
+}
+
+// Msg returns the pointer to the affected message that caused the error
+func (e *SendError) Msg() *Msg {
+	if e == nil || e.affectedMsg == nil {
+		return nil
+	}
+	return e.affectedMsg
+}
+
 // String implements the Stringer interface for the SendErrReason
 func (r SendErrReason) String() string {
 	switch r {
