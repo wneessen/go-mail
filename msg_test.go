@@ -786,13 +786,11 @@ func TestMsg_SetMessageIDWithValue(t *testing.T) {
 // TestMsg_SetMessageIDRandomness tests the randomness of Msg.SetMessageID methods
 func TestMsg_SetMessageIDRandomness(t *testing.T) {
 	var mids []string
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 50_000; i++ {
 		m := NewMsg()
 		m.SetMessageID()
-		mid := m.GetGenHeader(HeaderMessageID)
-		if len(mid) > 0 {
-			mids = append(mids, mid[0])
-		}
+		mid := m.GetMessageID()
+		mids = append(mids, mid)
 	}
 	c := make(map[string]int)
 	for i := range mids {
