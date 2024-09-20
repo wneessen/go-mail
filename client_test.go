@@ -2097,7 +2097,7 @@ func handleTestServerConnection(connection net.Conn, featureSet string, failRese
 	for {
 		data, err = reader.ReadString('\n')
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			fmt.Println("Error reading data:", err)
@@ -2158,17 +2158,14 @@ func handleTestServerConnection(connection net.Conn, featureSet string, failRese
 		case strings.EqualFold(data, "noop"),
 			strings.EqualFold(data, "vrfy"):
 			writeOK()
-			break
 		case strings.EqualFold(data, "rset"):
 			if failReset {
 				_ = writeLine("500 5.1.2 Error: reset failed")
 				break
 			}
 			writeOK()
-			break
 		case strings.EqualFold(data, "quit"):
 			_ = writeLine("221 2.0.0 Bye")
-			break
 		default:
 			_ = writeLine("500 5.5.2 Error: bad syntax")
 		}
