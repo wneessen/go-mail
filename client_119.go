@@ -7,16 +7,22 @@
 
 package mail
 
+import "errors"
+
 // Send sends out the mail message
 func (c *Client) Send(messages ...*Msg) error {
 	if err := c.checkConn(); err != nil {
 		return &SendError{Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err)}
 	}
 	var errs []*SendError
-	for _, message := range messages {
+	for id, message := range messages {
 		if sendErr := c.sendSingleMsg(message); sendErr != nil {
 			messages[id].sendError = sendErr
-			errs = append(errs, sendErr)
+
+			var msgSendErr *SendError
+			if errors.As(sendErr, &msgSendErr) {
+				errs = append(errs, msgSendErr)
+			}
 		}
 	}
 
