@@ -31,8 +31,8 @@ const (
 	TestServerProto = "tcp"
 	// TestServerAddr is the address the simple SMTP test server listens on
 	TestServerAddr = "127.0.0.1"
-	// TestServerPort is the port the simple SMTP test server listens on
-	TestServerPort = 2526
+	// TestServerPortBase is the base port for the simple SMTP test server
+	TestServerPortBase = 2025
 )
 
 // TestNewClient tests the NewClient() method with its default options
@@ -1264,8 +1264,9 @@ func TestClient_SendErrorNoEncoding(t *testing.T) {
 	defer cancel()
 
 	featureSet := "250-AUTH PLAIN\r\n250-DSN\r\n250 SMTPUTF8"
+	serverPort := TestServerPortBase + 1
 	go func() {
-		if err := simpleSMTPServer(ctx, featureSet, false); err != nil {
+		if err := simpleSMTPServer(ctx, featureSet, false, serverPort); err != nil {
 			t.Errorf("failed to start test server: %s", err)
 			return
 		}
@@ -1286,7 +1287,7 @@ func TestClient_SendErrorNoEncoding(t *testing.T) {
 	message.SetMessageIDWithValue("this.is.a.message.id")
 	message.SetEncoding(NoEncoding)
 
-	client, err := NewClient(TestServerAddr, WithPort(TestServerPort),
+	client, err := NewClient(TestServerAddr, WithPort(serverPort),
 		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
 		WithUsername("toni@tester.com"),
 		WithPassword("V3ryS3cr3t+"))
@@ -1329,9 +1330,10 @@ func TestClient_SendErrorMailFrom(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	serverPort := TestServerPortBase + 2
 	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 	go func() {
-		if err := simpleSMTPServer(ctx, featureSet, false); err != nil {
+		if err := simpleSMTPServer(ctx, featureSet, false, serverPort); err != nil {
 			t.Errorf("failed to start test server: %s", err)
 			return
 		}
@@ -1351,7 +1353,7 @@ func TestClient_SendErrorMailFrom(t *testing.T) {
 	message.SetBodyString(TypeTextPlain, "Test body")
 	message.SetMessageIDWithValue("this.is.a.message.id")
 
-	client, err := NewClient(TestServerAddr, WithPort(TestServerPort),
+	client, err := NewClient(TestServerAddr, WithPort(serverPort),
 		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
 		WithUsername("toni@tester.com"),
 		WithPassword("V3ryS3cr3t+"))
@@ -1394,9 +1396,10 @@ func TestClient_SendErrorMailFromReset(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	serverPort := TestServerPortBase + 3
 	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 	go func() {
-		if err := simpleSMTPServer(ctx, featureSet, true); err != nil {
+		if err := simpleSMTPServer(ctx, featureSet, true, serverPort); err != nil {
 			t.Errorf("failed to start test server: %s", err)
 			return
 		}
@@ -1416,7 +1419,7 @@ func TestClient_SendErrorMailFromReset(t *testing.T) {
 	message.SetBodyString(TypeTextPlain, "Test body")
 	message.SetMessageIDWithValue("this.is.a.message.id")
 
-	client, err := NewClient(TestServerAddr, WithPort(TestServerPort),
+	client, err := NewClient(TestServerAddr, WithPort(serverPort),
 		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
 		WithUsername("toni@tester.com"),
 		WithPassword("V3ryS3cr3t+"))
@@ -1468,9 +1471,10 @@ func TestClient_SendErrorToReset(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	serverPort := TestServerPortBase + 4
 	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 	go func() {
-		if err := simpleSMTPServer(ctx, featureSet, true); err != nil {
+		if err := simpleSMTPServer(ctx, featureSet, true, serverPort); err != nil {
 			t.Errorf("failed to start test server: %s", err)
 			return
 		}
@@ -1490,7 +1494,7 @@ func TestClient_SendErrorToReset(t *testing.T) {
 	message.SetBodyString(TypeTextPlain, "Test body")
 	message.SetMessageIDWithValue("this.is.a.message.id")
 
-	client, err := NewClient(TestServerAddr, WithPort(TestServerPort),
+	client, err := NewClient(TestServerAddr, WithPort(serverPort),
 		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
 		WithUsername("toni@tester.com"),
 		WithPassword("V3ryS3cr3t+"))
@@ -1542,9 +1546,10 @@ func TestClient_SendErrorDataClose(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	serverPort := TestServerPortBase + 5
 	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 	go func() {
-		if err := simpleSMTPServer(ctx, featureSet, false); err != nil {
+		if err := simpleSMTPServer(ctx, featureSet, false, serverPort); err != nil {
 			t.Errorf("failed to start test server: %s", err)
 			return
 		}
@@ -1564,7 +1569,7 @@ func TestClient_SendErrorDataClose(t *testing.T) {
 	message.SetBodyString(TypeTextPlain, "DATA close should fail")
 	message.SetMessageIDWithValue("this.is.a.message.id")
 
-	client, err := NewClient(TestServerAddr, WithPort(TestServerPort),
+	client, err := NewClient(TestServerAddr, WithPort(serverPort),
 		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
 		WithUsername("toni@tester.com"),
 		WithPassword("V3ryS3cr3t+"))
@@ -1604,9 +1609,10 @@ func TestClient_SendErrorDataWrite(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	serverPort := TestServerPortBase + 6
 	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 	go func() {
-		if err := simpleSMTPServer(ctx, featureSet, false); err != nil {
+		if err := simpleSMTPServer(ctx, featureSet, false, serverPort); err != nil {
 			t.Errorf("failed to start test server: %s", err)
 			return
 		}
@@ -1627,7 +1633,7 @@ func TestClient_SendErrorDataWrite(t *testing.T) {
 	message.SetMessageIDWithValue("this.is.a.message.id")
 	message.SetGenHeader("X-Test-Header", "DATA write should fail")
 
-	client, err := NewClient(TestServerAddr, WithPort(TestServerPort),
+	client, err := NewClient(TestServerAddr, WithPort(serverPort),
 		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
 		WithUsername("toni@tester.com"),
 		WithPassword("V3ryS3cr3t+"))
@@ -1657,19 +1663,16 @@ func TestClient_SendErrorDataWrite(t *testing.T) {
 				sendErr.MessageID())
 		}
 	}
-
-	if err = client.Close(); err != nil {
-		t.Errorf("failed to close server connection: %s", err)
-	}
 }
 
 func TestClient_SendErrorReset(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	serverPort := TestServerPortBase + 7
 	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 	go func() {
-		if err := simpleSMTPServer(ctx, featureSet, true); err != nil {
+		if err := simpleSMTPServer(ctx, featureSet, true, serverPort); err != nil {
 			t.Errorf("failed to start test server: %s", err)
 			return
 		}
@@ -1689,7 +1692,7 @@ func TestClient_SendErrorReset(t *testing.T) {
 	message.SetBodyString(TypeTextPlain, "Test body")
 	message.SetMessageIDWithValue("this.is.a.message.id")
 
-	client, err := NewClient(TestServerAddr, WithPort(TestServerPort),
+	client, err := NewClient(TestServerAddr, WithPort(serverPort),
 		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
 		WithUsername("toni@tester.com"),
 		WithPassword("V3ryS3cr3t+"))
@@ -2023,8 +2026,8 @@ func (f faker) SetWriteDeadline(time.Time) error { return nil }
 // simpleSMTPServer starts a simple TCP server that resonds to SMTP commands.
 // The provided featureSet represents in what the server responds to EHLO command
 // failReset controls if a RSET succeeds
-func simpleSMTPServer(ctx context.Context, featureSet string, failReset bool) error {
-	listener, err := net.Listen(TestServerProto, fmt.Sprintf("%s:%d", TestServerAddr, TestServerPort))
+func simpleSMTPServer(ctx context.Context, featureSet string, failReset bool, port int) error {
+	listener, err := net.Listen(TestServerProto, fmt.Sprintf("%s:%d", TestServerAddr, port))
 	if err != nil {
 		return fmt.Errorf("unable to listen on %s://%s: %w", TestServerProto, TestServerAddr, err)
 	}
