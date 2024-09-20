@@ -61,3 +61,18 @@ func TestMsg_WriteToSendmail(t *testing.T) {
 		t.Errorf("WriteToSendmail failed: %s", err)
 	}
 }
+
+func TestMsg_WriteToTempFileFailed(t *testing.T) {
+	m := NewMsg()
+	_ = m.From("Toni Tester <tester@example.com>")
+	_ = m.To("Ellenor Tester <ellinor@example.com>")
+	m.SetBodyString(TypeTextPlain, "This is a test")
+
+	if err := os.Setenv("TMPDIR", "/invalid/directory/that/does/not/exist"); err != nil {
+		t.Errorf("failed to set TMPDIR environment variable: %s", err)
+	}
+	_, err := m.WriteToTempFile()
+	if err == nil {
+		t.Errorf("WriteToTempFile() did not fail as expected")
+	}
+}
