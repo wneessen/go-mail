@@ -156,8 +156,10 @@ func TestSendError_IsFail(t *testing.T) {
 func TestSendError_ErrorMulti(t *testing.T) {
 	expected := `ambiguous reason, check Msg.SendError for message specific reasons, ` +
 		`affected recipient(s): <email1@domain.tld>, <email2@domain.tld>`
-	err := &SendError{Reason: ErrAmbiguous, isTemp: false, affectedMsg: nil,
-		rcpt: []string{"<email1@domain.tld>", "<email2@domain.tld>"}}
+	err := &SendError{
+		Reason: ErrAmbiguous, isTemp: false, affectedMsg: nil,
+		rcpt: []string{"<email1@domain.tld>", "<email2@domain.tld>"},
+	}
 	if err.Error() != expected {
 		t.Errorf("error mismatch, expected: %s, got: %s", expected, err.Error())
 	}
