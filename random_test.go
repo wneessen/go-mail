@@ -62,3 +62,10 @@ func TestRandomNum(t *testing.T) {
 		})
 	}
 }
+
+func TestRandomNumZero(t *testing.T) {
+	rn := randNum(0)
+	if rn != 0 {
+		t.Errorf("random number generation failed: %d is not zero", rn)
+	}
+}
