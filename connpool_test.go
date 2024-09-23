@@ -352,7 +352,7 @@ func TestConnPool_Concurrency(t *testing.T) {
 	}
 }
 
-func TestConnPool_GetContextTimeout(t *testing.T) {
+func TestConnPool_GetContextCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
