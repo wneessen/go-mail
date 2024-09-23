@@ -144,6 +144,59 @@ func TestConnPool_Get(t *testing.T) {
 	p.Close()
 }
 
+func TestPoolConn_Close(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	serverPort := TestServerPortBase + 13
+	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, true, serverPort); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 300)
+
+	netDialer := net.Dialer{}
+	p, err := NewConnPool(context.Background(), 0, 30, netDialer.DialContext, "tcp",
+		fmt.Sprintf("127.0.0.1:%d", serverPort))
+	if err != nil {
+		t.Errorf("failed to create connection pool: %s", err)
+	}
+	defer p.Close()
+
+	conns := make([]net.Conn, 30)
+	for i := 0; i < 30; i++ {
+		conn, _ := p.Get()
+		if _, err = conn.Write([]byte("EHLO test.localhost.localdomain\r\nQUIT\r\n")); err != nil {
+			t.Errorf("failed to write quit command to first connection: %s", err)
+		}
+		conns[i] = conn
+	}
+	for _, conn := range conns {
+		conn.Close()
+	}
+
+	if p.Size() != 30 {
+		t.Errorf("failed to return all connections to pool. Expected pool size: 30, got %d", p.Size())
+	}
+
+	conn, err := p.Get()
+	if err != nil {
+		t.Errorf("failed to get new connection from pool: %s", err)
+	}
+	if _, err = conn.Write([]byte("EHLO test.localhost.localdomain\r\nQUIT\r\n")); err != nil {
+		t.Errorf("failed to write quit command to first connection: %s", err)
+	}
+	p.Close()
+
+	conn.Close()
+	if p.Size() != 0 {
+		t.Errorf("closed pool shouldn't allow to put connections.")
+	}
+}
+
 func newConnPool(port int) (Pool, error) {
 	netDialer := net.Dialer{}
 	return NewConnPool(context.Background(), 5, 30, netDialer.DialContext, "tcp",
