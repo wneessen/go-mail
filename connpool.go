@@ -38,8 +38,8 @@ type Pool interface {
 	// no longer usable.
 	Close()
 
-	// Len returns the current number of connections of the pool.
-	Len() int
+	// Size returns the current number of connections of the pool.
+	Size() int
 }
 
 // connPool implements the Pool interface
@@ -174,8 +174,8 @@ func (p *connPool) Close() {
 	}
 }
 
-// Len returns the current number of connections in the connection pool.
-func (p *connPool) Len() int {
+// Size returns the current number of connections in the connection pool.
+func (p *connPool) Size() int {
 	_, conns, _ := p.getConnsAndDialContext()
 	return len(conns)
 }
