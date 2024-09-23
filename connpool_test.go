@@ -175,7 +175,9 @@ func TestPoolConn_Close(t *testing.T) {
 		conns[i] = conn
 	}
 	for _, conn := range conns {
-		conn.Close()
+		if err = conn.Close(); err != nil {
+			t.Errorf("failed to close connection: %s", err)
+		}
 	}
 
 	if p.Size() != 30 {
@@ -191,7 +193,9 @@ func TestPoolConn_Close(t *testing.T) {
 	}
 	p.Close()
 
-	conn.Close()
+	if err = conn.Close(); err != nil {
+		t.Errorf("failed to close connection: %s", err)
+	}
 	if p.Size() != 0 {
 		t.Errorf("closed pool shouldn't allow to put connections.")
 	}

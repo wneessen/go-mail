@@ -12,9 +12,8 @@ import (
 	"sync"
 )
 
-// Parts of the connection pool code is forked from https://github.com/fatih/pool/
-// Thanks to Fatih Arslan and the project contributors for providing this great
-// concurrency template.
+// Parts of the connection pool code is forked/took inspiration from https://github.com/fatih/pool/
+// Thanks to Fatih Arslan and the project contributors for providing this great concurrency template.
 
 var (
 	// ErrClosed is returned when an operation is attempted on a closed connection pool.
