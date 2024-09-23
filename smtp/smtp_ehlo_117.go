@@ -22,7 +22,7 @@ import "strings"
 // should be the preferred greeting for servers that support it.
 //
 // Backport of: https://github.com/golang/go/commit/4d8db00641cc9ff4f44de7df9b8c4f4a4f9416ee#diff-4f6f6bdb9891d4dd271f9f31430420a2e44018fe4ee539576faf458bebb3cee4
-// to guarantee backwards compatibility with Go 1.16/1.17:w
+// to guarantee backwards compatibility with Go 1.16/1.17
 func (c *Client) ehlo() error {
 	_, msg, err := c.cmd(250, "EHLO %s", c.localName)
 	if err != nil {
