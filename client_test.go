@@ -2085,7 +2085,6 @@ func handleTestServerConnection(connection net.Conn, featureSet string, failRese
 
 	data, err := reader.ReadString('\n')
 	if err != nil {
-		fmt.Printf("unable to read from connection: %s\n", err)
 		return
 	}
 	if !strings.HasPrefix(data, "EHLO") && !strings.HasPrefix(data, "HELO") {
@@ -2093,7 +2092,6 @@ func handleTestServerConnection(connection net.Conn, featureSet string, failRese
 		return
 	}
 	if err = writeLine("250-localhost.localdomain\r\n" + featureSet); err != nil {
-		fmt.Printf("unable to write to connection: %s\n", err)
 		return
 	}
 
