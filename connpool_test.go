@@ -39,7 +39,7 @@ func TestNewConnPool(t *testing.T) {
 	if pool.Size() != 5 {
 		t.Errorf("expected 5 connections, got %d", pool.Size())
 	}
-	conn, err := pool.Get()
+	conn, err := pool.Get(context.Background())
 	if err != nil {
 		t.Errorf("failed to get connection: %s", err)
 	}
@@ -68,7 +68,7 @@ func TestConnPool_Get_Type(t *testing.T) {
 	}
 	defer pool.Close()
 
-	conn, err := pool.Get()
+	conn, err := pool.Get(context.Background())
 	if err != nil {
 		t.Errorf("failed to get new connection from pool: %s", err)
 		return
@@ -101,7 +101,7 @@ func TestConnPool_Get(t *testing.T) {
 	p, _ := newConnPool(serverPort)
 	defer p.Close()
 
-	conn, err := p.Get()
+	conn, err := p.Get(context.Background())
 	if err != nil {
 		t.Errorf("failed to get new connection from pool: %s", err)
 		return
@@ -119,7 +119,7 @@ func TestConnPool_Get(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			wgconn, err := p.Get()
+			wgconn, err := p.Get(context.Background())
 			if err != nil {
 				t.Errorf("failed to get new connection from pool: %s", err)
 			}
@@ -134,7 +134,7 @@ func TestConnPool_Get(t *testing.T) {
 		t.Errorf("Get error. Expecting 0, got %d", p.Size())
 	}
 
-	conn, err = p.Get()
+	conn, err = p.Get(context.Background())
 	if err != nil {
 		t.Errorf("failed to get new connection from pool: %s", err)
 	}
@@ -168,7 +168,7 @@ func TestPoolConn_Close(t *testing.T) {
 
 	conns := make([]net.Conn, 30)
 	for i := 0; i < 30; i++ {
-		conn, _ := p.Get()
+		conn, _ := p.Get(context.Background())
 		if _, err = conn.Write([]byte("EHLO test.localhost.localdomain\r\nQUIT\r\n")); err != nil {
 			t.Errorf("failed to write quit command to first connection: %s", err)
 		}
@@ -184,7 +184,7 @@ func TestPoolConn_Close(t *testing.T) {
 		t.Errorf("failed to return all connections to pool. Expected pool size: 30, got %d", p.Size())
 	}
 
-	conn, err := p.Get()
+	conn, err := p.Get(context.Background())
 	if err != nil {
 		t.Errorf("failed to get new connection from pool: %s", err)
 	}
@@ -218,7 +218,7 @@ func TestPoolConn_MarkUnusable(t *testing.T) {
 	pool, _ := newConnPool(serverPort)
 	defer pool.Close()
 
-	conn, err := pool.Get()
+	conn, err := pool.Get(context.Background())
 	if err != nil {
 		t.Errorf("failed to get new connection from pool: %s", err)
 	}
@@ -227,7 +227,7 @@ func TestPoolConn_MarkUnusable(t *testing.T) {
 	}
 
 	poolSize := pool.Size()
-	conn, err = pool.Get()
+	conn, err = pool.Get(context.Background())
 	if err != nil {
 		t.Errorf("failed to get new connection from pool: %s", err)
 	}
@@ -238,7 +238,7 @@ func TestPoolConn_MarkUnusable(t *testing.T) {
 		t.Errorf("pool size is expected to be equal to initial size")
 	}
 
-	conn, err = pool.Get()
+	conn, err = pool.Get(context.Background())
 	if err != nil {
 		t.Errorf("failed to get new connection from pool: %s", err)
 	}
@@ -283,9 +283,6 @@ func TestConnPool_Close(t *testing.T) {
 	if castPool.dialCtxFunc != nil {
 		t.Error("closing pool failed: dialCtxFunc should be nil")
 	}
-	if castPool.dialContext != nil {
-		t.Error("closing pool failed: dialContext should be nil")
-	}
 	if castPool.dialAddress != "" {
 		t.Error("closing pool failed: dialAddress should be empty")
 	}
@@ -293,7 +290,7 @@ func TestConnPool_Close(t *testing.T) {
 		t.Error("closing pool failed: dialNetwork should be empty")
 	}
 
-	conn, err := pool.Get()
+	conn, err := pool.Get(context.Background())
 	if err == nil {
 		t.Errorf("closing pool failed: getting new connection should return an error")
 	}
@@ -332,7 +329,7 @@ func TestConnPool_Concurrency(t *testing.T) {
 		getWg.Add(1)
 		closeWg.Add(1)
 		go func() {
-			conn, err := pool.Get()
+			conn, err := pool.Get(context.Background())
 			if err != nil {
 				t.Errorf("failed to get new connection from pool: %s", err)
 			}
@@ -353,6 +350,70 @@ func TestConnPool_Concurrency(t *testing.T) {
 		getWg.Wait()
 		closeWg.Wait()
 	}
+}
+
+func TestConnPool_GetContextTimeout(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	serverPort := TestServerPortBase + 17
+	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, true, serverPort); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 300)
+
+	p, err := newConnPool(serverPort)
+	if err != nil {
+		t.Errorf("failed to create connection pool: %s", err)
+	}
+	defer p.Close()
+
+	connCtx, connCancel := context.WithCancel(context.Background())
+	defer connCancel()
+
+	conn, err := p.Get(connCtx)
+	if err != nil {
+		t.Errorf("failed to get new connection from pool: %s", err)
+		return
+	}
+	if _, err = conn.Write([]byte("EHLO test.localhost.localdomain\r\nQUIT\r\n")); err != nil {
+		t.Errorf("failed to write quit command to first connection: %s", err)
+	}
+
+	if p.Size() != 4 {
+		t.Errorf("getting new connection from pool failed. Expected pool size: 4, got %d", p.Size())
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			wgconn, err := p.Get(connCtx)
+			if err != nil {
+				t.Errorf("failed to get new connection from pool: %s", err)
+			}
+			if _, err = wgconn.Write([]byte("EHLO test.localhost.localdomain\r\nQUIT\r\n")); err != nil {
+				t.Errorf("failed to write quit command to first connection: %s", err)
+			}
+		}()
+	}
+	wg.Wait()
+
+	if p.Size() != 0 {
+		t.Errorf("Get error. Expecting 0, got %d", p.Size())
+	}
+
+	connCancel()
+	_, err = p.Get(connCtx)
+	if err == nil {
+		t.Errorf("getting new connection on canceled context should fail, but didn't")
+	}
+	p.Close()
 }
 
 func newConnPool(port int) (Pool, error) {

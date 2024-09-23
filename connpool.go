@@ -31,7 +31,7 @@ type Pool interface {
 	// Get returns a new connection from the pool. Closing the connections returns
 	// it back into the Pool. Closing a connection when the Pool is destroyed or
 	// full will be counted as an error.
-	Get() (net.Conn, error)
+	Get(ctx context.Context) (net.Conn, error)
 
 	// Close closes the pool and all its connections. After Close() the pool is
 	// no longer usable.
@@ -50,8 +50,6 @@ type connPool struct {
 
 	// dialCtxFunc represents the actual net.Conn returned by the DialContextFunc.
 	dialCtxFunc DialContextFunc
-	// dialContext is the context used for dialing new network connections within the connection pool.
-	dialContext context.Context
 	// dialNetwork specifies the network type (e.g., "tcp", "udp") used to establish connections in
 	// the connection pool.
 	dialNetwork string
@@ -96,7 +94,8 @@ func (c *PoolConn) MarkUnusable() {
 // new connection available in the pool, a new connection will be created via
 // the corresponding DialContextFunc() method.
 func NewConnPool(ctx context.Context, initialCap, maxCap int, dialCtxFunc DialContextFunc,
-	network, address string) (Pool, error) {
+	network, address string,
+) (Pool, error) {
 	if initialCap < 0 || maxCap <= 0 || initialCap > maxCap {
 		return nil, ErrPoolInvalidCap
 	}
@@ -104,7 +103,6 @@ func NewConnPool(ctx context.Context, initialCap, maxCap int, dialCtxFunc DialCo
 	pool := &connPool{
 		conns:       make(chan net.Conn, maxCap),
 		dialCtxFunc: dialCtxFunc,
-		dialContext: ctx,
 		dialAddress: address,
 		dialNetwork: network,
 	}
@@ -114,10 +112,9 @@ func NewConnPool(ctx context.Context, initialCap, maxCap int, dialCtxFunc DialCo
 		conn, err := dialCtxFunc(ctx, network, address)
 		if err != nil {
 			pool.Close()
-			return nil, fmt.Errorf("dialContextFunc is not able to fill the connection pool: %s", err)
+			return nil, fmt.Errorf("dialContextFunc is not able to fill the connection pool: %w", err)
 		}
 		pool.conns <- conn
-
 	}
 
 	return pool, nil
@@ -126,8 +123,8 @@ func NewConnPool(ctx context.Context, initialCap, maxCap int, dialCtxFunc DialCo
 // Get satisfies the Get() method of the Pool inteface. If there is no new
 // connection available in the Pool, a new connection will be created via the
 // DialContextFunc() method.
-func (p *connPool) Get() (net.Conn, error) {
-	ctx, conns, dialCtxFunc := p.getConnsAndDialContext()
+func (p *connPool) Get(ctx context.Context) (net.Conn, error) {
+	conns, dialCtxFunc := p.getConnsAndDialContext()
 	if conns == nil {
 		return nil, ErrClosed
 	}
@@ -136,7 +133,7 @@ func (p *connPool) Get() (net.Conn, error) {
 	// connections back to the pool
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return nil, fmt.Errorf("failed to get connection: %w", ctx.Err())
 	case conn := <-conns:
 		if conn == nil {
 			return nil, ErrClosed
@@ -145,7 +142,7 @@ func (p *connPool) Get() (net.Conn, error) {
 	default:
 		conn, err := dialCtxFunc(ctx, p.dialNetwork, p.dialAddress)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("dialContextFunc failed: %w", err)
 		}
 		return p.wrapConn(conn), nil
 	}
@@ -158,7 +155,6 @@ func (p *connPool) Close() {
 	conns := p.conns
 	p.conns = nil
 	p.dialCtxFunc = nil
-	p.dialContext = nil
 	p.dialAddress = ""
 	p.dialNetwork = ""
 	p.mutex.Unlock()
@@ -175,19 +171,18 @@ func (p *connPool) Close() {
 
 // Size returns the current number of connections in the connection pool.
 func (p *connPool) Size() int {
-	_, conns, _ := p.getConnsAndDialContext()
+	conns, _ := p.getConnsAndDialContext()
 	return len(conns)
 }
 
 // getConnsAndDialContext returns the connection channel and the DialContext function for the
 // connection pool.
-func (p *connPool) getConnsAndDialContext() (context.Context, chan net.Conn, DialContextFunc) {
+func (p *connPool) getConnsAndDialContext() (chan net.Conn, DialContextFunc) {
 	p.mutex.RLock()
 	conns := p.conns
 	dialCtxFunc := p.dialCtxFunc
-	ctx := p.dialContext
 	p.mutex.RUnlock()
-	return ctx, conns, dialCtxFunc
+	return conns, dialCtxFunc
 }
 
 // put puts a passed connection back into the pool. If the pool is full or closed,
