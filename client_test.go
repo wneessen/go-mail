@@ -2100,10 +2100,6 @@ func handleTestServerConnection(connection net.Conn, featureSet string, failRese
 	for {
 		data, err = reader.ReadString('\n')
 		if err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			fmt.Println("Error reading data:", err)
 			break
 		}
 
