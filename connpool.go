@@ -17,11 +17,13 @@ import (
 // concurrency template.
 
 var (
+	// ErrClosed is returned when an operation is attempted on a closed connection pool.
+	ErrClosed = errors.New("connection pool is closed")
+	// ErrNilConn is returned when a nil connection is passed back to the connection pool.
+	ErrNilConn = errors.New("connection is nil")
 	// ErrPoolInvalidCap is returned when the connection pool's capacity settings are
 	// invalid (e.g., initial capacity is negative).
 	ErrPoolInvalidCap = errors.New("invalid connection pool capacity settings")
-	// ErrClosed is returned when an operation is attempted on a closed connection pool.
-	ErrClosed = errors.New("connection pool is closed")
 )
 
 // Pool interface describes a connection pool implementation. A Pool is
@@ -64,6 +66,28 @@ type PoolConn struct {
 	mutex    sync.RWMutex
 	pool     *connPool
 	unusable bool
+}
+
+// Close puts a given pool connection back to the pool instead of closing it.
+func (c *PoolConn) Close() error {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+
+	if c.unusable {
+		if c.Conn != nil {
+			return c.Conn.Close()
+		}
+		return nil
+	}
+	return c.pool.put(c.Conn)
+}
+
+// MarkUnusable marks the connection not usable any more, to let the pool close it instead
+// of returning it to pool.
+func (c *PoolConn) MarkUnusable() {
+	c.mutex.Lock()
+	c.unusable = true
+	c.mutex.Unlock()
 }
 
 // NewConnPool returns a new pool based on buffered channels with an initial
@@ -165,6 +189,28 @@ func (p *connPool) getConnsAndDialContext() (context.Context, chan net.Conn, Dia
 	ctx := p.dialContext
 	p.mutex.RUnlock()
 	return ctx, conns, dialCtxFunc
+}
+
+// put puts a passed connection back into the pool. If the pool is full or closed,
+// conn is simply closed. A nil conn will be rejected with an error.
+func (p *connPool) put(conn net.Conn) error {
+	if conn == nil {
+		return ErrNilConn
+	}
+
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	if p.conns == nil {
+		return conn.Close()
+	}
+
+	select {
+	case p.conns <- conn:
+		return nil
+	default:
+		return conn.Close()
+	}
 }
 
 // wrapConn wraps a given net.Conn with a PoolConn, modifying the net.Conn's Close() method.
