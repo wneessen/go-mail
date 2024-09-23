@@ -201,6 +201,60 @@ func TestPoolConn_Close(t *testing.T) {
 	}
 }
 
+func TestPoolConn_MarkUnusable(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	serverPort := TestServerPortBase + 14
+	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, true, serverPort); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 300)
+
+	pool, _ := newConnPool(serverPort)
+	defer pool.Close()
+
+	conn, err := pool.Get()
+	if err != nil {
+		t.Errorf("failed to get new connection from pool: %s", err)
+	}
+	if err = conn.Close(); err != nil {
+		t.Errorf("failed to close connection: %s", err)
+	}
+
+	poolSize := pool.Size()
+	conn, err = pool.Get()
+	if err != nil {
+		t.Errorf("failed to get new connection from pool: %s", err)
+	}
+	if err = conn.Close(); err != nil {
+		t.Errorf("failed to close connection: %s", err)
+	}
+	if pool.Size() != poolSize {
+		t.Errorf("pool size is expected to be equal to initial size")
+	}
+
+	conn, err = pool.Get()
+	if err != nil {
+		t.Errorf("failed to get new connection from pool: %s", err)
+	}
+	if pc, ok := conn.(*PoolConn); !ok {
+		t.Errorf("this should never happen")
+	} else {
+		pc.MarkUnusable()
+	}
+	if err = conn.Close(); err != nil {
+		t.Errorf("failed to close connection: %s", err)
+	}
+	if pool.Size() != poolSize-1 {
+		t.Errorf("pool size is expected to be: %d but got: %d", poolSize-1, pool.Size())
+	}
+}
+
 func newConnPool(port int) (Pool, error) {
 	netDialer := net.Dialer{}
 	return NewConnPool(context.Background(), 5, 30, netDialer.DialContext, "tcp",
