@@ -269,9 +269,6 @@ func (mw *msgWriter) writePart(part *Part, charset Charset) {
 		if part.description != "" {
 			mimeHeader.Add(string(HeaderContentDescription), part.description)
 		}
-		if part.disposition != "" {
-			mimeHeader.Add(string(HeaderContentDisposition), part.disposition.String())
-		}
 		mimeHeader.Add(string(HeaderContentType), contentType)
 		mimeHeader.Add(string(HeaderContentTransferEnc), contentTransferEnc)
 		mw.newPart(mimeHeader)

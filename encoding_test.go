@@ -126,22 +126,3 @@ func TestCharset_String(t *testing.T) {
 		})
 	}
 }
-
-// TestDisposition_String tests the string method of the Disposition object
-func TestDisposition_String(t *testing.T) {
-	tests := []struct {
-		name string
-		d    Disposition
-		want string
-	}{
-		{"Disposition: S/Mime", DispositionSMime, `attachment; filename="smime.p7s"`},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.d.String() != tt.want {
-				t.Errorf("wrong string for Disposition returned. Expected: %s, got: %s",
-					tt.want, tt.d.String())
-			}
-		})
-	}
-}
