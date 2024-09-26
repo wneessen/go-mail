@@ -2,11 +2,12 @@ package mail
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 )
 
 const (
-	certFilePath = "dummy-cert.pem"
-	keyFilePath  = "dummy=key.pem"
+	certFilePath = "dummy-chain-cert.pem"
+	keyFilePath  = "dummy-child-key.pem"
 )
 
 func getDummyCertificate() (*tls.Certificate, error) {
@@ -14,6 +15,8 @@ func getDummyCertificate() (*tls.Certificate, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	keyPair.Leaf, err = x509.ParseCertificate(keyPair.Certificate[0])
 
 	return &keyPair, nil
 }

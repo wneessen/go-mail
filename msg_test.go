@@ -3345,8 +3345,9 @@ func TestMsg_signMessage(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to load dummy certificate. Cause: %v", err)
 	}
-	m := NewMsg()
 	body := []byte("This is the body")
+	m := NewMsg()
+	m.SetBodyString(TypeTextPlain, string(body))
 	if err := m.SignWithSMime(keyPair); err != nil {
 		t.Errorf("set of certificate was not successful")
 	}
