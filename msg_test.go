@@ -1894,6 +1894,23 @@ func TestMsg_hasAlt(t *testing.T) {
 	}
 }
 
+// TestMsg_hasAlt tests the hasAlt() method of the Msg with active S/MIME
+func TestMsg_hasAltWithSMime(t *testing.T) {
+	keyPair, err := getDummyCertificate()
+	if err != nil {
+		t.Errorf("failed to load dummy certificate. Cause: %v", err)
+	}
+	m := NewMsg()
+	m.SetBodyString(TypeTextPlain, "Plain")
+	m.AddAlternativeString(TypeTextHTML, "<b>HTML</b>")
+	if err := m.SignWithSMime(keyPair); err != nil {
+		t.Errorf("set of certificate was not successful")
+	}
+	if m.hasAlt() {
+		t.Errorf("mail has alternative parts and S/MIME is active, but hasAlt() returned true")
+	}
+}
+
 // TestMsg_hasRelated tests the hasRelated() method of the Msg
 func TestMsg_hasRelated(t *testing.T) {
 	m := NewMsg()
@@ -3233,32 +3250,33 @@ func TestNewMsgWithNoDefaultUserAgent(t *testing.T) {
 	}
 }
 
-// TestWithSMimeSinging_ValidPrivateKey tests WithSMimeSinging with given privateKey
-func TestWithSMimeSinging_ValidPrivateKey(t *testing.T) {
-	privateKey, err := getDummyPrivateKey()
+// TestSignWithSMime_ValidKeyPair tests WithSMimeSinging with given key pair
+func TestSignWithSMime_ValidKeyPair(t *testing.T) {
+	keyPair, err := getDummyCertificate()
 	if err != nil {
-		t.Errorf("failed to load dummy private key: %s", err)
+		t.Errorf("failed to load dummy certificate. Cause: %v", err)
 	}
-	certificate, err := getDummyCertificate(privateKey)
-	if err != nil {
-		t.Errorf("failed to load dummy certificate: %s", err)
-	}
-
 	m := NewMsg()
-	if err := m.SignWithSMime(privateKey, certificate); err != nil {
+	if err := m.SignWithSMime(keyPair); err != nil {
 		t.Errorf("failed to set sMime. Cause: %v", err)
 	}
-	if m.sMime.privateKey != privateKey {
-		t.Errorf("WithSMimeSinging. Expected %v, got: %v", privateKey, m.sMime.privateKey)
+	if m.sMime.privateKey == nil {
+		t.Errorf("WithSMimeSinging() - no private key is given")
+	}
+	if m.sMime.certificate == nil {
+		t.Errorf("WithSMimeSinging() - no certificate is given")
+	}
+	if len(m.sMime.parentCertificates) != len(keyPair.Certificate[:1]) {
+		t.Errorf("WithSMimeSinging() - no certificate is given")
 	}
 }
 
-// TestWithSMimeSinging_InvalidPrivateKey tests WithSMimeSinging with given invalid privateKey
-func TestWithSMimeSinging_InvalidPrivateKey(t *testing.T) {
+// TestSignWithSMime_InvalidKeyPair tests WithSMimeSinging with given invalid key pair
+func TestSignWithSMime_InvalidKeyPair(t *testing.T) {
 	m := NewMsg()
 
-	err := m.SignWithSMime(nil, nil)
-	if !errors.Is(err, ErrInvalidPrivateKey) {
+	err := m.SignWithSMime(nil)
+	if !errors.Is(err, ErrInvalidKeyPair) {
 		t.Errorf("failed to check sMimeAuthConfig values correctly: %s", err)
 	}
 }
@@ -3289,4 +3307,84 @@ func FuzzMsg_From(f *testing.F) {
 		}
 		m.Reset()
 	})
+}
+
+// TestMsg_createSignaturePart tests the Msg.createSignaturePart method
+func TestMsg_createSignaturePart(t *testing.T) {
+	keyPair, err := getDummyCertificate()
+	if err != nil {
+		t.Errorf("failed to load dummy certificate. Cause: %v", err)
+	}
+	m := NewMsg()
+	if err := m.SignWithSMime(keyPair); err != nil {
+		t.Errorf("set of certificate was not successful")
+	}
+	body := []byte("This is the body")
+	part, err := m.createSignaturePart(EncodingQP, TypeTextPlain, CharsetUTF7, body)
+	if err != nil {
+		t.Errorf("createSignaturePart() method failed.")
+	}
+
+	if part.GetEncoding() != EncodingB64 {
+		t.Errorf("createSignaturePart() method failed. Expected encoding: %s, got: %s", EncodingB64, part.GetEncoding())
+	}
+	if part.GetContentType() != typeSMimeSigned {
+		t.Errorf("createSignaturePart() method failed. Expected content type: %s, got: %s", typeSMimeSigned, part.GetContentType())
+	}
+	if part.GetCharset() != CharsetUTF8 {
+		t.Errorf("createSignaturePart() method failed. Expected charset: %s, got: %s", CharsetUTF8, part.GetCharset())
+	}
+	if content, err := part.GetContent(); err != nil || len(content) == len(body) {
+		t.Errorf("createSignaturePart() method failed. Expected content should not be equal: %s, got: %s", body, part.GetEncoding())
+	}
+}
+
+// TestMsg_signMessage tests the Msg.signMessage method
+func TestMsg_signMessage(t *testing.T) {
+	keyPair, err := getDummyCertificate()
+	if err != nil {
+		t.Errorf("failed to load dummy certificate. Cause: %v", err)
+	}
+	m := NewMsg()
+	body := []byte("This is the body")
+	if err := m.SignWithSMime(keyPair); err != nil {
+		t.Errorf("set of certificate was not successful")
+	}
+	msg, err := m.signMessage(m)
+	if err != nil {
+		t.Errorf("createSignaturePart() method failed.")
+	}
+
+	parts := msg.GetParts()
+	if len(parts) != 2 {
+		t.Errorf("createSignaturePart() method failed. Expected 2 parts, got: %d", len(parts))
+	}
+
+	signedPart := parts[0]
+	if signedPart.GetEncoding() != EncodingQP {
+		t.Errorf("createSignaturePart() method failed. Expected encoding: %s, got: %s", EncodingB64, signedPart.GetEncoding())
+	}
+	if signedPart.GetContentType() != TypeTextPlain {
+		t.Errorf("createSignaturePart() method failed. Expected content type: %s, got: %s", typeSMimeSigned, signedPart.GetContentType())
+	}
+	if signedPart.GetCharset() != CharsetUTF8 {
+		t.Errorf("createSignaturePart() method failed. Expected charset: %s, got: %s", CharsetUTF8, signedPart.GetCharset())
+	}
+	if content, err := signedPart.GetContent(); err != nil || len(content) != len(body) {
+		t.Errorf("createSignaturePart() method failed. Expected content should be equal: %s, got: %s", body, content)
+	}
+
+	signaturePart := parts[1]
+	if signaturePart.GetEncoding() != EncodingB64 {
+		t.Errorf("createSignaturePart() method failed. Expected encoding: %s, got: %s", EncodingB64, signaturePart.GetEncoding())
+	}
+	if signaturePart.GetContentType() != typeSMimeSigned {
+		t.Errorf("createSignaturePart() method failed. Expected content type: %s, got: %s", typeSMimeSigned, signaturePart.GetContentType())
+	}
+	if signaturePart.GetCharset() != CharsetUTF8 {
+		t.Errorf("createSignaturePart() method failed. Expected charset: %s, got: %s", CharsetUTF8, signaturePart.GetCharset())
+	}
+	if content, err := signaturePart.GetContent(); err != nil || len(content) == len(body) {
+		t.Errorf("createSignaturePart() method failed. Expected content should not be equal: %s, got: %s", body, signaturePart.GetEncoding())
+	}
 }

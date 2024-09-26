@@ -154,3 +154,26 @@ func TestMsgWriter_writeMsg_PGP(t *testing.T) {
 		t.Errorf("writeMsg failed. Expected PGP encoding header but didn't find it in message output")
 	}
 }
+
+// TestMsgWriter_writeMsg_SMime tests the writeMsg method of the msgWriter with S/MIME types set
+func TestMsgWriter_writeMsg_SMime(t *testing.T) {
+	keyPair, err := getDummyCertificate()
+	if err != nil {
+		t.Errorf("failed to load dummy certificate. Cause: %v", err)
+	}
+	m := NewMsg()
+	if err := m.SignWithSMime(keyPair); err != nil {
+		t.Errorf("set of certificate was not successful")
+	}
+	_ = m.From(`"Toni Tester" <test@example.com>`)
+	_ = m.To(`"Toni Receiver" <receiver@example.com>`)
+	m.Subject("This is a subject")
+	m.SetBodyString(TypeTextPlain, "This is the body")
+	buf := bytes.Buffer{}
+	mw := &msgWriter{writer: &buf, charset: CharsetUTF8, encoder: mime.QEncoding}
+	mw.writeMsg(m)
+	ms := buf.String()
+	if !strings.Contains(ms, `multipart/signed; protocol="application/pkcs7-signature"; micalg=sha256;`) {
+		t.Errorf("writeMsg failed. Expected PGP encoding header but didn't find it in message output")
+	}
+}
