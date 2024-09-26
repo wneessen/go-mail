@@ -20,6 +20,7 @@ type Part struct {
 	encoding    Encoding
 	isDeleted   bool
 	writeFunc   func(io.Writer) (int64, error)
+	smime       bool
 }
 
 // GetContent executes the WriteFunc of the Part and returns the content as byte slice
@@ -56,6 +57,11 @@ func (p *Part) GetDescription() string {
 	return p.description
 }
 
+// IsSMimeSigned returns true if the Part should be singed with S/MIME
+func (p *Part) IsSMimeSigned() bool {
+	return p.smime
+}
+
 // SetContent overrides the content of the Part with the given string
 func (p *Part) SetContent(content string) {
 	buffer := bytes.NewBufferString(content)
@@ -80,6 +86,11 @@ func (p *Part) SetEncoding(encoding Encoding) {
 // SetDescription overrides the Content-Description of the Part
 func (p *Part) SetDescription(description string) {
 	p.description = description
+}
+
+// SetIsSMimeSigned sets the flag for signing the Part with S/MIME
+func (p *Part) SetIsSMimeSigned(smime bool) {
+	p.smime = smime
 }
 
 // SetWriteFunc overrides the WriteFunc of the Part
@@ -111,5 +122,12 @@ func WithPartEncoding(encoding Encoding) PartOption {
 func WithPartContentDescription(description string) PartOption {
 	return func(p *Part) {
 		p.description = description
+	}
+}
+
+// WithSMimeSinging overrides the flag for signing the Part with S/MIME
+func WithSMimeSinging() PartOption {
+	return func(p *Part) {
+		p.smime = true
 	}
 }
