@@ -7,8 +7,7 @@ package mail
 import (
 	"bytes"
 	"context"
-	"crypto/rsa"
-	"crypto/x509"
+	"crypto/tls"
 	"embed"
 	"errors"
 	"fmt"
@@ -208,8 +207,8 @@ func WithNoDefaultUserAgent() MsgOption {
 }
 
 // SignWithSMime configures the Msg to be signed with S/MIME
-func (m *Msg) SignWithSMime(privateKey *rsa.PrivateKey, certificate *x509.Certificate) error {
-	sMime, err := NewSMime(privateKey, certificate)
+func (m *Msg) SignWithSMime(keyPair *tls.Certificate) error {
+	sMime, err := newSMime(keyPair)
 	if err != nil {
 		return err
 	}
@@ -985,28 +984,31 @@ func (m *Msg) applyMiddlewares(msg *Msg) *Msg {
 
 // signMessage sign the Msg with S/MIME
 func (m *Msg) signMessage(msg *Msg) (*Msg, error) {
-	currentPart := m.GetParts()[0]
-	currentPart.SetEncoding(EncodingUSASCII)
-	currentPart.SetContentType(TypeTextPlain)
-	content, err := currentPart.GetContent()
+	signedPart := msg.GetParts()[0]
+	body, err := signedPart.GetContent()
 	if err != nil {
-		return nil, errors.New("failed to extract content from part")
+		return nil, err
 	}
 
-	signedContent, err := m.sMime.Sign(content)
+	signaturePart, err := m.createSignaturePart(signedPart.GetEncoding(), signedPart.GetContentType(), signedPart.GetCharset(), body)
 	if err != nil {
-		return nil, errors.New("failed to sign message")
+		return nil, err
 	}
 
-	signedPart := msg.newPart(
-		typeSMimeSigned,
-		WithPartEncoding(EncodingB64),
-		WithContentDisposition(DispositionSMime),
-	)
-	signedPart.SetContent(*signedContent)
-	msg.parts = append(msg.parts, signedPart)
+	m.parts = append(m.parts, signaturePart)
 
-	return msg, nil
+	return m, err
+}
+
+func (m *Msg) createSignaturePart(encoding Encoding, contentType ContentType, charSet Charset, body []byte) (*Part, error) {
+	message := m.sMime.createMessage(encoding, contentType, charSet, body)
+	signaturePart := m.newPart(typeSMimeSigned, WithPartEncoding(EncodingB64), WithSMimeSinging())
+
+	if err := m.sMime.sign(signaturePart, message); err != nil {
+		return nil, err
+	}
+
+	return signaturePart, nil
 }
 
 // WriteTo writes the formated Msg into a give io.Writer and satisfies the io.WriteTo interface
@@ -1014,7 +1016,7 @@ func (m *Msg) WriteTo(writer io.Writer) (int64, error) {
 	mw := &msgWriter{writer: writer, charset: m.charset, encoder: m.encoder}
 	msg := m.applyMiddlewares(m)
 
-	if m.sMime != nil {
+	if m.hasSMime() {
 		signedMsg, err := m.signMessage(msg)
 		if err != nil {
 			return 0, err
@@ -1210,7 +1212,7 @@ func (m *Msg) hasAlt() bool {
 			count++
 		}
 	}
-	return count > 1 && m.pgptype == 0
+	return count > 1 && m.pgptype == 0 && !m.hasSMime()
 }
 
 // hasMixed returns true if the Msg has mixed parts
