@@ -16,6 +16,9 @@ var (
 	// ErrInvalidKeyPair should be used if key pair is invalid
 	ErrInvalidKeyPair = errors.New("invalid key pair")
 
+	// ErrInvalidCertificate should be used if a certificate is invalid
+	ErrInvalidCertificate = errors.New("invalid certificate")
+
 	// ErrCouldNotInitialize should be used if the signed data could not initialize
 	ErrCouldNotInitialize = errors.New("could not initialize signed data")
 
@@ -46,7 +49,7 @@ func newSMime(keyPair *tls.Certificate) (*SMime, error) {
 	for _, cert := range keyPair.Certificate[1:] {
 		c, err := x509.ParseCertificate(cert)
 		if err != nil {
-			return nil, err
+			return nil, ErrInvalidCertificate
 		}
 		parentCertificates = append(parentCertificates, c)
 	}
