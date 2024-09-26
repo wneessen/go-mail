@@ -30,6 +30,7 @@ import (
 	"net/textproto"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/wneessen/go-mail/log"
 )
@@ -470,6 +471,19 @@ func (c *Client) SetDSNMailReturnOption(d string) {
 // SetDSNRcptNotifyOption sets the DSN recipient notify option for the Mail method
 func (c *Client) SetDSNRcptNotifyOption(d string) {
 	c.dsnrntype = d
+}
+
+// HasConnection checks if the client has an active connection.
+// Returns true if the `conn` field is not nil, indicating an active connection.
+func (c *Client) HasConnection() bool {
+	return c.conn != nil
+}
+
+func (c *Client) UpdateDeadline(timeout time.Duration) error {
+	if err := c.conn.SetDeadline(time.Now().Add(timeout)); err != nil {
+		return fmt.Errorf("smtp: failed to update deadline: %w", err)
+	}
+	return nil
 }
 
 // debugLog checks if the debug flag is set and if so logs the provided message to

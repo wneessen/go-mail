@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/wneessen/go-mail/log"
@@ -87,6 +88,7 @@ type DialContextFunc func(ctx context.Context, network, address string) (net.Con
 
 // Client is the SMTP client struct
 type Client struct {
+	mutex sync.RWMutex
 	// connection is the net.Conn that the smtp.Client is based on
 	connection net.Conn
 
@@ -589,6 +591,9 @@ func (c *Client) setDefaultHelo() error {
 
 // DialWithContext establishes a connection to the SMTP server with a given context.Context
 func (c *Client) DialWithContext(dialCtx context.Context) error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
 	ctx, cancel := context.WithDeadline(dialCtx, time.Now().Add(c.connTimeout))
 	defer cancel()
 
@@ -602,17 +607,16 @@ func (c *Client) DialWithContext(dialCtx context.Context) error {
 			c.dialContextFunc = tlsDialer.DialContext
 		}
 	}
-	var err error
-	c.connection, err = c.dialContextFunc(ctx, "tcp", c.ServerAddr())
+	connection, err := c.dialContextFunc(ctx, "tcp", c.ServerAddr())
 	if err != nil && c.fallbackPort != 0 {
 		// TODO: should we somehow log or append the previous error?
-		c.connection, err = c.dialContextFunc(ctx, "tcp", c.serverFallbackAddr())
+		connection, err = c.dialContextFunc(ctx, "tcp", c.serverFallbackAddr())
 	}
 	if err != nil {
 		return err
 	}
 
-	client, err := smtp.NewClient(c.connection, c.host)
+	client, err := smtp.NewClient(connection, c.host)
 	if err != nil {
 		return err
 	}
@@ -691,7 +695,7 @@ func (c *Client) DialAndSendWithContext(ctx context.Context, messages ...*Msg) e
 // checkConn makes sure that a required server connection is available and extends the
 // connection deadline
 func (c *Client) checkConn() error {
-	if c.connection == nil {
+	if !c.smtpClient.HasConnection() {
 		return ErrNoActiveConnection
 	}
 
@@ -701,7 +705,7 @@ func (c *Client) checkConn() error {
 		}
 	}
 
-	if err := c.connection.SetDeadline(time.Now().Add(c.connTimeout)); err != nil {
+	if err := c.smtpClient.UpdateDeadline(c.connTimeout); err != nil {
 		return ErrDeadlineExtendFailed
 	}
 	return nil
@@ -715,7 +719,7 @@ func (c *Client) serverFallbackAddr() string {
 
 // tls tries to make sure that the STARTTLS requirements are satisfied
 func (c *Client) tls() error {
-	if c.connection == nil {
+	if !c.smtpClient.HasConnection() {
 		return ErrNoActiveConnection
 	}
 	if !c.useSSL && c.tlspolicy != NoTLS {
