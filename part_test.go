@@ -275,6 +275,7 @@ func TestPart_IsSMimeSigned(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := NewMsg()
+			m.SetBodyString(TypeTextPlain, "This is a body!")
 			pl, err := getPartList(m)
 			if err != nil {
 				t.Errorf("failed: %s", err)
