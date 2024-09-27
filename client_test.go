@@ -1735,7 +1735,7 @@ func TestClient_DialSendConcurrent_online(t *testing.T) {
 
 	client, err := getTestConnection(true)
 	if err != nil {
-		t.Errorf("unable to create new client: %s", err)
+		t.Skipf("failed to create test client: %s. Skipping tests", err)
 	}
 
 	var messages []*Msg
