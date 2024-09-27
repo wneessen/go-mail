@@ -555,6 +555,9 @@ func (c *Client) SetLogger(logger log.Logger) {
 
 // SetTLSConfig overrides the current *tls.Config with the given *tls.Config value
 func (c *Client) SetTLSConfig(tlsconfig *tls.Config) error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
 	if tlsconfig == nil {
 		return ErrInvalidTLSConfig
 	}
