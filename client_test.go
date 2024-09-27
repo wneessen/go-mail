@@ -15,6 +15,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1727,6 +1728,114 @@ func TestClient_SendErrorReset(t *testing.T) {
 	}
 }
 
+func TestClient_DialSendConcurrent_online(t *testing.T) {
+	if os.Getenv("TEST_ALLOW_SEND") == "" {
+		t.Skipf("TEST_ALLOW_SEND is not set. Skipping mail sending test")
+	}
+
+	client, err := getTestConnection(true)
+	if err != nil {
+		t.Errorf("unable to create new client: %s", err)
+	}
+
+	var messages []*Msg
+	for i := 0; i < 10; i++ {
+		message := NewMsg()
+		if err := message.FromFormat("go-mail Test Mailer", os.Getenv("TEST_FROM")); err != nil {
+			t.Errorf("failed to set FROM address: %s", err)
+			return
+		}
+		if err := message.To(TestRcpt); err != nil {
+			t.Errorf("failed to set TO address: %s", err)
+			return
+		}
+		message.Subject(fmt.Sprintf("Test subject for mail %d", i))
+		message.SetBodyString(TypeTextPlain, fmt.Sprintf("This is the test body of the mail no. %d", i))
+		message.SetMessageID()
+		messages = append(messages, message)
+	}
+
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to test server: %s", err)
+	}
+
+	wg := sync.WaitGroup{}
+	for id, message := range messages {
+		wg.Add(1)
+		go func(curMsg *Msg, curID int) {
+			defer wg.Done()
+			if goroutineErr := client.Send(curMsg); err != nil {
+				t.Errorf("failed to send message with ID %d: %s", curID, goroutineErr)
+			}
+		}(message, id)
+	}
+	wg.Wait()
+
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close server connection: %s", err)
+	}
+}
+
+func TestClient_DialSendConcurrent_local(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	serverPort := TestServerPortBase + 20
+	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, false, serverPort); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 500)
+
+	client, err := NewClient(TestServerAddr, WithPort(serverPort),
+		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
+		WithUsername("toni@tester.com"),
+		WithPassword("V3ryS3cr3t+"))
+	if err != nil {
+		t.Errorf("unable to create new client: %s", err)
+	}
+
+	var messages []*Msg
+	for i := 0; i < 50; i++ {
+		message := NewMsg()
+		if err := message.From("valid-from@domain.tld"); err != nil {
+			t.Errorf("failed to set FROM address: %s", err)
+			return
+		}
+		if err := message.To("valid-to@domain.tld"); err != nil {
+			t.Errorf("failed to set TO address: %s", err)
+			return
+		}
+		message.Subject("Test subject")
+		message.SetBodyString(TypeTextPlain, "Test body")
+		message.SetMessageIDWithValue("this.is.a.message.id")
+		messages = append(messages, message)
+	}
+
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to test server: %s", err)
+	}
+
+	wg := sync.WaitGroup{}
+	for id, message := range messages {
+		wg.Add(1)
+		go func(curMsg *Msg, curID int) {
+			defer wg.Done()
+			if goroutineErr := client.Send(curMsg); err != nil {
+				t.Errorf("failed to send message with ID %d: %s", curID, goroutineErr)
+			}
+		}(message, id)
+	}
+	wg.Wait()
+
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close server connection: %s", err)
+	}
+}
+
 // getTestConnection takes environment variables to establish a connection to a real
 // SMTP server to test all functionality that requires a connection
 func getTestConnection(auth bool) (*Client, error) {
@@ -2099,6 +2208,7 @@ func handleTestServerConnection(connection net.Conn, featureSet string, failRese
 		if err != nil {
 			break
 		}
+		time.Sleep(time.Millisecond)
 
 		var datastring string
 		data = strings.TrimSpace(data)
