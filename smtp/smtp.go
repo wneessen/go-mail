@@ -209,13 +209,13 @@ func (c *Client) StartTLS(config *tls.Config) error {
 // not succeed.
 func (c *Client) TLSConnectionState() (state tls.ConnectionState, ok bool) {
 	c.mutex.RLock()
+	defer c.mutex.RUnlock()
 
 	tc, ok := c.conn.(*tls.Conn)
 	if !ok {
 		return
 	}
 	state, ok = tc.ConnectionState(), true
-	c.mutex.RUnlock()
 	return
 }
 
