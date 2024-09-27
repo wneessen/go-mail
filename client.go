@@ -88,9 +88,6 @@ type DialContextFunc func(ctx context.Context, network, address string) (net.Con
 
 // Client is the SMTP client struct
 type Client struct {
-	// connection is the net.Conn that the smtp.Client is based on
-	connection net.Conn
-
 	// Timeout for the SMTP server connection
 	connTimeout time.Duration
 
