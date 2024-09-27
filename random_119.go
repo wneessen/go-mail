@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: MIT
 
-//go:build go1.19 && !go1.20
-// +build go1.19,!go1.20
+//go:build !go1.20
+// +build !go1.20
 
 package mail
 
