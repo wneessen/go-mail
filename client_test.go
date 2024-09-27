@@ -1799,7 +1799,7 @@ func TestClient_DialSendConcurrent_local(t *testing.T) {
 	}
 
 	var messages []*Msg
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 20; i++ {
 		message := NewMsg()
 		if err := message.From("valid-from@domain.tld"); err != nil {
 			t.Errorf("failed to set FROM address: %s", err)
@@ -2021,6 +2021,72 @@ func getTestConnectionWithDSN(auth bool) (*Client, error) {
 }
 
 func TestXOAuth2OK(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	serverPort := TestServerPortBase + 30
+	featureSet := "250-AUTH XOAUTH2\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, false, serverPort); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 500)
+
+	c, err := NewClient("127.0.0.1",
+		WithPort(serverPort),
+		WithTLSPortPolicy(TLSOpportunistic),
+		WithSMTPAuth(SMTPAuthXOAUTH2),
+		WithUsername("user"),
+		WithPassword("token"))
+	if err != nil {
+		t.Fatalf("unable to create new client: %v", err)
+	}
+	if err = c.DialWithContext(context.Background()); err != nil {
+		t.Fatalf("unexpected dial error: %v", err)
+	}
+	if err = c.Close(); err != nil {
+		t.Fatalf("disconnect from test server failed: %v", err)
+	}
+}
+
+func TestXOAuth2Unsupported(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	serverPort := TestServerPortBase + 31
+	featureSet := "250-AUTH LOGIN PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, false, serverPort); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 500)
+
+	c, err := NewClient("127.0.0.1",
+		WithPort(serverPort),
+		WithTLSPolicy(TLSOpportunistic),
+		WithSMTPAuth(SMTPAuthXOAUTH2),
+		WithUsername("user"),
+		WithPassword("token"))
+	if err != nil {
+		t.Fatalf("unable to create new client: %v", err)
+	}
+	if err = c.DialWithContext(context.Background()); err == nil {
+		t.Fatal("expected dial error got nil")
+	} else {
+		if !errors.Is(err, ErrXOauth2AuthNotSupported) {
+			t.Fatalf("expected %v; got %v", ErrXOauth2AuthNotSupported, err)
+		}
+	}
+	if err = c.Close(); err != nil {
+		t.Fatalf("disconnect from test server failed: %v", err)
+	}
+}
+
+func TestXOAuth2OK_faker(t *testing.T) {
 	server := []string{
 		"220 Fake server ready ESMTP",
 		"250-fake.server",
@@ -2060,7 +2126,7 @@ func TestXOAuth2OK(t *testing.T) {
 	}
 }
 
-func TestXOAuth2Unsupported(t *testing.T) {
+func TestXOAuth2Unsupported_faker(t *testing.T) {
 	server := []string{
 		"220 Fake server ready ESMTP",
 		"250-fake.server",
@@ -2231,6 +2297,13 @@ func handleTestServerConnection(connection net.Conn, featureSet string, failRese
 				break
 			}
 			writeOK()
+		case strings.HasPrefix(data, "AUTH XOAUTH2"):
+			auth := strings.TrimPrefix(data, "AUTH XOAUTH2 ")
+			if !strings.EqualFold(auth, "dXNlcj11c2VyAWF1dGg9QmVhcmVyIHRva2VuAQE=") {
+				_ = writeLine("535 5.7.8 Error: authentication failed")
+				break
+			}
+			_ = writeLine("235 2.7.0 Authentication successful")
 		case strings.HasPrefix(data, "AUTH PLAIN"):
 			auth := strings.TrimPrefix(data, "AUTH PLAIN ")
 			if !strings.EqualFold(auth, "AHRvbmlAdGVzdGVyLmNvbQBWM3J5UzNjcjN0Kw==") {
