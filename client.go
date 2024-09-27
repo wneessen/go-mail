@@ -88,12 +88,14 @@ type DialContextFunc func(ctx context.Context, network, address string) (net.Con
 
 // Client is the SMTP client struct
 type Client struct {
-	mutex sync.RWMutex
 	// connection is the net.Conn that the smtp.Client is based on
 	connection net.Conn
 
 	// Timeout for the SMTP server connection
 	connTimeout time.Duration
+
+	// dialContextFunc is a custom DialContext function to dial target SMTP server
+	dialContextFunc DialContextFunc
 
 	// dsn indicates that we want to use DSN for the Client
 	dsn bool
@@ -104,11 +106,9 @@ type Client struct {
 	// dsnrntype defines the DSNRcptNotifyOption in case DSN is enabled
 	dsnrntype []string
 
-	// isEncrypted indicates if a Client connection is encrypted or not
-	isEncrypted bool
-
-	// noNoop indicates the Noop is to be skipped
-	noNoop bool
+	// fallbackPort is used as an alternative port number in case the primary port is unavailable or
+	// fails to bind.
+	fallbackPort int
 
 	// HELO/EHLO string for the greeting the target SMTP server
 	helo string
@@ -116,12 +116,24 @@ type Client struct {
 	// Hostname of the target SMTP server to connect to
 	host string
 
+	// isEncrypted indicates if a Client connection is encrypted or not
+	isEncrypted bool
+
+	// logger is a logger that implements the log.Logger interface
+	logger log.Logger
+
+	// mutex is used to synchronize access to shared resources, ensuring that only one goroutine can
+	// modify them at a time.
+	mutex sync.RWMutex
+
+	// noNoop indicates the Noop is to be skipped
+	noNoop bool
+
 	// pass is the corresponding SMTP AUTH password
 	pass string
 
-	// Port of the SMTP server to connect to
-	port         int
-	fallbackPort int
+	// port specifies the network port number on which the server listens for incoming connections.
+	port int
 
 	// smtpAuth is a pointer to smtp.Auth
 	smtpAuth smtp.Auth
@@ -132,26 +144,20 @@ type Client struct {
 	// smtpClient is the smtp.Client that is set up when using the Dial*() methods
 	smtpClient *smtp.Client
 
-	// Use SSL for the connection
-	useSSL bool
-
 	// tlspolicy sets the client to use the provided TLSPolicy for the STARTTLS protocol
 	tlspolicy TLSPolicy
 
 	// tlsconfig represents the tls.Config setting for the STARTTLS connection
 	tlsconfig *tls.Config
 
-	// user is the SMTP AUTH username
-	user string
-
 	// useDebugLog enables the debug logging on the SMTP client
 	useDebugLog bool
 
-	// logger is a logger that implements the log.Logger interface
-	logger log.Logger
+	// user is the SMTP AUTH username
+	user string
 
-	// dialContextFunc is a custom DialContext function to dial target SMTP server
-	dialContextFunc DialContextFunc
+	// Use SSL for the connection
+	useSSL bool
 }
 
 // Option returns a function that can be used for grouping Client options
