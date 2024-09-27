@@ -37,28 +37,45 @@ import (
 
 // A Client represents a client connection to an SMTP server.
 type Client struct {
-	// Text is the textproto.Conn used by the Client. It is exported to allow for
-	// clients to add extensions.
+	// Text is the textproto.Conn used by the Client. It is exported to allow for clients to add extensions.
 	Text *textproto.Conn
-	// keep a reference to the connection so it can be used to create a TLS
-	// connection later
+
+	// auth supported auth mechanisms
+	auth []string
+
+	// keep a reference to the connection so it can be used to create a TLS connection later
 	conn net.Conn
-	// whether the Client is using TLS
-	tls        bool
-	serverName string
-	// map of supported extensions
+
+	// debug logging is enabled
+	debug bool
+
+	// didHello indicates whether we've said HELO/EHLO
+	didHello bool
+
+	// dsnmrtype defines the mail return option in case DSN is enabled
+	dsnmrtype string
+
+	// dsnrntype defines the recipient notify option in case DSN is enabled
+	dsnrntype string
+
+	// ext is a map of supported extensions
 	ext map[string]string
-	// supported auth mechanisms
-	auth       []string
-	localName  string // the name to use in HELO/EHLO
-	didHello   bool   // whether we've said HELO/EHLO
-	helloError error  // the error from the hello
-	// debug logging
-	debug  bool       // debug logging is enabled
-	logger log.Logger // logger will be used for debug logging
-	// DSN support
-	dsnmrtype string // dsnmrtype defines the mail return option in case DSN is enabled
-	dsnrntype string // dsnrntype defines the recipient notify option in case DSN is enabled
+
+	// helloError is the error from the hello
+	helloError error
+
+	// localName is the name to use in HELO/EHLO
+	localName string // the name to use in HELO/EHLO
+
+	// logger will be used for debug logging
+	logger log.Logger
+
+	// tls indicates whether the Client is using TLS
+	tls bool
+
+	// serverName denotes the name of the server to which the application will connect. Used for
+	// identification and routing.
+	serverName string
 }
 
 // Dial returns a new [Client] connected to an SMTP server at addr.
