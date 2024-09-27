@@ -13,9 +13,6 @@ import (
 
 // Send sends out the mail message
 func (c *Client) Send(messages ...*Msg) (returnErr error) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-
 	if err := c.checkConn(); err != nil {
 		returnErr = &SendError{Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err)}
 		return

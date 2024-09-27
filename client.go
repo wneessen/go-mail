@@ -801,6 +801,9 @@ func (c *Client) auth() error {
 // sendSingleMsg sends out a single message and returns an error if the transmission/delivery fails.
 // It is invoked by the public Send methods
 func (c *Client) sendSingleMsg(message *Msg) error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
 	if message.encoding == NoEncoding {
 		if ok, _ := c.smtpClient.Extension("8BITMIME"); !ok {
 			return &SendError{Reason: ErrNoUnencoded, isTemp: false, affectedMsg: message}
