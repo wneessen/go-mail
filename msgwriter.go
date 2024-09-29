@@ -138,6 +138,10 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 	if msg.hasMixed() {
 		mw.stopMP()
 	}
+
+	if msg.hasSMime() {
+		mw.stopMP()
+	}
 }
 
 // writeGenHeader writes out all generic headers to the msgWriter
@@ -341,7 +345,7 @@ func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encodin
 		encodedWriter = quotedprintable.NewWriter(&writeBuffer)
 	} else if encoding == EncodingB64 && !singingWithSMime {
 		encodedWriter = base64.NewEncoder(base64.StdEncoding, &lineBreaker)
-	} else if encoding == NoEncoding {
+	} else if encoding == NoEncoding || singingWithSMime {
 		_, err = writeFunc(&writeBuffer)
 		if err != nil {
 			mw.err = fmt.Errorf("bodyWriter function: %w", err)

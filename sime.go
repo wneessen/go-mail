@@ -105,8 +105,10 @@ func encodeToPEM(msg []byte) (*string, error) {
 	}
 
 	r := arrayBuffer.String()
-	r = strings.ReplaceAll(r, "-----BEGIN -----\n", "")
-	r = strings.ReplaceAll(r, "-----END -----\n", "")
+	r = strings.TrimPrefix(r, "-----BEGIN -----")
+	r = strings.Trim(r, "\n")
+	r = strings.TrimSuffix(r, "-----END -----")
+	r = strings.Trim(r, "\n")
 
 	return &r, nil
 }
