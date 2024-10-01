@@ -1905,6 +1905,41 @@ func TestClient_AuthSCRAMSHAX_fail(t *testing.T) {
 	}
 }
 
+func TestClient_AuthSCRAMSHAX_unsupported(t *testing.T) {
+	if os.Getenv("TEST_ALLOW_SEND") == "" {
+		t.Skipf("TEST_ALLOW_SEND is not set. Skipping mail sending test")
+	}
+
+	client, err := getTestConnection(true)
+	if err != nil {
+		t.Skipf("failed to create test client: %s. Skipping tests", err)
+	}
+
+	tests := []struct {
+		name     string
+		authtype SMTPAuthType
+		expErr   error
+	}{
+		{"SCRAM-SHA-1", SMTPAuthSCRAMSHA1, ErrSCRAMSHA1AuthNotSupported},
+		{"SCRAM-SHA-1-PLUS", SMTPAuthSCRAMSHA1PLUS, ErrSCRAMSHA1PLUSAuthNotSupported},
+		{"SCRAM-SHA-256", SMTPAuthSCRAMSHA256, ErrSCRAMSHA256AuthNotSupported},
+		{"SCRAM-SHA-256-PLUS", SMTPAuthSCRAMSHA256PLUS, ErrSCRAMSHA256PLUSAuthNotSupported},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client.SetSMTPAuth(tt.authtype)
+			client.SetTLSPolicy(TLSMandatory)
+			if err = client.DialWithContext(context.Background()); err == nil {
+				t.Errorf("expected error but got nil")
+			}
+			if !errors.Is(err, tt.expErr) {
+				t.Errorf("expected error %s, but got %s", tt.expErr, err)
+			}
+		})
+	}
+}
+
 func TestClient_AuthSCRAMSHAXPLUS_tlsexporter(t *testing.T) {
 	if os.Getenv("TEST_ONLINE_SCRAM") == "" {
 		t.Skipf("TEST_ONLINE_SCRAM is not set. Skipping online SCRAM tests")
@@ -2023,10 +2058,10 @@ func getTestConnection(auth bool) (*Client, error) {
 		// We don't want to log authentication data in tests
 		c.SetDebugLog(false)
 	}
-	if err := c.DialWithContext(context.Background()); err != nil {
+	if err = c.DialWithContext(context.Background()); err != nil {
 		return c, fmt.Errorf("connection to test server failed: %w", err)
 	}
-	if err := c.Close(); err != nil {
+	if err = c.Close(); err != nil {
 		return c, fmt.Errorf("disconnect from test server failed: %w", err)
 	}
 	return c, nil
