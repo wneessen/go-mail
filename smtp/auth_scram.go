@@ -23,6 +23,8 @@ import (
 	"golang.org/x/text/secure/precis"
 )
 
+// scramAuth represents a SCRAM (Salted Challenge Response Authentication Mechanism) client and
+// satisfies the smtp.Auth interface.
 type scramAuth struct {
 	username, password, algorithm               string
 	firstBareMsg, nonce, saltedPwd, authMessage []byte
@@ -116,6 +118,7 @@ func (a *scramAuth) Next(fromServer []byte, more bool) ([]byte, error) {
 	return nil, nil
 }
 
+// reset clears all authentication-related properties in the scramAuth instance, effectively resetting its state.
 func (a *scramAuth) reset() {
 	a.nonce = nil
 	a.firstBareMsg = nil
@@ -124,6 +127,8 @@ func (a *scramAuth) reset() {
 	a.iterations = 0
 }
 
+// initialClientMessage generates the initial message for SCRAM authentication, including a nonce and
+// optional channel binding.
 func (a *scramAuth) initialClientMessage() ([]byte, error) {
 	username, err := a.normalizeUsername()
 	if err != nil {
@@ -140,11 +145,16 @@ func (a *scramAuth) initialClientMessage() ([]byte, error) {
 	a.firstBareMsg = []byte("n=" + username + ",r=" + string(a.nonce))
 	returnBytes := []byte("n,," + string(a.firstBareMsg))
 
+	// SCRAM-SHA-X-PLUS auth requires channel binding
 	if a.isPlus {
 		bindType := "tls-unique"
 		connState := a.tlsConnState
 		bindData := connState.TLSUnique
-		if connState.Version == tls.VersionTLS13 {
+
+		// crypto/tl: no tls-unique channel binding value for this tls connection, possibly due to missing
+		// extended master key support and/or resumed connection
+		// RFC9266:122 tls-unique not defined for tls 1.3 and later
+		if bindData == nil || connState.Version >= tls.VersionTLS13 {
 			bindType = "tls-exporter"
 			bindData, err = connState.ExportKeyingMaterial("EXPORTER-Channel-Binding", []byte{}, 32)
 			if err != nil {
@@ -160,6 +170,7 @@ func (a *scramAuth) initialClientMessage() ([]byte, error) {
 	return returnBytes, nil
 }
 
+// handleServerFirstResponse processes the first response from the server in SCRAM authentication.
 func (a *scramAuth) handleServerFirstResponse(fromServer []byte) ([]byte, error) {
 	parts := bytes.Split(fromServer, []byte(","))
 	if len(parts) < 3 {
@@ -203,16 +214,19 @@ func (a *scramAuth) handleServerFirstResponse(fromServer []byte) ([]byte, error)
 	a.saltedPwd = pbkdf2.Key([]byte(password), salt, a.iterations, a.h().Size(), a.h)
 
 	msgWithoutProof := []byte("c=biws,r=" + string(a.nonce))
+
+	// A PLUS authentication requires the channel binding data
 	if a.isPlus {
 		msgWithoutProof = []byte("c=" + string(a.bindData) + ",r=" + string(a.nonce))
 	}
-	a.authMessage = []byte(string(a.firstBareMsg) + "," + string(fromServer) + "," + string(msgWithoutProof))
 
+	a.authMessage = []byte(string(a.firstBareMsg) + "," + string(fromServer) + "," + string(msgWithoutProof))
 	clientProof := a.computeClientProof()
 
 	return []byte(string(msgWithoutProof) + ",p=" + string(clientProof)), nil
 }
 
+// handleServerValidationMessage verifies the server's signature during the SCRAM authentication process.
 func (a *scramAuth) handleServerValidationMessage(fromServer []byte) ([]byte, error) {
 	serverSignature := fromServer[2:]
 	computedServerSignature := a.computeServerSignature()
@@ -223,18 +237,21 @@ func (a *scramAuth) handleServerValidationMessage(fromServer []byte) ([]byte, er
 	return []byte(""), nil
 }
 
+// computeHMAC generates a Hash-based Message Authentication Code (HMAC) using the specified key and message.
 func (a *scramAuth) computeHMAC(key, msg []byte) []byte {
 	mac := hmac.New(a.h, key)
 	mac.Write(msg)
 	return mac.Sum(nil)
 }
 
+// computeHash generates a hash of the given key using the configured hashing algorithm.
 func (a *scramAuth) computeHash(key []byte) []byte {
 	hasher := a.h()
 	hasher.Write(key)
 	return hasher.Sum(nil)
 }
 
+// computeClientProof generates the client proof as part of the SCRAM authentication process.
 func (a *scramAuth) computeClientProof() []byte {
 	clientKey := a.computeHMAC(a.saltedPwd, []byte("Client Key"))
 	storedKey := a.computeHash(clientKey)
@@ -248,6 +265,8 @@ func (a *scramAuth) computeClientProof() []byte {
 	return buf
 }
 
+// computeServerSignature returns the computed base64-encoded server signature in the SCRAM
+// authentication process.
 func (a *scramAuth) computeServerSignature() []byte {
 	serverKey := a.computeHMAC(a.saltedPwd, []byte("Server Key"))
 	serverSignature := a.computeHMAC(serverKey, a.authMessage)
@@ -256,6 +275,9 @@ func (a *scramAuth) computeServerSignature() []byte {
 	return buf
 }
 
+// normalizeUsername replaces special characters in the username for SCRAM authentication
+// and prepares it using the SASLprep profile as per RFC 8265, returning the normalized
+// username or an error.
 func (a *scramAuth) normalizeUsername() (string, error) {
 	// RFC 5802 section 5.1: the characters ',' or '=' in usernames are
 	// sent as '=2C' and '=3D' respectively.
@@ -277,10 +299,13 @@ func (a *scramAuth) normalizeUsername() (string, error) {
 	return username, nil
 }
 
+// normalizeString normalizes the input string according to the OpaqueString profile of the
+// precis framework. It returns the normalized string or an error if normalization fails or
+// results in an empty string.
 func (a *scramAuth) normalizeString(s string) (string, error) {
 	s, err := precis.OpaqueString.String(s)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failled to normalize string: %w", err)
 	}
 	if s == "" {
 		return "", errors.New("normalized string is empty")
