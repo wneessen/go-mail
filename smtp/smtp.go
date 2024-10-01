@@ -36,9 +36,7 @@ import (
 	"github.com/wneessen/go-mail/log"
 )
 
-var (
-	ErrNonTLSConnection = errors.New("connection is not using TLS")
-)
+var ErrNonTLSConnection = errors.New("connection is not using TLS")
 
 // A Client represents a client connection to an SMTP server.
 type Client struct {
