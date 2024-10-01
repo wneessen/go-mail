@@ -111,7 +111,7 @@ code, reviewing code, writing documenation or helping to translate the website):
 A huge thank you also goes to [Maria Letta](https://github.com/MariaLetta) for designing our super cool go-mail logo!
 
 ## Sponsors
-We sincerely thank all our amazing sponsors for their generous support, without whom this project would not 
-have achieved such development and success as it has today. Your contributions do not go unnoticed!
+We sincerely thank our amazing sponsors for their generous support! Your contributions do not go unnoticed and helps
+keeping up the project!
 
 * [kolaente](https://github.com/kolaente)
