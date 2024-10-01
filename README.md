@@ -25,11 +25,11 @@ go-mail follows idiomatic Go style and best practice. It has a small dependency 
 Go Standard Library and the Go extended packages. It combines a lot of functionality from the standard library to 
 give easy and convenient access to mail and SMTP related tasks.
 
-In the early days, parts of this library (especially some parts of [msgwriter.go](msgwriter.go)) have been 
-forked/ported from [go-mail/mail](https://github.com/go-mail/mail) and respectively [go-gomail/gomail](https://github.com/go-gomail/gomail). In
-the meantime most of the ported code has been refactored.
+In the early days, parts of this library (especially some parts of [msgwriter.go](msgwriter.go)) had been 
+forked/ported from [go-mail/mail](https://github.com/go-mail/mail) and respectively [go-gomail/gomail](https://github.com/go-gomail/gomail). Today
+most of the ported code has been refactored.
 
-The smtp package of go-mail has been forked from the original Go stdlib's `net/smtp` package and has then been extended 
+The `smtp` package of go-mail has been forked from the original Go stdlib's `net/smtp` package and has then been extended 
 by the go-mail team to fit the packages needs (more SMTP Auth methods, logging, concurrency-safety, etc.).
 
 ## Features
