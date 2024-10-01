@@ -578,6 +578,7 @@ func (c *Client) SetPassword(password string) {
 // SetSMTPAuth overrides the current SMTP AUTH type setting with the given value
 func (c *Client) SetSMTPAuth(authtype SMTPAuthType) {
 	c.smtpAuthType = authtype
+	c.smtpAuth = nil
 }
 
 // SetSMTPAuthCustom overrides the current SMTP AUTH setting with the given custom smtp.Auth
