@@ -18,33 +18,34 @@ SPDX-License-Identifier: CC0-1.0
 
 <p align="center"><img src="./assets/gopher2.svg" width="250" alt="go-mail logo"/></p>
 
-The main idea of this library was to provide a simple interface to sending mails for
+The main idea of this library was to provide a simple interface for sending mails to
 my [JS-Mailer](https://github.com/wneessen/js-mailer) project. It quickly evolved into a full-fledged mail library.
 
-go-mail follows idiomatic Go style and best practice. It's only dependency is the Go Standard Library. It combines a lot
-of functionality from the standard library to give easy and convenient access to mail and SMTP related tasks.
+go-mail follows idiomatic Go style and best practice. It has a small dependency footprint by mainly relying on the
+Go Standard Library and the Go extended packages. It combines a lot of functionality from the standard library to 
+give easy and convenient access to mail and SMTP related tasks.
 
-Parts of this library (especially some parts of [msgwriter.go](msgwriter.go)) have been forked/ported from the
-[go-mail/mail](https://github.com/go-mail/mail) respectively [go-gomail/gomail](https://github.com/go-gomail/gomail)
-which both seems to not be maintained anymore.
+In the early days, parts of this library (especially some parts of [msgwriter.go](msgwriter.go)) have been 
+forked/ported from [go-mail/mail](https://github.com/go-mail/mail) and respectively [go-gomail/gomail](https://github.com/go-gomail/gomail). In
+the meantime most of the ported code has been refactored.
 
-The smtp package of go-mail is forked from the original Go stdlib's `net/smtp` and then extended by the go-mail
-team.
+The smtp package of go-mail has been forked from the original Go stdlib's `net/smtp` package and has then been extended 
+by the go-mail team to fit the packages needs (more SMTP Auth methods, logging, concurrency-safety, etc.).
 
 ## Features
 
-Some of the features of this library:
+Here are some highlights of go-mail's featureset:
 
-* [X] Only Standard Library dependant
+* [X] Very small dependency footprint (mainly Go Stdlib and Go extended packages)
 * [X] Modern, idiomatic Go
 * [X] Sane and secure defaults
 * [X] Explicit SSL/TLS support
 * [X] Implicit StartTLS support with different policies
 * [X] Makes use of contexts for a better control flow and timeout/cancelation handling
-* [X] SMTP Auth support (LOGIN, PLAIN, CRAM-MD, XOAUTH2)
+* [X] SMTP Auth support (LOGIN, PLAIN, CRAM-MD, XOAUTH2, SCRAM-SHA-1(-PLUS), SCRAM-SHA-256(-PLUS))
 * [X] RFC5322 compliant mail address validation
 * [X] Support for common mail header field generation (Message-ID, Date, Bulk-Precedence, Priority, etc.)
-* [X] Reusing the same SMTP connection to send multiple mails
+* [X] Concurrency-safe reusing the same SMTP connection to send multiple mails
 * [X] Support for attachments and inline embeds (from file system, `io.Reader` or `embed.FS`)
 * [X] Support for different encodings
 * [X] Middleware support for 3rd-party libraries to alter mail messages
