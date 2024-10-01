@@ -18,33 +18,34 @@ SPDX-License-Identifier: CC0-1.0
 
 <p align="center"><img src="./assets/gopher2.svg" width="250" alt="go-mail logo"/></p>
 
-The main idea of this library was to provide a simple interface to sending mails for
+The main idea of this library was to provide a simple interface for sending mails to
 my [JS-Mailer](https://github.com/wneessen/js-mailer) project. It quickly evolved into a full-fledged mail library.
 
-go-mail follows idiomatic Go style and best practice. It's only dependency is the Go Standard Library. It combines a lot
-of functionality from the standard library to give easy and convenient access to mail and SMTP related tasks.
+go-mail follows idiomatic Go style and best practice. It has a small dependency footprint by mainly relying on the
+Go Standard Library and the Go extended packages. It combines a lot of functionality from the standard library to 
+give easy and convenient access to mail and SMTP related tasks.
 
-Parts of this library (especially some parts of [msgwriter.go](msgwriter.go)) have been forked/ported from the
-[go-mail/mail](https://github.com/go-mail/mail) respectively [go-gomail/gomail](https://github.com/go-gomail/gomail)
-which both seems to not be maintained anymore.
+In the early days, parts of this library (especially some parts of [msgwriter.go](msgwriter.go)) had been 
+forked/ported from [go-mail/mail](https://github.com/go-mail/mail) and respectively [go-gomail/gomail](https://github.com/go-gomail/gomail). Today
+most of the ported code has been refactored.
 
-The smtp package of go-mail is forked from the original Go stdlib's `net/smtp` and then extended by the go-mail
-team.
+The `smtp` package of go-mail has been forked from the original Go stdlib's `net/smtp` package and has then been extended 
+by the go-mail team to fit the packages needs (more SMTP Auth methods, logging, concurrency-safety, etc.).
 
 ## Features
 
-Some of the features of this library:
+Here are some highlights of go-mail's featureset:
 
-* [X] Only Standard Library dependant
+* [X] Very small dependency footprint (mainly Go Stdlib and Go extended packages)
 * [X] Modern, idiomatic Go
 * [X] Sane and secure defaults
 * [X] Explicit SSL/TLS support
 * [X] Implicit StartTLS support with different policies
 * [X] Makes use of contexts for a better control flow and timeout/cancelation handling
-* [X] SMTP Auth support (LOGIN, PLAIN, CRAM-MD, XOAUTH2)
+* [X] SMTP Auth support (LOGIN, PLAIN, CRAM-MD, XOAUTH2, SCRAM-SHA-1(-PLUS), SCRAM-SHA-256(-PLUS))
 * [X] RFC5322 compliant mail address validation
 * [X] Support for common mail header field generation (Message-ID, Date, Bulk-Precedence, Priority, etc.)
-* [X] Reusing the same SMTP connection to send multiple mails
+* [X] Concurrency-safe reusing the same SMTP connection to send multiple mails
 * [X] Support for attachments and inline embeds (from file system, `io.Reader` or `embed.FS`)
 * [X] Support for different encodings
 * [X] Middleware support for 3rd-party libraries to alter mail messages
@@ -99,15 +100,18 @@ We provide example code in both our GoDocs as well as on our official Website (s
 check out our [Getting started](https://go-mail.dev/getting-started/introduction/) guide.
 
 ## Authors/Contributors
-go-mail was initially authored and developed by [Winni Neessen](https://github.com/wneessen/).
+go-mail was initially created and developed by [Winni Neessen](https://github.com/wneessen/), but over time a lot of amazing people 
+contributed ot the project. Big thanks to all of them for improving the go-mail project (be it writing code, testing
+code, reviewing code, writing documenation or helping to translate the website):
 
-Big thanks to the following people, for contributing to the go-mail project (either in form of code or by 
-reviewing code, writing documenation or helping to translate the website):
-* [Christian Vette](https://github.com/cvette)
-* [Dhia Gharsallaoui](https://github.com/dhia-gharsallaoui)
-* [inliquid](https://github.com/inliquid) 
-* [iwittkau](https://github.com/iwittkau)
-* [James Elliott](https://github.com/james-d-elliott)
-* [Maria Letta](https://github.com/MariaLetta) (designed the go-mail logo)
-* [Nicola Murino](https://github.com/drakkan)
-* [sters](https://github.com/sters)
+<a href="https://github.com/wneessen/go-mail/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=wneessen/go-mail" />
+</a>
+
+A huge thank you also goes to [Maria Letta](https://github.com/MariaLetta) for designing our super cool go-mail logo!
+
+## Sponsors
+We sincerely thank our amazing sponsors for their generous support! Your contributions do not go unnoticed and helps
+keeping up the project!
+
+* [kolaente](https://github.com/kolaente)

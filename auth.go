@@ -28,6 +28,22 @@ const (
 	// SMTPAuthXOAUTH2 is the "XOAUTH2" SASL authentication mechanism.
 	// https://developers.google.com/gmail/imap/xoauth2-protocol
 	SMTPAuthXOAUTH2 SMTPAuthType = "XOAUTH2"
+
+	// SMTPAuthSCRAMSHA1 represents the SCRAM-SHA-1 SMTP authentication mechanism
+	// https://datatracker.ietf.org/doc/html/rfc5802
+	SMTPAuthSCRAMSHA1 SMTPAuthType = "SCRAM-SHA-1"
+
+	// SMTPAuthSCRAMSHA1PLUS represents the "SCRAM-SHA-1-PLUS" authentication mechanism for SMTP.
+	// https://datatracker.ietf.org/doc/html/rfc5802
+	SMTPAuthSCRAMSHA1PLUS SMTPAuthType = "SCRAM-SHA-1-PLUS"
+
+	// SMTPAuthSCRAMSHA256 represents the SCRAM-SHA-256 authentication mechanism for SMTP.
+	// https://datatracker.ietf.org/doc/html/rfc7677
+	SMTPAuthSCRAMSHA256 SMTPAuthType = "SCRAM-SHA-256"
+
+	// SMTPAuthSCRAMSHA256PLUS represents the "SCRAM-SHA-256-PLUS" SMTP AUTH type.
+	// https://datatracker.ietf.org/doc/html/rfc7677
+	SMTPAuthSCRAMSHA256PLUS SMTPAuthType = "SCRAM-SHA-256-PLUS"
 )
 
 // SMTP Auth related static errors
@@ -43,4 +59,16 @@ var (
 
 	// ErrXOauth2AuthNotSupported should be used if the target server does not support the "XOAUTH2" schema
 	ErrXOauth2AuthNotSupported = errors.New("server does not support SMTP AUTH type: XOAUTH2")
+
+	// ErrSCRAMSHA1AuthNotSupported should be used if the target server does not support the "SCRAM-SHA-1" schema
+	ErrSCRAMSHA1AuthNotSupported = errors.New("server does not support SMTP AUTH type: SCRAM-SHA-1")
+
+	// ErrSCRAMSHA1PLUSAuthNotSupported should be used if the target server does not support the "SCRAM-SHA-1-PLUS" schema
+	ErrSCRAMSHA1PLUSAuthNotSupported = errors.New("server does not support SMTP AUTH type: SCRAM-SHA-1-PLUS")
+
+	// ErrSCRAMSHA256AuthNotSupported should be used if the target server does not support the "SCRAM-SHA-256" schema
+	ErrSCRAMSHA256AuthNotSupported = errors.New("server does not support SMTP AUTH type: SCRAM-SHA-256")
+
+	// ErrSCRAMSHA256PLUSAuthNotSupported should be used if the target server does not support the "SCRAM-SHA-256-PLUS" schema
+	ErrSCRAMSHA256PLUSAuthNotSupported = errors.New("server does not support SMTP AUTH type: SCRAM-SHA-256-PLUS")
 )

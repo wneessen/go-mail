@@ -578,6 +578,7 @@ func (c *Client) SetPassword(password string) {
 // SetSMTPAuth overrides the current SMTP AUTH type setting with the given value
 func (c *Client) SetSMTPAuth(authtype SMTPAuthType) {
 	c.smtpAuthType = authtype
+	c.smtpAuth = nil
 }
 
 // SetSMTPAuthCustom overrides the current SMTP AUTH setting with the given custom smtp.Auth
@@ -748,7 +749,17 @@ func (c *Client) tls() error {
 				return err
 			}
 		}
-		_, c.isEncrypted = c.smtpClient.TLSConnectionState()
+		tlsConnState, err := c.smtpClient.GetTLSConnectionState()
+		if err != nil {
+			switch {
+			case errors.Is(err, smtp.ErrNonTLSConnection):
+				c.isEncrypted = false
+				return nil
+			default:
+				return fmt.Errorf("failed to get TLS connection state: %w", err)
+			}
+		}
+		c.isEncrypted = tlsConnState.HandshakeComplete
 	}
 	return nil
 }
@@ -785,6 +796,34 @@ func (c *Client) auth() error {
 				return ErrXOauth2AuthNotSupported
 			}
 			c.smtpAuth = smtp.XOAuth2Auth(c.user, c.pass)
+		case SMTPAuthSCRAMSHA1:
+			if !strings.Contains(smtpAuthType, string(SMTPAuthSCRAMSHA1)) {
+				return ErrSCRAMSHA1AuthNotSupported
+			}
+			c.smtpAuth = smtp.ScramSHA1Auth(c.user, c.pass)
+		case SMTPAuthSCRAMSHA256:
+			if !strings.Contains(smtpAuthType, string(SMTPAuthSCRAMSHA256)) {
+				return ErrSCRAMSHA256AuthNotSupported
+			}
+			c.smtpAuth = smtp.ScramSHA256Auth(c.user, c.pass)
+		case SMTPAuthSCRAMSHA1PLUS:
+			if !strings.Contains(smtpAuthType, string(SMTPAuthSCRAMSHA1PLUS)) {
+				return ErrSCRAMSHA1PLUSAuthNotSupported
+			}
+			tlsConnState, err := c.smtpClient.GetTLSConnectionState()
+			if err != nil {
+				return err
+			}
+			c.smtpAuth = smtp.ScramSHA1PlusAuth(c.user, c.pass, tlsConnState)
+		case SMTPAuthSCRAMSHA256PLUS:
+			if !strings.Contains(smtpAuthType, string(SMTPAuthSCRAMSHA256PLUS)) {
+				return ErrSCRAMSHA256PLUSAuthNotSupported
+			}
+			tlsConnState, err := c.smtpClient.GetTLSConnectionState()
+			if err != nil {
+				return err
+			}
+			c.smtpAuth = smtp.ScramSHA256PlusAuth(c.user, c.pass, tlsConnState)
 		default:
 			return fmt.Errorf("unsupported SMTP AUTH type %q", c.smtpAuthType)
 		}
