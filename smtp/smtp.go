@@ -565,6 +565,25 @@ func (c *Client) UpdateDeadline(timeout time.Duration) error {
 	return nil
 }
 
+// GetTLSConnectionState retrieves the TLS connection state of the client's current connection.
+// Returns an error if the connection is not using TLS or if the connection is not established.
+func (c *Client) GetTLSConnectionState() (*tls.ConnectionState, error) {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+
+	if !c.tls {
+		return nil, errors.New("smtp: connection is not using TLS")
+	}
+	if c.conn == nil {
+		return nil, errors.New("smtp: connection is not established")
+	}
+	if conn, ok := c.conn.(*tls.Conn); ok {
+		cstate := conn.ConnectionState()
+		return &cstate, nil
+	}
+	return nil, errors.New("smtp: connection is not a TLS connection")
+}
+
 // debugLog checks if the debug flag is set and if so logs the provided message to
 // the log.Logger interface
 func (c *Client) debugLog(d log.Direction, f string, a ...interface{}) {
