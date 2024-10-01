@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2023 The go-mail Authors
+// SPDX-FileCopyrightText: Copyright (c) 2024 The go-mail Authors
 //
 // SPDX-License-Identifier: MIT
 
@@ -33,26 +33,8 @@ type scramAuth struct {
 	bindData                                    []byte
 }
 
-func ScramSHA256Auth(username, password string) Auth {
-	return &scramAuth{
-		username:  username,
-		password:  password,
-		algorithm: "SCRAM-SHA-256",
-		h:         sha256.New,
-	}
-}
-
-func ScramSHA256PlusAuth(username, password string, tlsConnState *tls.ConnectionState) Auth {
-	return &scramAuth{
-		username:     username,
-		password:     password,
-		algorithm:    "SCRAM-SHA-256-PLUS",
-		h:            sha256.New,
-		isPlus:       true,
-		tlsConnState: tlsConnState,
-	}
-}
-
+// ScramSHA1Auth creates and returns a new SCRAM-SHA-1 authentication mechanism with the given
+// username and password.
 func ScramSHA1Auth(username, password string) Auth {
 	return &scramAuth{
 		username:  username,
@@ -62,6 +44,19 @@ func ScramSHA1Auth(username, password string) Auth {
 	}
 }
 
+// ScramSHA256Auth creates and returns a new SCRAM-SHA-256 authentication mechanism with the given
+// username and password.
+func ScramSHA256Auth(username, password string) Auth {
+	return &scramAuth{
+		username:  username,
+		password:  password,
+		algorithm: "SCRAM-SHA-256",
+		h:         sha256.New,
+	}
+}
+
+// ScramSHA1PlusAuth returns an Auth instance configured for SCRAM-SHA-1-PLUS authentication with
+// the provided username, password, and TLS connection state.
 func ScramSHA1PlusAuth(username, password string, tlsConnState *tls.ConnectionState) Auth {
 	return &scramAuth{
 		username:     username,
@@ -73,11 +68,25 @@ func ScramSHA1PlusAuth(username, password string, tlsConnState *tls.ConnectionSt
 	}
 }
 
+// ScramSHA256PlusAuth returns an Auth instance configured for SCRAM-SHA-256-PLUS authentication with
+// the provided username, password, and TLS connection state.
+func ScramSHA256PlusAuth(username, password string, tlsConnState *tls.ConnectionState) Auth {
+	return &scramAuth{
+		username:     username,
+		password:     password,
+		algorithm:    "SCRAM-SHA-256-PLUS",
+		h:            sha256.New,
+		isPlus:       true,
+		tlsConnState: tlsConnState,
+	}
+}
+
+// Start initializes the SCRAM authentication process and returns the selected algorithm, nil data, and no error.
 func (a *scramAuth) Start(_ *ServerInfo) (string, []byte, error) {
-	fmt.Printf("algo: %s\n", a.algorithm)
 	return a.algorithm, nil, nil
 }
 
+// Next processes the server's challenge and returns the client's response for SCRAM authentication.
 func (a *scramAuth) Next(fromServer []byte, more bool) ([]byte, error) {
 	if more {
 		if len(fromServer) == 0 {
