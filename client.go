@@ -791,17 +791,17 @@ func (c *Client) auth() error {
 			c.smtpAuth = smtp.XOAuth2Auth(c.user, c.pass)
 		case SMTPAuthSCRAMSHA1:
 			if !strings.Contains(smtpAuthType, string(SMTPAuthSCRAMSHA1)) {
-				return ErrXOauth2AuthNotSupported
+				return ErrSCRAMSHA1AuthNotSupported
 			}
 			c.smtpAuth = smtp.ScramSHA1Auth(c.user, c.pass)
 		case SMTPAuthSCRAMSHA256:
 			if !strings.Contains(smtpAuthType, string(SMTPAuthSCRAMSHA256)) {
-				return ErrXOauth2AuthNotSupported
+				return ErrSCRAMSHA256AuthNotSupported
 			}
 			c.smtpAuth = smtp.ScramSHA256Auth(c.user, c.pass)
 		case SMTPAuthSCRAMSHA1PLUS:
 			if !strings.Contains(smtpAuthType, string(SMTPAuthSCRAMSHA1PLUS)) {
-				return ErrXOauth2AuthNotSupported
+				return ErrSCRAMSHA1PLUSAuthNotSupported
 			}
 			tlsConnState, err := c.smtpClient.GetTLSConnectionState()
 			if err != nil {
@@ -810,7 +810,7 @@ func (c *Client) auth() error {
 			c.smtpAuth = smtp.ScramSHA1PlusAuth(c.user, c.pass, tlsConnState)
 		case SMTPAuthSCRAMSHA256PLUS:
 			if !strings.Contains(smtpAuthType, string(SMTPAuthSCRAMSHA256PLUS)) {
-				return ErrXOauth2AuthNotSupported
+				return ErrSCRAMSHA256PLUSAuthNotSupported
 			}
 			tlsConnState, err := c.smtpClient.GetTLSConnectionState()
 			if err != nil {
