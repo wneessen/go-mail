@@ -750,7 +750,13 @@ func (c *Client) tls() error {
 		}
 		tlsConnState, err := c.smtpClient.GetTLSConnectionState()
 		if err != nil {
-			return fmt.Errorf("failed to get TLS connection state: %w", err)
+			switch {
+			case errors.Is(err, smtp.ErrNonTLSConnection):
+				c.isEncrypted = false
+				return nil
+			default:
+				return fmt.Errorf("failed to get TLS connection state: %w", err)
+			}
 		}
 		c.isEncrypted = tlsConnState.HandshakeComplete
 	}

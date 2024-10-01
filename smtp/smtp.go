@@ -36,6 +36,10 @@ import (
 	"github.com/wneessen/go-mail/log"
 )
 
+var (
+	ErrNonTLSConnection = errors.New("connection is not using TLS")
+)
+
 // A Client represents a client connection to an SMTP server.
 type Client struct {
 	// Text is the textproto.Conn used by the Client. It is exported to allow for clients to add extensions.
@@ -572,7 +576,7 @@ func (c *Client) GetTLSConnectionState() (*tls.ConnectionState, error) {
 	defer c.mutex.RUnlock()
 
 	if !c.tls {
-		return nil, errors.New("smtp: connection is not using TLS")
+		return nil, ErrNonTLSConnection
 	}
 	if c.conn == nil {
 		return nil, errors.New("smtp: connection is not established")
