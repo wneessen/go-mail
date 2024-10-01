@@ -1836,6 +1836,56 @@ func TestClient_DialSendConcurrent_local(t *testing.T) {
 	}
 }
 
+func TestClient_AuthSCRAMSHA1PLUS_tlsexporter(t *testing.T) {
+	if os.Getenv("TEST_ONLINE_SCRAM") == "" {
+		t.Skipf("TEST_ONLINE_SCRAM is not set. Skipping online SCRAM tests")
+	}
+	hostname := os.Getenv("TEST_HOST_SCRAM")
+	username := os.Getenv("TEST_USER_SCRAM")
+	password := os.Getenv("TEST_PASS_SCRAM")
+
+	client, err := NewClient(hostname, WithTLSPortPolicy(TLSMandatory),
+		WithSMTPAuth(SMTPAuthSCRAMSHA1PLUS),
+		WithUsername(username), WithPassword(password))
+	if err != nil {
+		t.Errorf("unable to create new client: %s", err)
+		return
+	}
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to test server: %s", err)
+	}
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close server connection: %s", err)
+	}
+}
+
+func TestClient_AuthSCRAMSHA1PLUS_tlsunique(t *testing.T) {
+	if os.Getenv("TEST_ONLINE_SCRAM") == "" {
+		t.Skipf("TEST_ONLINE_SCRAM is not set. Skipping online SCRAM tests")
+	}
+	hostname := os.Getenv("TEST_HOST_SCRAM")
+	username := os.Getenv("TEST_USER_SCRAM")
+	password := os.Getenv("TEST_PASS_SCRAM")
+
+	tlsConfig := &tls.Config{}
+	tlsConfig.MaxVersion = tls.VersionTLS12
+	tlsConfig.ServerName = hostname
+	client, err := NewClient(hostname, WithTLSPortPolicy(TLSMandatory),
+		WithTLSConfig(tlsConfig),
+		WithSMTPAuth(SMTPAuthSCRAMSHA1PLUS),
+		WithUsername(username), WithPassword(password))
+	if err != nil {
+		t.Errorf("unable to create new client: %s", err)
+		return
+	}
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to test server: %s", err)
+	}
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close server connection: %s", err)
+	}
+}
+
 // getTestConnection takes environment variables to establish a connection to a real
 // SMTP server to test all functionality that requires a connection
 func getTestConnection(auth bool) (*Client, error) {
