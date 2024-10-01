@@ -1872,6 +1872,39 @@ func TestClient_AuthSCRAMSHAX(t *testing.T) {
 	}
 }
 
+func TestClient_AuthSCRAMSHAX_fail(t *testing.T) {
+	if os.Getenv("TEST_ONLINE_SCRAM") == "" {
+		t.Skipf("TEST_ONLINE_SCRAM is not set. Skipping online SCRAM tests")
+	}
+	hostname := os.Getenv("TEST_HOST_SCRAM")
+
+	tests := []struct {
+		name     string
+		authtype SMTPAuthType
+	}{
+		{"SCRAM-SHA-1", SMTPAuthSCRAMSHA1},
+		{"SCRAM-SHA-1-PLUS", SMTPAuthSCRAMSHA1PLUS},
+		{"SCRAM-SHA-256", SMTPAuthSCRAMSHA256},
+		{"SCRAM-SHA-256-PLUS", SMTPAuthSCRAMSHA256PLUS},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, err := NewClient(hostname,
+				WithTLSPortPolicy(TLSMandatory),
+				WithSMTPAuth(tt.authtype),
+				WithUsername("invalid"), WithPassword("invalid"))
+			if err != nil {
+				t.Errorf("unable to create new client: %s", err)
+				return
+			}
+			if err = client.DialWithContext(context.Background()); err == nil {
+				t.Errorf("expected error but got nil")
+			}
+		})
+	}
+}
+
 func TestClient_AuthSCRAMSHAXPLUS_tlsexporter(t *testing.T) {
 	if os.Getenv("TEST_ONLINE_SCRAM") == "" {
 		t.Skipf("TEST_ONLINE_SCRAM is not set. Skipping online SCRAM tests")
