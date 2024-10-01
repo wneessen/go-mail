@@ -100,15 +100,18 @@ We provide example code in both our GoDocs as well as on our official Website (s
 check out our [Getting started](https://go-mail.dev/getting-started/introduction/) guide.
 
 ## Authors/Contributors
-go-mail was initially authored and developed by [Winni Neessen](https://github.com/wneessen/).
+go-mail was initially created and developed by [Winni Neessen](https://github.com/wneessen/), but over time a lot of amazing people 
+contributed ot the project. Big thanks to all of them for improving the go-mail project (be it writing code, testing
+code, reviewing code, writing documenation or helping to translate the website):
 
-Big thanks to the following people, for contributing to the go-mail project (either in form of code or by 
-reviewing code, writing documenation or helping to translate the website):
-* [Christian Vette](https://github.com/cvette)
-* [Dhia Gharsallaoui](https://github.com/dhia-gharsallaoui)
-* [inliquid](https://github.com/inliquid) 
-* [iwittkau](https://github.com/iwittkau)
-* [James Elliott](https://github.com/james-d-elliott)
-* [Maria Letta](https://github.com/MariaLetta) (designed the go-mail logo)
-* [Nicola Murino](https://github.com/drakkan)
-* [sters](https://github.com/sters)
+<a href="https://github.com/wneessen/go-mail/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=wneessen/go-mail" />
+</a>
+
+A huge thank you also goes to [Maria Letta](https://github.com/MariaLetta) for designing our super cool go-mail logo!
+
+## Sponsors
+We sincerely thank all our amazing sponsors for their generous support, without whom this project would not 
+have achieved such development and success as it has today. Your contributions do not go unnoticed!
+
+* [kolaente](https://github.com/kolaente)
