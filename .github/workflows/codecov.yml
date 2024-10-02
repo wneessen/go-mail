@@ -30,7 +30,7 @@ env:
   TEST_ONLINE_SCRAM: "1"
   TEST_HOST_SCRAM: ${{ secrets.TEST_HOST_SCRAM }}
   TEST_USER_SCRAM: ${{ secrets.TEST_USER_SCRAM }}
-  TEST_PASS_SCRAM: ${{ secrets.TEST_USER_SCRAM }}
+  TEST_PASS_SCRAM: ${{ secrets.TEST_PASS_SCRAM }}
 permissions:
   contents: read
 
@@ -59,7 +59,7 @@ jobs:
         sudo apt-get -y install sendmail; which sendmail
     - name: Run Tests
       run: |
-        go test -v -race --coverprofile=coverage.coverprofile --covermode=atomic ./...
+        go test -race --coverprofile=coverage.coverprofile --covermode=atomic ./...
     - name: Upload coverage to Codecov
       if: success() && matrix.go == '1.23' && matrix.os == 'ubuntu-latest'
       uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4.6.0
