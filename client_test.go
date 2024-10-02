@@ -620,7 +620,7 @@ func TestClient_DialWithContext(t *testing.T) {
 		t.Skipf("failed to create test client: %s. Skipping tests", err)
 	}
 	ctx := context.Background()
-	if err := c.DialWithContext(ctx); err != nil {
+	if err = c.DialWithContext(ctx); err != nil {
 		t.Errorf("failed to dial with context: %s", err)
 		return
 	}
