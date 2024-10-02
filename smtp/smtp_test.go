@@ -38,6 +38,7 @@ type authTest struct {
 	name       string
 	responses  []string
 	sf         []bool
+	hasNonce   bool
 }
 
 var authTests = []authTest{
@@ -47,6 +48,7 @@ var authTests = []authTest{
 		"PLAIN",
 		[]string{"\x00user\x00pass"},
 		[]bool{false, false},
+		false,
 	},
 	{
 		PlainAuth("foo", "bar", "baz", "testserver"),
@@ -54,6 +56,15 @@ var authTests = []authTest{
 		"PLAIN",
 		[]string{"foo\x00bar\x00baz"},
 		[]bool{false, false},
+		false,
+	},
+	{
+		PlainAuth("foo", "bar", "baz", "testserver"),
+		[]string{"foo"},
+		"PLAIN",
+		[]string{"foo\x00bar\x00baz", ""},
+		[]bool{true},
+		false,
 	},
 	{
 		LoginAuth("user", "pass", "testserver"),
@@ -61,6 +72,7 @@ var authTests = []authTest{
 		"LOGIN",
 		[]string{"", "user", "pass"},
 		[]bool{false, false},
+		false,
 	},
 	{
 		LoginAuth("user", "pass", "testserver"),
@@ -68,6 +80,7 @@ var authTests = []authTest{
 		"LOGIN",
 		[]string{"", "user", "pass"},
 		[]bool{false, false},
+		false,
 	},
 	{
 		LoginAuth("user", "pass", "testserver"),
@@ -75,6 +88,7 @@ var authTests = []authTest{
 		"LOGIN",
 		[]string{"", "user", "pass"},
 		[]bool{false, false},
+		false,
 	},
 	{
 		LoginAuth("user", "pass", "testserver"),
@@ -82,6 +96,7 @@ var authTests = []authTest{
 		"LOGIN",
 		[]string{"", "user", "pass", ""},
 		[]bool{false, false, true},
+		false,
 	},
 	{
 		CRAMMD5Auth("user", "pass"),
@@ -89,6 +104,7 @@ var authTests = []authTest{
 		"CRAM-MD5",
 		[]string{"", "user 287eb355114cf5c471c26a875f1ca4ae"},
 		[]bool{false, false},
+		false,
 	},
 	{
 		XOAuth2Auth("username", "token"),
@@ -96,6 +112,47 @@ var authTests = []authTest{
 		"XOAUTH2",
 		[]string{"user=username\x01auth=Bearer token\x01\x01", ""},
 		[]bool{false},
+		false,
+	},
+	{
+		ScramSHA1Auth("username", "password"),
+		[]string{"", "r=foo"},
+		"SCRAM-SHA-1",
+		[]string{"", "n,,n=username,r=", ""},
+		[]bool{false, true},
+		true,
+	},
+	{
+		ScramSHA1Auth("username", "password"),
+		[]string{"", "v=foo"},
+		"SCRAM-SHA-1",
+		[]string{"", "n,,n=username,r=", ""},
+		[]bool{false, true},
+		true,
+	},
+	{
+		ScramSHA256Auth("username", "password"),
+		[]string{""},
+		"SCRAM-SHA-256",
+		[]string{"", "n,,n=username,r=", ""},
+		[]bool{false},
+		true,
+	},
+	{
+		ScramSHA1PlusAuth("username", "password", nil),
+		[]string{""},
+		"SCRAM-SHA-1-PLUS",
+		[]string{"", "", ""},
+		[]bool{true},
+		true,
+	},
+	{
+		ScramSHA256PlusAuth("username", "password", nil),
+		[]string{""},
+		"SCRAM-SHA-256-PLUS",
+		[]string{"", "", ""},
+		[]bool{true},
+		true,
 	},
 }
 
@@ -121,9 +178,19 @@ testLoop:
 				t.Errorf("#%d error: %s", i, err)
 				continue testLoop
 			}
+			if test.hasNonce {
+				if !bytes.HasPrefix(resp, expected) {
+					t.Errorf("#%d got response: %s, expected response to start with: %s", i, resp, expected)
+				}
+				continue testLoop
+			}
 			if !bytes.Equal(resp, expected) {
 				t.Errorf("#%d got %s, expected %s", i, resp, expected)
 				continue testLoop
+			}
+			_, err = test.auth.Next([]byte("2.7.0 Authentication successful"), false)
+			if err != nil {
+				t.Errorf("#%d success message error: %s", i, err)
 			}
 		}
 	}
