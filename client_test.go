@@ -27,7 +27,7 @@ const (
 	// DefaultHost is used as default hostname for the Client
 	DefaultHost = "localhost"
 	// TestRcpt is a trash mail address to send test mails to
-	TestRcpt = "go-mail@mytrashmailer.com"
+	TestRcpt = "couttifaddebro-1473@yopmail.com"
 	// TestServerProto is the protocol used for the simple SMTP test server
 	TestServerProto = "tcp"
 	// TestServerAddr is the address the simple SMTP test server listens on
