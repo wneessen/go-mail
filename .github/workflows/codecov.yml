@@ -27,6 +27,10 @@ env:
   TEST_SMTPAUTH_USER: ${{ secrets.TEST_USER }}
   TEST_SMTPAUTH_PASS: ${{ secrets.TEST_PASS }}
   TEST_SMTPAUTH_TYPE: "LOGIN"
+  TEST_ONLINE_SCRAM: "1"
+  TEST_HOST_SCRAM: ${{ secrets.TEST_HOST_SCRAM }}
+  TEST_USER_SCRAM: ${{ secrets.TEST_USER_SCRAM }}
+  TEST_PASS_SCRAM: ${{ secrets.TEST_USER_SCRAM }}
 permissions:
   contents: read
 

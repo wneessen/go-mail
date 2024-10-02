@@ -77,7 +77,8 @@ We guarantee that go-mail will always support the last four releases of Go. With
 the user a timeframe of two years to update to the next or even the latest version of Go.
 
 ## Support
-We have a support and general discussion channel on Discord. Find us at: [#go-mail](https://discord.gg/dbfQyC4s)
+We have a support and general discussion channel on Discord. Find us at: [#go-mail](https://discord.gg/dbfQyC4s) alternatively find us
+on the [Gophers Slack](https://gophers.slack.com) in #go-mail
 
 ## Middleware
 The goal of go-mail is to keep it free from 3rd party dependencies and only focus on things a mail library should
