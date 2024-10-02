@@ -57,6 +57,7 @@ func (a *loginAuth) Start(server *ServerInfo) (string, []byte, error) {
 	if server.Name != a.host {
 		return "", nil, errors.New("wrong host name")
 	}
+	a.respStep = 0
 	return "LOGIN", nil, nil
 }
 
