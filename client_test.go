@@ -1872,6 +1872,119 @@ func TestClient_AuthSCRAMSHAX(t *testing.T) {
 	}
 }
 
+func TestClient_AuthLoginSuccess(t *testing.T) {
+	tests := []struct {
+		name       string
+		featureSet string
+	}{
+		{"default", "250-AUTH LOGIN\r\n250-X-DEFAULT-LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"},
+		{"mox server", "250-AUTH LOGIN\r\n250-X-MOX-LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"},
+		{"null byte", "250-AUTH LOGIN\r\n250-X-NULLBYTE-LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"},
+		{"bogus responses", "250-AUTH LOGIN\r\n250-X-BOGUS-LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"},
+		{"empty responses", "250-AUTH LOGIN\r\n250-X-EMPTY-LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"},
+	}
+
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			serverPort := TestServerPortBase + 40 + i
+			go func() {
+				if err := simpleSMTPServer(ctx, tt.featureSet, true, serverPort); err != nil {
+					t.Errorf("failed to start test server: %s", err)
+					return
+				}
+			}()
+			time.Sleep(time.Millisecond * 300)
+
+			client, err := NewClient(TestServerAddr,
+				WithPort(serverPort),
+				WithTLSPortPolicy(NoTLS),
+				WithSMTPAuth(SMTPAuthLogin),
+				WithUsername("toni@tester.com"),
+				WithPassword("V3ryS3cr3t+"))
+			if err != nil {
+				t.Errorf("unable to create new client: %s", err)
+				return
+			}
+			if err = client.DialWithContext(context.Background()); err != nil {
+				t.Errorf("failed to dial to test server: %s", err)
+			}
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close server connection: %s", err)
+			}
+		})
+	}
+}
+
+func TestClient_AuthLoginFail(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	serverPort := TestServerPortBase + 50
+	featureSet := "250-AUTH LOGIN\r\n250-X-DEFAULT-LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, true, serverPort); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 300)
+
+	client, err := NewClient(TestServerAddr,
+		WithPort(serverPort),
+		WithTLSPortPolicy(NoTLS),
+		WithSMTPAuth(SMTPAuthLogin),
+		WithUsername("toni@tester.com"),
+		WithPassword("InvalidPassword"))
+	if err != nil {
+		t.Errorf("unable to create new client: %s", err)
+		return
+	}
+	if err = client.DialWithContext(context.Background()); err == nil {
+		t.Error("expected to fail to dial to test server, but it succeeded")
+	}
+}
+
+func TestClient_AuthLoginFail_noTLS(t *testing.T) {
+	if os.Getenv("TEST_SKIP_ONLINE") != "" {
+		t.Skipf("env variable TEST_SKIP_ONLINE is set. Skipping online tests")
+	}
+	th := os.Getenv("TEST_HOST")
+	if th == "" {
+		t.Skipf("no host set. Skipping online tests")
+	}
+	tp := 587
+	if tps := os.Getenv("TEST_PORT"); tps != "" {
+		tpi, err := strconv.Atoi(tps)
+		if err == nil {
+			tp = tpi
+		}
+	}
+	client, err := NewClient(th, WithPort(tp), WithSMTPAuth(SMTPAuthLogin), WithTLSPolicy(NoTLS))
+	if err != nil {
+		t.Errorf("failed to create new client: %s", err)
+	}
+	u := os.Getenv("TEST_SMTPAUTH_USER")
+	if u != "" {
+		client.SetUsername(u)
+	}
+	p := os.Getenv("TEST_SMTPAUTH_PASS")
+	if p != "" {
+		client.SetPassword(p)
+	}
+	// We don't want to log authentication data in tests
+	client.SetDebugLog(false)
+
+	if err = client.DialWithContext(context.Background()); err == nil {
+		t.Error("expected to fail to dial to test server, but it succeeded")
+	}
+	if !errors.Is(err, smtp.ErrUnencrypted) {
+		t.Errorf("expected error to be %s, but got %s", smtp.ErrUnencrypted, err)
+	}
+}
+
 func TestClient_AuthSCRAMSHAX_fail(t *testing.T) {
 	if os.Getenv("TEST_ONLINE_SCRAM") == "" {
 		t.Skipf("TEST_ONLINE_SCRAM is not set. Skipping online SCRAM tests")
@@ -2487,6 +2600,51 @@ func handleTestServerConnection(connection net.Conn, featureSet string, failRese
 		case strings.HasPrefix(data, "AUTH PLAIN"):
 			auth := strings.TrimPrefix(data, "AUTH PLAIN ")
 			if !strings.EqualFold(auth, "AHRvbmlAdGVzdGVyLmNvbQBWM3J5UzNjcjN0Kw==") {
+				_ = writeLine("535 5.7.8 Error: authentication failed")
+				break
+			}
+			_ = writeLine("235 2.7.0 Authentication successful")
+		case strings.HasPrefix(data, "AUTH LOGIN"):
+			var username, password string
+			userResp := "VXNlcm5hbWU6"
+			passResp := "UGFzc3dvcmQ6"
+			if strings.Contains(featureSet, "250-X-MOX-LOGIN") {
+				userResp = ""
+				passResp = "UGFzc3dvcmQ="
+			}
+			if strings.Contains(featureSet, "250-X-NULLBYTE-LOGIN") {
+				userResp = "VXNlciBuYW1lAA=="
+				passResp = "UGFzc3dvcmQA"
+			}
+			if strings.Contains(featureSet, "250-X-BOGUS-LOGIN") {
+				userResp = "Qm9ndXM="
+				passResp = "Qm9ndXM="
+			}
+			if strings.Contains(featureSet, "250-X-EMPTY-LOGIN") {
+				userResp = ""
+				passResp = ""
+			}
+			_ = writeLine("334 " + userResp)
+
+			ddata, derr := reader.ReadString('\n')
+			if derr != nil {
+				fmt.Printf("failed to read username data from connection: %s\n", derr)
+				break
+			}
+			ddata = strings.TrimSpace(ddata)
+			username = ddata
+			_ = writeLine("334 " + passResp)
+
+			ddata, derr = reader.ReadString('\n')
+			if derr != nil {
+				fmt.Printf("failed to read password data from connection: %s\n", derr)
+				break
+			}
+			ddata = strings.TrimSpace(ddata)
+			password = ddata
+
+			if !strings.EqualFold(username, "dG9uaUB0ZXN0ZXIuY29t") ||
+				!strings.EqualFold(password, "VjNyeVMzY3IzdCs=") {
 				_ = writeLine("535 5.7.8 Error: authentication failed")
 				break
 			}
