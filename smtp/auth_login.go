@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2022-2023 The go-mail Authors
+// SPDX-FileCopyrightText: Copyright (c) 2022-2024 The go-mail Authors
 //
 // SPDX-License-Identifier: MIT
 
@@ -9,57 +9,42 @@ import (
 	"fmt"
 )
 
+// ErrUnencrypted is an error indicating that the connection is not encrypted.
+var ErrUnencrypted = errors.New("unencrypted connection")
+
 // loginAuth is the type that satisfies the Auth interface for the "SMTP LOGIN" auth
 type loginAuth struct {
 	username, password string
 	host               string
+	respStep           uint8
 }
-
-const (
-	// LoginXUsernameChallenge represents the Username Challenge response sent by the SMTP server per the AUTH LOGIN
-	// extension.
-	//
-	// See: https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-xlogin/.
-	LoginXUsernameChallenge      = "Username:"
-	LoginXUsernameLowerChallenge = "username:"
-
-	// LoginXPasswordChallenge represents the Password Challenge response sent by the SMTP server per the AUTH LOGIN
-	// extension.
-	//
-	//	See: https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-xlogin/.
-	LoginXPasswordChallenge      = "Password:"
-	LoginXPasswordLowerChallenge = "password:"
-
-	// LoginXDraftUsernameChallenge represents the Username Challenge response sent by the SMTP server per the IETF
-	// draft AUTH LOGIN extension. It should be noted this extension is an expired draft which was never formally
-	// published and was deprecated in favor of the AUTH PLAIN extension.
-	//
-	// See: https://datatracker.ietf.org/doc/html/draft-murchison-sasl-login-00.
-	LoginXDraftUsernameChallenge = "User Name\x00"
-
-	// LoginXDraftPasswordChallenge represents the Password Challenge response sent by the SMTP server per the IETF
-	// draft AUTH LOGIN extension. It should be noted this extension is an expired draft which was never formally
-	// published and was deprecated in favor of the AUTH PLAIN extension.
-	//
-	// See: https://datatracker.ietf.org/doc/html/draft-murchison-sasl-login-00.
-	LoginXDraftPasswordChallenge = "Password\x00"
-)
 
 // LoginAuth returns an [Auth] that implements the LOGIN authentication
 // mechanism as it is used by MS Outlook. The Auth works similar to PLAIN
 // but instead of sending all in one response, the login is handled within
 // 3 steps:
-// - Sending AUTH LOGIN (server responds with "Username:")
-// - Sending the username (server responds with "Password:")
+// - Sending AUTH LOGIN (server might responds with "Username:")
+// - Sending the username (server might responds with "Password:")
 // - Sending the password (server authenticates)
+// This is the common approach as specified by Microsoft in their MS-XLOGIN spec.
+// See: https://msopenspecs.azureedge.net/files/MS-XLOGIN/%5bMS-XLOGIN%5d.pdf
+// Yet, there is also an old IETF draft for SMTP AUTH LOGIN that states for clients:
+// "The contents of both challenges SHOULD be ignored.".
+// See: https://datatracker.ietf.org/doc/html/draft-murchison-sasl-login-00
+// Since there is no official standard RFC and we've seen different implementations
+// of this mechanism (sending "Username:", "Username", "username", "User name", etc.)
+// we follow the IETF-Draft and ignore any server challange to allow compatiblity
+// with most mail servers/providers.
 //
 // LoginAuth will only send the credentials if the connection is using TLS
 // or is connected to localhost. Otherwise authentication will fail with an
 // error, without sending the credentials.
 func LoginAuth(username, password, host string) Auth {
-	return &loginAuth{username, password, host}
+	return &loginAuth{username, password, host, 0}
 }
 
+// Start begins the SMTP authentication process by validating server's TLS status and hostname.
+// Returns "LOGIN" on success.
 func (a *loginAuth) Start(server *ServerInfo) (string, []byte, error) {
 	// Must have TLS, or else localhost server.
 	// Note: If TLS is not true, then we can't trust ANYTHING in ServerInfo.
@@ -67,20 +52,25 @@ func (a *loginAuth) Start(server *ServerInfo) (string, []byte, error) {
 	// That might just be the attacker saying
 	// "it's ok, you can trust me with your password."
 	if !server.TLS && !isLocalhost(server.Name) {
-		return "", nil, errors.New("unencrypted connection")
+		return "", nil, ErrUnencrypted
 	}
 	if server.Name != a.host {
 		return "", nil, errors.New("wrong host name")
 	}
+	a.respStep = 0
 	return "LOGIN", nil, nil
 }
 
+// Next processes responses from the server during the SMTP authentication exchange, sending the
+// username and password.
 func (a *loginAuth) Next(fromServer []byte, more bool) ([]byte, error) {
 	if more {
-		switch string(fromServer) {
-		case LoginXUsernameChallenge, LoginXUsernameLowerChallenge, LoginXDraftUsernameChallenge:
+		switch a.respStep {
+		case 0:
+			a.respStep++
 			return []byte(a.username), nil
-		case LoginXPasswordChallenge, LoginXPasswordLowerChallenge, LoginXDraftPasswordChallenge:
+		case 1:
+			a.respStep++
 			return []byte(a.password), nil
 		default:
 			return nil, fmt.Errorf("unexpected server response: %s", string(fromServer))
