@@ -13,6 +13,19 @@
 
 package smtp
 
+import "errors"
+
+var (
+	// ErrUnencrypted is an error indicating that the connection is not encrypted.
+	ErrUnencrypted = errors.New("unencrypted connection")
+	// ErrUnexpectedServerChallange is an error indicating that the server issued an unexpected challenge.
+	ErrUnexpectedServerChallange = errors.New("unexpected server challenge")
+	// ErrUnexpectedServerResponse is an error indicating that the server issued an unexpected response.
+	ErrUnexpectedServerResponse = errors.New("unexpected server response")
+	// ErrWrongHostname is an error indicating that the provided hostname does not match the expected value.
+	ErrWrongHostname = errors.New("wrong host name")
+)
+
 // Auth is implemented by an SMTP authentication mechanism.
 type Auth interface {
 	// Start begins an authentication with a server.

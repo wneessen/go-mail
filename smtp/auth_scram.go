@@ -112,7 +112,7 @@ func (a *scramAuth) Next(fromServer []byte, more bool) ([]byte, error) {
 			return resp, nil
 		default:
 			a.reset()
-			return nil, errors.New("unexpected server response")
+			return nil, fmt.Errorf("%w: %s", ErrUnexpectedServerResponse, string(fromServer))
 		}
 	}
 	return nil, nil
@@ -147,6 +147,9 @@ func (a *scramAuth) initialClientMessage() ([]byte, error) {
 
 	// SCRAM-SHA-X-PLUS auth requires channel binding
 	if a.isPlus {
+		if a.tlsConnState == nil {
+			return nil, errors.New("tls connection state is required for SCRAM-SHA-X-PLUS")
+		}
 		bindType := "tls-unique"
 		connState := a.tlsConnState
 		bindData := connState.TLSUnique

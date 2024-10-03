@@ -13,10 +13,6 @@
 
 package smtp
 
-import (
-	"errors"
-)
-
 // plainAuth is the type that satisfies the Auth interface for the "SMTP PLAIN" auth
 type plainAuth struct {
 	identity, username, password string
@@ -42,10 +38,10 @@ func (a *plainAuth) Start(server *ServerInfo) (string, []byte, error) {
 	// That might just be the attacker saying
 	// "it's ok, you can trust me with your password."
 	if !server.TLS && !isLocalhost(server.Name) {
-		return "", nil, errors.New("unencrypted connection")
+		return "", nil, ErrUnencrypted
 	}
 	if server.Name != a.host {
-		return "", nil, errors.New("wrong host name")
+		return "", nil, ErrWrongHostname
 	}
 	resp := []byte(a.identity + "\x00" + a.username + "\x00" + a.password)
 	return "PLAIN", resp, nil
@@ -54,7 +50,7 @@ func (a *plainAuth) Start(server *ServerInfo) (string, []byte, error) {
 func (a *plainAuth) Next(_ []byte, more bool) ([]byte, error) {
 	if more {
 		// We've already sent everything.
-		return nil, errors.New("unexpected server challenge")
+		return nil, ErrUnexpectedServerChallange
 	}
 	return nil, nil
 }

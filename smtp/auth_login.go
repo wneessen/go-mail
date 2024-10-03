@@ -5,12 +5,8 @@
 package smtp
 
 import (
-	"errors"
 	"fmt"
 )
-
-// ErrUnencrypted is an error indicating that the connection is not encrypted.
-var ErrUnencrypted = errors.New("unencrypted connection")
 
 // loginAuth is the type that satisfies the Auth interface for the "SMTP LOGIN" auth
 type loginAuth struct {
@@ -55,7 +51,7 @@ func (a *loginAuth) Start(server *ServerInfo) (string, []byte, error) {
 		return "", nil, ErrUnencrypted
 	}
 	if server.Name != a.host {
-		return "", nil, errors.New("wrong host name")
+		return "", nil, ErrWrongHostname
 	}
 	a.respStep = 0
 	return "LOGIN", nil, nil
@@ -73,7 +69,7 @@ func (a *loginAuth) Next(fromServer []byte, more bool) ([]byte, error) {
 			a.respStep++
 			return []byte(a.password), nil
 		default:
-			return nil, fmt.Errorf("unexpected server response: %s", string(fromServer))
+			return nil, fmt.Errorf("%w: %s", ErrUnexpectedServerResponse, string(fromServer))
 		}
 	}
 	return nil, nil
