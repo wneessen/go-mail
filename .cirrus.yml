@@ -14,12 +14,10 @@ freebsd_task:
         image_family: freebsd-14-0
 
   env:
-    TEST_ALLOW_SEND: 0
     TEST_SKIP_SENDMAIL: 1
 
   pkginstall_script:
-    - pkg update -f
     - pkg install -y go
 
   test_script:
-    - go test -v -race -cover -shuffle=on ./...
+    - go test -race -cover -shuffle=on ./...
