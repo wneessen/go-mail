@@ -1731,8 +1731,12 @@ func (s *testSCRAMSMTPServer) handleSCRAMAuth(conn net.Conn) {
 	}
 
 	data, err := reader.ReadString('\n')
-	clientMessage := strings.TrimSpace(data)
-	decodedMessage, err := base64.StdEncoding.DecodeString(clientMessage)
+	if err != nil {
+		_ = writeLine("535 Authentication failed")
+		return
+	}
+	data = strings.TrimSpace(data)
+	decodedMessage, err := base64.StdEncoding.DecodeString(data)
 	if err != nil {
 		_ = writeLine("535 Authentication failed")
 		return
@@ -1765,8 +1769,12 @@ func (s *testSCRAMSMTPServer) handleSCRAMAuth(conn net.Conn) {
 	_ = writeLine(fmt.Sprintf("334 %s", base64.StdEncoding.EncodeToString([]byte(serverFirstMessage))))
 
 	data, err = reader.ReadString('\n')
-	clientFinalMessage := strings.TrimSpace(data)
-	decodedFinalMessage, err := base64.StdEncoding.DecodeString(clientFinalMessage)
+	if err != nil {
+		_ = writeLine("535 Authentication failed")
+		return
+	}
+	data = strings.TrimSpace(data)
+	decodedFinalMessage, err := base64.StdEncoding.DecodeString(data)
 	if err != nil {
 		_ = writeLine("535 Authentication failed")
 		return
@@ -1794,7 +1802,6 @@ func (s *testSCRAMSMTPServer) handleSCRAMAuth(conn net.Conn) {
 		return
 	}
 	_ = writeLine("235 Authentication successful")
-	return
 }
 
 func (s *testSCRAMSMTPServer) extractNonce(message string) string {
