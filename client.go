@@ -19,67 +19,74 @@ import (
 	"github.com/wneessen/go-mail/smtp"
 )
 
-// Defaults
 const (
-	// DefaultPort is the default connection port to the SMTP server
+	// DefaultPort is the default connection port to the SMTP server.
 	DefaultPort = 25
 
-	// DefaultPortSSL is the default connection port for SSL/TLS to the SMTP server
+	// DefaultPortSSL is the default connection port for SSL/TLS to the SMTP server.
 	DefaultPortSSL = 465
 
-	// DefaultPortTLS is the default connection port for STARTTLS to the SMTP server
+	// DefaultPortTLS is the default connection port for STARTTLS to the SMTP server.
 	DefaultPortTLS = 587
 
-	// DefaultTimeout is the default connection timeout
+	// DefaultTimeout is the default connection timeout.
 	DefaultTimeout = time.Second * 15
 
-	// DefaultTLSPolicy is the default STARTTLS policy
+	// DefaultTLSPolicy specifies the default TLS policy for connections.
 	DefaultTLSPolicy = TLSMandatory
 
-	// DefaultTLSMinVersion is the minimum TLS version required for the connection
-	// Nowadays TLS1.2 should be the sane default
+	// DefaultTLSMinVersion defines the minimum TLS version to be used for secure connections.
+	// Nowadays TLS 1.2 is assumed be a sane default.
 	DefaultTLSMinVersion = tls.VersionTLS12
 )
 
-// DSNMailReturnOption is a type to define which MAIL RET option is used when a DSN
-// is requested
-type DSNMailReturnOption string
+type (
 
-// DSNRcptNotifyOption is a type to define which RCPT NOTIFY option is used when a DSN
-// is requested
-type DSNRcptNotifyOption string
+	// DSNMailReturnOption is a type wrapper for a string and specifies the type of return content requested
+	// in a Delivery Status Notification (DSN).
+	// https://datatracker.ietf.org/doc/html/rfc1891/
+	DSNMailReturnOption string
+
+	// DSNRcptNotifyOption is a type wrapper for a string and specifies the notification options for a
+	// recipient in DSNs.
+	// https://datatracker.ietf.org/doc/html/rfc1891/
+	DSNRcptNotifyOption string
+)
 
 const (
-	// DSNMailReturnHeadersOnly requests that only the headers of the message be returned.
-	// See: https://www.rfc-editor.org/rfc/rfc1891#section-5.3
+
+	// DSNMailReturnHeadersOnly requests that only the message headers of the mail message are returned in
+	// a DSN (Delivery Status Notification).
+	// https://datatracker.ietf.org/doc/html/rfc1891#section-5.3
 	DSNMailReturnHeadersOnly DSNMailReturnOption = "HDRS"
 
-	// DSNMailReturnFull requests that the entire message be returned in any "failed"
-	// delivery status notification issued for this recipient
-	// See: https://www.rfc-editor.org/rfc/rfc1891#section-5.3
+	// DSNMailReturnFull requests that the entire mail message is returned in any failed  DSN
+	// (Delivery Status Notification) issued for this recipient.
+	// https://datatracker.ietf.org/doc/html/rfc1891/#section-5.3
 	DSNMailReturnFull DSNMailReturnOption = "FULL"
 
-	// DSNRcptNotifyNever requests that a DSN not be returned to the sender under
-	// any conditions.
-	// See: https://www.rfc-editor.org/rfc/rfc1891#section-5.1
+	// DSNRcptNotifyNever indicates that no DSN (Delivery Status Notifications) should be sent for the
+	// recipient under any condition.
+	// https://datatracker.ietf.org/doc/html/rfc1891/#section-5.1
 	DSNRcptNotifyNever DSNRcptNotifyOption = "NEVER"
 
-	// DSNRcptNotifySuccess requests that a DSN be issued on successful delivery
-	// See: https://www.rfc-editor.org/rfc/rfc1891#section-5.1
+	// DSNRcptNotifySuccess indicates that the sender requests a DSN (Delivery Status Notification) if the
+	// message is successfully delivered.
+	// https://datatracker.ietf.org/doc/html/rfc1891/#section-5.1
 	DSNRcptNotifySuccess DSNRcptNotifyOption = "SUCCESS"
 
-	// DSNRcptNotifyFailure requests that a DSN be issued on delivery failure
-	// See: https://www.rfc-editor.org/rfc/rfc1891#section-5.1
+	// DSNRcptNotifyFailure requests that a DSN (Delivery Status Notification) is issued if delivery of
+	// a message fails.
+	// https://datatracker.ietf.org/doc/html/rfc1891/#section-5.1
 	DSNRcptNotifyFailure DSNRcptNotifyOption = "FAILURE"
 
-	// DSNRcptNotifyDelay indicates the sender's willingness to receive
-	// "delayed" DSNs. Delayed DSNs may be issued if delivery of a message has
-	// been delayed for an unusual amount of time (as determined by the MTA at
-	// which the message is delayed), but the final delivery status (whether
-	// successful or failure) cannot be determined. The absence of the DELAY
-	// keyword in a NOTIFY parameter requests that a "delayed" DSN NOT be
-	// issued under any conditions.
-	// See: https://www.rfc-editor.org/rfc/rfc1891#section-5.1
+	// DSNRcptNotifyDelay indicates the sender's willingness to receive "delayed" DSNs.
+	//
+	// Delayed DSNs may be issued if delivery of a message has been delayed for an unusual amount of time
+	// (as determined by the MTA at which the message is delayed), but the final delivery status (whether
+	// successful or failure) cannot be determined. The absence of the DELAY keyword in a NOTIFY parameter
+	// requests that a "delayed" DSN NOT be issued under any conditions.
+	// https://datatracker.ietf.org/doc/html/rfc1891/#section-5.1
 	DSNRcptNotifyDelay DSNRcptNotifyOption = "DELAY"
 )
 
