@@ -6,7 +6,8 @@ package mail
 
 import "errors"
 
-// SMTPAuthType represents a string to any SMTP AUTH type
+// SMTPAuthType is a type wrapper for a string type. It represents the type of SMTP authentication
+// mechanism to be used.
 type SMTPAuthType string
 
 const (
