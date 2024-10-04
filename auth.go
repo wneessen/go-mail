@@ -12,7 +12,7 @@ type SMTPAuthType string
 
 const (
 	// SMTPAuthCramMD5 is the "CRAM-MD5" SASL authentication mechanism as described in RFC 4954.
-	// https://datatracker.ietf.org/doc/rfc4954/
+	// https://datatracker.ietf.org/doc/html/rfc4954/
 	//
 	// CRAM-MD5 is not secure by modern standards. The vulnerabilities of MD5 and the lack of
 	// advanced security features make it inappropriate for protecting sensitive communications
@@ -41,7 +41,7 @@ const (
 	SMTPAuthNoAuth SMTPAuthType = ""
 
 	// SMTPAuthPlain is the "PLAIN" authentication mechanism as described in RFC 4616.
-	// https://datatracker.ietf.org/doc/rfc4616/
+	// https://datatracker.ietf.org/doc/html/rfc4616/
 	//
 	// Since the "PLAIN" SASL authentication mechansim transmits the username and password in
 	// plaintext over the internet connection, we only allow this mechanism over a TLS secured
