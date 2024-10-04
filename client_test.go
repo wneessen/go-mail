@@ -490,13 +490,13 @@ func TestWithDSN(t *testing.T) {
 		t.Errorf("WithDSN failed. c.dsnReturnType expected to be: %s, got: %s", DSNMailReturnFull,
 			c.dsnReturnType)
 	}
-	if c.dsnrntype[0] != string(DSNRcptNotifyFailure) {
-		t.Errorf("WithDSN failed. c.dsnrntype[0] expected to be: %s, got: %s", DSNRcptNotifyFailure,
-			c.dsnrntype[0])
+	if c.dsnRcptNotifyType[0] != string(DSNRcptNotifyFailure) {
+		t.Errorf("WithDSN failed. c.dsnRcptNotifyType[0] expected to be: %s, got: %s", DSNRcptNotifyFailure,
+			c.dsnRcptNotifyType[0])
 	}
-	if c.dsnrntype[1] != string(DSNRcptNotifySuccess) {
-		t.Errorf("WithDSN failed. c.dsnrntype[1] expected to be: %s, got: %s", DSNRcptNotifySuccess,
-			c.dsnrntype[1])
+	if c.dsnRcptNotifyType[1] != string(DSNRcptNotifySuccess) {
+		t.Errorf("WithDSN failed. c.dsnRcptNotifyType[1] expected to be: %s, got: %s", DSNRcptNotifySuccess,
+			c.dsnRcptNotifyType[1])
 	}
 }
 
@@ -547,11 +547,11 @@ func TestWithDSNRcptNotifyType(t *testing.T) {
 				t.Errorf("failed to create new client: %s", err)
 				return
 			}
-			if len(c.dsnrntype) <= 0 && !tt.sf {
+			if len(c.dsnRcptNotifyType) <= 0 && !tt.sf {
 				t.Errorf("WithDSNRcptNotifyType failed. Expected at least one DSNRNType but got none")
 			}
-			if !tt.sf && c.dsnrntype[0] != tt.want {
-				t.Errorf("WithDSNRcptNotifyType failed. Expected %s, got: %s", tt.want, c.dsnrntype[0])
+			if !tt.sf && c.dsnRcptNotifyType[0] != tt.want {
+				t.Errorf("WithDSNRcptNotifyType failed. Expected %s, got: %s", tt.want, c.dsnRcptNotifyType[0])
 			}
 		})
 	}

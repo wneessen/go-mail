@@ -106,20 +106,24 @@ type (
 		// dialContextFunc is the DialContextFunc that is used by the Client to connect to the SMTP server.
 		dialContextFunc DialContextFunc
 
-		// dsnReturnType defines the DSNMailReturnOption in case DSN is enabled
-		dsnReturnType DSNMailReturnOption
+		// dsnRcptNotifyType represents the different types of notifications for DSN (Delivery Status Notifications)
+		// receipts.
+		dsnRcptNotifyType []string
 
-		// dsnrntype defines the DSNRcptNotifyOption in case DSN is enabled
-		dsnrntype []string
+		// dsnReturnType specifies the type of Delivery Status Notification (DSN) that should be requested for an
+		// email.
+		dsnReturnType DSNMailReturnOption
 
 		// fallbackPort is used as an alternative port number in case the primary port is unavailable or
 		// fails to bind.
+		//
+		// The fallbackPort is only used in combination with SetTLSPortPolicy and SetSSLPort correspondingly.
 		fallbackPort int
 
-		// HELO/EHLO string for the greeting the target SMTP server
+		// helo is the hostname used in the HELO/EHLO greeting, that is sent to the target SMTP server.
 		helo string
 
-		// Hostname of the target SMTP server to connect to
+		// host is the hostname of the SMTP server we are connecting to.
 		host string
 
 		// isEncrypted indicates if a Client connection is encrypted or not
@@ -399,7 +403,7 @@ func WithDSN() Option {
 	return func(c *Client) error {
 		c.requestDSN = true
 		c.dsnReturnType = DSNMailReturnFull
-		c.dsnrntype = []string{string(DSNRcptNotifyFailure), string(DSNRcptNotifySuccess)}
+		c.dsnRcptNotifyType = []string{string(DSNRcptNotifyFailure), string(DSNRcptNotifySuccess)}
 		return nil
 	}
 }
@@ -452,7 +456,7 @@ func WithDSNRcptNotifyType(opts ...DSNRcptNotifyOption) Option {
 		}
 
 		c.requestDSN = true
-		c.dsnrntype = rcptOpts
+		c.dsnRcptNotifyType = rcptOpts
 		return nil
 	}
 }
@@ -892,7 +896,7 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 	rcptSendErr := &SendError{affectedMsg: message}
 	rcptSendErr.errlist = make([]error, 0)
 	rcptSendErr.rcpt = make([]string, 0)
-	rcptNotifyOpt := strings.Join(c.dsnrntype, ",")
+	rcptNotifyOpt := strings.Join(c.dsnRcptNotifyType, ",")
 	c.smtpClient.SetDSNRcptNotifyOption(rcptNotifyOpt)
 	for _, rcpt := range rcpts {
 		if err = c.smtpClient.Rcpt(rcpt); err != nil {
