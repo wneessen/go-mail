@@ -121,55 +121,66 @@ type (
 		fallbackPort int
 
 		// helo is the hostname used in the HELO/EHLO greeting, that is sent to the target SMTP server.
+		//
+		// helo might be different as host. This can be useful in a shared-hosting scenario.
 		helo string
 
 		// host is the hostname of the SMTP server we are connecting to.
 		host string
 
-		// isEncrypted indicates if a Client connection is encrypted or not
+		// isEncrypted indicates wether the Client connection is encrypted or not.
 		isEncrypted bool
 
-		// logger is a logger that implements the log.Logger interface
+		// logger is a logger that satisfies the log.Logger interface.
 		logger log.Logger
 
 		// mutex is used to synchronize access to shared resources, ensuring that only one goroutine can
 		// modify them at a time.
 		mutex sync.RWMutex
 
-		// noNoop indicates the Noop is to be skipped
+		// noNoop indicates that the Client should skip the "NOOP" command during the dial.
+		//
+		// This is useful for servers which delay potentially unwanted clients when they perform commands
+		// other than AUTH.
 		noNoop bool
 
-		// pass is the corresponding SMTP AUTH password
+		// pass represents a password or a secret token used for the SMTP authentication.
 		pass string
 
-		// port specifies the network port number on which the server listens for incoming connections.
+		// port specifies the network port that is used to establish the connection with the SMTP server.
 		port int
 
-		// requestDSN indicates that we want to use DSN for the Client
+		// requestDSN indicates wether we want to request DSN (Delivery Status Notifications).
 		requestDSN bool
 
-		// smtpAuth is a pointer to smtp.Auth
+		// smtpAuth is the authentication type that is used to authenticate the user with SMTP server. It
+		// satisfies the smtp.Auth interface.
+		//
+		// Unless you plan to write you own custom authentication method, it is advised to not set this manually.
+		// You should use one of go-mail's SMTPAuthType, instead.
 		smtpAuth smtp.Auth
 
-		// smtpAuthType represents the authentication type for SMTP AUTH
+		// smtpAuthType specifies the authentication type to be used for SMTP authentication.
 		smtpAuthType SMTPAuthType
 
-		// smtpClient is the smtp.Client that is set up when using the Dial*() methods
+		// smtpClient is an instance of smtp.Client used for handling the communication with the SMTP server.
 		smtpClient *smtp.Client
 
-		// tlspolicy sets the client to use the provided TLSPolicy for the STARTTLS protocol
+		// tlspolicy defines the TLSPolicy configuration the Client uses for the STARTTLS protocol.
+		// https://datatracker.ietf.org/doc/html/rfc3207#section-2
 		tlspolicy TLSPolicy
 
-		// tlsconfig represents the tls.Config setting for the STARTTLS connection
+		// tlsconfig is a pointer to tls.Config that specifies the TLS configuration for the STARTTLS communication.
 		tlsconfig *tls.Config
 
-		// useDebugLog enables the debug logging on the SMTP client
+		// useDebugLog indicates whether debug level logging is enabled for the Client.
 		useDebugLog bool
 
-		// user is the SMTP AUTH username
+		// user represents a username used for the SMTP authentication.
 		user string
 
-		// Use SSL for the connection
+		// useSSL indicates whether to use SSL/TLS encryption for network communication.
+		// https://datatracker.ietf.org/doc/html/rfc8314
 		useSSL bool
 	}
 )
