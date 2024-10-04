@@ -396,11 +396,12 @@ func WithSMTPAuth(authtype SMTPAuthType) Option {
 	}
 }
 
-// WithSMTPAuthCustom sets a custom SMTP authentication mechanism for the client instance. The provided
+// WithSMTPAuthCustom sets a custom SMTP authentication mechanism for the Client. The provided
 // authentication mechanism has to satisfy the smtp.Auth interface.
 func WithSMTPAuthCustom(smtpAuth smtp.Auth) Option {
 	return func(c *Client) error {
 		c.smtpAuth = smtpAuth
+		c.smtpAuthType = SMTPAuthCustom
 		return nil
 	}
 }
@@ -623,25 +624,28 @@ func (c *Client) SetTLSConfig(tlsconfig *tls.Config) error {
 	return nil
 }
 
-// SetUsername overrides the current username string with the given value
+// SetUsername sets or overrides the username, the Client will use for the SMTP authentication.
 func (c *Client) SetUsername(username string) {
 	c.user = username
 }
 
-// SetPassword overrides the current password string with the given value
+// SetPassword sets or overrides the password, the Client will use for the SMTP authentication.
 func (c *Client) SetPassword(password string) {
 	c.pass = password
 }
 
-// SetSMTPAuth overrides the current SMTP AUTH type setting with the given value
+// SetSMTPAuth sets or overrides the SMTPAuthType that is currently set on the Client for the SMTP
+// authentication.
 func (c *Client) SetSMTPAuth(authtype SMTPAuthType) {
 	c.smtpAuthType = authtype
 	c.smtpAuth = nil
 }
 
-// SetSMTPAuthCustom overrides the current SMTP AUTH setting with the given custom smtp.Auth
+// SetSMTPAuthCustom sets or overrides the custom SMTP authentication mechanism currently set for
+// the Client. The provided authentication mechanism has to satisfy the smtp.Auth interface.
 func (c *Client) SetSMTPAuthCustom(smtpAuth smtp.Auth) {
 	c.smtpAuth = smtpAuth
+	c.smtpAuthType = SMTPAuthCustom
 }
 
 // setDefaultHelo retrieves the current hostname and sets it as HELO/EHLO hostname
@@ -827,7 +831,7 @@ func (c *Client) auth() error {
 	if err := c.checkConn(); err != nil {
 		return fmt.Errorf("failed to authenticate: %w", err)
 	}
-	if c.smtpAuth == nil && c.smtpAuthType != "" {
+	if c.smtpAuth == nil && c.smtpAuthType != SMTPAuthCustom {
 		hasSMTPAuth, smtpAuthType := c.smtpClient.Extension("AUTH")
 		if !hasSMTPAuth {
 			return fmt.Errorf("server does not support SMTP AUTH")

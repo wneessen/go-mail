@@ -23,6 +23,12 @@ const (
 	// https://datatracker.ietf.org/doc/html/draft-ietf-sasl-crammd5-to-historic-00.html
 	SMTPAuthCramMD5 SMTPAuthType = "CRAM-MD5"
 
+	// SMTPAuthCustom is a custom SMTP AUTH mechanism provided by the user. If a user provides
+	// a custom smtp.Auth function to the Client, the Client will its smtpAuthType to this type.
+	//
+	// Do not use this SMTPAuthType without setting a custom smtp.Auth function on the Client.
+	SMTPAuthCustom SMTPAuthType = "CUSTOM"
+
 	// SMTPAuthLogin is the "LOGIN" SASL authentication mechanism. This authentication mechanism
 	// does not have an official RFC that could be followed. There is a spec by Microsoft and an
 	// IETF draft. The IETF draft is more lax than the MS spec, therefore we follow the I-D, which
