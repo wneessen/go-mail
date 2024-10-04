@@ -483,8 +483,8 @@ func TestWithDSN(t *testing.T) {
 		t.Errorf("failed to create new client: %s", err)
 		return
 	}
-	if !c.dsn {
-		t.Errorf("WithDSN failed. c.dsn expected to be: %t, got: %t", true, c.dsn)
+	if !c.requestDSN {
+		t.Errorf("WithDSN failed. c.requestDSN expected to be: %t, got: %t", true, c.requestDSN)
 	}
 	if c.dsnmrtype != DSNMailReturnFull {
 		t.Errorf("WithDSN failed. c.dsnmrtype expected to be: %s, got: %s", DSNMailReturnFull,

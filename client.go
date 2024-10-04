@@ -40,19 +40,6 @@ const (
 	DefaultTLSMinVersion = tls.VersionTLS12
 )
 
-type (
-
-	// DSNMailReturnOption is a type wrapper for a string and specifies the type of return content requested
-	// in a Delivery Status Notification (DSN).
-	// https://datatracker.ietf.org/doc/html/rfc1891/
-	DSNMailReturnOption string
-
-	// DSNRcptNotifyOption is a type wrapper for a string and specifies the notification options for a
-	// recipient in DSNs.
-	// https://datatracker.ietf.org/doc/html/rfc1891/
-	DSNRcptNotifyOption string
-)
-
 const (
 
 	// DSNMailReturnHeadersOnly requests that only the message headers of the mail message are returned in
@@ -90,82 +77,98 @@ const (
 	DSNRcptNotifyDelay DSNRcptNotifyOption = "DELAY"
 )
 
-// DialContextFunc is a type to define custom DialContext function.
-type DialContextFunc func(ctx context.Context, network, address string) (net.Conn, error)
+type (
 
-// Client is the SMTP client struct
-type Client struct {
-	// Timeout for the SMTP server connection
-	connTimeout time.Duration
+	// DialContextFunc defines a function type for establishing a network connection using context, network
+	// type, and address. It is used to specify custom DialContext function.
+	//
+	// By default we use net.Dial or tls.Dial respectively.
+	DialContextFunc func(ctx context.Context, network, address string) (net.Conn, error)
 
-	// dialContextFunc is a custom DialContext function to dial target SMTP server
-	dialContextFunc DialContextFunc
+	// DSNMailReturnOption is a type wrapper for a string and specifies the type of return content requested
+	// in a Delivery Status Notification (DSN).
+	// https://datatracker.ietf.org/doc/html/rfc1891/
+	DSNMailReturnOption string
 
-	// dsn indicates that we want to use DSN for the Client
-	dsn bool
+	// DSNRcptNotifyOption is a type wrapper for a string and specifies the notification options for a
+	// recipient in DSNs.
+	// https://datatracker.ietf.org/doc/html/rfc1891/
+	DSNRcptNotifyOption string
 
-	// dsnmrtype defines the DSNMailReturnOption in case DSN is enabled
-	dsnmrtype DSNMailReturnOption
+	// Option is a function type that modifies the configuration or behavior of a Client instance.
+	Option func(*Client) error
 
-	// dsnrntype defines the DSNRcptNotifyOption in case DSN is enabled
-	dsnrntype []string
+	// Client is the go-mail client that is responsible for connecting and interacting with an SMTP server.
+	Client struct {
+		// connTimeout specifies timeout for the connection to the SMTP server.
+		connTimeout time.Duration
 
-	// fallbackPort is used as an alternative port number in case the primary port is unavailable or
-	// fails to bind.
-	fallbackPort int
+		// dialContextFunc is the DialContextFunc that is used by the Client to connect to the SMTP server.
+		dialContextFunc DialContextFunc
 
-	// HELO/EHLO string for the greeting the target SMTP server
-	helo string
+		// dsnmrtype defines the DSNMailReturnOption in case DSN is enabled
+		dsnmrtype DSNMailReturnOption
 
-	// Hostname of the target SMTP server to connect to
-	host string
+		// dsnrntype defines the DSNRcptNotifyOption in case DSN is enabled
+		dsnrntype []string
 
-	// isEncrypted indicates if a Client connection is encrypted or not
-	isEncrypted bool
+		// fallbackPort is used as an alternative port number in case the primary port is unavailable or
+		// fails to bind.
+		fallbackPort int
 
-	// logger is a logger that implements the log.Logger interface
-	logger log.Logger
+		// HELO/EHLO string for the greeting the target SMTP server
+		helo string
 
-	// mutex is used to synchronize access to shared resources, ensuring that only one goroutine can
-	// modify them at a time.
-	mutex sync.RWMutex
+		// Hostname of the target SMTP server to connect to
+		host string
 
-	// noNoop indicates the Noop is to be skipped
-	noNoop bool
+		// isEncrypted indicates if a Client connection is encrypted or not
+		isEncrypted bool
 
-	// pass is the corresponding SMTP AUTH password
-	pass string
+		// logger is a logger that implements the log.Logger interface
+		logger log.Logger
 
-	// port specifies the network port number on which the server listens for incoming connections.
-	port int
+		// mutex is used to synchronize access to shared resources, ensuring that only one goroutine can
+		// modify them at a time.
+		mutex sync.RWMutex
 
-	// smtpAuth is a pointer to smtp.Auth
-	smtpAuth smtp.Auth
+		// noNoop indicates the Noop is to be skipped
+		noNoop bool
 
-	// smtpAuthType represents the authentication type for SMTP AUTH
-	smtpAuthType SMTPAuthType
+		// pass is the corresponding SMTP AUTH password
+		pass string
 
-	// smtpClient is the smtp.Client that is set up when using the Dial*() methods
-	smtpClient *smtp.Client
+		// port specifies the network port number on which the server listens for incoming connections.
+		port int
 
-	// tlspolicy sets the client to use the provided TLSPolicy for the STARTTLS protocol
-	tlspolicy TLSPolicy
+		// requestDSN indicates that we want to use DSN for the Client
+		requestDSN bool
 
-	// tlsconfig represents the tls.Config setting for the STARTTLS connection
-	tlsconfig *tls.Config
+		// smtpAuth is a pointer to smtp.Auth
+		smtpAuth smtp.Auth
 
-	// useDebugLog enables the debug logging on the SMTP client
-	useDebugLog bool
+		// smtpAuthType represents the authentication type for SMTP AUTH
+		smtpAuthType SMTPAuthType
 
-	// user is the SMTP AUTH username
-	user string
+		// smtpClient is the smtp.Client that is set up when using the Dial*() methods
+		smtpClient *smtp.Client
 
-	// Use SSL for the connection
-	useSSL bool
-}
+		// tlspolicy sets the client to use the provided TLSPolicy for the STARTTLS protocol
+		tlspolicy TLSPolicy
 
-// Option returns a function that can be used for grouping Client options
-type Option func(*Client) error
+		// tlsconfig represents the tls.Config setting for the STARTTLS connection
+		tlsconfig *tls.Config
+
+		// useDebugLog enables the debug logging on the SMTP client
+		useDebugLog bool
+
+		// user is the SMTP AUTH username
+		user string
+
+		// Use SSL for the connection
+		useSSL bool
+	}
+)
 
 var (
 	// ErrInvalidPort should be used if a port is specified that is not valid
@@ -394,7 +397,7 @@ func WithPassword(password string) Option {
 // and DSNRcptNotifyFailure
 func WithDSN() Option {
 	return func(c *Client) error {
-		c.dsn = true
+		c.requestDSN = true
 		c.dsnmrtype = DSNMailReturnFull
 		c.dsnrntype = []string{string(DSNRcptNotifyFailure), string(DSNRcptNotifySuccess)}
 		return nil
@@ -414,7 +417,7 @@ func WithDSNMailReturnType(option DSNMailReturnOption) Option {
 			return ErrInvalidDSNMailReturnOption
 		}
 
-		c.dsn = true
+		c.requestDSN = true
 		c.dsnmrtype = option
 		return nil
 	}
@@ -448,7 +451,7 @@ func WithDSNRcptNotifyType(opts ...DSNRcptNotifyOption) Option {
 			return ErrInvalidDSNRcptNotifyCombination
 		}
 
-		c.dsn = true
+		c.requestDSN = true
 		c.dsnrntype = rcptOpts
 		return nil
 	}
@@ -870,7 +873,7 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 		}
 	}
 
-	if c.dsn {
+	if c.requestDSN {
 		if c.dsnmrtype != "" {
 			c.smtpClient.SetDSNMailReturnOption(string(c.dsnmrtype))
 		}
