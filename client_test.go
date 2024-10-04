@@ -617,6 +617,32 @@ func TestSetSMTPAuthCustom(t *testing.T) {
 	}
 }
 
+// TestClient_Close_double tests if a close on an already closed connection causes an error.
+func TestClient_Close_double(t *testing.T) {
+	c, err := getTestConnection(true)
+	if err != nil {
+		t.Skipf("failed to create test client: %s. Skipping tests", err)
+	}
+	ctx := context.Background()
+	if err = c.DialWithContext(ctx); err != nil {
+		t.Errorf("failed to dial with context: %s", err)
+		return
+	}
+	if c.smtpClient == nil {
+		t.Errorf("DialWithContext didn't fail but no SMTP client found.")
+		return
+	}
+	if !c.smtpClient.HasConnection() {
+		t.Errorf("DialWithContext didn't fail but no connection found.")
+	}
+	if err = c.Close(); err != nil {
+		t.Errorf("failed to close connection: %s", err)
+	}
+	if err = c.Close(); err != nil {
+		t.Errorf("failed 2nd close connection: %s", err)
+	}
+}
+
 // TestClient_DialWithContext tests the DialWithContext method for the Client object
 func TestClient_DialWithContext(t *testing.T) {
 	c, err := getTestConnection(true)
@@ -2391,7 +2417,6 @@ func TestXOAuth2OK_faker(t *testing.T) {
 		"250 8BITMIME",
 		"250 OK",
 		"235 2.7.0 Accepted",
-		"250 OK",
 		"221 OK",
 	}
 	var wrote strings.Builder
@@ -2412,10 +2437,10 @@ func TestXOAuth2OK_faker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unable to create new client: %v", err)
 	}
-	if err := c.DialWithContext(context.Background()); err != nil {
+	if err = c.DialWithContext(context.Background()); err != nil {
 		t.Fatalf("unexpected dial error: %v", err)
 	}
-	if err := c.Close(); err != nil {
+	if err = c.Close(); err != nil {
 		t.Fatalf("disconnect from test server failed: %v", err)
 	}
 	if !strings.Contains(wrote.String(), "AUTH XOAUTH2 dXNlcj11c2VyAWF1dGg9QmVhcmVyIHRva2VuAQE=\r\n") {
@@ -2429,7 +2454,6 @@ func TestXOAuth2Unsupported_faker(t *testing.T) {
 		"250-fake.server",
 		"250-AUTH LOGIN PLAIN",
 		"250 8BITMIME",
-		"250 OK",
 		"250 OK",
 		"221 OK",
 	}
@@ -2449,18 +2473,18 @@ func TestXOAuth2Unsupported_faker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unable to create new client: %v", err)
 	}
-	if err := c.DialWithContext(context.Background()); err == nil {
+	if err = c.DialWithContext(context.Background()); err == nil {
 		t.Fatal("expected dial error got nil")
 	} else {
 		if !errors.Is(err, ErrXOauth2AuthNotSupported) {
 			t.Fatalf("expected %v; got %v", ErrXOauth2AuthNotSupported, err)
 		}
 	}
-	if err := c.Close(); err != nil {
+	if err = c.Close(); err != nil {
 		t.Fatalf("disconnect from test server failed: %v", err)
 	}
 	client := strings.Split(wrote.String(), "\r\n")
-	if len(client) != 5 {
+	if len(client) != 4 {
 		t.Fatalf("unexpected number of client requests got %d; want 5", len(client))
 	}
 	if !strings.HasPrefix(client[0], "EHLO") {
@@ -2469,10 +2493,7 @@ func TestXOAuth2Unsupported_faker(t *testing.T) {
 	if client[1] != "NOOP" {
 		t.Fatalf("expected NOOP, got %q", client[1])
 	}
-	if client[2] != "NOOP" {
-		t.Fatalf("expected NOOP, got %q", client[2])
-	}
-	if client[3] != "QUIT" {
+	if client[2] != "QUIT" {
 		t.Fatalf("expected QUIT, got %q", client[3])
 	}
 }

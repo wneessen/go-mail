@@ -648,7 +648,17 @@ func (c *Client) SetSMTPAuthCustom(smtpAuth smtp.Auth) {
 	c.smtpAuthType = SMTPAuthCustom
 }
 
-// DialWithContext establishes a connection to the SMTP server with a given context.Context
+// DialWithContext establishes a connection to the server using the provided context.Context.
+//
+// Before connecting to the server, the function will add a deadline of the Client's timeout
+// to the provided context.Context.
+//
+// After dialing the DialContextFunc defined in the Client and successfully establishing the
+// connection to the SMTP server, it will send the HELO/EHLO SMTP command followed by the
+// optional STARTTLS and SMTP AUTH commands. It will also attach the log.Logger in case
+// debug logging is enabled on the Client.
+//
+// From this point in time the Client has an active (cancelable) connection to the SMTP server.
 func (c *Client) DialWithContext(dialCtx context.Context) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -707,8 +717,9 @@ func (c *Client) DialWithContext(dialCtx context.Context) error {
 
 // Close closes the Client connection
 func (c *Client) Close() error {
-	if err := c.checkConn(); err != nil {
-		return err
+	// If the connection is already closed, we considered this a no-op and disregard any error.
+	if !c.smtpClient.HasConnection() {
+		return nil
 	}
 	if err := c.smtpClient.Quit(); err != nil {
 		return fmt.Errorf("failed to close SMTP client: %w", err)

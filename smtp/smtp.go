@@ -516,6 +516,8 @@ func (c *Client) Quit() error {
 	}
 	c.mutex.Lock()
 	err = c.Text.Close()
+	c.Text = nil
+	c.conn = nil
 	c.mutex.Unlock()
 
 	return err
@@ -555,7 +557,10 @@ func (c *Client) SetDSNRcptNotifyOption(d string) {
 // HasConnection checks if the client has an active connection.
 // Returns true if the `conn` field is not nil, indicating an active connection.
 func (c *Client) HasConnection() bool {
-	return c.conn != nil
+	c.mutex.RLock()
+	conn := c.conn
+	c.mutex.RUnlock()
+	return conn != nil
 }
 
 func (c *Client) UpdateDeadline(timeout time.Duration) error {
