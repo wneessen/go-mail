@@ -294,16 +294,16 @@ func WithSSL() Option {
 	}
 }
 
-// WithSSLPort enables implicit SSL/TLS with an optional fallback for the Client.
-// The correct port is automatically set.
+// WithSSLPort enables implicit SSL/TLS with an optional fallback for the Client. The correct port is
+// automatically set.
 //
-// If this option is used with NewClient, the default port 25 will be overriden
-// with port 465. If fallback is set to true and the SSL/TLS connection fails,
-// the Client will attempt to connect on port 25 using plaintext.
+// If this option is used with NewClient, the default port 25 will be overriden with port 465. If fallback
+// is set to true and the SSL/TLS connection fails, the Client will attempt to connect on port 25 using
+// using an unencrypted connection.
 //
-// Note: If a different port has already been set otherwise using WithPort, the
-// selected port has higher precedence and is used to establish the SSL/TLS
-// connection. In this case the authmatic fallback mechanism is skipped at all.
+// Note: If a different port has already been set otherwise using WithPort, the selected port has higher
+// precedence and is used to establish the SSL/TLS connection. In this case the authmatic fallback
+// mechanism is skipped at all.
 func WithSSLPort(fallback bool) Option {
 	return func(c *Client) error {
 		c.SetSSLPort(true, fallback)
@@ -311,8 +311,12 @@ func WithSSLPort(fallback bool) Option {
 	}
 }
 
-// WithDebugLog tells the client to log incoming and outgoing messages of the SMTP client
-// to StdErr
+// WithDebugLog neables debug logging for the Client. The debug logger will log incoming and outgoing
+// communication between the Client and the server to os.StdErr.
+//
+// Note: The SMTP communication might include unencrypted authentication data, depending if you are
+// using SMTP authentication and the type of authentication mechanism. This could pose a data
+// protection problem. Use debug logging with care.
 func WithDebugLog() Option {
 	return func(c *Client) error {
 		c.useDebugLog = true
@@ -320,7 +324,10 @@ func WithDebugLog() Option {
 	}
 }
 
-// WithLogger overrides the default log.Logger that is used for debug logging
+// WithLogger defines a custom logger for the Client. The logger has to satisfy the log.Logger
+// interface and is only used when debug logging is enabled on the Client.
+//
+// By default we use log.Stdlog.
 func WithLogger(logger log.Logger) Option {
 	return func(c *Client) error {
 		c.logger = logger
@@ -328,7 +335,9 @@ func WithLogger(logger log.Logger) Option {
 	}
 }
 
-// WithHELO tells the client to use the provided string as HELO/EHLO greeting host
+// WithHELO sets the HELO/EHLO string used for the the Client.
+//
+// By default we use os.Hostname to identify the HELO/EHLO string.
 func WithHELO(helo string) Option {
 	return func(c *Client) error {
 		if helo == "" {
