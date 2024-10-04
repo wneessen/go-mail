@@ -767,7 +767,9 @@ func (c *Client) DialAndSendWithContext(ctx context.Context, messages ...*Msg) e
 	return nil
 }
 
-// auth will try to perform SMTP AUTH if requested
+// auth attempts to authenticate the client using SMTP AUTH mechanisms. It checks the connection, determines
+// the supported authentication methods, and applies the appropriate authentication type. Returns an error if
+// authentication fails.
 func (c *Client) auth() error {
 	if err := c.checkConn(); err != nil {
 		return fmt.Errorf("failed to authenticate: %w", err)
@@ -940,8 +942,7 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 	return nil
 }
 
-// checkConn makes sure that a required server connection is available and extends the
-// connection deadline
+// checkConn makes sure that a required server connection is available and extends the connection deadline
 func (c *Client) checkConn() error {
 	if !c.smtpClient.HasConnection() {
 		return ErrNoActiveConnection
@@ -959,13 +960,12 @@ func (c *Client) checkConn() error {
 	return nil
 }
 
-// serverFallbackAddr returns the currently set combination of hostname
-// and fallback port.
+// serverFallbackAddr returns the currently set combination of hostname and fallback port.
 func (c *Client) serverFallbackAddr() string {
 	return fmt.Sprintf("%s:%d", c.host, c.fallbackPort)
 }
 
-// setDefaultHelo retrieves the current hostname and sets it as HELO/EHLO hostname
+// setDefaultHelo sets the HELO/EHLO hostname to the local machine's hostname.
 func (c *Client) setDefaultHelo() error {
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -975,7 +975,8 @@ func (c *Client) setDefaultHelo() error {
 	return nil
 }
 
-// tls tries to make sure that the STARTTLS requirements are satisfied
+// tls establishes a TLS connection based on the client's TLS policy and configuration.
+// Returns an error if no active connection exists or if a TLS error occurs.
 func (c *Client) tls() error {
 	if !c.smtpClient.HasConnection() {
 		return ErrNoActiveConnection
