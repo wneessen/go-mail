@@ -311,7 +311,7 @@ func WithSSLPort(fallback bool) Option {
 	}
 }
 
-// WithDebugLog neables debug logging for the Client. The debug logger will log incoming and outgoing
+// WithDebugLog enables debug logging for the Client. The debug logger will log incoming and outgoing
 // communication between the Client and the server to os.StdErr.
 //
 // Note: The SMTP communication might include unencrypted authentication data, depending if you are
@@ -492,8 +492,10 @@ func WithDSNRcptNotifyType(opts ...DSNRcptNotifyOption) Option {
 	}
 }
 
-// WithoutNoop disables the Client Noop check during connections. This is primarily for servers which delay responses
-// to SMTP commands that are not the AUTH command. For example Microsoft Exchange's Tarpit.
+// WithoutNoop indicates that the Client should skip the "NOOP" command during the dial.
+//
+// This is useful for servers which delay potentially unwanted clients when they perform commands
+// other than AUTH. For example Microsoft Exchange's Tarpit.
 func WithoutNoop() Option {
 	return func(c *Client) error {
 		c.noNoop = true
@@ -501,7 +503,8 @@ func WithoutNoop() Option {
 	}
 }
 
-// WithDialContextFunc overrides the default DialContext for connecting SMTP server
+// WithDialContextFunc sets the provided DialContextFunc as DialContext and overrides the default DialContext for
+// connecting to the SMTP server
 func WithDialContextFunc(dialCtxFunc DialContextFunc) Option {
 	return func(c *Client) error {
 		c.dialContextFunc = dialCtxFunc
@@ -509,34 +512,35 @@ func WithDialContextFunc(dialCtxFunc DialContextFunc) Option {
 	}
 }
 
-// TLSPolicy returns the currently set TLSPolicy as string
+// TLSPolicy returns the TLSPolicy that is currently set on the Client as string
 func (c *Client) TLSPolicy() string {
 	return c.tlspolicy.String()
 }
 
-// ServerAddr returns the currently set combination of hostname and port
+// ServerAddr returns the server address that is currently set on the Client in the format "host:port".
 func (c *Client) ServerAddr() string {
 	return fmt.Sprintf("%s:%d", c.host, c.port)
 }
 
-// SetTLSPolicy overrides the current TLSPolicy with the given TLSPolicy value
+// SetTLSPolicy sets or overrides the TLSPolicy that is currently set on the Client with the given
+// TLSPolicy.
 //
-// Note: To follow best-practices for SMTP TLS connections, it is recommended
-// to use SetTLSPortPolicy instead.
+// Note: To follow best-practices for SMTP TLS connections, it is recommended to use SetTLSPortPolicy
+// instead.
 func (c *Client) SetTLSPolicy(policy TLSPolicy) {
 	c.tlspolicy = policy
 }
 
-// SetTLSPortPolicy overrides the current TLSPolicy with the given TLSPolicy
-// value. The correct port is automatically set.
+// SetTLSPortPolicy sets or overrides the TLSPolicy that is currently set on the Client with the given
+// TLSPolicy. The correct port is automatically set.
 //
-// Port 587 is used for TLSMandatory and TLSOpportunistic.
-// If the connection fails with TLSOpportunistic, a plaintext connection is
-// attempted on port 25 as a fallback.
-// NoTLS will allways use port 25.
+// If TLSMandatory or TLSOpportunistic are provided as TLSPolicy, port 587 will be used for the connection.
+// If the connection fails with TLSOpportunistic, the Client will attempt to connect on port 25 using
+// using an unencrypted connection as a fallback. If NoTLS is provided, the Client will always use port 25.
 //
-// Note: If a different port has already been set otherwise, the port-choosing
-// and fallback automatism will be skipped.
+// Note: If a different port has already been set otherwise using WithPort, the selected port has higher
+// precedence and is used to establish the SSL/TLS connection. In this case the authmatic fallback
+// mechanism is skipped at all.
 func (c *Client) SetTLSPortPolicy(policy TLSPolicy) {
 	if c.port == DefaultPort {
 		c.port = DefaultPortTLS
@@ -552,21 +556,21 @@ func (c *Client) SetTLSPortPolicy(policy TLSPolicy) {
 	c.tlspolicy = policy
 }
 
-// SetSSL tells the Client wether to use SSL or not
+// SetSSL sets or overrides wether the Client should use implicit SSL/TLS.
 func (c *Client) SetSSL(ssl bool) {
 	c.useSSL = ssl
 }
 
-// SetSSLPort tells the Client wether or not to use SSL and fallback.
-// The correct port is automatically set.
+// SetSSLPort sets or overrides wether the Client should use implicit SSL/TLS with optional fallback. The
+// correct port is automatically set.
 //
-// Port 465 is used when SSL set (true).
-// Port 25 is used when SSL is unset (false).
-// When the SSL connection fails and fb is set to true,
-// the client will attempt to connect on port 25 using plaintext.
+// If ssl is set to true, the default port 25 will be overriden with port 465. If fallback is set to true
+// and the SSL/TLS connection fails, the Client will attempt to connect on port 25 using using an
+// unencrypted connection.
 //
-// Note: If a different port has already been set otherwise, the port-choosing
-// and fallback automatism will be skipped.
+// Note: If a different port has already been set otherwise using WithPort, the selected port has higher
+// precedence and is used to establish the SSL/TLS connection. In this case the authmatic fallback
+// mechanism is skipped at all.
 func (c *Client) SetSSLPort(ssl bool, fallback bool) {
 	if c.port == DefaultPort {
 		if ssl {
@@ -582,7 +586,12 @@ func (c *Client) SetSSLPort(ssl bool, fallback bool) {
 	c.useSSL = ssl
 }
 
-// SetDebugLog tells the Client whether debug logging is enabled or not
+// SetDebugLog sets or overrides wether the Client is using debug logging. The debug logger will log
+// incoming and outgoing communication between the Client and the server to os.StdErr.
+//
+// Note: The SMTP communication might include unencrypted authentication data, depending if you are
+// using SMTP authentication and the type of authentication mechanism. This could pose a data
+// protection problem. Use debug logging with care.
 func (c *Client) SetDebugLog(val bool) {
 	c.useDebugLog = val
 	if c.smtpClient != nil {
@@ -590,7 +599,10 @@ func (c *Client) SetDebugLog(val bool) {
 	}
 }
 
-// SetLogger tells the Client which log.Logger to use
+// SetLogger sets of overrides the custom logger currently set for the Client. The logger has to satisfy
+// the log.Logger interface and is only used when debug logging is enabled on the Client.
+//
+// By default we use log.Stdlog.
 func (c *Client) SetLogger(logger log.Logger) {
 	c.logger = logger
 	if c.smtpClient != nil {
@@ -598,7 +610,8 @@ func (c *Client) SetLogger(logger log.Logger) {
 	}
 }
 
-// SetTLSConfig overrides the current *tls.Config with the given *tls.Config value
+// SetTLSConfig sets or overrides the tls.Config that is currently set for the Client with the given value.
+// An error is returned if the provided tls.Config is invalid.
 func (c *Client) SetTLSConfig(tlsconfig *tls.Config) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
