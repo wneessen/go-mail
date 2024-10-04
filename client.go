@@ -648,16 +648,6 @@ func (c *Client) SetSMTPAuthCustom(smtpAuth smtp.Auth) {
 	c.smtpAuthType = SMTPAuthCustom
 }
 
-// setDefaultHelo retrieves the current hostname and sets it as HELO/EHLO hostname
-func (c *Client) setDefaultHelo() error {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return fmt.Errorf("failed to read local hostname: %w", err)
-	}
-	c.helo = hostname
-	return nil
-}
-
 // DialWithContext establishes a connection to the SMTP server with a given context.Context
 func (c *Client) DialWithContext(dialCtx context.Context) error {
 	c.mutex.Lock()
@@ -757,71 +747,6 @@ func (c *Client) DialAndSendWithContext(ctx context.Context, messages ...*Msg) e
 	}
 	if err := c.Close(); err != nil {
 		return fmt.Errorf("failed to close connection: %w", err)
-	}
-	return nil
-}
-
-// checkConn makes sure that a required server connection is available and extends the
-// connection deadline
-func (c *Client) checkConn() error {
-	if !c.smtpClient.HasConnection() {
-		return ErrNoActiveConnection
-	}
-
-	if !c.noNoop {
-		if err := c.smtpClient.Noop(); err != nil {
-			return ErrNoActiveConnection
-		}
-	}
-
-	if err := c.smtpClient.UpdateDeadline(c.connTimeout); err != nil {
-		return ErrDeadlineExtendFailed
-	}
-	return nil
-}
-
-// serverFallbackAddr returns the currently set combination of hostname
-// and fallback port.
-func (c *Client) serverFallbackAddr() string {
-	return fmt.Sprintf("%s:%d", c.host, c.fallbackPort)
-}
-
-// tls tries to make sure that the STARTTLS requirements are satisfied
-func (c *Client) tls() error {
-	if !c.smtpClient.HasConnection() {
-		return ErrNoActiveConnection
-	}
-	if !c.useSSL && c.tlspolicy != NoTLS {
-		hasStartTLS := false
-		extension, _ := c.smtpClient.Extension("STARTTLS")
-		if c.tlspolicy == TLSMandatory {
-			hasStartTLS = true
-			if !extension {
-				return fmt.Errorf("STARTTLS mode set to: %q, but target host does not support STARTTLS",
-					c.tlspolicy)
-			}
-		}
-		if c.tlspolicy == TLSOpportunistic {
-			if extension {
-				hasStartTLS = true
-			}
-		}
-		if hasStartTLS {
-			if err := c.smtpClient.StartTLS(c.tlsconfig); err != nil {
-				return err
-			}
-		}
-		tlsConnState, err := c.smtpClient.GetTLSConnectionState()
-		if err != nil {
-			switch {
-			case errors.Is(err, smtp.ErrNonTLSConnection):
-				c.isEncrypted = false
-				return nil
-			default:
-				return fmt.Errorf("failed to get TLS connection state: %w", err)
-			}
-		}
-		c.isEncrypted = tlsConnState.HandshakeComplete
 	}
 	return nil
 }
@@ -995,6 +920,81 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 			Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err),
 			affectedMsg: message,
 		}
+	}
+	return nil
+}
+
+// checkConn makes sure that a required server connection is available and extends the
+// connection deadline
+func (c *Client) checkConn() error {
+	if !c.smtpClient.HasConnection() {
+		return ErrNoActiveConnection
+	}
+
+	if !c.noNoop {
+		if err := c.smtpClient.Noop(); err != nil {
+			return ErrNoActiveConnection
+		}
+	}
+
+	if err := c.smtpClient.UpdateDeadline(c.connTimeout); err != nil {
+		return ErrDeadlineExtendFailed
+	}
+	return nil
+}
+
+// serverFallbackAddr returns the currently set combination of hostname
+// and fallback port.
+func (c *Client) serverFallbackAddr() string {
+	return fmt.Sprintf("%s:%d", c.host, c.fallbackPort)
+}
+
+// setDefaultHelo retrieves the current hostname and sets it as HELO/EHLO hostname
+func (c *Client) setDefaultHelo() error {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return fmt.Errorf("failed to read local hostname: %w", err)
+	}
+	c.helo = hostname
+	return nil
+}
+
+// tls tries to make sure that the STARTTLS requirements are satisfied
+func (c *Client) tls() error {
+	if !c.smtpClient.HasConnection() {
+		return ErrNoActiveConnection
+	}
+	if !c.useSSL && c.tlspolicy != NoTLS {
+		hasStartTLS := false
+		extension, _ := c.smtpClient.Extension("STARTTLS")
+		if c.tlspolicy == TLSMandatory {
+			hasStartTLS = true
+			if !extension {
+				return fmt.Errorf("STARTTLS mode set to: %q, but target host does not support STARTTLS",
+					c.tlspolicy)
+			}
+		}
+		if c.tlspolicy == TLSOpportunistic {
+			if extension {
+				hasStartTLS = true
+			}
+		}
+		if hasStartTLS {
+			if err := c.smtpClient.StartTLS(c.tlsconfig); err != nil {
+				return err
+			}
+		}
+		tlsConnState, err := c.smtpClient.GetTLSConnectionState()
+		if err != nil {
+			switch {
+			case errors.Is(err, smtp.ErrNonTLSConnection):
+				c.isEncrypted = false
+				return nil
+			default:
+				return fmt.Errorf("failed to get TLS connection state: %w", err)
+			}
+		}
+		c.isEncrypted = tlsConnState.HandshakeComplete
 	}
 	return nil
 }
