@@ -225,7 +225,11 @@ var (
 		"combined with any of SUCCESS, FAILURE or DELAY")
 )
 
-// NewClient returns a new Session client object
+// NewClient creates a new Client instance with the provided host and optional configuration Option functions.
+// It initializes default values for connection timeout, port, TLS settings, and HELO/EHLO hostname.
+// Option functions, if provided, override default values.
+//
+// Returns an error if critical defaults are unset.
 func NewClient(host string, opts ...Option) (*Client, error) {
 	c := &Client{
 		connTimeout: DefaultTimeout,
@@ -258,7 +262,8 @@ func NewClient(host string, opts ...Option) (*Client, error) {
 	return c, nil
 }
 
-// WithPort overrides the default connection port
+// WithPort sets the port number for the Client and overrides the default port. It validates the port number to
+// ensure it is between 1 and 65535. An error is returned if the provided port number is invalid.
 func WithPort(port int) Option {
 	return func(c *Client) error {
 		if port < 1 || port > 65535 {
@@ -269,7 +274,8 @@ func WithPort(port int) Option {
 	}
 }
 
-// WithTimeout overrides the default connection timeout
+// WithTimeout sets the connection timeout for the Client to the provided duration and overrides the default
+// timeout. An error is returned if the provided timeout is invalid.
 func WithTimeout(timeout time.Duration) Option {
 	return func(c *Client) error {
 		if timeout <= 0 {
@@ -280,7 +286,7 @@ func WithTimeout(timeout time.Duration) Option {
 	}
 }
 
-// WithSSL tells the client to use a SSL/TLS connection
+// WithSSL enables implicit SSL/TLS for the Client.
 func WithSSL() Option {
 	return func(c *Client) error {
 		c.useSSL = true
@@ -288,16 +294,16 @@ func WithSSL() Option {
 	}
 }
 
-// WithSSLPort tells the Client wether or not to use SSL and fallback.
+// WithSSLPort enables implicit SSL/TLS with an optional fallback for the Client.
 // The correct port is automatically set.
 //
-// Port 465 is used when SSL set (true).
-// Port 25 is used when SSL is unset (false).
-// When the SSL connection fails and fb is set to true,
-// the client will attempt to connect on port 25 using plaintext.
+// If this option is used with NewClient, the default port 25 will be overriden
+// with port 465. If fallback is set to true and the SSL/TLS connection fails,
+// the Client will attempt to connect on port 25 using plaintext.
 //
-// Note: If a different port has already been set otherwise, the port-choosing
-// and fallback automatism will be skipped.
+// Note: If a different port has already been set otherwise using WithPort, the
+// selected port has higher precedence and is used to establish the SSL/TLS
+// connection. In this case the authmatic fallback mechanism is skipped at all.
 func WithSSLPort(fallback bool) Option {
 	return func(c *Client) error {
 		c.SetSSLPort(true, fallback)
