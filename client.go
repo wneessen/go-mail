@@ -106,8 +106,8 @@ type (
 		// dialContextFunc is the DialContextFunc that is used by the Client to connect to the SMTP server.
 		dialContextFunc DialContextFunc
 
-		// dsnmrtype defines the DSNMailReturnOption in case DSN is enabled
-		dsnmrtype DSNMailReturnOption
+		// dsnReturnType defines the DSNMailReturnOption in case DSN is enabled
+		dsnReturnType DSNMailReturnOption
 
 		// dsnrntype defines the DSNRcptNotifyOption in case DSN is enabled
 		dsnrntype []string
@@ -398,7 +398,7 @@ func WithPassword(password string) Option {
 func WithDSN() Option {
 	return func(c *Client) error {
 		c.requestDSN = true
-		c.dsnmrtype = DSNMailReturnFull
+		c.dsnReturnType = DSNMailReturnFull
 		c.dsnrntype = []string{string(DSNRcptNotifyFailure), string(DSNRcptNotifySuccess)}
 		return nil
 	}
@@ -418,7 +418,7 @@ func WithDSNMailReturnType(option DSNMailReturnOption) Option {
 		}
 
 		c.requestDSN = true
-		c.dsnmrtype = option
+		c.dsnReturnType = option
 		return nil
 	}
 }
@@ -874,8 +874,8 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 	}
 
 	if c.requestDSN {
-		if c.dsnmrtype != "" {
-			c.smtpClient.SetDSNMailReturnOption(string(c.dsnmrtype))
+		if c.dsnReturnType != "" {
+			c.smtpClient.SetDSNMailReturnOption(string(c.dsnReturnType))
 		}
 	}
 	if err = c.smtpClient.Mail(from); err != nil {

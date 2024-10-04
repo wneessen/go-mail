@@ -486,9 +486,9 @@ func TestWithDSN(t *testing.T) {
 	if !c.requestDSN {
 		t.Errorf("WithDSN failed. c.requestDSN expected to be: %t, got: %t", true, c.requestDSN)
 	}
-	if c.dsnmrtype != DSNMailReturnFull {
-		t.Errorf("WithDSN failed. c.dsnmrtype expected to be: %s, got: %s", DSNMailReturnFull,
-			c.dsnmrtype)
+	if c.dsnReturnType != DSNMailReturnFull {
+		t.Errorf("WithDSN failed. c.dsnReturnType expected to be: %s, got: %s", DSNMailReturnFull,
+			c.dsnReturnType)
 	}
 	if c.dsnrntype[0] != string(DSNRcptNotifyFailure) {
 		t.Errorf("WithDSN failed. c.dsnrntype[0] expected to be: %s, got: %s", DSNRcptNotifyFailure,
@@ -519,8 +519,8 @@ func TestWithDSNMailReturnType(t *testing.T) {
 				t.Errorf("failed to create new client: %s", err)
 				return
 			}
-			if string(c.dsnmrtype) != tt.want {
-				t.Errorf("WithDSNMailReturnType failed. Expected %s, got: %s", tt.want, string(c.dsnmrtype))
+			if string(c.dsnReturnType) != tt.want {
+				t.Errorf("WithDSNMailReturnType failed. Expected %s, got: %s", tt.want, string(c.dsnReturnType))
 			}
 		})
 	}
