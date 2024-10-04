@@ -10,7 +10,7 @@ on:
     paths:
       - '**.go'
       - 'go.*'
-      - '.github/**'
+      - '.github/workflows/codecov.yml'
       - 'codecov.yml'
   pull_request:
     branches:
@@ -18,7 +18,7 @@ on:
     paths:
       - '**.go'
       - 'go.*'
-      - '.github/**'
+      - '.github/workflows/codecov.yml'
       - 'codecov.yml'
 env:
   TEST_HOST: ${{ secrets.TEST_HOST }}

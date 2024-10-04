@@ -10,10 +10,18 @@ permissions:
 on:
   push:
     branches:
-      - main # or the name of your main branch
+      - main
+    paths:
+      - '**.go'
+      - 'go.*'
+      - '.github/workflows/sonarqube.yml'
   pull_request:
     branches:
-      - main # or the name of your main branch
+      - main
+    paths:
+      - '**.go'
+      - 'go.*'
+      - '.github/workflows/sonarqube.yml'
 jobs:
   build:
     name: Build
