@@ -348,10 +348,10 @@ func WithHELO(helo string) Option {
 	}
 }
 
-// WithTLSPolicy tells the client to use the provided TLSPolicy
+// WithTLSPolicy sets the TLSPolicy of the Client and overrides the DefaultTLSPolicy
 //
-// Note: To follow best-practices for SMTP TLS connections, it is recommended
-// to use WithTLSPortPolicy instead.
+// Note: To follow best-practices for SMTP TLS connections, it is recommended to use
+// WithTLSPortPolicy instead.
 func WithTLSPolicy(policy TLSPolicy) Option {
 	return func(c *Client) error {
 		c.tlspolicy = policy
@@ -359,16 +359,16 @@ func WithTLSPolicy(policy TLSPolicy) Option {
 	}
 }
 
-// WithTLSPortPolicy tells the client to use the provided TLSPolicy,
-// The correct port is automatically set.
+// WithTLSPortPolicy enables explicit TLS via STARTTLS for the Client using the provided TLSPolicy. The
+// correct port is automatically set.
 //
-// Port 587 is used for TLSMandatory and TLSOpportunistic.
-// If the connection fails with TLSOpportunistic,
-// a plaintext connection is attempted on port 25 as a fallback.
-// NoTLS will allways use port 25.
+// If TLSMandatory or TLSOpportunistic are provided as TLSPolicy, port 587 will be used for the connection.
+// If the connection fails with TLSOpportunistic, the Client will attempt to connect on port 25 using
+// using an unencrypted connection as a fallback. If NoTLS is provided, the Client will always use port 25.
 //
-// Note: If a different port has already been set otherwise, the port-choosing
-// and fallback automatism will be skipped.
+// Note: If a different port has already been set otherwise using WithPort, the selected port has higher
+// precedence and is used to establish the SSL/TLS connection. In this case the authmatic fallback
+// mechanism is skipped at all.
 func WithTLSPortPolicy(policy TLSPolicy) Option {
 	return func(c *Client) error {
 		c.SetTLSPortPolicy(policy)
