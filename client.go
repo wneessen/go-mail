@@ -376,7 +376,8 @@ func WithTLSPortPolicy(policy TLSPolicy) Option {
 	}
 }
 
-// WithTLSConfig tells the client to use the provided *tls.Config
+// WithTLSConfig sets the tls.Config for the Client and overrides the default. An error is returned
+// if the provided tls.Config is invalid.
 func WithTLSConfig(tlsconfig *tls.Config) Option {
 	return func(c *Client) error {
 		if tlsconfig == nil {
@@ -387,7 +388,7 @@ func WithTLSConfig(tlsconfig *tls.Config) Option {
 	}
 }
 
-// WithSMTPAuth tells the client to use the provided SMTPAuthType for authentication
+// WithSMTPAuth configures the Client to use the specified SMTPAuthType for the SMTP authentication.
 func WithSMTPAuth(authtype SMTPAuthType) Option {
 	return func(c *Client) error {
 		c.smtpAuthType = authtype
@@ -395,7 +396,8 @@ func WithSMTPAuth(authtype SMTPAuthType) Option {
 	}
 }
 
-// WithSMTPAuthCustom tells the client to use the provided smtp.Auth for SMTP authentication
+// WithSMTPAuthCustom sets a custom SMTP authentication mechanism for the client instance. The provided
+// authentication mechanism has to satisfy the smtp.Auth interface.
 func WithSMTPAuthCustom(smtpAuth smtp.Auth) Option {
 	return func(c *Client) error {
 		c.smtpAuth = smtpAuth
@@ -403,7 +405,7 @@ func WithSMTPAuthCustom(smtpAuth smtp.Auth) Option {
 	}
 }
 
-// WithUsername tells the client to use the provided string as username for authentication
+// WithUsername sets the username, the Client will use for the SMTP authentication.
 func WithUsername(username string) Option {
 	return func(c *Client) error {
 		c.user = username
@@ -411,7 +413,7 @@ func WithUsername(username string) Option {
 	}
 }
 
-// WithPassword tells the client to use the provided string as password/secret for authentication
+// WithPassword sets the password, the Client will use for the SMTP authentication.
 func WithPassword(password string) Option {
 	return func(c *Client) error {
 		c.pass = password
@@ -419,10 +421,12 @@ func WithPassword(password string) Option {
 	}
 }
 
-// WithDSN enables the Client to request DSNs (if the server supports it)
-// as described in the RFC 1891 and set defaults for DSNMailReturnOption
-// to DSNMailReturnFull and DSNRcptNotifyOption to DSNRcptNotifySuccess
-// and DSNRcptNotifyFailure
+// WithDSN enables DSN (Delivery Status Notifications) for the Client as described in the RFC 1891. DSN
+// only work if the server supports them.
+// https://datatracker.ietf.org/doc/html/rfc1891
+//
+// By default we set DSNMailReturnOption to DSNMailReturnFull and DSNRcptNotifyOption to DSNRcptNotifySuccess
+// and DSNRcptNotifyFailure.
 func WithDSN() Option {
 	return func(c *Client) error {
 		c.requestDSN = true
@@ -432,10 +436,11 @@ func WithDSN() Option {
 	}
 }
 
-// WithDSNMailReturnType enables the Client to request DSNs (if the server supports it)
-// as described in the RFC 1891 and set the MAIL FROM Return option type to the
-// given DSNMailReturnOption
-// See: https://www.rfc-editor.org/rfc/rfc1891
+// WithDSNMailReturnType enables DSN (Delivery Status Notifications) for the Client as described in the
+// RFC 1891. DSN only work if the server supports them.
+// https://datatracker.ietf.org/doc/html/rfc1891
+//
+// It will set the DSNMailReturnOption to the provided value.
 func WithDSNMailReturnType(option DSNMailReturnOption) Option {
 	return func(c *Client) error {
 		switch option {
@@ -451,9 +456,11 @@ func WithDSNMailReturnType(option DSNMailReturnOption) Option {
 	}
 }
 
-// WithDSNRcptNotifyType enables the Client to request DSNs as described in the RFC 1891
-// and sets the RCPT TO notify options to the given list of DSNRcptNotifyOption
-// See: https://www.rfc-editor.org/rfc/rfc1891
+// WithDSNRcptNotifyType enables DSN (Delivery Status Notifications) for the Client as described in the
+// RFC 1891. DSN only work if the server supports them.
+// https://datatracker.ietf.org/doc/html/rfc1891
+//
+// It will set the DSNRcptNotifyOption to the provided values.
 func WithDSNRcptNotifyType(opts ...DSNRcptNotifyOption) Option {
 	return func(c *Client) error {
 		var rcptOpts []string
