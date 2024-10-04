@@ -10,16 +10,14 @@ on:
     paths:
       - '**.go'
       - 'go.*'
-      - '.github/**'
-      - 'codecov.yml'
+      - '.github/workflows/offline-tests.yml'
   pull_request:
     branches:
       - main
     paths:
       - '**.go'
       - 'go.*'
-      - '.github/**'
-      - 'codecov.yml'
+      - '.github/workflows/offline-tests.yml'
 permissions:
   contents: read
 
