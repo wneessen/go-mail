@@ -602,6 +602,10 @@ func TestSetSMTPAuthCustom(t *testing.T) {
 			if c.smtpAuth == nil {
 				t.Errorf("failed to set custom SMTP auth method. SMTP Auth method is empty")
 			}
+			if c.smtpAuthType != SMTPAuthCustom {
+				t.Errorf("failed to set custom SMTP auth method. SMTP Auth type is not custom: %s",
+					c.smtpAuthType)
+			}
 			p, _, err := c.smtpAuth.Start(&si)
 			if err != nil {
 				t.Errorf("SMTP Auth Start() method returned error: %s", err)
