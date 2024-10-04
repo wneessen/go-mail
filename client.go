@@ -715,9 +715,9 @@ func (c *Client) DialWithContext(dialCtx context.Context) error {
 	return nil
 }
 
-// Close closes the Client connection
+// Close terminates the connection to the SMTP server, returning an error if the disconnection fails.
+// If the connection is already closed, we considered this a no-op and disregard any error.
 func (c *Client) Close() error {
-	// If the connection is already closed, we considered this a no-op and disregard any error.
 	if !c.smtpClient.HasConnection() {
 		return nil
 	}
@@ -728,7 +728,7 @@ func (c *Client) Close() error {
 	return nil
 }
 
-// Reset sends the RSET command to the SMTP client
+// Reset sends an SMTP RSET command to reset the state of the current SMTP session.
 func (c *Client) Reset() error {
 	if err := c.checkConn(); err != nil {
 		return err
@@ -740,19 +740,24 @@ func (c *Client) Reset() error {
 	return nil
 }
 
-// DialAndSend establishes a connection to the SMTP server with a
-// default context.Background and sends the mail
+// DialAndSend establishes a connection to the server and sends out the provided Msg. It will call
+// DialAndSendWithContext with an empty Context.Background
 func (c *Client) DialAndSend(messages ...*Msg) error {
 	ctx := context.Background()
 	return c.DialAndSendWithContext(ctx, messages...)
 }
 
-// DialAndSendWithContext establishes a connection to the SMTP server with a
-// custom context and sends the mail
+// DialAndSendWithContext establishes a connection to the SMTP server using DialWithContext using the
+// provided context.Context, then sends out the given Msg. After successful delivery the Client
+// will close the connection to the server.
 func (c *Client) DialAndSendWithContext(ctx context.Context, messages ...*Msg) error {
 	if err := c.DialWithContext(ctx); err != nil {
 		return fmt.Errorf("dial failed: %w", err)
 	}
+	defer func() {
+		_ = c.Close()
+	}()
+
 	if err := c.Send(messages...); err != nil {
 		return fmt.Errorf("send failed: %w", err)
 	}
