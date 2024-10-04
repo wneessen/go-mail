@@ -186,43 +186,41 @@ type (
 )
 
 var (
-	// ErrInvalidPort should be used if a port is specified that is not valid
+	// ErrInvalidPort is returned when the specified port for the SMTP connection is not valid
 	ErrInvalidPort = errors.New("invalid port number")
 
-	// ErrInvalidTimeout should be used if a timeout is set that is zero or negative
+	// ErrInvalidTimeout is returned when the specified timeout is zero or negative.
 	ErrInvalidTimeout = errors.New("timeout cannot be zero or negative")
 
-	// ErrInvalidHELO should be used if an empty HELO sting is provided
+	// ErrInvalidHELO is returned when the HELO/EHLO value is invalid due to being empty.
 	ErrInvalidHELO = errors.New("invalid HELO/EHLO value - must not be empty")
 
-	// ErrInvalidTLSConfig should be used if an empty tls.Config is provided
+	// ErrInvalidTLSConfig is returned when the provided TLS configuration is invalid or nil.
 	ErrInvalidTLSConfig = errors.New("invalid TLS config")
 
-	// ErrNoHostname should be used if a Client has no hostname set
+	// ErrNoHostname is returned when the hostname for the client is not provided or empty.
 	ErrNoHostname = errors.New("hostname for client cannot be empty")
 
-	// ErrDeadlineExtendFailed should be used if the extension of the connection deadline fails
+	// ErrDeadlineExtendFailed is returned when an attempt to extend the connection deadline fails.
 	ErrDeadlineExtendFailed = errors.New("connection deadline extension failed")
 
-	// ErrNoActiveConnection should be used when a method is used that requies a server connection
-	// but is not yet connected
+	// ErrNoActiveConnection indicates that there is no active connection to the SMTP server.
 	ErrNoActiveConnection = errors.New("not connected to SMTP server")
 
-	// ErrServerNoUnencoded should be used when 8BIT encoding is selected for a message, but
-	// the server does not offer 8BITMIME mode
+	// ErrServerNoUnencoded indicates that the server does not support 8BITMIME for unencoded 8-bit messages.
 	ErrServerNoUnencoded = errors.New("message is 8bit unencoded, but server does not support 8BITMIME")
 
-	// ErrInvalidDSNMailReturnOption should be used when an invalid option is provided for the
-	// DSNMailReturnOption in WithDSN
+	// ErrInvalidDSNMailReturnOption is returned when an invalid DSNMailReturnOption is provided as argument
+	// to the WithDSN Option.
 	ErrInvalidDSNMailReturnOption = errors.New("DSN mail return option can only be HDRS or FULL")
 
-	// ErrInvalidDSNRcptNotifyOption should be used when an invalid option is provided for the
-	// DSNRcptNotifyOption in WithDSN
+	// ErrInvalidDSNRcptNotifyOption is returned when an invalid DSNRcptNotifyOption is provided as argument
+	// to the WithDSN Option.
 	ErrInvalidDSNRcptNotifyOption = errors.New("DSN rcpt notify option can only be: NEVER, " +
 		"SUCCESS, FAILURE or DELAY")
 
-	// ErrInvalidDSNRcptNotifyCombination should be used when an invalid option is provided for the
-	// DSNRcptNotifyOption in WithDSN
+	// ErrInvalidDSNRcptNotifyCombination is returned when an invalid combination of DSNRcptNotifyOption is
+	// provided as argument to the WithDSN Option.
 	ErrInvalidDSNRcptNotifyCombination = errors.New("DSN rcpt notify option NEVER cannot be " +
 		"combined with any of SUCCESS, FAILURE or DELAY")
 )
