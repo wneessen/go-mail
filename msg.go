@@ -24,51 +24,60 @@ import (
 )
 
 var (
-	// ErrNoFromAddress should be used when a FROM address is requrested but not set
+	// ErrNoFromAddress indicates that the FROM address is not set, which is required.
 	ErrNoFromAddress = errors.New("no FROM address set")
 
-	// ErrNoRcptAddresses should be used when the list of RCPTs is empty
+	// ErrNoRcptAddresses indicates that no recipient addresses have been set.
 	ErrNoRcptAddresses = errors.New("no recipient addresses set")
 )
 
 const (
-	// errTplExecuteFailed is issued when the template execution was not successful
+	// errTplExecuteFailed indicates that the execution of a template has failed, including the underlying error.
 	errTplExecuteFailed = "failed to execute template: %w"
 
-	// errTplPointerNil is issued when a template pointer is expected but it is nil
+	// errTplPointerNil indicates that a template pointer is nil, which prevents further template execution or
+	// processing.
 	errTplPointerNil = "template pointer is nil"
 
-	// errParseMailAddr is used when a mail address could not be validated
+	// errParseMailAddr indicates that parsing of a mail address has failed, including the problematic address
+	// and error.
 	errParseMailAddr = "failed to parse mail address %q: %w"
 )
 
 const (
-	// NoPGP indicates that a message should not be treated as PGP encrypted
-	// or signed and is the default value for a message
+	// NoPGP indicates that a message should not be treated as PGP encrypted or signed and is the default value
+	// for a message
 	NoPGP PGPType = iota
-	// PGPEncrypt indicates that a message should be treated as PGP encrypted
-	// This works closely together with the corresponding go-mail-middleware
+	// PGPEncrypt indicates that a message should be treated as PGP encrypted. This works closely together with
+	// the corresponding go-mail-middleware.
 	PGPEncrypt
-	// PGPSignature indicates that a message should be treated as PGP signed
-	// This works closely together with the corresponding go-mail-middleware
+	// PGPSignature indicates that a message should be treated as PGP signed. This works closely together with
+	// the corresponding go-mail-middleware.
 	PGPSignature
 )
 
-// MiddlewareType is the type description of the Middleware and needs to be returned
-// in the Middleware interface by the Type method
+// MiddlewareType is a type wrapper for a string. It describes the type of the Middleware and needs to be
+// returned by the Middleware.Type method to satisfy the Middleware interface.
 type MiddlewareType string
 
-// Middleware is an interface to define a function to apply to Msg before sending
+// Middleware represents the interface for modifying or handling email messages. A Middleware allows the user to
+// alter a Msg before it is finally processed. Multiple Middleware can be applied to a Msg.
+//
+// Type returns a unique MiddlewareType. It describes the type of Middleware and makes sure that
+// a Middleware is only applied once.
+// Handle performs all the processing to the Msg. It always needs to return a Msg back.
 type Middleware interface {
 	Handle(*Msg) *Msg
 	Type() MiddlewareType
 }
 
-// PGPType is a type alias for a int representing a type of PGP encryption
-// or signature
+// PGPType is a type wrapper for an int, representing a type of PGP encryption or signature.
 type PGPType int
 
-// Msg is the mail message struct
+// Msg represents an email message with various headers, attachments, and encoding settings.
+//
+// The Msg is the central part of go-mail. It provided a lot of methods that you would expect in a mail
+// user agent (MUA). Msg satisfies the io.WriterTo and io.Reader interfaces.
 type Msg struct {
 	// addrHeader is a slice of strings that the different mail AddrHeader fields
 	addrHeader map[AddrHeader][]*mail.Address
