@@ -645,12 +645,18 @@ func (m *Msg) From(from string) error {
 
 // FromFormat sets the provided name and mail address as the "FROM" address in the mail body for the Msg.
 //
-// The "FROM" address is included in the mail body and indicates the sender of the message to the recipient,
-// and is visible in the email client. If the "FROM" address is not explicitly set, the msgWriter may use
-// the envelope from address (if provided) when sending the message. The provided name and address are
-// validated according to RFC 5322 and will return an error if the validation fails.
+// The "FROM" address is included in the mail body and indicates the sender of the message to
+// the recipient, and is visible in the email client. If the "FROM" address is not explicitly
+// set, the msgWriter may use the envelope from address (if provided) when sending the message.
+// The provided name and address are validated according to RFC 5322 and will return an error
+// if the validation fails.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
+// Parameters:
+//   - name: The name of the sender to include in the "FROM" address.
+//   - addr: The email address of the sender to include in the "FROM" address.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
 func (m *Msg) FromFormat(name, addr string) error {
 	return m.SetAddrHeader(HeaderFrom, fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
@@ -662,7 +668,11 @@ func (m *Msg) FromFormat(name, addr string) error {
 // can be set by passing them as variadic arguments to this method. Each provided address is validated
 // according to RFC 5322, and an error will be returned if ANY validation fails.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+// Parameters:
+//   - rcpts: One or more recipient email addresses to include in the "TO" field.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) To(rcpts ...string) error {
 	return m.SetAddrHeader(HeaderTo, rcpts...)
 }
@@ -674,7 +684,11 @@ func (m *Msg) To(rcpts ...string) error {
 // client. The provided address is validated according to RFC 5322, and an error will be returned if the
 // validation fails.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+// Parameters:
+//   - rcpt: The recipient email address to add to the "TO" field.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddTo(rcpt string) error {
 	return m.addAddr(HeaderTo, rcpt)
 }
@@ -687,7 +701,12 @@ func (m *Msg) AddTo(rcpt string) error {
 // visible in the mail client. The provided name and address are validated according to RFC 5322, and an error
 // will be returned if the validation fails.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+// Parameters:
+//   - name: The name of the recipient to add to the "TO" field.
+//   - addr: The email address of the recipient to add to the "TO" field.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddToFormat(name, addr string) error {
 	return m.addAddr(HeaderTo, fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
@@ -699,7 +718,11 @@ func (m *Msg) AddToFormat(name, addr string) error {
 // included in the "TO" field, which is visible in the recipient's mail client. Use this method with caution if
 // address validation is critical. Invalid addresses are determined according to RFC 5322.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+// Parameters:
+//   - rcpts: One or more recipient addresses to add to the "TO" field.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) ToIgnoreInvalid(rcpts ...string) {
 	m.SetAddrHeaderIgnoreInvalid(HeaderTo, rcpts...)
 }
@@ -712,7 +735,11 @@ func (m *Msg) ToIgnoreInvalid(rcpts ...string) {
 // fails, an error will be returned. The addresses are visible in the mail body and displayed to recipients in
 // the mail client. Any "TO" address applied previously will be overwritten.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+// Parameters:
+//   - rcpts: A string containing multiple recipient addresses separated by commas.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) ToFromString(rcpts string) error {
 	return m.To(strings.Split(rcpts, ",")...)
 }
@@ -724,7 +751,11 @@ func (m *Msg) ToFromString(rcpts string) error {
 // Multiple "CC" addresses can be set by passing them as variadic arguments to this method. Each provided
 // address is validated according to RFC 5322, and an error will be returned if ANY validation fails.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+// Parameters:
+//   - rcpts: One or more recipient addresses to be included in the "CC" field.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) Cc(rcpts ...string) error {
 	return m.SetAddrHeader(HeaderCc, rcpts...)
 }
@@ -737,7 +768,11 @@ func (m *Msg) Cc(rcpts ...string) error {
 // in the "TO" field. The provided address is validated according to RFC 5322, and an error will be returned if
 // the validation fails.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+// Parameters:
+//   - rcpt: The recipient address to be added to the "CC" field.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddCc(rcpt string) error {
 	return m.addAddr(HeaderCc, rcpt)
 }
@@ -750,7 +785,12 @@ func (m *Msg) AddCc(rcpt string) error {
 // recipients, including those in the "TO" field. The provided name and address are validated according to
 // RFC 5322, and an error will be returned if the validation fails.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+// Parameters:
+//   - name: The name of the recipient to be added to the "CC" field.
+//   - addr: The email address of the recipient to be added to the "CC" field.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddCcFormat(name, addr string) error {
 	return m.addAddr(HeaderCc, fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
@@ -763,7 +803,11 @@ func (m *Msg) AddCcFormat(name, addr string) error {
 // be included in the "CC" field, which is visible to all recipients in the mail client. Use this method with
 // caution if address validation is critical, as invalid addresses are determined according to RFC 5322.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+// Parameters:
+//   - rcpts: One or more recipient email addresses to be added to the "CC" field.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) CcIgnoreInvalid(rcpts ...string) {
 	m.SetAddrHeaderIgnoreInvalid(HeaderCc, rcpts...)
 }
@@ -776,7 +820,11 @@ func (m *Msg) CcIgnoreInvalid(rcpts ...string) {
 // fails, an error will be returned. The addresses are visible in the mail body and displayed to recipients
 // in the mail client.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+// Parameters:
+//   - rcpts: A string containing multiple email addresses separated by commas.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) CcFromString(rcpts string) error {
 	return m.Cc(strings.Split(rcpts, ",")...)
 }
@@ -789,7 +837,11 @@ func (m *Msg) CcFromString(rcpts string) error {
 // to this method. Each provided address is validated according to RFC 5322, and an error will be returned
 // if ANY validation fails.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+// Parameters:
+//   - rcpts: One or more string values representing the BCC addresses to set in the Msg.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) Bcc(rcpts ...string) error {
 	return m.SetAddrHeader(HeaderBcc, rcpts...)
 }
@@ -802,7 +854,11 @@ func (m *Msg) Bcc(rcpts ...string) error {
 // recipients being aware of it. The provided address is validated according to RFC 5322, and an error will be
 // returned if the validation fails.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+// Parameters:
+//   - rcpt: The BCC address to add to the existing list of recipients in the Msg.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddBcc(rcpt string) error {
 	return m.addAddr(HeaderBcc, rcpt)
 }
@@ -815,7 +871,12 @@ func (m *Msg) AddBcc(rcpt string) error {
 // a copy without other recipients being aware of it. The provided name and address are validated according to
 // RFC 5322, and an error will be returned if the validation fails.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+// Parameters:
+//   - name: The name of the recipient to add to the BCC field.
+//   - addr: The email address of the recipient to add to the BCC field.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddBccFormat(name, addr string) error {
 	return m.addAddr(HeaderBcc, fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
@@ -828,7 +889,11 @@ func (m *Msg) AddBccFormat(name, addr string) error {
 // will still be included in the "BCC" field, which ensures the privacy of the BCC'd recipients. Use this method
 // with caution if address validation is critical, as invalid addresses are determined according to RFC 5322.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+// Parameters:
+//   - rcpts: One or more string values representing the BCC email addresses to set.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) BccIgnoreInvalid(rcpts ...string) {
 	m.SetAddrHeaderIgnoreInvalid(HeaderBcc, rcpts...)
 }
@@ -841,7 +906,11 @@ func (m *Msg) BccIgnoreInvalid(rcpts ...string) {
 // fails, an error will be returned. The addresses are not visible in the mail body and ensure the privacy of
 // BCC'd recipients.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+// Parameters:
+//   - rcpts: A string of comma-separated email addresses to set as BCC recipients.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) BccFromString(rcpts string) error {
 	return m.Bcc(strings.Split(rcpts, ",")...)
 }
@@ -853,7 +922,11 @@ func (m *Msg) BccFromString(rcpts string) error {
 // allowing the sender to specify an alternate address for responses. If the provided address cannot be parsed,
 // an error will be returned, indicating the parsing failure.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
+// Parameters:
+//   - addr: The email address to set as the "Reply-To" address.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
 func (m *Msg) ReplyTo(addr string) error {
 	replyTo, err := mail.ParseAddress(addr)
 	if err != nil {
@@ -871,7 +944,12 @@ func (m *Msg) ReplyTo(addr string) error {
 // reply address, providing clarity for recipients. If the constructed address cannot be parsed, an error will
 // be returned, indicating the parsing failure.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
+// Parameters:
+//   - name: The display name associated with the reply address.
+//   - addr: The email address to set as the "Reply-To" address.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
 func (m *Msg) ReplyToFormat(name, addr string) error {
 	return m.ReplyTo(fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
@@ -881,7 +959,11 @@ func (m *Msg) ReplyToFormat(name, addr string) error {
 // This method takes a single string as input and sets it as the "Subject" of the email. The subject line provides
 // a brief summary of the content of the message, allowing recipients to quickly understand its purpose.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.5
+// Parameters:
+//   - subj: The subject line of the email.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.5
 func (m *Msg) Subject(subj string) {
 	m.SetGenHeader(HeaderSubject, subj)
 }
@@ -895,7 +977,8 @@ func (m *Msg) Subject(subj string) {
 // The generated Message-ID follows the format
 // "<processID.randomNumberPrimary.randomNumberSecondary.randomString@hostname>".
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.4
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.4
 func (m *Msg) SetMessageID() {
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -917,7 +1000,8 @@ func (m *Msg) SetMessageID() {
 // is empty, it returns an empty string. This allows other components to access the unique identifier for the
 // message, which is useful for tracking and referencing in email systems.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.4
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.4
 func (m *Msg) GetMessageID() string {
 	if msgidheader, ok := m.genHeader[HeaderMessageID]; ok {
 		if len(msgidheader) > 0 {
@@ -934,7 +1018,8 @@ func (m *Msg) GetMessageID() string {
 // to track and reference the message. There are no validations performed on the input messageID, so it should
 // be in a suitable format for use as a Message-ID.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.4
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.4
 func (m *Msg) SetMessageIDWithValue(messageID string) {
 	m.SetGenHeader(HeaderMessageID, fmt.Sprintf("<%s>", messageID))
 }
@@ -945,12 +1030,10 @@ func (m *Msg) SetMessageIDWithValue(messageID string) {
 // The "Precedence: bulk" header indicates that the message is a bulk email, and the "X-Auto-Response-Suppress: All"
 // header instructs mail servers and clients to suppress automatic responses to this message.
 // This is particularly useful for reducing unnecessary replies to automated notifications or replies.
-// For further details, refer to RFC 2076, Section 3.9, and Microsoft's documentation on
-// handling automated emails.
 //
-// https://www.rfc-editor.org/rfc/rfc2076#section-3.9
-//
-// https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-oxcmail/ced68690-498a-4567-9d14-5c01f974d8b1#Appendix_A_Target_51
+// References:
+//   - https://www.rfc-editor.org/rfc/rfc2076#section-3.9
+//   - https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-oxcmail/ced68690-498a-4567-9d14-5c01f974d8b1#Appendix_A_Target_51
 func (m *Msg) SetBulk() {
 	m.SetGenHeader(HeaderPrecedence, "bulk")
 	m.SetGenHeader(HeaderXAutoResponseSuppress, "All")
@@ -962,7 +1045,9 @@ func (m *Msg) SetBulk() {
 // header is compliant with email standards. The "Date" header indicates when the message was created,
 // providing recipients with context for the timing of the email.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.3
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.3
+//   - https://datatracker.ietf.org/doc/html/rfc1123
 func (m *Msg) SetDate() {
 	now := time.Now().Format(time.RFC1123Z)
 	m.SetGenHeader(HeaderDate, now)
@@ -975,7 +1060,9 @@ func (m *Msg) SetDate() {
 // providing recipients with context for the timing of the email. This allows for setting a custom date
 // rather than using the current time.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.3
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.3
+//   - https://datatracker.ietf.org/doc/html/rfc1123
 func (m *Msg) SetDateWithValue(timeVal time.Time) {
 	m.SetGenHeader(HeaderDate, timeVal.Format(time.RFC1123Z))
 }
