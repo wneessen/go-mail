@@ -1811,6 +1811,7 @@ func TestClient_GetTLSConnectionState_unableErr(t *testing.T) {
 	<-clientDone
 	<-serverDone
 }
+
 func TestClient_HasConnection(t *testing.T) {
 	ln := newLocalListener(t)
 	defer func() {

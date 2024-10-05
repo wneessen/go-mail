@@ -593,7 +593,6 @@ func (c *Client) GetTLSConnectionState() (*tls.ConnectionState, error) {
 
 	if !c.isConnected {
 		return nil, ErrNoConnection
-
 	}
 	if !c.tls {
 		return nil, ErrNonTLSConnection
