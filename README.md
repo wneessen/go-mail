@@ -52,7 +52,7 @@ Here are some highlights of go-mail's featureset:
 * [X] Support sending mails via a local sendmail command
 * [X] Support for requestng MDNs (RFC 8098) and DSNs (RFC 1891)
 * [X] DKIM signature support via [go-mail-middlware](https://github.com/wneessen/go-mail-middleware)
-* [X] Message object satisfies `io.WriteTo` and `io.Reader` interfaces
+* [X] Message object satisfies `io.WriterTo` and `io.Reader` interfaces
 * [X] Support for Go's `html/template` and `text/template` (as message body, alternative part or attachment/emebed)
 * [X] Output to file support which allows storing mail messages as e. g. `.eml` files to disk to open them in a MUA
 * [X] Debug logging of SMTP traffic
