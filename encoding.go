@@ -4,37 +4,41 @@
 
 package mail
 
-// Charset represents a character set for the encoding
+// Charset is a type wrapper for a string representing different character encodings.
 type Charset string
 
-// ContentType represents a content type for the Msg
+// ContentType is a type wrapper for a string and represents the MIME type of the content being handled.
 type ContentType string
 
-// Encoding represents a MIME encoding scheme like quoted-printable or Base64.
+// Encoding is a type wrapper for a string and represents the type of encoding used for email messages
+// and/or parts.
 type Encoding string
 
-// MIMEVersion represents the MIME version for the mail
+// MIMEVersion is a type wrapper for a string nad represents the MIME version used in email messages.
 type MIMEVersion string
 
-// MIMEType represents the MIME type for the mail
+// MIMEType is a type wrapper for a string and represents the MIME type for the Msg content or parts.
 type MIMEType string
 
-// List of supported encodings
 const (
 	// EncodingB64 represents the Base64 encoding as specified in RFC 2045.
+	// https://datatracker.ietf.org/doc/html/rfc2045#section-6.8
 	EncodingB64 Encoding = "base64"
 
 	// EncodingQP represents the "quoted-printable" encoding as specified in RFC 2045.
+	// https://datatracker.ietf.org/doc/html/rfc2045#section-6.7
 	EncodingQP Encoding = "quoted-printable"
 
 	// EncodingUSASCII represents encoding with only US-ASCII characters (aka 7Bit)
+	// https://datatracker.ietf.org/doc/html/rfc2045#section-2.7
 	EncodingUSASCII Encoding = "7bit"
 
-	// NoEncoding avoids any character encoding (except of the mail headers)
+	// NoEncoding represents 8-bit encoding for email messages as specified in RFC 6152.
+	// https://datatracker.ietf.org/doc/html/rfc2045#section-2.8
+	// https://datatracker.ietf.org/doc/html/rfc6152
 	NoEncoding Encoding = "8bit"
 )
 
-// List of common charsets
 const (
 	// CharsetUTF7 represents the "UTF-7" charset
 	CharsetUTF7 Charset = "UTF-7"
@@ -133,42 +137,60 @@ const (
 	CharsetGBK Charset = "GBK"
 )
 
-// List of MIME versions
-const (
-	// MIME10 is the MIME Version 1.0
-	MIME10 MIMEVersion = "1.0"
-)
+// MIME10 represents the MIME version "1.0" used in email messages.
+const MIME10 MIMEVersion = "1.0"
 
-// List of common content types
 const (
-	TypeAppOctetStream       ContentType = "application/octet-stream"
+	// TypeAppOctetStream represents the MIME type for arbitrary binary data.
+	TypeAppOctetStream ContentType = "application/octet-stream"
+
+	// TypeMultipartAlternative represents the MIME type for a message body that can contain multiple alternative
+	// formats.
 	TypeMultipartAlternative ContentType = "multipart/alternative"
-	TypeMultipartMixed       ContentType = "multipart/mixed"
-	TypeMultipartRelated     ContentType = "multipart/related"
-	TypePGPSignature         ContentType = "application/pgp-signature"
-	TypePGPEncrypted         ContentType = "application/pgp-encrypted"
-	TypeTextHTML             ContentType = "text/html"
-	TypeTextPlain            ContentType = "text/plain"
+
+	// TypeMultipartMixed represents the MIME type for a multipart message containing different parts.
+	TypeMultipartMixed ContentType = "multipart/mixed"
+
+	// TypeMultipartRelated represents the MIME type for a multipart message where each part is a related file
+	// or resource.
+	TypeMultipartRelated ContentType = "multipart/related"
+
+	// TypePGPSignature represents the MIME type for PGP signed messages.
+	TypePGPSignature ContentType = "application/pgp-signature"
+
+	// TypePGPEncrypted represents the MIME type for PGP encrypted messages.
+	TypePGPEncrypted ContentType = "application/pgp-encrypted"
+
+	// TypeTextHTML represents the MIME type for HTML text content.
+	TypeTextHTML ContentType = "text/html"
+
+	// TypeTextPlain represents the MIME type for plain text content.
+	TypeTextPlain ContentType = "text/plain"
 )
 
-// List of MIMETypes
 const (
+	// MIMEAlternative MIMEType represents a MIME multipart/alternative type, used for emails with multiple versions.
 	MIMEAlternative MIMEType = "alternative"
-	MIMEMixed       MIMEType = "mixed"
-	MIMERelated     MIMEType = "related"
+
+	// MIMEMixed MIMEType represents a MIME multipart/mixed type used for emails containing different types of content.
+	MIMEMixed MIMEType = "mixed"
+
+	// MIMERelated MIMEType represents a MIME multipart/related type, used for emails with related content entities.
+	MIMERelated MIMEType = "related"
 )
 
-// String is a standard method to convert an Charset into a printable format
+// String satisfies the fmt.Stringer interface for the Charset type. It converts a Charset into a printable format.
 func (c Charset) String() string {
 	return string(c)
 }
 
-// String is a standard method to convert an ContentType into a printable format
+// String satisfies the fmt.Stringer interface for the ContentType type. It converts a ContentType into a printable
+// format.
 func (c ContentType) String() string {
 	return string(c)
 }
 
-// String is a standard method to convert an Encoding into a printable format
+// String satisfies the fmt.Stringer interface for the Encoding type. It converts an Encoding into a printable format.
 func (e Encoding) String() string {
 	return string(e)
 }
