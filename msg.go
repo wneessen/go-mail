@@ -48,9 +48,11 @@ const (
 	// NoPGP indicates that a message should not be treated as PGP encrypted or signed and is the default value
 	// for a message
 	NoPGP PGPType = iota
+
 	// PGPEncrypt indicates that a message should be treated as PGP encrypted. This works closely together with
 	// the corresponding go-mail-middleware.
 	PGPEncrypt
+
 	// PGPSignature indicates that a message should be treated as PGP signed. This works closely together with
 	// the corresponding go-mail-middleware.
 	PGPSignature
@@ -1018,6 +1020,9 @@ func (m *Msg) GetMessageID() string {
 // to track and reference the message. There are no validations performed on the input messageID, so it should
 // be in a suitable format for use as a Message-ID.
 //
+// Parameters:
+//   - messageID: The string to set as the "Message-ID" in the message header.
+//
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.4
 func (m *Msg) SetMessageIDWithValue(messageID string) {
@@ -1060,6 +1065,9 @@ func (m *Msg) SetDate() {
 // providing recipients with context for the timing of the email. This allows for setting a custom date
 // rather than using the current time.
 //
+// Parameters:
+//   - timeVal: The time value used to set the "Date" header.
+//
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.3
 //   - https://datatracker.ietf.org/doc/html/rfc1123
@@ -1074,7 +1082,11 @@ func (m *Msg) SetDateWithValue(timeVal time.Time) {
 // "X-Priority", and "X-MSMail-Priority" headers accordingly, providing email clients with information on
 // how to prioritize the message. This allows the sender to indicate the significance of the email to recipients.
 //
-// https://datatracker.ietf.org/doc/html/rfc2156
+// Parameters:
+//   - importance: The Importance value that determines the priority of the email message.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2156
 func (m *Msg) SetImportance(importance Importance) {
 	if importance == ImportanceNormal {
 		return
@@ -1091,7 +1103,11 @@ func (m *Msg) SetImportance(importance Importance) {
 // header provides recipients with information about the organization that is sending the message.
 // This can help establish context and credibility for the email communication.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
+// Parameters:
+//   - org: The name of the organization to be set in the "Organization" header.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
 func (m *Msg) SetOrganization(org string) {
 	m.SetGenHeader(HeaderOrganization, org)
 }
@@ -1103,7 +1119,11 @@ func (m *Msg) SetOrganization(org string) {
 // or application that generated the message. This can be useful for identifying the source of the email,
 // particularly for troubleshooting or filtering purposes.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.7
+// Parameters:
+//   - userAgent: The user agent or mailer software to be set in the "User-Agent" and "X-Mailer" headers.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.7
 func (m *Msg) SetUserAgent(userAgent string) {
 	m.SetGenHeader(HeaderUserAgent, userAgent)
 	m.SetGenHeader(HeaderXMailer, userAgent)
@@ -1114,6 +1134,9 @@ func (m *Msg) SetUserAgent(userAgent string) {
 // This method checks the internal state of the message to determine if it has been successfully
 // delivered. It returns true if the message is marked as delivered and false otherwise.
 // This can be useful for tracking the status of the email communication.
+//
+// Returns:
+//   - A boolean value indicating the delivery status of the message (true if delivered, false otherwise).
 func (m *Msg) IsDelivered() bool {
 	return m.isDelivered
 }
@@ -1126,7 +1149,11 @@ func (m *Msg) IsDelivered() bool {
 // will be returned indicating the parsing failure. If the "Disposition-Notification-To" header
 // is already set, it will be updated with the new list of addresses.
 //
-// https://datatracker.ietf.org/doc/html/rfc8098
+// Parameters:
+//   - rcpts: One or more recipient email addresses to request the MDN from.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc8098
 func (m *Msg) RequestMDNTo(rcpts ...string) error {
 	var addresses []string
 	for _, addrVal := range rcpts {
@@ -1149,7 +1176,12 @@ func (m *Msg) RequestMDNTo(rcpts ...string) error {
 // Address validation is performed according to RFC 5322 standards. If the provided address is invalid,
 // an error will be returned. This method internally calls RequestMDNTo to handle the actual setting of the header.
 //
-// https://datatracker.ietf.org/doc/html/rfc8098
+// Parameters:
+//   - name: The name of the recipient for the MDN request.
+//   - addr: The email address of the recipient for the MDN request.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc8098
 func (m *Msg) RequestMDNToFormat(name, addr string) error {
 	return m.RequestMDNTo(fmt.Sprintf(`%s <%s>`, name, addr))
 }
@@ -1161,7 +1193,11 @@ func (m *Msg) RequestMDNToFormat(name, addr string) error {
 // an error will be returned indicating the parsing failure. If the "Disposition-Notification-To"
 // header is already set, the new recipient will be added to the existing list.
 //
-// https://datatracker.ietf.org/doc/html/rfc8098
+// Parameters:
+//   - rcpt: The recipient email address to add to the "Disposition-Notification-To" header.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc8098
 func (m *Msg) RequestMDNAddTo(rcpt string) error {
 	address, err := mail.ParseAddress(rcpt)
 	if err != nil {
@@ -1184,7 +1220,12 @@ func (m *Msg) RequestMDNAddTo(rcpt string) error {
 // according to RFC 5322 standards. If the provided address is invalid, an error will be returned.
 // This method internally calls RequestMDNAddTo to handle the actual addition of the recipient.
 //
-// https://datatracker.ietf.org/doc/html/rfc8098
+// Parameters:
+//   - name: The name of the recipient to add to the "Disposition-Notification-To" header.
+//   - addr: The email address of the recipient to add to the "Disposition-Notification-To" header.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc8098
 func (m *Msg) RequestMDNAddToFormat(name, addr string) error {
 	return m.RequestMDNAddTo(fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
@@ -1204,7 +1245,8 @@ func (m *Msg) RequestMDNAddToFormat(name, addr string) error {
 // Returns:
 //   - The sender's address as a string and an error if applicable.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
 func (m *Msg) GetSender(useFullAddr bool) (string, error) {
 	from, ok := m.addrHeader[HeaderEnvelopeFrom]
 	if !ok || len(from) == 0 {
@@ -1230,7 +1272,8 @@ func (m *Msg) GetSender(useFullAddr bool) (string, error) {
 //   - If there are no recipient addresses set, it will return an error indicating no recipient
 //     addresses are available.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) GetRecipients() ([]string, error) {
 	var rcpts []string
 	for _, addressType := range []AddrHeader{HeaderTo, HeaderCc, HeaderBcc} {
@@ -1262,7 +1305,8 @@ func (m *Msg) GetRecipients() ([]string, error) {
 //   - A slice of pointers to mail.Address structures containing the addresses from the specified
 //     header.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6
 func (m *Msg) GetAddrHeader(header AddrHeader) []*mail.Address {
 	return m.addrHeader[header]
 }
@@ -1281,7 +1325,8 @@ func (m *Msg) GetAddrHeader(header AddrHeader) []*mail.Address {
 // Returns:
 //   - A slice of strings containing the formatted addresses from the specified header.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6
 func (m *Msg) GetAddrHeaderString(header AddrHeader) []string {
 	var addresses []string
 	for _, mh := range m.addrHeader[header] {
