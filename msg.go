@@ -655,12 +655,26 @@ func (m *Msg) ReplyToFormat(name, addr string) error {
 	return m.ReplyTo(fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
 
-// Subject sets the "Subject" header field of the Msg
+// Subject sets the "Subject" header for the Msg, specifying the topic of the message.
+//
+// This method takes a single string as input and sets it as the "Subject" of the email. The subject line provides
+// a brief summary of the content of the message, allowing recipients to quickly understand its purpose.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.5
 func (m *Msg) Subject(subj string) {
 	m.SetGenHeader(HeaderSubject, subj)
 }
 
-// SetMessageID generates a random message id for the mail
+// SetMessageID generates and sets a unique "Message-ID" header for the Msg.
+//
+// This method creates a "Message-ID" string using the current process ID, random numbers, and the hostname
+// of the machine. The generated ID helps uniquely identify the message in email systems, facilitating tracking
+// and preventing duplication. If the hostname cannot be retrieved, it defaults to "localhost.localdomain".
+//
+// The generated Message-ID follows the format
+// "<processID.randomNumberPrimary.randomNumberSecondary.randomString@hostname>".
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.4
 func (m *Msg) SetMessageID() {
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -675,8 +689,14 @@ func (m *Msg) SetMessageID() {
 	m.SetMessageIDWithValue(messageID)
 }
 
-// GetMessageID returns the message ID of the Msg as string value. If no message ID
-// is set, an empty string will be returned
+// GetMessageID retrieves the "Message-ID" header from the Msg.
+//
+// This method checks if a "Message-ID" has been set in the message's generated headers. If a valid "Message-ID"
+// exists in the Msg, it returns the first occurrence of the header. If the "Message-ID" has not been set or
+// is empty, it returns an empty string. This allows other components to access the unique identifier for the
+// message, which is useful for tracking and referencing in email systems.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.4
 func (m *Msg) GetMessageID() string {
 	if msgidheader, ok := m.genHeader[HeaderMessageID]; ok {
 		if len(msgidheader) > 0 {
@@ -686,32 +706,67 @@ func (m *Msg) GetMessageID() string {
 	return ""
 }
 
-// SetMessageIDWithValue sets the message id for the mail
+// SetMessageIDWithValue sets the "Message-ID" header for the Msg using the provided messageID string.
+//
+// This method formats the input messageID by enclosing it in angle brackets ("<>") and sets it as the "Message-ID"
+// header in the message. The "Message-ID" is a unique identifier for the email, helping email clients and servers
+// to track and reference the message. There are no validations performed on the input messageID, so it should
+// be in a suitable format for use as a Message-ID.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.4
 func (m *Msg) SetMessageIDWithValue(messageID string) {
 	m.SetGenHeader(HeaderMessageID, fmt.Sprintf("<%s>", messageID))
 }
 
-// SetBulk sets the "Precedence: bulk" and "X-Auto-Response-Suppress: All" genHeaders which are
-// recommended for automated mails like OOO replies
-// See: https://www.rfc-editor.org/rfc/rfc2076#section-3.9
-// See also: https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-oxcmail/ced68690-498a-4567-9d14-5c01f974d8b1#Appendix_A_Target_51
+// SetBulk sets the "Precedence: bulk" and "X-Auto-Response-Suppress: All" headers for the Msg,
+// which are recommended for automated emails such as out-of-office replies.
+//
+// The "Precedence: bulk" header indicates that the message is a bulk email, and the "X-Auto-Response-Suppress: All"
+// header instructs mail servers and clients to suppress automatic responses to this message.
+// This is particularly useful for reducing unnecessary replies to automated notifications or replies.
+// For further details, refer to RFC 2076, Section 3.9, and Microsoft's documentation on
+// handling automated emails.
+//
+// https://www.rfc-editor.org/rfc/rfc2076#section-3.9
+//
+// https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-oxcmail/ced68690-498a-4567-9d14-5c01f974d8b1#Appendix_A_Target_51
 func (m *Msg) SetBulk() {
 	m.SetGenHeader(HeaderPrecedence, "bulk")
 	m.SetGenHeader(HeaderXAutoResponseSuppress, "All")
 }
 
-// SetDate sets the Date genHeader field to the current time in a valid format
+// SetDate sets the "Date" header for the Msg to the current time in a valid RFC 1123 format.
+//
+// This method retrieves the current time and formats it according to RFC 1123, ensuring that the "Date"
+// header is compliant with email standards. The "Date" header indicates when the message was created,
+// providing recipients with context for the timing of the email.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.3
 func (m *Msg) SetDate() {
 	now := time.Now().Format(time.RFC1123Z)
 	m.SetGenHeader(HeaderDate, now)
 }
 
-// SetDateWithValue sets the Date genHeader field to the provided time in a valid format
+// SetDateWithValue sets the "Date" header for the Msg using the provided time value in a valid RFC 1123 format.
+//
+// This method takes a `time.Time` value as input and formats it according to RFC 1123, ensuring that the "Date"
+// header is compliant with email standards. The "Date" header indicates when the message was created,
+// providing recipients with context for the timing of the email. This allows for setting a custom date
+// rather than using the current time.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.3
 func (m *Msg) SetDateWithValue(timeVal time.Time) {
 	m.SetGenHeader(HeaderDate, timeVal.Format(time.RFC1123Z))
 }
 
-// SetImportance sets the Msg Importance/Priority header to given Importance
+// SetImportance sets the "Importance" and "Priority" headers for the Msg to the specified Importance level.
+//
+// This method adjusts the email's importance based on the provided Importance value. If the importance level
+// is set to `ImportanceNormal`, no headers are modified. Otherwise, it sets the "Importance", "Priority",
+// "X-Priority", and "X-MSMail-Priority" headers accordingly, providing email clients with information on
+// how to prioritize the message. This allows the sender to indicate the significance of the email to recipients.
+//
+// https://datatracker.ietf.org/doc/html/rfc2156
 func (m *Msg) SetImportance(importance Importance) {
 	if importance == ImportanceNormal {
 		return
@@ -722,26 +777,48 @@ func (m *Msg) SetImportance(importance Importance) {
 	m.SetGenHeader(HeaderXMSMailPriority, importance.NumString())
 }
 
-// SetOrganization sets the provided string as Organization header for the Msg
+// SetOrganization sets the "Organization" header for the Msg to the specified organization string.
+//
+// This method allows you to specify the organization associated with the email sender. The "Organization"
+// header provides recipients with information about the organization that is sending the message.
+// This can help establish context and credibility for the email communication.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
 func (m *Msg) SetOrganization(org string) {
 	m.SetGenHeader(HeaderOrganization, org)
 }
 
-// SetUserAgent sets the User-Agent/X-Mailer header for the Msg
+// SetUserAgent sets the "User-Agent" and "X-Mailer" headers for the Msg to the specified user agent string.
+//
+// This method allows you to specify the user agent or mailer software used to send the email.
+// The "User-Agent" and "X-Mailer" headers provide recipients with information about the email client
+// or application that generated the message. This can be useful for identifying the source of the email,
+// particularly for troubleshooting or filtering purposes.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.7
 func (m *Msg) SetUserAgent(userAgent string) {
 	m.SetGenHeader(HeaderUserAgent, userAgent)
 	m.SetGenHeader(HeaderXMailer, userAgent)
 }
 
-// IsDelivered will return true if the Msg has been successfully delivered
+// IsDelivered indicates whether the Msg has been delivered.
+//
+// This method checks the internal state of the message to determine if it has been successfully
+// delivered. It returns true if the message is marked as delivered and false otherwise.
+// This can be useful for tracking the status of the email communication.
 func (m *Msg) IsDelivered() bool {
 	return m.isDelivered
 }
 
-// RequestMDNTo adds the Disposition-Notification-To header to request a MDN from the receiving end
-// as described in RFC8098. It allows to provide a list recipient addresses.
-// Address validation is performed
-// See: https://www.rfc-editor.org/rfc/rfc8098.html
+// RequestMDNTo adds the "Disposition-Notification-To" header to the Msg to request a Message Disposition
+// Notification (MDN) from the receiving end, as specified in RFC 8098.
+//
+// This method allows you to provide a list of recipient addresses to receive the MDN.
+// Each address is validated according to RFC 5322 standards. If ANY address is invalid, an error
+// will be returned indicating the parsing failure. If the "Disposition-Notification-To" header
+// is already set, it will be updated with the new list of addresses.
+//
+// https://datatracker.ietf.org/doc/html/rfc8098
 func (m *Msg) RequestMDNTo(rcpts ...string) error {
 	var addresses []string
 	for _, addrVal := range rcpts {
@@ -757,15 +834,26 @@ func (m *Msg) RequestMDNTo(rcpts ...string) error {
 	return nil
 }
 
-// RequestMDNToFormat adds the Disposition-Notification-To header to request a MDN from the receiving end
-// as described in RFC8098. It allows to provide a recipient address with name and address and will format
-// accordingly. Address validation is performed
-// See: https://www.rfc-editor.org/rfc/rfc8098.html
+// RequestMDNToFormat adds the "Disposition-Notification-To" header to the Msg to request a Message Disposition
+// Notification (MDN) from the receiving end, as specified in RFC 8098.
+//
+// This method allows you to provide a recipient address along with a name, formatting it appropriately.
+// Address validation is performed according to RFC 5322 standards. If the provided address is invalid,
+// an error will be returned. This method internally calls RequestMDNTo to handle the actual setting of the header.
+//
+// https://datatracker.ietf.org/doc/html/rfc8098
 func (m *Msg) RequestMDNToFormat(name, addr string) error {
 	return m.RequestMDNTo(fmt.Sprintf(`%s <%s>`, name, addr))
 }
 
-// RequestMDNAddTo adds an additional recipient to the recipient list of the MDN
+// RequestMDNAddTo adds an additional recipient to the "Disposition-Notification-To" header for the Msg.
+//
+// This method allows you to append a new recipient address to the existing list of recipients for the
+// MDN. The provided address is validated according to RFC 5322 standards. If the address is invalid,
+// an error will be returned indicating the parsing failure. If the "Disposition-Notification-To"
+// header is already set, the new recipient will be added to the existing list.
+//
+// https://datatracker.ietf.org/doc/html/rfc8098
 func (m *Msg) RequestMDNAddTo(rcpt string) error {
 	address, err := mail.ParseAddress(rcpt)
 	if err != nil {
@@ -780,14 +868,35 @@ func (m *Msg) RequestMDNAddTo(rcpt string) error {
 	return nil
 }
 
-// RequestMDNAddToFormat adds an additional formated recipient to the recipient list of the MDN
+// RequestMDNAddToFormat adds an additional formatted recipient to the "Disposition-Notification-To"
+// header for the Msg.
+//
+// This method allows you to specify a recipient address along with a name, formatting it appropriately
+// before adding it to the existing list of recipients for the MDN. The formatted address is validated
+// according to RFC 5322 standards. If the provided address is invalid, an error will be returned.
+// This method internally calls RequestMDNAddTo to handle the actual addition of the recipient.
+//
+// https://datatracker.ietf.org/doc/html/rfc8098
 func (m *Msg) RequestMDNAddToFormat(name, addr string) error {
 	return m.RequestMDNAddTo(fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
 
-// GetSender returns the currently set envelope FROM address. If no envelope FROM is set it will use
-// the first mail body FROM address. If useFullAddr is true, it will return the full address string
-// including the address name, if set
+// GetSender returns the currently set envelope "FROM" address for the Msg. If no envelope
+// "FROM" address is set, it will use the first "FROM" address from the mail body. If the
+// useFullAddr parameter is true, it will return the full address string, including the name
+// if it is set.
+//
+// If neither the envelope "FROM" nor the body "FROM" addresses are available, it will return
+// an error indicating that no "FROM" address is present.
+//
+// Parameters:
+//   - useFullAddr: A boolean indicating whether to return the full address string (including
+//     the name) or just the email address.
+//
+// Returns:
+//   - The sender's address as a string and an error if applicable.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
 func (m *Msg) GetSender(useFullAddr bool) (string, error) {
 	from, ok := m.addrHeader[HeaderEnvelopeFrom]
 	if !ok || len(from) == 0 {
@@ -802,7 +911,18 @@ func (m *Msg) GetSender(useFullAddr bool) (string, error) {
 	return from[0].Address, nil
 }
 
-// GetRecipients returns a list of the currently set TO/CC/BCC addresses.
+// GetRecipients returns a list of the currently set "TO", "CC", and "BCC" addresses for the Msg.
+//
+// This method aggregates recipients from the "TO", "CC", and "BCC" headers and returns them as a
+// slice of strings. If no recipients are found in these headers, it will return an error indicating
+// that no recipient addresses are present.
+//
+// Returns:
+//   - A slice of strings containing the recipients' addresses and an error if applicable.
+//   - If there are no recipient addresses set, it will return an error indicating no recipient
+//     addresses are available.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) GetRecipients() ([]string, error) {
 	var rcpts []string
 	for _, addressType := range []AddrHeader{HeaderTo, HeaderCc, HeaderBcc} {
@@ -820,12 +940,40 @@ func (m *Msg) GetRecipients() ([]string, error) {
 	return rcpts, nil
 }
 
-// GetAddrHeader returns the content of the requested address header of the Msg
+// GetAddrHeader returns the content of the requested address header for the Msg.
+//
+// This method retrieves the addresses associated with the specified address header. It returns a
+// slice of pointers to mail.Address structures representing the addresses found in the header.
+// If the requested header does not exist or contains no addresses, it will return nil.
+//
+// Parameters:
+//   - header: The AddrHeader enum value indicating which address header to retrieve (e.g., "TO",
+//     "CC", "BCC", etc.).
+//
+// Returns:
+//   - A slice of pointers to mail.Address structures containing the addresses from the specified
+//     header.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6
 func (m *Msg) GetAddrHeader(header AddrHeader) []*mail.Address {
 	return m.addrHeader[header]
 }
 
-// GetAddrHeaderString returns the address string of the requested address header of the Msg
+// GetAddrHeaderString returns the address strings of the requested address header for the Msg.
+//
+// This method retrieves the addresses associated with the specified address header and returns them
+// as a slice of strings. Each address is formatted as a string, which includes both the name (if
+// available) and the email address. If the requested header does not exist or contains no addresses,
+// it will return an empty slice.
+//
+// Parameters:
+//   - header: The AddrHeader enum value indicating which address header to retrieve (e.g., "TO",
+//     "CC", "BCC", etc.).
+//
+// Returns:
+//   - A slice of strings containing the formatted addresses from the specified header.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6
 func (m *Msg) GetAddrHeaderString(header AddrHeader) []string {
 	var addresses []string
 	for _, mh := range m.addrHeader[header] {
