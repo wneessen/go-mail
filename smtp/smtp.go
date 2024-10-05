@@ -36,7 +36,15 @@ import (
 	"github.com/wneessen/go-mail/log"
 )
 
-var ErrNonTLSConnection = errors.New("connection is not using TLS")
+var (
+
+	// ErrNonTLSConnection is returned when an attempt is made to retrieve TLS state on a non-TLS connection.
+	ErrNonTLSConnection = errors.New("connection is not using TLS")
+
+	// ErrNoConnection is returned when attempting to perform an operation that requires an established
+	// connection but none exists.
+	ErrNoConnection = errors.New("connection is not established")
+)
 
 // A Client represents a client connection to an SMTP server.
 type Client struct {
@@ -570,10 +578,10 @@ func (c *Client) HasConnection() bool {
 // UpdateDeadline sets a new deadline on the SMTP connection with the specified timeout duration.
 func (c *Client) UpdateDeadline(timeout time.Duration) error {
 	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	if err := c.conn.SetDeadline(time.Now().Add(timeout)); err != nil {
 		return fmt.Errorf("smtp: failed to update deadline: %w", err)
 	}
-	c.mutex.Unlock()
 	return nil
 }
 
@@ -583,17 +591,18 @@ func (c *Client) GetTLSConnectionState() (*tls.ConnectionState, error) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
+	if !c.isConnected {
+		return nil, ErrNoConnection
+
+	}
 	if !c.tls {
 		return nil, ErrNonTLSConnection
-	}
-	if c.conn == nil {
-		return nil, errors.New("smtp: connection is not established")
 	}
 	if conn, ok := c.conn.(*tls.Conn); ok {
 		cstate := conn.ConnectionState()
 		return &cstate, nil
 	}
-	return nil, errors.New("smtp: connection is not a TLS connection")
+	return nil, errors.New("unable to retrieve TLS connection state")
 }
 
 // debugLog checks if the debug flag is set and if so logs the provided message to
