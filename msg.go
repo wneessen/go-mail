@@ -1335,67 +1335,179 @@ func (m *Msg) GetAddrHeaderString(header AddrHeader) []string {
 	return addresses
 }
 
-// GetFrom returns the content of the From address header of the Msg
+// GetFrom returns the content of the "From" address header of the Msg.
+//
+// This method retrieves the list of email addresses set in the "From" header of the message.
+// It returns a slice of pointers to `mail.Address` objects representing the sender(s) of the email.
+//
+// Returns:
+//   - A slice of `*mail.Address` containing the "From" header addresses.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
 func (m *Msg) GetFrom() []*mail.Address {
 	return m.GetAddrHeader(HeaderFrom)
 }
 
-// GetFromString returns the content of the From address header of the Msg as string slice
+// GetFromString returns the content of the "From" address header of the Msg as a string slice.
+//
+// This method retrieves the list of email addresses set in the "From" header of the message
+// and returns them as a slice of strings, with each entry representing a formatted email address.
+//
+// Returns:
+//   - A slice of strings containing the "From" header addresses.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
 func (m *Msg) GetFromString() []string {
 	return m.GetAddrHeaderString(HeaderFrom)
 }
 
-// GetTo returns the content of the To address header of the Msg
+// GetTo returns the content of the "To" address header of the Msg.
+//
+// This method retrieves the list of email addresses set in the "To" header of the message.
+// It returns a slice of pointers to `mail.Address` objects representing the primary recipient(s) of the email.
+//
+// Returns:
+//   - A slice of `*mail.Address` containing the "To" header addresses.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) GetTo() []*mail.Address {
 	return m.GetAddrHeader(HeaderTo)
 }
 
-// GetToString returns the content of the To address header of the Msg as string slice
+// GetToString returns the content of the "To" address header of the Msg as a string slice.
+//
+// This method retrieves the list of email addresses set in the "To" header of the message
+// and returns them as a slice of strings, with each entry representing a formatted email address.
+//
+// Returns:
+//   - A slice of strings containing the "To" header addresses.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) GetToString() []string {
 	return m.GetAddrHeaderString(HeaderTo)
 }
 
-// GetCc returns the content of the Cc address header of the Msg
+// GetCc returns the content of the "Cc" address header of the Msg.
+//
+// This method retrieves the list of email addresses set in the "Cc" (carbon copy) header of the message.
+// It returns a slice of pointers to `mail.Address` objects representing the secondary recipient(s) of the email.
+//
+// Returns:
+//   - A slice of `*mail.Address` containing the "Cc" header addresses.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) GetCc() []*mail.Address {
 	return m.GetAddrHeader(HeaderCc)
 }
 
-// GetCcString returns the content of the Cc address header of the Msg as string slice
+// GetCcString returns the content of the "Cc" address header of the Msg as a string slice.
+//
+// This method retrieves the list of email addresses set in the "Cc" (carbon copy) header of the message
+// and returns them as a slice of strings, with each entry representing a formatted email address.
+//
+// Returns:
+//   - A slice of strings containing the "Cc" header addresses.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) GetCcString() []string {
 	return m.GetAddrHeaderString(HeaderCc)
 }
 
-// GetBcc returns the content of the Bcc address header of the Msg
+// GetBcc returns the content of the "Bcc" address header of the Msg.
+//
+// This method retrieves the list of email addresses set in the "Bcc" (blind carbon copy) header of the message.
+// It returns a slice of pointers to `mail.Address` objects representing the Bcc recipient(s) of the email.
+//
+// Returns:
+//   - A slice of `*mail.Address` containing the "Bcc" header addresses.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) GetBcc() []*mail.Address {
 	return m.GetAddrHeader(HeaderBcc)
 }
 
-// GetBccString returns the content of the Bcc address header of the Msg as string slice
+// GetBccString returns the content of the "Bcc" address header of the Msg as a string slice.
+//
+// This method retrieves the list of email addresses set in the "Bcc" (blind carbon copy) header of the message
+// and returns them as a slice of strings, with each entry representing a formatted email address.
+//
+// Returns:
+//   - A slice of strings containing the "Bcc" header addresses.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) GetBccString() []string {
 	return m.GetAddrHeaderString(HeaderBcc)
 }
 
-// GetGenHeader returns the content of the requested generic header of the Msg
+// GetGenHeader returns the content of the requested generic header of the Msg.
+//
+// This method retrieves the list of string values associated with the specified generic header of the message.
+// It returns a slice of strings representing the header's values.
+//
+// Parameters:
+//   - header: The Header field whose values are being retrieved.
+//
+// Returns:
+//   - A slice of strings containing the values of the specified generic header.
 func (m *Msg) GetGenHeader(header Header) []string {
 	return m.genHeader[header]
 }
 
-// GetParts returns the message parts of the Msg
+// GetParts returns the message parts of the Msg.
+//
+// This method retrieves the list of parts that make up the email message. Each part may represent
+// a different section of the email, such as a plain text body, HTML body, or attachments.
+//
+// Returns:
+//   - A slice of Part pointers representing the message parts of the email.
 func (m *Msg) GetParts() []*Part {
 	return m.parts
 }
 
-// GetAttachments returns the attachments of the Msg
+// GetAttachments returns the attachments of the Msg.
+//
+// This method retrieves the list of files that have been attached to the email message.
+// Each attachment includes details about the file, such as its name, content type, and data.
+//
+// Returns:
+//   - A slice of File pointers representing the attachments of the email.
 func (m *Msg) GetAttachments() []*File {
 	return m.attachments
 }
 
-// GetBoundary returns the boundary of the Msg
+// GetBoundary returns the boundary of the Msg.
+//
+// This method retrieves the MIME boundary that is used to separate different parts of the message,
+// particularly in multipart emails. The boundary helps to differentiate between various sections
+// such as plain text, HTML content, and attachments.
+//
+// Returns:
+//   - A string representing the boundary of the message.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2046#section-5.1.1
 func (m *Msg) GetBoundary() string {
 	return m.boundary
 }
 
 // SetAttachments sets the attachments of the message.
+//
+// This method allows you to specify the attachments for the message by providing a slice of File pointers.
+// Each file represents an attachment that will be included in the email.
+//
+// Parameters:
+//   - files: A slice of pointers to File structures representing the attachments to set for the message.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) SetAttachments(files []*File) {
 	m.attachments = files
 }
@@ -1407,33 +1519,83 @@ func (m *Msg) SetAttachements(files []*File) {
 	m.SetAttachments(files)
 }
 
-// UnsetAllAttachments unset the attachments of the message.
+// UnsetAllAttachments unsets the attachments of the message.
+//
+// This method removes all attachments from the message by setting the attachments to nil, effectively
+// clearing any previously set attachments.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) UnsetAllAttachments() {
 	m.attachments = nil
 }
 
-// GetEmbeds returns the embeds of the Msg
+// GetEmbeds returns the embedded files of the Msg.
+//
+// This method retrieves the list of files that have been embedded in the message. Embeds are typically
+// images or other media files that are referenced directly in the content of the email, such as inline
+// images in HTML emails.
+//
+// Returns:
+//   - A slice of pointers to File structures representing the embedded files in the message.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) GetEmbeds() []*File {
 	return m.embeds
 }
 
-// SetEmbeds sets the embeds of the message.
+// SetEmbeds sets the embedded files of the message.
+//
+// This method allows you to specify the files to be embedded in the message by providing a slice of File pointers.
+// Embedded files, such as images or media, are typically used for inline content in HTML emails.
+//
+// Parameters:
+//   - files: A slice of pointers to File structures representing the embedded files to set for the message.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) SetEmbeds(files []*File) {
 	m.embeds = files
 }
 
-// UnsetAllEmbeds unset the embeds of the message.
+// UnsetAllEmbeds unsets the embedded files of the message.
+//
+// This method removes all embedded files from the message by setting the embeds to nil, effectively
+// clearing any previously set embedded files.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) UnsetAllEmbeds() {
 	m.embeds = nil
 }
 
-// UnsetAllParts unset the embeds and attachments of the message.
+// UnsetAllParts unsets the embeds and attachments of the message.
+//
+// This method removes all embedded files and attachments from the message by unsetting both the
+// embeds and attachments, effectively clearing all previously set message parts.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) UnsetAllParts() {
 	m.UnsetAllAttachments()
 	m.UnsetAllEmbeds()
 }
 
 // SetBodyString sets the body of the message.
+//
+// This method sets the body of the message using the provided content type and string content. The body can
+// be set as plain text, HTML, or other formats based on the specified content type. Optional part settings
+// can be passed through PartOption to customize the message body further.
+//
+// Parameters:
+//   - contentType: The ContentType of the body (e.g., plain text, HTML).
+//   - content: The string content to set as the body of the message.
+//   - opts: Optional parameters for customizing the body part.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2045
+//   - https://datatracker.ietf.org/doc/html/rfc2046
 func (m *Msg) SetBodyString(contentType ContentType, content string, opts ...PartOption) {
 	buffer := bytes.NewBufferString(content)
 	writeFunc := writeFuncFromBuffer(buffer)
@@ -1441,6 +1603,20 @@ func (m *Msg) SetBodyString(contentType ContentType, content string, opts ...Par
 }
 
 // SetBodyWriter sets the body of the message.
+//
+// This method sets the body of the message using a write function, allowing content to be written
+// directly to the body. The content type determines the format (e.g., plain text, HTML).
+// Optional part settings can be provided via PartOption to customize the body further.
+//
+// Parameters:
+//   - contentType: The ContentType of the body (e.g., plain text, HTML).
+//   - writeFunc: A function that writes content to an io.Writer and returns the number of bytes written
+//     and an error, if any.
+//   - opts: Optional parameters for customizing the body part.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2045
+//   - https://datatracker.ietf.org/doc/html/rfc2046
 func (m *Msg) SetBodyWriter(
 	contentType ContentType, writeFunc func(io.Writer) (int64, error),
 	opts ...PartOption,
@@ -1450,8 +1626,24 @@ func (m *Msg) SetBodyWriter(
 	m.parts = []*Part{p}
 }
 
-// SetBodyHTMLTemplate sets the body of the message from a given html/template.Template pointer
-// The content type will be set to text/html automatically
+// SetBodyHTMLTemplate sets the body of the message from a given html/template.Template pointer.
+//
+// This method sets the body of the message using the provided HTML template and data. The content type
+// will be set to "text/html" automatically. The method executes the template with the provided data
+// and writes the output to the message body. If the template is nil or fails to execute, an error will
+// be returned.
+//
+// Parameters:
+//   - tpl: A pointer to the html/template.Template to be used for the message body.
+//   - data: The data to populate the template.
+//   - opts: Optional parameters for customizing the body part.
+//
+// Returns:
+//   - An error if the template is nil or fails to execute, otherwise nil.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2045
+//   - https://datatracker.ietf.org/doc/html/rfc2046
 func (m *Msg) SetBodyHTMLTemplate(tpl *ht.Template, data interface{}, opts ...PartOption) error {
 	if tpl == nil {
 		return errors.New(errTplPointerNil)
@@ -1465,8 +1657,24 @@ func (m *Msg) SetBodyHTMLTemplate(tpl *ht.Template, data interface{}, opts ...Pa
 	return nil
 }
 
-// SetBodyTextTemplate sets the body of the message from a given text/template.Template pointer
-// The content type will be set to text/plain automatically
+// SetBodyTextTemplate sets the body of the message from a given text/template.Template pointer.
+//
+// This method sets the body of the message using the provided text template and data. The content type
+// will be set to "text/plain" automatically. The method executes the template with the provided data
+// and writes the output to the message body. If the template is nil or fails to execute, an error will
+// be returned.
+//
+// Parameters:
+//   - tpl: A pointer to the text/template.Template to be used for the message body.
+//   - data: The data to populate the template.
+//   - opts: Optional parameters for customizing the body part.
+//
+// Returns:
+//   - An error if the template is nil or fails to execute, otherwise nil.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2045
+//   - https://datatracker.ietf.org/doc/html/rfc2046
 func (m *Msg) SetBodyTextTemplate(tpl *tt.Template, data interface{}, opts ...PartOption) error {
 	if tpl == nil {
 		return errors.New(errTplPointerNil)
