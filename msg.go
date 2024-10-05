@@ -398,8 +398,14 @@ func (m *Msg) EnvelopeFrom(from string) error {
 	return m.SetAddrHeader(HeaderEnvelopeFrom, from)
 }
 
-// EnvelopeFromFormat takes a name and address, formats them RFC5322 compliant and stores them as
-// the envelope FROM address header field
+// EnvelopeFromFormat sets the provided name and mail address as HeaderEnvelopeFrom for the Msg.
+//
+// The HeaderEnvelopeFrom address is generally not included in the mail body but only used by the Client for the
+// communication with the SMTP server. If the Msg has no "FROM" address set in the mail body, the msgWriter will
+// try to use the envelope from address, if this has been set for the Msg. The provided name and address adre
+// validated according to RFC 5322 and will return an error if the validation fails.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
 func (m *Msg) EnvelopeFromFormat(name, addr string) error {
 	return m.SetAddrHeader(HeaderEnvelopeFrom, fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
