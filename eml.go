@@ -18,14 +18,13 @@ import (
 	"strings"
 )
 
-// EMLToMsgFromString will parse a given EML string and returns a pre-filled Msg pointer
+// EMLToMsgFromString will parse a given EML string and returns a pre-filled Msg pointer.
 func EMLToMsgFromString(emlString string) (*Msg, error) {
 	eb := bytes.NewBufferString(emlString)
 	return EMLToMsgFromReader(eb)
 }
 
-// EMLToMsgFromReader will parse a reader that holds EML content and returns a pre-filled
-// Msg pointer
+// EMLToMsgFromReader will parse a reader that holds EML content and returns a pre-filled Msg pointer.
 func EMLToMsgFromReader(reader io.Reader) (*Msg, error) {
 	msg := &Msg{
 		addrHeader:    make(map[AddrHeader][]*netmail.Address),
@@ -46,8 +45,7 @@ func EMLToMsgFromReader(reader io.Reader) (*Msg, error) {
 	return msg, nil
 }
 
-// EMLToMsgFromFile will open and parse a .eml file at a provided file path and returns a
-// pre-filled Msg pointer
+// EMLToMsgFromFile will open and parse a .eml file at a provided file path and returns a pre-filled Msg pointer.
 func EMLToMsgFromFile(filePath string) (*Msg, error) {
 	msg := &Msg{
 		addrHeader:    make(map[AddrHeader][]*netmail.Address),
@@ -68,7 +66,7 @@ func EMLToMsgFromFile(filePath string) (*Msg, error) {
 	return msg, nil
 }
 
-// parseEML parses the EML's headers and body and inserts the parsed values into the Msg
+// parseEML parses the EML's headers and body and inserts the parsed values into the Msg.
 func parseEML(parsedMsg *netmail.Message, bodybuf *bytes.Buffer, msg *Msg) error {
 	if err := parseEMLHeaders(&parsedMsg.Header, msg); err != nil {
 		return fmt.Errorf("failed to parse EML headers: %w", err)
@@ -79,7 +77,7 @@ func parseEML(parsedMsg *netmail.Message, bodybuf *bytes.Buffer, msg *Msg) error
 	return nil
 }
 
-// readEML opens an EML file and uses net/mail to parse the header and body
+// readEML opens an EML file and uses net/mail to parse the header and body.
 func readEML(filePath string) (*netmail.Message, *bytes.Buffer, error) {
 	fileHandle, err := os.Open(filePath)
 	if err != nil {
@@ -91,7 +89,7 @@ func readEML(filePath string) (*netmail.Message, *bytes.Buffer, error) {
 	return readEMLFromReader(fileHandle)
 }
 
-// readEMLFromReader uses net/mail to parse the header and body from a given io.Reader
+// readEMLFromReader uses net/mail to parse the header and body from a given io.Reader.
 func readEMLFromReader(reader io.Reader) (*netmail.Message, *bytes.Buffer, error) {
 	parsedMsg, err := netmail.ReadMessage(reader)
 	if err != nil {
@@ -106,8 +104,8 @@ func readEMLFromReader(reader io.Reader) (*netmail.Message, *bytes.Buffer, error
 	return parsedMsg, &buf, nil
 }
 
-// parseEMLHeaders will check the EML headers for the most common headers and set the
-// according settings in the Msg
+// parseEMLHeaders will check the EML headers for the most common headers and set the according settings
+// in the Msg.
 func parseEMLHeaders(mailHeader *netmail.Header, msg *Msg) error {
 	commonHeaders := []Header{
 		HeaderContentType, HeaderImportance, HeaderInReplyTo, HeaderListUnsubscribe,
@@ -175,7 +173,7 @@ func parseEMLHeaders(mailHeader *netmail.Header, msg *Msg) error {
 	return nil
 }
 
-// parseEMLBodyParts parses the body of a EML based on the different content types and encodings
+// parseEMLBodyParts parses the body of a EML based on the different content types and encodings.
 func parseEMLBodyParts(parsedMsg *netmail.Message, bodybuf *bytes.Buffer, msg *Msg) error {
 	// Extract the transfer encoding of the body
 	mediatype, params, err := mime.ParseMediaType(parsedMsg.Header.Get(HeaderContentType.String()))
@@ -212,10 +210,11 @@ func parseEMLBodyParts(parsedMsg *netmail.Message, bodybuf *bytes.Buffer, msg *M
 	return nil
 }
 
-// parseEMLBodyPlain parses the mail body of plain type mails
+// parseEMLBodyPlain parses the mail body of plain type mails.
 func parseEMLBodyPlain(mediatype string, parsedMsg *netmail.Message, bodybuf *bytes.Buffer, msg *Msg) error {
 	contentTransferEnc := parsedMsg.Header.Get(HeaderContentTransferEnc.String())
-	// According to RFC2045, if no Content-Transfer-Encoding is set, we can imply 7bit US-ASCII encoding
+	// If no Content-Transfer-Encoding is set, we can imply 7bit US-ASCII encoding
+	// https://datatracker.ietf.org/doc/html/rfc2045#section-6.1
 	if contentTransferEnc == "" || strings.EqualFold(contentTransferEnc, EncodingUSASCII.String()) {
 		msg.SetEncoding(EncodingUSASCII)
 		msg.SetBodyString(ContentType(mediatype), bodybuf.String())
@@ -349,7 +348,7 @@ ReadNextPart:
 	return nil
 }
 
-// parseEMLEncoding parses and determines the encoding of the message
+// parseEMLEncoding parses and determines the encoding of the message.
 func parseEMLEncoding(mailHeader *netmail.Header, msg *Msg) {
 	if value := mailHeader.Get(HeaderContentTransferEnc.String()); value != "" {
 		switch {
@@ -363,7 +362,7 @@ func parseEMLEncoding(mailHeader *netmail.Header, msg *Msg) {
 	}
 }
 
-// parseEMLContentTypeCharset parses and determines the charset and content type of the message
+// parseEMLContentTypeCharset parses and determines the charset and content type of the message.
 func parseEMLContentTypeCharset(mailHeader *netmail.Header, msg *Msg) {
 	if value := mailHeader.Get(HeaderContentType.String()); value != "" {
 		contentType, optional := parseMultiPartHeader(value)
@@ -377,7 +376,7 @@ func parseEMLContentTypeCharset(mailHeader *netmail.Header, msg *Msg) {
 	}
 }
 
-// handleEMLMultiPartBase64Encoding sets the content body of a base64 encoded Part
+// handleEMLMultiPartBase64Encoding sets the content body of a base64 encoded Part.
 func handleEMLMultiPartBase64Encoding(multiPartData []byte, part *Part) error {
 	part.SetEncoding(EncodingB64)
 	content, err := base64.StdEncoding.DecodeString(string(multiPartData))
@@ -388,8 +387,7 @@ func handleEMLMultiPartBase64Encoding(multiPartData []byte, part *Part) error {
 	return nil
 }
 
-// parseMultiPartHeader parses a multipart header and returns the value and optional parts as
-// separate map
+// parseMultiPartHeader parses a multipart header and returns the value and optional parts as separate map.
 func parseMultiPartHeader(multiPartHeader string) (header string, optional map[string]string) {
 	optional = make(map[string]string)
 	headerSplit := strings.SplitN(multiPartHeader, ";", 2)
@@ -404,7 +402,7 @@ func parseMultiPartHeader(multiPartHeader string) (header string, optional map[s
 	return
 }
 
-// parseEMLAttachmentEmbed parses a multipart that is an attachment or embed
+// parseEMLAttachmentEmbed parses a multipart that is an attachment or embed.
 func parseEMLAttachmentEmbed(contentDisposition []string, multiPart *multipart.Part, msg *Msg) error {
 	cdType, optional := parseMultiPartHeader(contentDisposition[0])
 	filename := "generic.attachment"
