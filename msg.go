@@ -338,7 +338,13 @@ func (m *Msg) SetGenHeaderPreformatted(header Header, value string) {
 	m.preformHeader[header] = value
 }
 
-// SetAddrHeader sets an address related header field of the Msg
+// SetAddrHeader sets the specified AddrHeader for the Msg to the given values.
+//
+// Addresses are parsed according to RFC 5322. If parsing of ANY of the provided values fails,
+// and error is returned. If you cannot guarantee that all provided values are valid, you can
+// use SetAddrHeaderIgnoreInvalid instead, which will skip any parsing error silently.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
 func (m *Msg) SetAddrHeader(header AddrHeader, values ...string) error {
 	if m.addrHeader == nil {
 		m.addrHeader = make(map[AddrHeader][]*mail.Address)
@@ -362,8 +368,12 @@ func (m *Msg) SetAddrHeader(header AddrHeader, values ...string) error {
 	return nil
 }
 
-// SetAddrHeaderIgnoreInvalid sets an address related header field of the Msg and ignores invalid address
-// in the validation process
+// SetAddrHeaderIgnoreInvalid sets the specified AddrHeader for the Msg to the given values.
+//
+// Addresses are parsed according to RFC 5322. If parsing of ANY of the provided values fails,
+// the error is ignored and the address omiitted from the address list.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
 func (m *Msg) SetAddrHeaderIgnoreInvalid(header AddrHeader, values ...string) {
 	var addresses []*mail.Address
 	for _, addrVal := range values {
@@ -376,8 +386,14 @@ func (m *Msg) SetAddrHeaderIgnoreInvalid(header AddrHeader, values ...string) {
 	m.addrHeader[header] = addresses
 }
 
-// EnvelopeFrom takes and validates a given mail address and sets it as envelope "FROM"
-// addrHeader of the Msg
+// EnvelopeFrom sets the envelope from address for the Msg.
+//
+// The HeaderEnvelopeFrom address is generally not included in the mail body but only used by the Client for the
+// communication with the SMTP server. If the Msg has no "FROM" address set in the mail body, the msgWriter will
+// try to use the envelope from address, if this has been set for the Msg. The provided address is validated
+// according to RFC 5322 and will return an error if the validation fails.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
 func (m *Msg) EnvelopeFrom(from string) error {
 	return m.SetAddrHeader(HeaderEnvelopeFrom, from)
 }

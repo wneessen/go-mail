@@ -105,8 +105,11 @@ const (
 	// HeaderCc is the "Carbon Copy" header field.
 	HeaderCc AddrHeader = "Cc"
 
-	// HeaderEnvelopeFrom is the envelope FROM header field. It is not included in the mail body but only used by
-	// the Client for the envelope.
+	// HeaderEnvelopeFrom is the envelope FROM header field.
+	//
+	// It is generally not included in the mail body but only used by the Client for the communication with the
+	// SMTP server. If the Msg has no "FROM" address set in the mail body, the msgWriter will try to use the
+	// envelope from address, if this has been set for the Msg.
 	HeaderEnvelopeFrom AddrHeader = "EnvelopeFrom"
 
 	// HeaderFrom is the "From" header field.
