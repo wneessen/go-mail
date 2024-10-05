@@ -20,6 +20,7 @@ const (
 	//
 	// It was recommended to deprecate the standard in 20 November 2008. As an alternative it
 	// recommends e.g. SCRAM or SASL Plain protected by TLS instead.
+	//
 	// https://datatracker.ietf.org/doc/html/draft-ietf-sasl-crammd5-to-historic-00.html
 	SMTPAuthCramMD5 SMTPAuthType = "CRAM-MD5"
 
@@ -33,12 +34,14 @@ const (
 	// does not have an official RFC that could be followed. There is a spec by Microsoft and an
 	// IETF draft. The IETF draft is more lax than the MS spec, therefore we follow the I-D, which
 	// automatically matches the MS spec.
-	// https://msopenspecs.azureedge.net/files/MS-XLOGIN/%5bMS-XLOGIN%5d.pdf
-	// https://datatracker.ietf.org/doc/html/draft-murchison-sasl-login-00
 	//
 	// Since the "LOGIN" SASL authentication mechansim transmits the username and password in
 	// plaintext over the internet connection, we only allow this mechanism over a TLS secured
 	// connection.
+	//
+	// https://msopenspecs.azureedge.net/files/MS-XLOGIN/%5bMS-XLOGIN%5d.pdf
+	//
+	// https://datatracker.ietf.org/doc/html/draft-murchison-sasl-login-00
 	SMTPAuthLogin SMTPAuthType = "LOGIN"
 
 	// SMTPAuthNoAuth is equivalent to performing no authentication at all. It is a convenience
@@ -47,11 +50,12 @@ const (
 	SMTPAuthNoAuth SMTPAuthType = ""
 
 	// SMTPAuthPlain is the "PLAIN" authentication mechanism as described in RFC 4616.
-	// https://datatracker.ietf.org/doc/html/rfc4616/
 	//
 	// Since the "PLAIN" SASL authentication mechansim transmits the username and password in
 	// plaintext over the internet connection, we only allow this mechanism over a TLS secured
 	// connection.
+	//
+	// https://datatracker.ietf.org/doc/html/rfc4616/
 	SMTPAuthPlain SMTPAuthType = "PLAIN"
 
 	// SMTPAuthXOAUTH2 is the "XOAUTH2" SASL authentication mechanism.
@@ -59,16 +63,16 @@ const (
 	SMTPAuthXOAUTH2 SMTPAuthType = "XOAUTH2"
 
 	// SMTPAuthSCRAMSHA1 is the "SCRAM-SHA-1" SASL authentication mechanism as described in RFC 5802.
-	// https://datatracker.ietf.org/doc/html/rfc5802
 	//
 	// SCRAM-SHA-1 is still considered secure for certain applications, particularly when used as part
 	// of a challenge-response authentication mechanism (as we use it). However, it is generally
 	// recommended to prefer stronger alternatives like SCRAM-SHA-256(-PLUS), as SHA-1 has known
 	// vulnerabilities in other contexts, although it remains effective in HMAC constructions.
+	//
+	// https://datatracker.ietf.org/doc/html/rfc5802
 	SMTPAuthSCRAMSHA1 SMTPAuthType = "SCRAM-SHA-1"
 
 	// SMTPAuthSCRAMSHA1PLUS is the "SCRAM-SHA-1-PLUS" SASL authentication mechanism as described in RFC 5802.
-	// https://datatracker.ietf.org/doc/html/rfc5802
 	//
 	// SCRAM-SHA-X-PLUS authentication require TLS channel bindings to protect against MitM attacks and
 	// to guarantee that the integrity of the transport layer is preserved throughout the authentication
@@ -78,18 +82,22 @@ const (
 	// of a challenge-response authentication mechanism (as we use it). However, it is generally
 	// recommended to prefer stronger alternatives like SCRAM-SHA-256(-PLUS), as SHA-1 has known
 	// vulnerabilities in other contexts, although it remains effective in HMAC constructions.
+	//
+	// https://datatracker.ietf.org/doc/html/rfc5802
 	SMTPAuthSCRAMSHA1PLUS SMTPAuthType = "SCRAM-SHA-1-PLUS"
 
 	// SMTPAuthSCRAMSHA256 is the "SCRAM-SHA-256" SASL authentication mechanism as described in RFC 7677.
+	//
 	// https://datatracker.ietf.org/doc/html/rfc7677
 	SMTPAuthSCRAMSHA256 SMTPAuthType = "SCRAM-SHA-256"
 
 	// SMTPAuthSCRAMSHA256PLUS is the "SCRAM-SHA-256-PLUS" SASL authentication mechanism as described in RFC 7677.
-	// https://datatracker.ietf.org/doc/html/rfc7677
 	//
 	// SCRAM-SHA-X-PLUS authentication require TLS channel bindings to protect against MitM attacks and
 	// to guarantee that the integrity of the transport layer is preserved throughout the authentication
 	// process. Therefore we only allow this mechansim over a TLS secured connection.
+	//
+	// https://datatracker.ietf.org/doc/html/rfc7677
 	SMTPAuthSCRAMSHA256PLUS SMTPAuthType = "SCRAM-SHA-256-PLUS"
 )
 

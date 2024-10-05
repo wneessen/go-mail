@@ -44,26 +44,31 @@ const (
 
 	// DSNMailReturnHeadersOnly requests that only the message headers of the mail message are returned in
 	// a DSN (Delivery Status Notification).
+	//
 	// https://datatracker.ietf.org/doc/html/rfc1891#section-5.3
 	DSNMailReturnHeadersOnly DSNMailReturnOption = "HDRS"
 
 	// DSNMailReturnFull requests that the entire mail message is returned in any failed  DSN
 	// (Delivery Status Notification) issued for this recipient.
+	//
 	// https://datatracker.ietf.org/doc/html/rfc1891/#section-5.3
 	DSNMailReturnFull DSNMailReturnOption = "FULL"
 
 	// DSNRcptNotifyNever indicates that no DSN (Delivery Status Notifications) should be sent for the
 	// recipient under any condition.
+	//
 	// https://datatracker.ietf.org/doc/html/rfc1891/#section-5.1
 	DSNRcptNotifyNever DSNRcptNotifyOption = "NEVER"
 
 	// DSNRcptNotifySuccess indicates that the sender requests a DSN (Delivery Status Notification) if the
 	// message is successfully delivered.
+	//
 	// https://datatracker.ietf.org/doc/html/rfc1891/#section-5.1
 	DSNRcptNotifySuccess DSNRcptNotifyOption = "SUCCESS"
 
 	// DSNRcptNotifyFailure requests that a DSN (Delivery Status Notification) is issued if delivery of
 	// a message fails.
+	//
 	// https://datatracker.ietf.org/doc/html/rfc1891/#section-5.1
 	DSNRcptNotifyFailure DSNRcptNotifyOption = "FAILURE"
 
@@ -73,6 +78,7 @@ const (
 	// (as determined by the MTA at which the message is delayed), but the final delivery status (whether
 	// successful or failure) cannot be determined. The absence of the DELAY keyword in a NOTIFY parameter
 	// requests that a "delayed" DSN NOT be issued under any conditions.
+	//
 	// https://datatracker.ietf.org/doc/html/rfc1891/#section-5.1
 	DSNRcptNotifyDelay DSNRcptNotifyOption = "DELAY"
 )
@@ -87,11 +93,13 @@ type (
 
 	// DSNMailReturnOption is a type wrapper for a string and specifies the type of return content requested
 	// in a Delivery Status Notification (DSN).
+	//
 	// https://datatracker.ietf.org/doc/html/rfc1891/
 	DSNMailReturnOption string
 
 	// DSNRcptNotifyOption is a type wrapper for a string and specifies the notification options for a
 	// recipient in DSNs.
+	//
 	// https://datatracker.ietf.org/doc/html/rfc1891/
 	DSNRcptNotifyOption string
 
@@ -167,6 +175,7 @@ type (
 		smtpClient *smtp.Client
 
 		// tlspolicy defines the TLSPolicy configuration the Client uses for the STARTTLS protocol.
+		//
 		// https://datatracker.ietf.org/doc/html/rfc3207#section-2
 		tlspolicy TLSPolicy
 
@@ -180,6 +189,7 @@ type (
 		user string
 
 		// useSSL indicates whether to use SSL/TLS encryption for network communication.
+		//
 		// https://datatracker.ietf.org/doc/html/rfc8314
 		useSSL bool
 	}
@@ -424,10 +434,11 @@ func WithPassword(password string) Option {
 
 // WithDSN enables DSN (Delivery Status Notifications) for the Client as described in the RFC 1891. DSN
 // only work if the server supports them.
-// https://datatracker.ietf.org/doc/html/rfc1891
 //
 // By default we set DSNMailReturnOption to DSNMailReturnFull and DSNRcptNotifyOption to DSNRcptNotifySuccess
 // and DSNRcptNotifyFailure.
+//
+// https://datatracker.ietf.org/doc/html/rfc1891
 func WithDSN() Option {
 	return func(c *Client) error {
 		c.requestDSN = true
@@ -439,9 +450,10 @@ func WithDSN() Option {
 
 // WithDSNMailReturnType enables DSN (Delivery Status Notifications) for the Client as described in the
 // RFC 1891. DSN only work if the server supports them.
-// https://datatracker.ietf.org/doc/html/rfc1891
 //
 // It will set the DSNMailReturnOption to the provided value.
+//
+// https://datatracker.ietf.org/doc/html/rfc1891
 func WithDSNMailReturnType(option DSNMailReturnOption) Option {
 	return func(c *Client) error {
 		switch option {
@@ -459,9 +471,10 @@ func WithDSNMailReturnType(option DSNMailReturnOption) Option {
 
 // WithDSNRcptNotifyType enables DSN (Delivery Status Notifications) for the Client as described in the
 // RFC 1891. DSN only work if the server supports them.
-// https://datatracker.ietf.org/doc/html/rfc1891
 //
 // It will set the DSNRcptNotifyOption to the provided values.
+//
+// https://datatracker.ietf.org/doc/html/rfc1891
 func WithDSNRcptNotifyType(opts ...DSNRcptNotifyOption) Option {
 	return func(c *Client) error {
 		var rcptOpts []string

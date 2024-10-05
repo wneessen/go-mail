@@ -197,7 +197,9 @@ func WithEncoding(e Encoding) MsgOption {
 // do not introduce new MIME versions; they refine or add features within the framework of MIME 1.0.
 // Therefore there should be no reason to ever use this MsgOption.
 // https://datatracker.ietf.org/doc/html/rfc1521
+//
 // https://datatracker.ietf.org/doc/html/rfc2045
+//
 // https://datatracker.ietf.org/doc/html/rfc2049
 func WithMIMEVersion(mv MIMEVersion) MsgOption {
 	return func(m *Msg) {
@@ -239,52 +241,68 @@ func WithNoDefaultUserAgent() MsgOption {
 	}
 }
 
-// SetCharset sets the encoding charset of the Msg
+// SetCharset sets or overrides the currently set encoding charset of the Msg.
 func (m *Msg) SetCharset(c Charset) {
 	m.charset = c
 }
 
-// SetEncoding sets the encoding of the Msg
+// SetEncoding sets or overrides the currently set Encoding of the Msg.
 func (m *Msg) SetEncoding(e Encoding) {
 	m.encoding = e
 	m.setEncoder()
 }
 
-// SetBoundary sets the boundary of the Msg
+// SetBoundary sets or overrides the currently set boundary of the Msg.
+//
+// Note that by default we create random MIME boundaries. This should only be used if a specific boundary is
+// required.
 func (m *Msg) SetBoundary(b string) {
 	m.boundary = b
 }
 
-// SetMIMEVersion sets the MIME version of the Msg
+// SetMIMEVersion sets or overrides the currently set MIME version of the Msg.
+//
+// Note that in the context of email, MIME Version 1.0 is the only officially standardized and supported
+// version. While MIME has been updated and extended over time (via various RFCs), these updates and extensions
+// do not introduce new MIME versions; they refine or add features within the framework of MIME 1.0.
+// Therefore there should be no reason to ever use this MsgOption.
+//
+// https://datatracker.ietf.org/doc/html/rfc1521
+//
+// https://datatracker.ietf.org/doc/html/rfc2045
+//
+// https://datatracker.ietf.org/doc/html/rfc2049
 func (m *Msg) SetMIMEVersion(mv MIMEVersion) {
 	m.mimever = mv
 }
 
-// SetPGPType sets the PGPType of the Msg
+// SetPGPType sets or overrides the currently set PGP type for the Msg, determining the encryption or
+// signature method.
 func (m *Msg) SetPGPType(t PGPType) {
 	m.pgptype = t
 }
 
-// Encoding returns the currently set encoding of the Msg
+// Encoding returns the currently set Encoding of the Msg as string.
 func (m *Msg) Encoding() string {
 	return m.encoding.String()
 }
 
-// Charset returns the currently set charset of the Msg
+// Charset returns the currently set Charset of the Msg as string.
 func (m *Msg) Charset() string {
 	return m.charset.String()
 }
 
-// SetHeader sets a generic header field of the Msg
-// For adding address headers like "To:" or "From", see SetAddrHeader
+// SetHeader sets a generic header field of the Msg.
 //
-// Deprecated: This method only exists for compatibility reason. Please use SetGenHeader instead
+// Deprecated: This method only exists for compatibility reason. Please use SetGenHeader instead.
+// For adding address headers like "To:" or "From", use SetAddrHeader instead.
 func (m *Msg) SetHeader(header Header, values ...string) {
 	m.SetGenHeader(header, values...)
 }
 
-// SetGenHeader sets a generic header field of the Msg
-// For adding address headers like "To:" or "From", see SetAddrHeader
+// SetGenHeader sets a generic header field of the Msg to the provided list of values.
+//
+// Note: for adding email address related headers (like "To:" or "From") use SetAddrHeader instead.
 func (m *Msg) SetGenHeader(header Header, values ...string) {
 	if m.genHeader == nil {
 		m.genHeader = make(map[Header][]string)
@@ -295,26 +313,24 @@ func (m *Msg) SetGenHeader(header Header, values ...string) {
 	m.genHeader[header] = values
 }
 
-// SetHeaderPreformatted sets a generic header field of the Msg which content is
-// already preformated.
+// SetHeaderPreformatted sets a generic header field of the Msg, which content is already preformatted.
 //
-// Deprecated: This method only exists for compatibility reason. Please use
-// SetGenHeaderPreformatted instead
+// Deprecated: This method only exists for compatibility reason. Please use SetGenHeaderPreformatted instead.
 func (m *Msg) SetHeaderPreformatted(header Header, value string) {
 	m.SetGenHeaderPreformatted(header, value)
 }
 
-// SetGenHeaderPreformatted sets a generic header field of the Msg which content is
-// already preformated.
+// SetGenHeaderPreformatted sets a generic header field of the Msg which content is already preformated.
 //
-// This method does not take a slice of values but only a single value. This is
-// due to the fact, that we do not perform any content alteration and expect the
-// user has already done so
+// This method does not take a slice of values but only a single value. The reason for this is that we do not
+// perform any content alteration on these kind of headers and expect the user to have already taken care of
+// any kind of formatting required for the header.
 //
-// **Please note:** This method should be used only as a last resort. Since the
-// user is respondible for the formating of the message header, go-mail cannot
-// guarantee the fully compliance with the RFC 2822. It is recommended to use
-// SetGenHeader instead.
+// Note: This method should be used only as a last resort. Since the user is respondible for the formatting of
+// the message header, we cannot guarantee any compliance with the RFC 2822. It is advised to use SetGenHeader
+// instead.
+//
+// https://datatracker.ietf.org/doc/html/rfc2822
 func (m *Msg) SetGenHeaderPreformatted(header Header, value string) {
 	if m.preformHeader == nil {
 		m.preformHeader = make(map[Header]string)

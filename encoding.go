@@ -22,19 +22,24 @@ type MIMEType string
 
 const (
 	// EncodingB64 represents the Base64 encoding as specified in RFC 2045.
+	//
 	// https://datatracker.ietf.org/doc/html/rfc2045#section-6.8
 	EncodingB64 Encoding = "base64"
 
 	// EncodingQP represents the "quoted-printable" encoding as specified in RFC 2045.
+	//
 	// https://datatracker.ietf.org/doc/html/rfc2045#section-6.7
 	EncodingQP Encoding = "quoted-printable"
 
 	// EncodingUSASCII represents encoding with only US-ASCII characters (aka 7Bit)
+	//
 	// https://datatracker.ietf.org/doc/html/rfc2045#section-2.7
 	EncodingUSASCII Encoding = "7bit"
 
 	// NoEncoding represents 8-bit encoding for email messages as specified in RFC 6152.
+	//
 	// https://datatracker.ietf.org/doc/html/rfc2045#section-2.8
+	//
 	// https://datatracker.ietf.org/doc/html/rfc6152
 	NoEncoding Encoding = "8bit"
 )
