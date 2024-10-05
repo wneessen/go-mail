@@ -144,13 +144,14 @@ type Msg struct {
 	noDefaultUserAgent bool
 }
 
-// SendmailPath is the default system path to the sendmail binary
+// SendmailPath is the default system path to the sendmail binary - at least on standard Unix-like OS.
 const SendmailPath = "/usr/sbin/sendmail"
 
-// MsgOption returns a function that can be used for grouping Msg options
+// MsgOption is a function type that modifies a Msg instance during its creation or initialization.
 type MsgOption func(*Msg)
 
-// NewMsg returns a new Msg pointer
+// NewMsg creates a new email message with optional MsgOption functions that customize various aspects of the
+// message.
 func NewMsg(opts ...MsgOption) *Msg {
 	msg := &Msg{
 		addrHeader:    make(map[AddrHeader][]*mail.Address),
@@ -161,7 +162,7 @@ func NewMsg(opts ...MsgOption) *Msg {
 		mimever:       MIME10,
 	}
 
-	// Override defaults with optionally provided MsgOption functions
+	// Override defaults with optionally provided MsgOption functions.
 	for _, option := range opts {
 		if option == nil {
 			continue
@@ -175,49 +176,63 @@ func NewMsg(opts ...MsgOption) *Msg {
 	return msg
 }
 
-// WithCharset overrides the default message charset
+// WithCharset sets the Charset type for a Msg during its creation or initialization.
 func WithCharset(c Charset) MsgOption {
 	return func(m *Msg) {
 		m.charset = c
 	}
 }
 
-// WithEncoding overrides the default message encoding
+// WithEncoding sets the Encoding type for a Msg during its creation or initialization.
 func WithEncoding(e Encoding) MsgOption {
 	return func(m *Msg) {
 		m.encoding = e
 	}
 }
 
-// WithMIMEVersion overrides the default MIME version
+// WithMIMEVersion sets the MIMEVersion type for a Msg during its creation or initialization.
+//
+// Note that in the context of email, MIME Version 1.0 is the only officially standardized and supported
+// version. While MIME has been updated and extended over time (via various RFCs), these updates and extensions
+// do not introduce new MIME versions; they refine or add features within the framework of MIME 1.0.
+// Therefore there should be no reason to ever use this MsgOption.
+// https://datatracker.ietf.org/doc/html/rfc1521
+// https://datatracker.ietf.org/doc/html/rfc2045
+// https://datatracker.ietf.org/doc/html/rfc2049
 func WithMIMEVersion(mv MIMEVersion) MsgOption {
 	return func(m *Msg) {
 		m.mimever = mv
 	}
 }
 
-// WithBoundary overrides the default MIME boundary
+// WithBoundary sets the boundary of a Msg to the provided string value during its creation or initialization.
+//
+// Note that by default we create random MIME boundaries. This should only be used if a specific boundary is
+// required.
 func WithBoundary(b string) MsgOption {
 	return func(m *Msg) {
 		m.boundary = b
 	}
 }
 
-// WithMiddleware add the given middleware in the end of the list of the client middlewares
+// WithMiddleware adds the given Middleware to the end of the list of the Client middlewares slice. Middleware
+// are processed in FIFO order.
 func WithMiddleware(mw Middleware) MsgOption {
 	return func(m *Msg) {
 		m.middlewares = append(m.middlewares, mw)
 	}
 }
 
-// WithPGPType overrides the default PGPType of the message
+// WithPGPType sets the PGP type for the Msg during its creation or initialization, determining the encryption or
+// signature method.
 func WithPGPType(pt PGPType) MsgOption {
 	return func(m *Msg) {
 		m.pgptype = pt
 	}
 }
 
-// WithNoDefaultUserAgent configures the Msg to not use the default User Agent
+// WithNoDefaultUserAgent disables the inclusion of a default User-Agent header in the Msg during its creation or
+// initialization.
 func WithNoDefaultUserAgent() MsgOption {
 	return func(m *Msg) {
 		m.noDefaultUserAgent = true
