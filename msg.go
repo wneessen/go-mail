@@ -79,55 +79,68 @@ type PGPType int
 // The Msg is the central part of go-mail. It provided a lot of methods that you would expect in a mail
 // user agent (MUA). Msg satisfies the io.WriterTo and io.Reader interfaces.
 type Msg struct {
-	// addrHeader is a slice of strings that the different mail AddrHeader fields
+	// addrHeader holds a mapping between AddrHeader keys and their corresponding slices of mail.Address pointers.
 	addrHeader map[AddrHeader][]*mail.Address
 
-	// attachments represent the different attachment File of the Msg
+	// attachments holds a list of File pointers that represent files either as attachments or embeds files in
+	// a Msg.
 	attachments []*File
 
-	// boundary is the MIME content boundary
+	// boundary represents the delimiter for separating parts in a multipart message.
 	boundary string
 
-	// charset represents the charset of the mail (defaults to UTF-8)
+	// charset represents the Charset of the Msg.
+	//
+	// By default we set CharsetUTF8 for a Msg unless overridden by a corresponding MsgOption.
 	charset Charset
 
-	// embeds represent the different embedded File of the Msg
+	// embeds contains a slice of File pointers representing the embedded files in a Msg.
 	embeds []*File
 
-	// encoder represents a mime.WordEncoder from the std lib
+	// encoder is a mime.WordEncoder used to encode strings (such as email headers) using a specified
+	// Encoding.
 	encoder mime.WordEncoder
 
-	// encoding represents the message encoding (the encoder will be a corresponding WordEncoder)
+	// encoding specifies the type of Encoding used for email messages and/or parts.
 	encoding Encoding
 
-	// genHeader is a slice of strings that the different generic mail Header fields
+	// genHeader is a map where the keys are email headers (of type Header) and the values are slices of strings
+	// representing header values.
 	genHeader map[Header][]string
 
-	// isDelivered signals if a message has been delivered or not
+	// isDelivered indicates wether the Msg has been delivered.
 	isDelivered bool
 
-	// middlewares is the list of middlewares to apply to the Msg before sending in FIFO order
+	// middlewares is a slice of Middleware used for modifying or handling messages before they are processed.
+	//
+	// middlewares are processed in FIFO order.
 	middlewares []Middleware
 
-	// mimever represents the MIME version
+	// mimever represents the MIME version used in a Msg.
 	mimever MIMEVersion
 
-	// parts represent the different parts of the Msg
+	// parts is a slice that holds pointers to Part structures, which represent different parts of a Msg.
 	parts []*Part
 
-	// preformHeader is a slice of strings that the different generic mail Header fields
-	// of which content is already preformated and will not be affected by the automatic line
-	// breaks
+	// preformHeader maps Header types to their already preformatted string values.
+	//
+	// Preformatted Header values will not be affected by automatic line breaks.
 	preformHeader map[Header]string
 
 	// pgptype indicates that a message has a PGPType assigned and therefore will generate
-	// different Content-Type settings in the msgWriter
+	// different Content-Type settings in the msgWriter.
 	pgptype PGPType
 
-	// sendError holds the SendError in case a Msg could not be delivered during the Client.Send operation
+	// sendError represents an error encountered during the process of sending a Msg during the
+	// Client.Send operation.
+	//
+	// sendError will hold an error of type SendError.
 	sendError error
 
-	// noDefaultUserAgent indicates whether the default User Agent will be excluded for the Msg when it's sent.
+	// noDefaultUserAgent indicates whether the default User-Agent will be omitted for the Msg when it is
+	// being sent.
+	//
+	// This can be useful in scenarios where headers are conditionally passed based on receipt - i. e. SMTP proxies.
 	noDefaultUserAgent bool
 }
 
