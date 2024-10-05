@@ -67,6 +67,9 @@ type Client struct {
 	// helloError is the error from the hello
 	helloError error
 
+	// isConnected indicates if the Client has an active connection
+	isConnected bool
+
 	// localName is the name to use in HELO/EHLO
 	localName string // the name to use in HELO/EHLO
 
@@ -113,6 +116,7 @@ func NewClient(conn net.Conn, host string) (*Client, error) {
 	}
 	c := &Client{Text: text, conn: conn, serverName: host, localName: "localhost"}
 	_, c.tls = conn.(*tls.Conn)
+	c.isConnected = true
 
 	return c, nil
 }
@@ -121,6 +125,7 @@ func NewClient(conn net.Conn, host string) (*Client, error) {
 func (c *Client) Close() error {
 	c.mutex.Lock()
 	err := c.Text.Close()
+	c.isConnected = false
 	c.mutex.Unlock()
 	return err
 }
@@ -516,8 +521,7 @@ func (c *Client) Quit() error {
 	}
 	c.mutex.Lock()
 	err = c.Text.Close()
-	c.Text = nil
-	c.conn = nil
+	c.isConnected = false
 	c.mutex.Unlock()
 
 	return err
@@ -558,11 +562,12 @@ func (c *Client) SetDSNRcptNotifyOption(d string) {
 // Returns true if the `conn` field is not nil, indicating an active connection.
 func (c *Client) HasConnection() bool {
 	c.mutex.RLock()
-	conn := c.conn
+	isConn := c.isConnected
 	c.mutex.RUnlock()
-	return conn != nil
+	return isConn
 }
 
+// UpdateDeadline sets a new deadline on the SMTP connection with the specified timeout duration.
 func (c *Client) UpdateDeadline(timeout time.Duration) error {
 	c.mutex.Lock()
 	if err := c.conn.SetDeadline(time.Now().Add(timeout)); err != nil {
