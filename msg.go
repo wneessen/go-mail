@@ -150,8 +150,22 @@ const SendmailPath = "/usr/sbin/sendmail"
 // MsgOption is a function type that modifies a Msg instance during its creation or initialization.
 type MsgOption func(*Msg)
 
-// NewMsg creates a new email message with optional MsgOption functions that customize various aspects of the
-// message.
+// NewMsg creates a new email message with optional MsgOption functions that customize various aspects
+// of the message.
+//
+// This function initializes a new Msg instance with default values for address headers, character set,
+// encoding, general headers, and MIME version. It then applies any provided MsgOption functions to
+// customize the message according to the user's needs. If an option is nil, it will be ignored.
+// After applying the options, the function sets the appropriate MIME WordEncoder for the message.
+//
+// Parameters:
+//   - opts: A variadic list of MsgOption functions that can be used to customize the Msg instance.
+//
+// Returns:
+//   - A pointer to the newly created Msg instance.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5321
 func NewMsg(opts ...MsgOption) *Msg {
 	msg := &Msg{
 		addrHeader:    make(map[AddrHeader][]*mail.Address),
@@ -177,64 +191,140 @@ func NewMsg(opts ...MsgOption) *Msg {
 }
 
 // WithCharset sets the Charset type for a Msg during its creation or initialization.
-func WithCharset(c Charset) MsgOption {
+//
+// This MsgOption function allows you to specify the character set to be used in the email message.
+// The charset defines how the text in the message is encoded and interpreted by the email client.
+// This option should be called when creating a new Msg instance to ensure that the desired charset
+// is set correctly.
+//
+// Parameters:
+//   - charset: The Charset value that specifies the desired character set for the Msg.
+//
+// Returns:
+//   - A MsgOption function that can be used to customize the Msg instance.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2047#section-5
+func WithCharset(charset Charset) MsgOption {
 	return func(m *Msg) {
-		m.charset = c
+		m.charset = charset
 	}
 }
 
 // WithEncoding sets the Encoding type for a Msg during its creation or initialization.
-func WithEncoding(e Encoding) MsgOption {
+//
+// This MsgOption function allows you to specify the encoding type to be used in the email message.
+// The encoding defines how the message content is encoded, which affects how it is transmitted
+// and decoded by email clients. This option should be called when creating a new Msg instance to
+// ensure that the desired encoding is set correctly.
+//
+// Parameters:
+//   - encoding: The Encoding value that specifies the desired encoding type for the Msg.
+//
+// Returns:
+//   - A MsgOption function that can be used to customize the Msg instance.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2047#section-6
+func WithEncoding(encoding Encoding) MsgOption {
 	return func(m *Msg) {
-		m.encoding = e
+		m.encoding = encoding
 	}
 }
 
 // WithMIMEVersion sets the MIMEVersion type for a Msg during its creation or initialization.
 //
-// Note that in the context of email, MIME Version 1.0 is the only officially standardized and supported
-// version. While MIME has been updated and extended over time (via various RFCs), these updates and extensions
-// do not introduce new MIME versions; they refine or add features within the framework of MIME 1.0.
-// Therefore there should be no reason to ever use this MsgOption.
-// https://datatracker.ietf.org/doc/html/rfc1521
+// Note that in the context of email, MIME Version 1.0 is the only officially standardized and
+// supported version. While MIME has been updated and extended over time via various RFCs, these
+// updates and extensions do not introduce new MIME versions; they refine or add features within
+// the framework of MIME 1.0. Therefore, there should be no reason to ever use this MsgOption.
 //
-// https://datatracker.ietf.org/doc/html/rfc2045
+// Parameters:
+//   - version: The MIMEVersion value that specifies the desired MIME version for the Msg.
 //
-// https://datatracker.ietf.org/doc/html/rfc2049
-func WithMIMEVersion(mv MIMEVersion) MsgOption {
-	return func(m *Msg) {
-		m.mimever = mv
-	}
-}
-
-// WithBoundary sets the boundary of a Msg to the provided string value during its creation or initialization.
+// Returns:
+//   - A MsgOption function that can be used to customize the Msg instance.
 //
-// Note that by default we create random MIME boundaries. This should only be used if a specific boundary is
-// required.
-func WithBoundary(b string) MsgOption {
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc1521
+//   - https://datatracker.ietf.org/doc/html/rfc2045
+//   - https://datatracker.ietf.org/doc/html/rfc2049
+func WithMIMEVersion(version MIMEVersion) MsgOption {
 	return func(m *Msg) {
-		m.boundary = b
+		m.mimever = version
 	}
 }
 
-// WithMiddleware adds the given Middleware to the end of the list of the Client middlewares slice. Middleware
-// are processed in FIFO order.
-func WithMiddleware(mw Middleware) MsgOption {
-	return func(m *Msg) {
-		m.middlewares = append(m.middlewares, mw)
-	}
-}
-
-// WithPGPType sets the PGP type for the Msg during its creation or initialization, determining the encryption or
-// signature method.
-func WithPGPType(pt PGPType) MsgOption {
-	return func(m *Msg) {
-		m.pgptype = pt
-	}
-}
-
-// WithNoDefaultUserAgent disables the inclusion of a default User-Agent header in the Msg during its creation or
+// WithBoundary sets the boundary of a Msg to the provided string value during its creation or
 // initialization.
+//
+// Note that by default, random MIME boundaries are created. This option should only be used if
+// a specific boundary is required for the email message. Using a predefined boundary can be
+// helpful when constructing multipart messages with specific formatting or content separation.
+//
+// Parameters:
+//   - boundary: The string value that specifies the desired boundary for the Msg.
+//
+// Returns:
+//   - A MsgOption function that can be used to customize the Msg instance.
+func WithBoundary(boundary string) MsgOption {
+	return func(m *Msg) {
+		m.boundary = boundary
+	}
+}
+
+// WithMiddleware adds the given Middleware to the end of the list of the Client middlewares slice.
+// Middleware are processed in FIFO order.
+//
+// This MsgOption function allows you to specify custom middleware that will be applied during the
+// message handling process. Middleware can be used to modify the message, perform logging, or
+// implement additional functionality as the message flows through the system. Each middleware
+// is executed in the order it was added.
+//
+// Parameters:
+//   - middleware: The Middleware to be added to the list for processing.
+//
+// Returns:
+//   - A MsgOption function that can be used to customize the Msg instance.
+func WithMiddleware(middleware Middleware) MsgOption {
+	return func(m *Msg) {
+		m.middlewares = append(m.middlewares, middleware)
+	}
+}
+
+// WithPGPType sets the PGP type for the Msg during its creation or initialization, determining
+// the encryption or signature method.
+//
+// This MsgOption function allows you to specify the PGP (Pretty Good Privacy) type to be used
+// for securing the message. The chosen PGP type influences how the message is encrypted or
+// signed, ensuring confidentiality and integrity of the content. This option should be called
+// when creating a new Msg instance to set the desired PGP type appropriately.
+//
+// Parameters:
+//   - pgptype: The PGPType value that specifies the desired PGP type for the Msg.
+//
+// Returns:
+//   - A MsgOption function that can be used to customize the Msg instance.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc4880
+func WithPGPType(pgptype PGPType) MsgOption {
+	return func(m *Msg) {
+		m.pgptype = pgptype
+	}
+}
+
+// WithNoDefaultUserAgent disables the inclusion of a default User-Agent header in the Msg during
+// its creation or initialization.
+//
+// This MsgOption function allows you to customize the Msg instance by omitting the default
+// User-Agent header, which is typically included to provide information about the software
+// sending the email. This option can be useful when you want to have more control over the
+// headers included in the message, such as when sending from a custom application or for
+// privacy reasons.
+//
+// Returns:
+//   - A MsgOption function that can be used to customize the Msg instance.
 func WithNoDefaultUserAgent() MsgOption {
 	return func(m *Msg) {
 		m.noDefaultUserAgent = true
@@ -242,67 +332,150 @@ func WithNoDefaultUserAgent() MsgOption {
 }
 
 // SetCharset sets or overrides the currently set encoding charset of the Msg.
-func (m *Msg) SetCharset(c Charset) {
-	m.charset = c
+//
+// This method allows you to specify a character set for the email message. The charset is
+// important for ensuring that the content of the message is correctly interpreted by
+// mail clients. Common charset values include UTF-8, ISO-8859-1, and others. If a charset
+// is not explicitly set, CharsetUTF8 is used as default.
+//
+// Parameters:
+//   - charset: The Charset value to set for the Msg, determining the encoding used for the message content.
+func (m *Msg) SetCharset(charset Charset) {
+	m.charset = charset
 }
 
 // SetEncoding sets or overrides the currently set Encoding of the Msg.
-func (m *Msg) SetEncoding(e Encoding) {
-	m.encoding = e
+//
+// This method allows you to specify the encoding type for the email message. The encoding
+// determines how the message content is represented and can affect the size and compatibility
+// of the email. Common encoding types include Base64 and Quoted-Printable. Setting a new
+// encoding may also adjust how the message content is processed and transmitted.
+//
+// Parameters:
+//   - encoding: The Encoding value to set for the Msg, determining the method used to encode the
+//     message content.
+func (m *Msg) SetEncoding(encoding Encoding) {
+	m.encoding = encoding
 	m.setEncoder()
 }
 
 // SetBoundary sets or overrides the currently set boundary of the Msg.
 //
-// Note that by default we create random MIME boundaries. This should only be used if a specific boundary is
-// required.
-func (m *Msg) SetBoundary(b string) {
-	m.boundary = b
+// This method allows you to specify a custom boundary string for the MIME message. The
+// boundary is used to separate different parts of the message, especially when dealing
+// with multipart messages. By default, the Msg generates random MIME boundaries. This
+// function should only be used if you have a specific boundary requirement for the
+// message. Ensure that the boundary value does not conflict with any content within the
+// message to avoid parsing errors.
+//
+// Parameters:
+//   - boundary: The string value representing the boundary to set for the Msg, used in
+//     multipart messages to delimit different sections.
+func (m *Msg) SetBoundary(boundary string) {
+	m.boundary = boundary
 }
 
 // SetMIMEVersion sets or overrides the currently set MIME version of the Msg.
 //
-// Note that in the context of email, MIME Version 1.0 is the only officially standardized and supported
-// version. While MIME has been updated and extended over time (via various RFCs), these updates and extensions
-// do not introduce new MIME versions; they refine or add features within the framework of MIME 1.0.
-// Therefore there should be no reason to ever use this MsgOption.
+// In the context of email, MIME Version 1.0 is the only officially standardized and
+// supported version. Although MIME has been updated and extended over time through
+// various RFCs, these updates do not introduce new MIME versions; they refine or add
+// features within the framework of MIME 1.0. Therefore, there is generally no need to
+// use this function to set a different MIME version.
 //
-// https://datatracker.ietf.org/doc/html/rfc1521
+// Parameters:
+//   - version: The MIMEVersion value to set for the Msg, which determines the MIME
+//     version used in the email message.
 //
-// https://datatracker.ietf.org/doc/html/rfc2045
-//
-// https://datatracker.ietf.org/doc/html/rfc2049
-func (m *Msg) SetMIMEVersion(mv MIMEVersion) {
-	m.mimever = mv
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc1521
+//   - https://datatracker.ietf.org/doc/html/rfc2045
+//   - https://datatracker.ietf.org/doc/html/rfc2049
+func (m *Msg) SetMIMEVersion(version MIMEVersion) {
+	m.mimever = version
 }
 
-// SetPGPType sets or overrides the currently set PGP type for the Msg, determining the encryption or
-// signature method.
-func (m *Msg) SetPGPType(t PGPType) {
-	m.pgptype = t
+// SetPGPType sets or overrides the currently set PGP type for the Msg, determining the
+// encryption or signature method.
+//
+// This method allows you to specify the PGP type that will be used when encrypting or
+// signing the message. Different PGP types correspond to various encryption and signing
+// algorithms, and selecting the appropriate type is essential for ensuring the security
+// and integrity of the message content.
+//
+// Parameters:
+//   - pgptype: The PGPType value to set for the Msg, which determines the encryption
+//     or signature method used for the email message.
+func (m *Msg) SetPGPType(pgptype PGPType) {
+	m.pgptype = pgptype
 }
 
-// Encoding returns the currently set Encoding of the Msg as string.
+// Encoding returns the currently set Encoding of the Msg as a string.
+//
+// This method retrieves the encoding type that is currently applied to the message. The
+// encoding type determines how the message content is encoded for transmission. Common
+// encoding types include quoted-printable and base64, and the returned string will reflect
+// the specific encoding method in use.
+//
+// Returns:
+//   - A string representation of the current Encoding of the Msg.
 func (m *Msg) Encoding() string {
 	return m.encoding.String()
 }
 
-// Charset returns the currently set Charset of the Msg as string.
+// Charset returns the currently set Charset of the Msg as a string.
+//
+// This method retrieves the character set that is currently applied to the message. The
+// charset defines the encoding for the text content of the message, ensuring that
+// characters are displayed correctly across different email clients and platforms. The
+// returned string will reflect the specific charset in use, such as UTF-8 or ISO-8859-1.
+//
+// Returns:
+//   - A string representation of the current Charset of the Msg.
 func (m *Msg) Charset() string {
 	return m.charset.String()
 }
 
 // SetHeader sets a generic header field of the Msg.
 //
-// Deprecated: This method only exists for compatibility reason. Please use SetGenHeader instead.
-// For adding address headers like "To:" or "From", use SetAddrHeader instead.
+// Deprecated: This method only exists for compatibility reasons. Please use SetGenHeader
+// instead. For adding address headers like "To:" or "From", use SetAddrHeader instead.
+//
+// This method allows you to set a header field for the message, providing the header name
+// and its corresponding values. However, it is recommended to utilize the newer methods
+// for better clarity and functionality. Using SetGenHeader or SetAddrHeader is preferred
+// for more specific header types, ensuring proper handling of the message headers.
+//
+// Parameters:
+//   - header: The header field to set in the Msg.
+//   - values: One or more string values to associate with the header field.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3
+//   - https://datatracker.ietf.org/doc/html/rfc2047
 func (m *Msg) SetHeader(header Header, values ...string) {
 	m.SetGenHeader(header, values...)
 }
 
 // SetGenHeader sets a generic header field of the Msg to the provided list of values.
 //
-// Note: for adding email address related headers (like "To:" or "From") use SetAddrHeader instead.
+// This method is intended for setting generic headers in the email message. It takes a
+// header name and a variadic list of string values, encoding them as necessary before
+// storing them in the message's internal header map.
+//
+// Note: For adding email address-related headers (like "To:", "From", "Cc", etc.),
+// use SetAddrHeader instead to ensure proper formatting and validation.
+//
+// Parameters:
+//   - header: The header field to set in the Msg.
+//   - values: One or more string values to associate with the header field.
+//
+// This method ensures that all values are appropriately encoded for email transmission,
+// adhering to the necessary standards.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3
+//   - https://datatracker.ietf.org/doc/html/rfc2047
 func (m *Msg) SetGenHeader(header Header, values ...string) {
 	if m.genHeader == nil {
 		m.genHeader = make(map[Header][]string)
@@ -315,22 +488,36 @@ func (m *Msg) SetGenHeader(header Header, values ...string) {
 
 // SetHeaderPreformatted sets a generic header field of the Msg, which content is already preformatted.
 //
-// Deprecated: This method only exists for compatibility reason. Please use SetGenHeaderPreformatted instead.
+// Deprecated: This method only exists for compatibility reasons. Please use
+// SetGenHeaderPreformatted instead for setting preformatted generic header fields.
+//
+// Parameters:
+//   - header: The header field to set in the Msg.
+//   - value: The preformatted string value to associate with the header field.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3
+//   - https://datatracker.ietf.org/doc/html/rfc2047
 func (m *Msg) SetHeaderPreformatted(header Header, value string) {
 	m.SetGenHeaderPreformatted(header, value)
 }
 
-// SetGenHeaderPreformatted sets a generic header field of the Msg which content is already preformated.
+// SetGenHeaderPreformatted sets a generic header field of the Msg which content is already preformatted.
 //
 // This method does not take a slice of values but only a single value. The reason for this is that we do not
-// perform any content alteration on these kind of headers and expect the user to have already taken care of
+// perform any content alteration on these kinds of headers and expect the user to have already taken care of
 // any kind of formatting required for the header.
 //
-// Note: This method should be used only as a last resort. Since the user is respondible for the formatting of
-// the message header, we cannot guarantee any compliance with the RFC 2822. It is advised to use SetGenHeader
-// instead.
+// Note: This method should be used only as a last resort. Since the user is responsible for the formatting of
+// the message header, we cannot guarantee any compliance with RFC 2822. It is advised to use SetGenHeader
+// instead for general header fields.
 //
-// https://datatracker.ietf.org/doc/html/rfc2822
+// Parameters:
+//   - header: The header field to set in the Msg.
+//   - value: The preformatted string value to associate with the header field.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2822
 func (m *Msg) SetGenHeaderPreformatted(header Header, value string) {
 	if m.preformHeader == nil {
 		m.preformHeader = make(map[Header]string)
@@ -340,11 +527,21 @@ func (m *Msg) SetGenHeaderPreformatted(header Header, value string) {
 
 // SetAddrHeader sets the specified AddrHeader for the Msg to the given values.
 //
-// Addresses are parsed according to RFC 5322. If parsing of ANY of the provided values fails,
-// and error is returned. If you cannot guarantee that all provided values are valid, you can
-// use SetAddrHeaderIgnoreInvalid instead, which will skip any parsing error silently.
+// Addresses are parsed according to RFC 5322. If parsing any of the provided values fails,
+// an error is returned. If you cannot guarantee that all provided values are valid, you can
+// use SetAddrHeaderIgnoreInvalid instead, which will silently skip any parsing errors.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
+// This method allows you to set address-related headers for the message, ensuring that the
+// provided addresses are properly formatted and parsed. Using this method helps maintain the
+// integrity of the email addresses within the message.
+//
+// Parameters:
+//   - header: The AddrHeader to set in the Msg (e.g., "From", "To", "Cc", "Bcc").
+//   - values: One or more string values representing the email addresses to associate with
+//     the specified header.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
 func (m *Msg) SetAddrHeader(header AddrHeader, values ...string) error {
 	if m.addrHeader == nil {
 		m.addrHeader = make(map[AddrHeader][]*mail.Address)
@@ -370,10 +567,19 @@ func (m *Msg) SetAddrHeader(header AddrHeader, values ...string) error {
 
 // SetAddrHeaderIgnoreInvalid sets the specified AddrHeader for the Msg to the given values.
 //
-// Addresses are parsed according to RFC 5322. If parsing of ANY of the provided values fails,
-// the error is ignored and the address omiitted from the address list.
+// Addresses are parsed according to RFC 5322. If parsing of any of the provided values fails,
+// the error is ignored and the address is omitted from the address list.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
+// This method allows for setting address headers while ignoring invalid addresses. It is useful
+// in scenarios where you want to ensure that only valid addresses are included without halting
+// execution due to parsing errors.
+//
+// Parameters:
+//   - header: The AddrHeader field to set in the Msg.
+//   - values: One or more string values representing email addresses.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
 func (m *Msg) SetAddrHeaderIgnoreInvalid(header AddrHeader, values ...string) {
 	var addresses []*mail.Address
 	for _, addrVal := range values {
@@ -388,36 +594,51 @@ func (m *Msg) SetAddrHeaderIgnoreInvalid(header AddrHeader, values ...string) {
 
 // EnvelopeFrom sets the envelope from address for the Msg.
 //
-// The HeaderEnvelopeFrom address is generally not included in the mail body but only used by the Client for the
-// communication with the SMTP server. If the Msg has no "FROM" address set in the mail body, the msgWriter will
-// try to use the envelope from address, if this has been set for the Msg. The provided address is validated
-// according to RFC 5322 and will return an error if the validation fails.
+// The HeaderEnvelopeFrom address is generally not included in the mail body but only used by the
+// Client for communication with the SMTP server. If the Msg has no "FROM" address set in the
+// mail body, the msgWriter will try to use the envelope from address if it has been set for the Msg.
+// The provided address is validated according to RFC 5322 and will return an error if the validation fails.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
+// Parameters:
+//   - from: The envelope from address to set in the Msg.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
 func (m *Msg) EnvelopeFrom(from string) error {
 	return m.SetAddrHeader(HeaderEnvelopeFrom, from)
 }
 
 // EnvelopeFromFormat sets the provided name and mail address as HeaderEnvelopeFrom for the Msg.
 //
-// The HeaderEnvelopeFrom address is generally not included in the mail body but only used by the Client for the
-// communication with the SMTP server. If the Msg has no "FROM" address set in the mail body, the msgWriter will
-// try to use the envelope from address, if this has been set for the Msg. The provided name and address adre
-// validated according to RFC 5322 and will return an error if the validation fails.
+// The HeaderEnvelopeFrom address is generally not included in the mail body but only used by the
+// Client for communication with the SMTP server. If the Msg has no "FROM" address set in the mail
+// body, the msgWriter will try to use the envelope from address if it has been set for the Msg.
+// The provided name and address are validated according to RFC 5322 and will return an error if
+// the validation fails.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
+// Parameters:
+//   - name: The name to associate with the envelope from address.
+//   - addr: The mail address to set as the envelope from address.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
 func (m *Msg) EnvelopeFromFormat(name, addr string) error {
 	return m.SetAddrHeader(HeaderEnvelopeFrom, fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
 
 // From sets the "FROM" address in the mail body for the Msg.
 //
-// The "FROM" address is included in the mail body and indicates the sender of the message to the recipient.
-// This address is visible in the email client and is typically displayed to the recipient. If the "FROM" address
-// is not set, the msgWriter may attempt to use the envelope from address (if available) for sending. The provided
-// address is validated according to RFC 5322 and will return an error if the validation fails.
+// The "FROM" address is included in the mail body and indicates the sender of the message to
+// the recipient. This address is visible in the email client and is typically displayed to the
+// recipient. If the "FROM" address is not set, the msgWriter may attempt to use the envelope
+// from address (if available) for sending. The provided address is validated according to RFC
+// 5322 and will return an error if the validation fails.
 //
-// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
+// Parameters:
+//   - from: The "FROM" address to set in the mail body.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
 func (m *Msg) From(from string) error {
 	return m.SetAddrHeader(HeaderFrom, from)
 }
