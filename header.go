@@ -4,129 +4,137 @@
 
 package mail
 
-// Header represents a generic mail header field name
+// Header is a type wrapper for a string and represents email header fields in a Msg.
 type Header string
 
-// AddrHeader represents a address related mail Header field name
+// AddrHeader is a type wrapper for a string and represents email address headers fields in a Msg.
 type AddrHeader string
 
-// Importance represents a Importance/Priority value string
+// Importance is a type wrapper for an int and represents the level of importance or priority for a Msg.
 type Importance int
 
-// List of common generic header field names
 const (
-	// HeaderContentDescription is the "Content-Description" header
+	// HeaderContentDescription is the "Content-Description" header.
 	HeaderContentDescription Header = "Content-Description"
 
-	// HeaderContentDisposition is the "Content-Disposition" header
+	// HeaderContentDisposition is the "Content-Disposition" header.
 	HeaderContentDisposition Header = "Content-Disposition"
 
-	// HeaderContentID is the "Content-ID" header
+	// HeaderContentID is the "Content-ID" header.
 	HeaderContentID Header = "Content-ID"
 
-	// HeaderContentLang is the "Content-Language" header
+	// HeaderContentLang is the "Content-Language" header.
 	HeaderContentLang Header = "Content-Language"
 
-	// HeaderContentLocation is the "Content-Location" header (RFC 2110)
+	// HeaderContentLocation is the "Content-Location" header (RFC 2110).
+	// https://datatracker.ietf.org/doc/html/rfc2110#section-4.3
 	HeaderContentLocation Header = "Content-Location"
 
-	// HeaderContentTransferEnc is the "Content-Transfer-Encoding" header
+	// HeaderContentTransferEnc is the "Content-Transfer-Encoding" header.
 	HeaderContentTransferEnc Header = "Content-Transfer-Encoding"
 
-	// HeaderContentType is the "Content-Type" header
+	// HeaderContentType is the "Content-Type" header.
 	HeaderContentType Header = "Content-Type"
 
-	// HeaderDate represents the "Date" field
-	// See: https://www.rfc-editor.org/rfc/rfc822#section-5.1
+	// HeaderDate represents the "Date" field.
+	// https://datatracker.ietf.org/doc/html/rfc822#section-5.1
 	HeaderDate Header = "Date"
 
-	// HeaderDispositionNotificationTo is the MDN header as described in RFC8098
-	// See: https://www.rfc-editor.org/rfc/rfc8098.html#section-2.1
+	// HeaderDispositionNotificationTo is the MDN header as described in RFC 8098.
+	// https://datatracker.ietf.org/doc/html/rfc8098#section-2.1
 	HeaderDispositionNotificationTo Header = "Disposition-Notification-To"
 
-	// HeaderImportance represents the "Importance" field
+	// HeaderImportance represents the "Importance" field.
 	HeaderImportance Header = "Importance"
 
-	// HeaderInReplyTo represents the "In-Reply-To" field
+	// HeaderInReplyTo represents the "In-Reply-To" field.
 	HeaderInReplyTo Header = "In-Reply-To"
 
-	// HeaderListUnsubscribe is the "List-Unsubscribe" header field
+	// HeaderListUnsubscribe is the "List-Unsubscribe" header field.
 	HeaderListUnsubscribe Header = "List-Unsubscribe"
 
-	// HeaderListUnsubscribePost is the "List-Unsubscribe-Post" header field
+	// HeaderListUnsubscribePost is the "List-Unsubscribe-Post" header field.
 	HeaderListUnsubscribePost Header = "List-Unsubscribe-Post"
 
-	// HeaderMessageID represents the "Message-ID" field for message identification
-	// See: https://www.rfc-editor.org/rfc/rfc1036#section-2.1.5
+	// HeaderMessageID represents the "Message-ID" field for message identification.
+	// https://datatracker.ietf.org/doc/html/rfc1036#section-2.1.5
 	HeaderMessageID Header = "Message-ID"
 
-	// HeaderMIMEVersion represents the "MIME-Version" field as per RFC 2045
-	// See: https://datatracker.ietf.org/doc/html/rfc2045#section-4
+	// HeaderMIMEVersion represents the "MIME-Version" field as per RFC 2045.
+	// https://datatracker.ietf.org/doc/html/rfc2045#section-4
 	HeaderMIMEVersion Header = "MIME-Version"
 
-	// HeaderOrganization is the "Organization" header field
+	// HeaderOrganization is the "Organization" header field.
 	HeaderOrganization Header = "Organization"
 
-	// HeaderPrecedence is the "Precedence" header field
+	// HeaderPrecedence is the "Precedence" header field.
 	HeaderPrecedence Header = "Precedence"
 
-	// HeaderPriority represents the "Priority" field
+	// HeaderPriority represents the "Priority" field.
 	HeaderPriority Header = "Priority"
 
-	// HeaderReferences is the "References" header field
+	// HeaderReferences is the "References" header field.
 	HeaderReferences Header = "References"
 
-	// HeaderReplyTo is the "Reply-To" header field
+	// HeaderReplyTo is the "Reply-To" header field.
 	HeaderReplyTo Header = "Reply-To"
 
-	// HeaderSubject is the "Subject" header field
+	// HeaderSubject is the "Subject" header field.
 	HeaderSubject Header = "Subject"
 
-	// HeaderUserAgent is the "User-Agent" header field
+	// HeaderUserAgent is the "User-Agent" header field.
 	HeaderUserAgent Header = "User-Agent"
 
-	// HeaderXAutoResponseSuppress is the "X-Auto-Response-Suppress" header field
+	// HeaderXAutoResponseSuppress is the "X-Auto-Response-Suppress" header field.
 	HeaderXAutoResponseSuppress Header = "X-Auto-Response-Suppress"
 
-	// HeaderXMailer is the "X-Mailer" header field
+	// HeaderXMailer is the "X-Mailer" header field.
 	HeaderXMailer Header = "X-Mailer"
 
-	// HeaderXMSMailPriority is the "X-MSMail-Priority" header field
+	// HeaderXMSMailPriority is the "X-MSMail-Priority" header field.
 	HeaderXMSMailPriority Header = "X-MSMail-Priority"
 
-	// HeaderXPriority is the "X-Priority" header field
+	// HeaderXPriority is the "X-Priority" header field.
 	HeaderXPriority Header = "X-Priority"
 )
 
-// List of common address header field names
 const (
-	// HeaderBcc is the "Blind Carbon Copy" header field
+	// HeaderBcc is the "Blind Carbon Copy" header field.
 	HeaderBcc AddrHeader = "Bcc"
 
-	// HeaderCc is the "Carbon Copy" header field
+	// HeaderCc is the "Carbon Copy" header field.
 	HeaderCc AddrHeader = "Cc"
 
-	// HeaderEnvelopeFrom is the envelope FROM header field
-	// It's not included in the mail body but only used by the Client for the envelope
+	// HeaderEnvelopeFrom is the envelope FROM header field. It is not included in the mail body but only used by
+	// the Client for the envelope.
 	HeaderEnvelopeFrom AddrHeader = "EnvelopeFrom"
 
-	// HeaderFrom is the "From" header field
+	// HeaderFrom is the "From" header field.
 	HeaderFrom AddrHeader = "From"
 
-	// HeaderTo is the "Receipient" header field
+	// HeaderTo is the "Receipient" header field.
 	HeaderTo AddrHeader = "To"
 )
 
-// List of Importance values
 const (
+	// ImportanceLow indicates a low level of importance or priority in a Msg.
 	ImportanceLow Importance = iota
+
+	// ImportanceNormal indicates a standard level of importance or priority for a Msg.
 	ImportanceNormal
+
+	// ImportanceHigh indicates a high level of importance or priority in a Msg.
 	ImportanceHigh
+
+	// ImportanceNonUrgent indicates a non-urgent level of importance or priority in a Msg.
 	ImportanceNonUrgent
+
+	// ImportanceUrgent indicates an urgent level of importance or priority in a Msg.
 	ImportanceUrgent
 )
 
-// NumString returns the importance number string based on the Importance
+// NumString returns a numerical string representation of the Importance, mapping ImportanceHigh and
+// ImportanceUrgent to "1" and others to "0".
 func (i Importance) NumString() string {
 	switch i {
 	case ImportanceNonUrgent:
@@ -142,7 +150,8 @@ func (i Importance) NumString() string {
 	}
 }
 
-// XPrioString returns the X-Priority number string based on the Importance
+// XPrioString returns the X-Priority string representation of the Importance, mapping ImportanceHigh and
+// ImportanceUrgent to "1" and others to "5".
 func (i Importance) XPrioString() string {
 	switch i {
 	case ImportanceNonUrgent:
@@ -158,7 +167,8 @@ func (i Importance) XPrioString() string {
 	}
 }
 
-// String returns the importance string based on the Importance
+// String satisfies the fmt.Stringer interface for the Importance type and returns the string representation of the
+// Importance level.
 func (i Importance) String() string {
 	switch i {
 	case ImportanceNonUrgent:
@@ -174,12 +184,13 @@ func (i Importance) String() string {
 	}
 }
 
-// String returns the header string based on the given Header
+// String satisfies the fmt.Stringer interface for the Header type and returns the string representation of the Header.
 func (h Header) String() string {
 	return string(h)
 }
 
-// String returns the address header string based on the given AddrHeader
+// String satisfies the fmt.Stringer interface for the AddrHeader type and returns the string representation of the
+// AddrHeader.
 func (a AddrHeader) String() string {
 	return string(a)
 }
