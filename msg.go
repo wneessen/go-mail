@@ -410,102 +410,229 @@ func (m *Msg) EnvelopeFromFormat(name, addr string) error {
 	return m.SetAddrHeader(HeaderEnvelopeFrom, fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
 
-// From takes and validates a given mail address and sets it as "From" genHeader of the Msg
+// From sets the "FROM" address in the mail body for the Msg.
+//
+// The "FROM" address is included in the mail body and indicates the sender of the message to the recipient.
+// This address is visible in the email client and is typically displayed to the recipient. If the "FROM" address
+// is not set, the msgWriter may attempt to use the envelope from address (if available) for sending. The provided
+// address is validated according to RFC 5322 and will return an error if the validation fails.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
 func (m *Msg) From(from string) error {
 	return m.SetAddrHeader(HeaderFrom, from)
 }
 
-// FromFormat takes a name and address, formats them RFC5322 compliant and stores them as
-// the From address header field
+// FromFormat sets the provided name and mail address as the "FROM" address in the mail body for the Msg.
+//
+// The "FROM" address is included in the mail body and indicates the sender of the message to the recipient,
+// and is visible in the email client. If the "FROM" address is not explicitly set, the msgWriter may use
+// the envelope from address (if provided) when sending the message. The provided name and address are
+// validated according to RFC 5322 and will return an error if the validation fails.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
 func (m *Msg) FromFormat(name, addr string) error {
 	return m.SetAddrHeader(HeaderFrom, fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
 
-// To takes and validates a given mail address list sets the To: addresses of the Msg
+// To sets one or more "TO" addresses in the mail body for the Msg.
+//
+// The "TO" address specifies the primary recipient(s) of the message and is included in the mail body.
+// This address is visible to the recipient and any other recipients of the message. Multiple "TO" addresses
+// can be set by passing them as variadic arguments to this method. Each provided address is validated
+// according to RFC 5322, and an error will be returned if ANY validation fails.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) To(rcpts ...string) error {
 	return m.SetAddrHeader(HeaderTo, rcpts...)
 }
 
-// AddTo adds an additional address to the To address header field
+// AddTo adds a single "TO" address to the existing list of recipients in the mail body for the Msg.
+//
+// This method allows you to add a single recipient to the "TO" field without replacing any previously set
+// "TO" addresses. The "TO" address specifies the primary recipient(s) of the message and is visible in the mail
+// client. The provided address is validated according to RFC 5322, and an error will be returned if the
+// validation fails.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddTo(rcpt string) error {
 	return m.addAddr(HeaderTo, rcpt)
 }
 
-// AddToFormat takes a name and address, formats them RFC5322 compliant and stores them as
-// as additional To address header field
+// AddToFormat adds a single "TO" address with the provided name and email to the existing list of recipients
+// in the mail body for the Msg.
+//
+// This method allows you to add a recipient's name and email address to the "TO" field without replacing any
+// previously set "TO" addresses. The "TO" address specifies the primary recipient(s) of the message and is
+// visible in the mail client. The provided name and address are validated according to RFC 5322, and an error
+// will be returned if the validation fails.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddToFormat(name, addr string) error {
 	return m.addAddr(HeaderTo, fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
 
-// ToIgnoreInvalid takes and validates a given mail address list sets the To: addresses of the Msg
-// Any provided address that is not RFC5322 compliant, will be ignored
+// ToIgnoreInvalid sets one or more "TO" addresses in the mail body for the Msg, ignoring any invalid addresses.
+//
+// This method allows you to add multiple "TO" recipients to the message body. Unlike the standard `To` method,
+// any invalid addresses are ignored, and no error is returned for those addresses. Valid addresses will still be
+// included in the "TO" field, which is visible in the recipient's mail client. Use this method with caution if
+// address validation is critical. Invalid addresses are determined according to RFC 5322.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) ToIgnoreInvalid(rcpts ...string) {
 	m.SetAddrHeaderIgnoreInvalid(HeaderTo, rcpts...)
 }
 
-// ToFromString takes and validates a given string of comma separted
-// mail address and sets them as To: addresses of the Msg
+// ToFromString takes a string of comma-separated email addresses, validates each, and sets them as the
+// "TO" addresses for the Msg.
+//
+// This method allows you to pass a single string containing multiple email addresses separated by commas.
+// Each address is validated according to RFC 5322 and set as a recipient in the "TO" field. If any validation
+// fails, an error will be returned. The addresses are visible in the mail body and displayed to recipients in
+// the mail client. Any "TO" address applied previously will be overwritten.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) ToFromString(rcpts string) error {
 	return m.To(strings.Split(rcpts, ",")...)
 }
 
-// Cc takes and validates a given mail address list sets the Cc: addresses of the Msg
+// Cc sets one or more "CC" (carbon copy) addresses in the mail body for the Msg.
+//
+// The "CC" address specifies secondary recipient(s) of the message, and is included in the mail body.
+// These addresses are visible to all recipients, including those listed in the "TO" and other "CC" fields.
+// Multiple "CC" addresses can be set by passing them as variadic arguments to this method. Each provided
+// address is validated according to RFC 5322, and an error will be returned if ANY validation fails.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) Cc(rcpts ...string) error {
 	return m.SetAddrHeader(HeaderCc, rcpts...)
 }
 
-// AddCc adds an additional address to the Cc address header field
+// AddCc adds a single "CC" (carbon copy) address to the existing list of "CC" recipients in the mail body
+// for the Msg.
+//
+// This method allows you to add a single recipient to the "CC" field without replacing any previously set "CC"
+// addresses. The "CC" address specifies secondary recipient(s) and is visible to all recipients, including those
+// in the "TO" field. The provided address is validated according to RFC 5322, and an error will be returned if
+// the validation fails.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddCc(rcpt string) error {
 	return m.addAddr(HeaderCc, rcpt)
 }
 
-// AddCcFormat takes a name and address, formats them RFC5322 compliant and stores them as
-// as additional Cc address header field
+// AddCcFormat adds a single "CC" (carbon copy) address with the provided name and email to the existing list
+// of "CC" recipients in the mail body for the Msg.
+//
+// This method allows you to add a recipient's name and email address to the "CC" field without replacing any
+// previously set "CC" addresses. The "CC" address specifies secondary recipient(s) and is visible to all
+// recipients, including those in the "TO" field. The provided name and address are validated according to
+// RFC 5322, and an error will be returned if the validation fails.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddCcFormat(name, addr string) error {
 	return m.addAddr(HeaderCc, fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
 
-// CcIgnoreInvalid takes and validates a given mail address list sets the Cc: addresses of the Msg
-// Any provided address that is not RFC5322 compliant, will be ignored
+// CcIgnoreInvalid sets one or more "CC" (carbon copy) addresses in the mail body for the Msg, ignoring any
+// invalid addresses.
+//
+// This method allows you to add multiple "CC" recipients to the message body. Unlike the standard `Cc` method,
+// any invalid addresses are ignored, and no error is returned for those addresses. Valid addresses will still
+// be included in the "CC" field, which is visible to all recipients in the mail client. Use this method with
+// caution if address validation is critical, as invalid addresses are determined according to RFC 5322.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) CcIgnoreInvalid(rcpts ...string) {
 	m.SetAddrHeaderIgnoreInvalid(HeaderCc, rcpts...)
 }
 
-// CcFromString takes and validates a given string of comma separted
-// mail address and sets them as Cc: addresses of the Msg
+// CcFromString takes a string of comma-separated email addresses, validates each, and sets them as the "CC"
+// addresses for the Msg.
+//
+// This method allows you to pass a single string containing multiple email addresses separated by commas.
+// Each address is validated according to RFC 5322 and set as a recipient in the "CC" field. If any validation
+// fails, an error will be returned. The addresses are visible in the mail body and displayed to recipients
+// in the mail client.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) CcFromString(rcpts string) error {
 	return m.Cc(strings.Split(rcpts, ",")...)
 }
 
-// Bcc takes and validates a given mail address list sets the Bcc: addresses of the Msg
+// Bcc sets one or more "BCC" (blind carbon copy) addresses in the mail body for the Msg.
+//
+// The "BCC" address specifies recipient(s) of the message who will receive a copy without other recipients
+// being aware of it. These addresses are not visible in the mail body or to any other recipients, ensuring
+// the privacy of BCC'd recipients. Multiple "BCC" addresses can be set by passing them as variadic arguments
+// to this method. Each provided address is validated according to RFC 5322, and an error will be returned
+// if ANY validation fails.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) Bcc(rcpts ...string) error {
 	return m.SetAddrHeader(HeaderBcc, rcpts...)
 }
 
-// AddBcc adds an additional address to the Bcc address header field
+// AddBcc adds a single "BCC" (blind carbon copy) address to the existing list of "BCC" recipients in the mail
+// body for the Msg.
+//
+// This method allows you to add a single recipient to the "BCC" field without replacing any previously set
+// "BCC" addresses. The "BCC" address specifies recipient(s) of the message who will receive a copy without other
+// recipients being aware of it. The provided address is validated according to RFC 5322, and an error will be
+// returned if the validation fails.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddBcc(rcpt string) error {
 	return m.addAddr(HeaderBcc, rcpt)
 }
 
-// AddBccFormat takes a name and address, formats them RFC5322 compliant and stores them as
-// as additional Bcc address header field
+// AddBccFormat adds a single "BCC" (blind carbon copy) address with the provided name and email to the existing
+// list of "BCC" recipients in the mail body for the Msg.
+//
+// This method allows you to add a recipient's name and email address to the "BCC" field without replacing
+// any previously set "BCC" addresses. The "BCC" address specifies recipient(s) of the message who will receive
+// a copy without other recipients being aware of it. The provided name and address are validated according to
+// RFC 5322, and an error will be returned if the validation fails.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddBccFormat(name, addr string) error {
 	return m.addAddr(HeaderBcc, fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
 
-// BccIgnoreInvalid takes and validates a given mail address list sets the Bcc: addresses of the Msg
-// Any provided address that is not RFC5322 compliant, will be ignored
+// BccIgnoreInvalid sets one or more "BCC" (blind carbon copy) addresses in the mail body for the Msg,
+// ignoring any invalid addresses.
+//
+// This method allows you to add multiple "BCC" recipients to the message body. Unlike the standard `Bcc`
+// method, any invalid addresses are ignored, and no error is returned for those addresses. Valid addresses
+// will still be included in the "BCC" field, which ensures the privacy of the BCC'd recipients. Use this method
+// with caution if address validation is critical, as invalid addresses are determined according to RFC 5322.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) BccIgnoreInvalid(rcpts ...string) {
 	m.SetAddrHeaderIgnoreInvalid(HeaderBcc, rcpts...)
 }
 
-// BccFromString takes and validates a given string of comma separted
-// mail address and sets them as Bcc: addresses of the Msg
+// BccFromString takes a string of comma-separated email addresses, validates each, and sets them as the "BCC"
+// addresses for the Msg.
+//
+// This method allows you to pass a single string containing multiple email addresses separated by commas.
+// Each address is validated according to RFC 5322 and set as a recipient in the "BCC" field. If any validation
+// fails, an error will be returned. The addresses are not visible in the mail body and ensure the privacy of
+// BCC'd recipients.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) BccFromString(rcpts string) error {
 	return m.Bcc(strings.Split(rcpts, ",")...)
 }
 
-// ReplyTo takes and validates a given mail address and sets it as "Reply-To" addrHeader of the Msg
+// ReplyTo sets the "Reply-To" address for the Msg, specifying where replies should be sent.
+//
+// This method takes a single email address as input and attempts to parse it. If the address is valid, it sets
+// the "Reply-To" header in the message. The "Reply-To" address can be different from the "From" address,
+// allowing the sender to specify an alternate address for responses. If the provided address cannot be parsed,
+// an error will be returned, indicating the parsing failure.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
 func (m *Msg) ReplyTo(addr string) error {
 	replyTo, err := mail.ParseAddress(addr)
 	if err != nil {
@@ -515,20 +642,17 @@ func (m *Msg) ReplyTo(addr string) error {
 	return nil
 }
 
-// ReplyToFormat takes a name and address, formats them RFC5322 compliant and stores them as
-// the Reply-To header field
+// ReplyToFormat sets the "Reply-To" address for the Msg using the provided name and email address, specifying
+// where replies should be sent.
+//
+// This method formats the name and email address into a single "Reply-To" header. If the formatted address is valid,
+// it sets the "Reply-To" header in the message. This allows the sender to specify a display name along with the
+// reply address, providing clarity for recipients. If the constructed address cannot be parsed, an error will
+// be returned, indicating the parsing failure.
+//
+// https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
 func (m *Msg) ReplyToFormat(name, addr string) error {
 	return m.ReplyTo(fmt.Sprintf(`"%s" <%s>`, name, addr))
-}
-
-// addAddr adds an additional address to the given addrHeader of the Msg
-func (m *Msg) addAddr(header AddrHeader, addr string) error {
-	var addresses []string
-	for _, address := range m.addrHeader[header] {
-		addresses = append(addresses, address.String())
-	}
-	addresses = append(addresses, addr)
-	return m.SetAddrHeader(header, addresses...)
 }
 
 // Subject sets the "Subject" header field of the Msg
@@ -1228,6 +1352,16 @@ func (m *Msg) SendErrorIsTemp() bool {
 // SendError returns the sendError field of the Msg
 func (m *Msg) SendError() error {
 	return m.sendError
+}
+
+// addAddr adds an additional address to the given addrHeader of the Msg
+func (m *Msg) addAddr(header AddrHeader, addr string) error {
+	var addresses []string
+	for _, address := range m.addrHeader[header] {
+		addresses = append(addresses, address.String())
+	}
+	addresses = append(addresses, addr)
+	return m.SetAddrHeader(header, addresses...)
 }
 
 // encodeString encodes a string based on the configured message encoder and the corresponding
