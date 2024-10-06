@@ -1689,13 +1689,40 @@ func (m *Msg) SetBodyTextTemplate(tpl *tt.Template, data interface{}, opts ...Pa
 }
 
 // AddAlternativeString sets the alternative body of the message.
+//
+// This method adds an alternative representation of the message body using the specified content type
+// and string content. This is typically used to provide both plain text and HTML versions of the email.
+// Optional part settings can be provided via PartOption to further customize the message.
+//
+// Parameters:
+//   - contentType: The content type of the alternative body (e.g., plain text, HTML).
+//   - content: The string content to set as the alternative body.
+//   - opts: Optional parameters for customizing the alternative body part.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2045
+//   - https://datatracker.ietf.org/doc/html/rfc2046
 func (m *Msg) AddAlternativeString(contentType ContentType, content string, opts ...PartOption) {
 	buffer := bytes.NewBufferString(content)
 	writeFunc := writeFuncFromBuffer(buffer)
 	m.AddAlternativeWriter(contentType, writeFunc, opts...)
 }
 
-// AddAlternativeWriter sets the body of the message.
+// AddAlternativeWriter sets the alternative body of the message.
+//
+// This method adds an alternative representation of the message body using a write function, allowing
+// content to be written directly to the body. This is typically used to provide different formats, such
+// as plain text and HTML. Optional part settings can be provided via PartOption to customize the message part.
+//
+// Parameters:
+//   - contentType: The content type of the alternative body (e.g., plain text, HTML).
+//   - writeFunc: A function that writes content to an io.Writer and returns the number of bytes written and
+//     an error, if any.
+//   - opts: Optional parameters for customizing the alternative body part.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2045
+//   - https://datatracker.ietf.org/doc/html/rfc2046
 func (m *Msg) AddAlternativeWriter(
 	contentType ContentType, writeFunc func(io.Writer) (int64, error),
 	opts ...PartOption,
@@ -1705,8 +1732,23 @@ func (m *Msg) AddAlternativeWriter(
 	m.parts = append(m.parts, part)
 }
 
-// AddAlternativeHTMLTemplate sets the alternative body of the message to a html/template.Template output
-// The content type will be set to text/html automatically
+// AddAlternativeHTMLTemplate sets the alternative body of the message to an html/template.Template output.
+//
+// The content type will be set to "text/html" automatically. This method executes the provided HTML template
+// with the given data and adds the result as an alternative version of the message body. If the template
+// is nil or fails to execute, an error will be returned.
+//
+// Parameters:
+//   - tpl: A pointer to the html/template.Template to be used for the alternative body.
+//   - data: The data to populate the template.
+//   - opts: Optional parameters for customizing the alternative body part.
+//
+// Returns:
+//   - An error if the template is nil or fails to execute, otherwise nil.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2045
+//   - https://datatracker.ietf.org/doc/html/rfc2046
 func (m *Msg) AddAlternativeHTMLTemplate(tpl *ht.Template, data interface{}, opts ...PartOption) error {
 	if tpl == nil {
 		return errors.New(errTplPointerNil)
@@ -1720,8 +1762,23 @@ func (m *Msg) AddAlternativeHTMLTemplate(tpl *ht.Template, data interface{}, opt
 	return nil
 }
 
-// AddAlternativeTextTemplate sets the alternative body of the message to a text/template.Template output
-// The content type will be set to text/plain automatically
+// AddAlternativeTextTemplate sets the alternative body of the message to a text/template.Template output.
+//
+// The content type will be set to "text/plain" automatically. This method executes the provided text template
+// with the given data and adds the result as an alternative version of the message body. If the template
+// is nil or fails to execute, an error will be returned.
+//
+// Parameters:
+//   - tpl: A pointer to the text/template.Template to be used for the alternative body.
+//   - data: The data to populate the template.
+//   - opts: Optional parameters for customizing the alternative body part.
+//
+// Returns:
+//   - An error if the template is nil or fails to execute, otherwise nil.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2045
+//   - https://datatracker.ietf.org/doc/html/rfc2046
 func (m *Msg) AddAlternativeTextTemplate(tpl *tt.Template, data interface{}, opts ...PartOption) error {
 	if tpl == nil {
 		return errors.New(errTplPointerNil)
@@ -1735,7 +1792,18 @@ func (m *Msg) AddAlternativeTextTemplate(tpl *tt.Template, data interface{}, opt
 	return nil
 }
 
-// AttachFile adds an attachment File to the Msg
+// AttachFile adds an attachment File to the Msg.
+//
+// This method attaches a file to the message by specifying the file name. The file is retrieved from the
+// filesystem and added to the list of attachments. Optional FileOption parameters can be provided to customize
+// the attachment, such as setting its content type or encoding.
+//
+// Parameters:
+//   - name: The name of the file to be attached.
+//   - opts: Optional parameters for customizing the attachment.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) AttachFile(name string, opts ...FileOption) {
 	file := fileFromFS(name)
 	if file == nil {
@@ -1744,12 +1812,22 @@ func (m *Msg) AttachFile(name string, opts ...FileOption) {
 	m.attachments = m.appendFile(m.attachments, file, opts...)
 }
 
-// AttachReader adds an attachment File via io.Reader to the Msg
+// AttachReader adds an attachment File via io.Reader to the Msg.
 //
-// CAVEAT: For AttachReader to work it has to read all data of the io.Reader
-// into memory first, so it can seek through it. Using larger amounts of
-// data on the io.Reader should be avoided. For such, it is recommended to
-// either use AttachFile or AttachReadSeeker instead
+// This method allows you to attach a file to the message using an io.Reader. It reads all data from the
+// io.Reader into memory before attaching the file, which may not be suitable for large data sources.
+// For larger files, it is recommended to use AttachFile or AttachReadSeeker instead.
+//
+// Parameters:
+//   - name: The name of the file to be attached.
+//   - reader: The io.Reader providing the file data to be attached.
+//   - opts: Optional parameters for customizing the attachment.
+//
+// Returns:
+//   - An error if the file could not be read from the io.Reader, otherwise nil.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) AttachReader(name string, reader io.Reader, opts ...FileOption) error {
 	file, err := fileFromReader(name, reader)
 	if err != nil {
@@ -1759,13 +1837,41 @@ func (m *Msg) AttachReader(name string, reader io.Reader, opts ...FileOption) er
 	return nil
 }
 
-// AttachReadSeeker adds an attachment File via io.ReadSeeker to the Msg
+// AttachReadSeeker adds an attachment File via io.ReadSeeker to the Msg.
+//
+// This method allows you to attach a file to the message using an io.ReadSeeker, which is more efficient
+// for larger files compared to AttachReader, as it allows for seeking through the data without needing
+// to load the entire content into memory.
+//
+// Parameters:
+//   - name: The name of the file to be attached.
+//   - reader: The io.ReadSeeker providing the file data to be attached.
+//   - opts: Optional parameters for customizing the attachment.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) AttachReadSeeker(name string, reader io.ReadSeeker, opts ...FileOption) {
 	file := fileFromReadSeeker(name, reader)
 	m.attachments = m.appendFile(m.attachments, file, opts...)
 }
 
-// AttachHTMLTemplate adds the output of a html/template.Template pointer as File attachment to the Msg
+// AttachHTMLTemplate adds the output of a html/template.Template pointer as a File attachment to the Msg.
+//
+// This method allows you to attach the rendered output of an HTML template as a file to the message.
+// The template is executed with the provided data, and its output is attached as a file. If the template
+// fails to execute, an error will be returned.
+//
+// Parameters:
+//   - name: The name of the file to be attached.
+//   - tpl: A pointer to the html/template.Template to be executed for the attachment.
+//   - data: The data to populate the template.
+//   - opts: Optional parameters for customizing the attachment.
+//
+// Returns:
+//   - An error if the template fails to execute or cannot be attached, otherwise nil.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) AttachHTMLTemplate(
 	name string, tpl *ht.Template, data interface{}, opts ...FileOption,
 ) error {
@@ -1777,7 +1883,23 @@ func (m *Msg) AttachHTMLTemplate(
 	return nil
 }
 
-// AttachTextTemplate adds the output of a text/template.Template pointer as File attachment to the Msg
+// AttachTextTemplate adds the output of a text/template.Template pointer as a File attachment to the Msg.
+//
+// This method allows you to attach the rendered output of a text template as a file to the message.
+// The template is executed with the provided data, and its output is attached as a file. If the template
+// fails to execute, an error will be returned.
+//
+// Parameters:
+//   - name: The name of the file to be attached.
+//   - tpl: A pointer to the text/template.Template to be executed for the attachment.
+//   - data: The data to populate the template.
+//   - opts: Optional parameters for customizing the attachment.
+//
+// Returns:
+//   - An error if the template fails to execute or cannot be attached, otherwise nil.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) AttachTextTemplate(
 	name string, tpl *tt.Template, data interface{}, opts ...FileOption,
 ) error {
@@ -1789,7 +1911,22 @@ func (m *Msg) AttachTextTemplate(
 	return nil
 }
 
-// AttachFromEmbedFS adds an attachment File from an embed.FS to the Msg
+// AttachFromEmbedFS adds an attachment File from an embed.FS to the Msg.
+//
+// This method allows you to attach a file from an embedded filesystem (embed.FS) to the message.
+// The file is retrieved from the provided embed.FS and attached to the email. If the embedded filesystem
+// is nil or the file cannot be retrieved, an error will be returned.
+//
+// Parameters:
+//   - name: The name of the file to be attached.
+//   - fs: A pointer to the embed.FS from which the file will be retrieved.
+//   - opts: Optional parameters for customizing the attachment.
+//
+// Returns:
+//   - An error if the embed.FS is nil or the file cannot be retrieved, otherwise nil.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) AttachFromEmbedFS(name string, fs *embed.FS, opts ...FileOption) error {
 	if fs == nil {
 		return fmt.Errorf("embed.FS must not be nil")
@@ -1802,7 +1939,18 @@ func (m *Msg) AttachFromEmbedFS(name string, fs *embed.FS, opts ...FileOption) e
 	return nil
 }
 
-// EmbedFile adds an embedded File to the Msg
+// EmbedFile adds an embedded File to the Msg.
+//
+// This method embeds a file from the filesystem directly into the email message. The embedded file,
+// typically an image or media file, can be referenced within the email's content (such as inline in HTML).
+// If the file is not found or cannot be loaded, it will not be added.
+//
+// Parameters:
+//   - name: The name of the file to be embedded.
+//   - opts: Optional parameters for customizing the embedded file.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) EmbedFile(name string, opts ...FileOption) {
 	file := fileFromFS(name)
 	if file == nil {
@@ -1811,12 +1959,22 @@ func (m *Msg) EmbedFile(name string, opts ...FileOption) {
 	m.embeds = m.appendFile(m.embeds, file, opts...)
 }
 
-// EmbedReader adds an embedded File from an io.Reader to the Msg
+// EmbedReader adds an embedded File from an io.Reader to the Msg.
 //
-// CAVEAT: For EmbedReader to work it has to read all data of the io.Reader
-// into memory first, so it can seek through it. Using larger amounts of
-// data on the io.Reader should be avoided. For such, it is recommended to
-// either use EmbedFile or EmbedReadSeeker instead
+// This method embeds a file into the email message by reading its content from an io.Reader.
+// It reads all data into memory before embedding the file, which may not be efficient for large data sources.
+// For larger files, it is recommended to use EmbedFile or EmbedReadSeeker instead.
+//
+// Parameters:
+//   - name: The name of the file to be embedded.
+//   - reader: The io.Reader providing the file data to be embedded.
+//   - opts: Optional parameters for customizing the embedded file.
+//
+// Returns:
+//   - An error if the file could not be read from the io.Reader, otherwise nil.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) EmbedReader(name string, reader io.Reader, opts ...FileOption) error {
 	file, err := fileFromReader(name, reader)
 	if err != nil {
@@ -1826,13 +1984,41 @@ func (m *Msg) EmbedReader(name string, reader io.Reader, opts ...FileOption) err
 	return nil
 }
 
-// EmbedReadSeeker adds an embedded File from an io.ReadSeeker to the Msg
+// EmbedReadSeeker adds an embedded File from an io.ReadSeeker to the Msg.
+//
+// This method embeds a file into the email message by reading its content from an io.ReadSeeker.
+// Using io.ReadSeeker allows for more efficient handling of large files since it can seek through the data
+// without loading the entire content into memory.
+//
+// Parameters:
+//   - name: The name of the file to be embedded.
+//   - reader: The io.ReadSeeker providing the file data to be embedded.
+//   - opts: Optional parameters for customizing the embedded file.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) EmbedReadSeeker(name string, reader io.ReadSeeker, opts ...FileOption) {
 	file := fileFromReadSeeker(name, reader)
 	m.embeds = m.appendFile(m.embeds, file, opts...)
 }
 
-// EmbedHTMLTemplate adds the output of a html/template.Template pointer as embedded File to the Msg
+// EmbedHTMLTemplate adds the output of a html/template.Template pointer as an embedded File to the Msg.
+//
+// This method embeds the rendered output of an HTML template into the email message. The template is
+// executed with the provided data, and its output is embedded as a file. If the template fails to execute,
+// an error will be returned.
+//
+// Parameters:
+//   - name: The name of the embedded file.
+//   - tpl: A pointer to the html/template.Template to be executed for the embedded content.
+//   - data: The data to populate the template.
+//   - opts: Optional parameters for customizing the embedded file.
+//
+// Returns:
+//   - An error if the template fails to execute or cannot be embedded, otherwise nil.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) EmbedHTMLTemplate(
 	name string, tpl *ht.Template, data interface{}, opts ...FileOption,
 ) error {
@@ -1844,7 +2030,23 @@ func (m *Msg) EmbedHTMLTemplate(
 	return nil
 }
 
-// EmbedTextTemplate adds the output of a text/template.Template pointer as embedded File to the Msg
+// EmbedTextTemplate adds the output of a text/template.Template pointer as an embedded File to the Msg.
+//
+// This method embeds the rendered output of a text template into the email message. The template is
+// executed with the provided data, and its output is embedded as a file. If the template fails to execute,
+// an error will be returned.
+//
+// Parameters:
+//   - name: The name of the embedded file.
+//   - tpl: A pointer to the text/template.Template to be executed for the embedded content.
+//   - data: The data to populate the template.
+//   - opts: Optional parameters for customizing the embedded file.
+//
+// Returns:
+//   - An error if the template fails to execute or cannot be embedded, otherwise nil.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) EmbedTextTemplate(
 	name string, tpl *tt.Template, data interface{}, opts ...FileOption,
 ) error {
@@ -1856,7 +2058,21 @@ func (m *Msg) EmbedTextTemplate(
 	return nil
 }
 
-// EmbedFromEmbedFS adds an embedded File from an embed.FS to the Msg
+// EmbedFromEmbedFS adds an embedded File from an embed.FS to the Msg.
+//
+// This method embeds a file from an embedded filesystem (embed.FS) into the email message. If the
+// embedded filesystem is nil or the file cannot be retrieved, an error will be returned.
+//
+// Parameters:
+//   - name: The name of the file to be embedded.
+//   - fs: A pointer to the embed.FS from which the file will be retrieved.
+//   - opts: Optional parameters for customizing the embedded file.
+//
+// Returns:
+//   - An error if the embed.FS is nil or the file cannot be retrieved, otherwise nil.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) EmbedFromEmbedFS(name string, fs *embed.FS, opts ...FileOption) error {
 	if fs == nil {
 		return fmt.Errorf("embed.FS must not be nil")
@@ -1869,8 +2085,14 @@ func (m *Msg) EmbedFromEmbedFS(name string, fs *embed.FS, opts ...FileOption) er
 	return nil
 }
 
-// Reset resets all headers, body parts and attachments/embeds of the Msg
-// It leaves already set encodings, charsets, boundaries, etc. as is
+// Reset resets all headers, body parts, attachments, and embeds of the Msg.
+//
+// This method clears all address headers, attachments, embeds, generic headers, and body parts of the message.
+// However, it preserves the existing encoding, charset, boundary, and other message-level settings.
+// Use this method to reset the message content while keeping certain configurations intact.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322
 func (m *Msg) Reset() {
 	m.addrHeader = make(map[AddrHeader][]*mail.Address)
 	m.attachments = nil
@@ -1879,7 +2101,17 @@ func (m *Msg) Reset() {
 	m.parts = nil
 }
 
-// ApplyMiddlewares apply the list of middlewares to a Msg
+// ApplyMiddlewares applies the list of middlewares to a Msg.
+//
+// This method sequentially applies each middleware function in the list to the message (in FIFO order).
+// The middleware functions can modify the message, such as adding headers or altering its content.
+// The message is passed through each middleware in order, and the modified message is returned.
+//
+// Parameters:
+//   - msg: The Msg object to which the middlewares will be applied.
+//
+// Returns:
+//   - The modified Msg after all middleware functions have been applied.
 func (m *Msg) applyMiddlewares(msg *Msg) *Msg {
 	for _, middleware := range m.middlewares {
 		msg = middleware.Handle(msg)
@@ -1887,15 +2119,44 @@ func (m *Msg) applyMiddlewares(msg *Msg) *Msg {
 	return msg
 }
 
-// WriteTo writes the formated Msg into a give io.Writer and satisfies the io.WriteTo interface
+// WriteTo writes the formatted Msg into the given io.Writer and satisfies the io.WriterTo interface.
+//
+// This method writes the email message, including its headers, body, and attachments, to the provided
+// io.Writer. It applies any middlewares to the message before writing it. The total number of bytes
+// written and any error encountered during the writing process are returned.
+//
+// Parameters:
+//   - writer: The io.Writer to which the formatted message will be written.
+//
+// Returns:
+//   - The total number of bytes written.
+//   - An error if any occurred during the writing process, otherwise nil.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322
 func (m *Msg) WriteTo(writer io.Writer) (int64, error) {
 	mw := &msgWriter{writer: writer, charset: m.charset, encoder: m.encoder}
 	mw.writeMsg(m.applyMiddlewares(m))
 	return mw.bytesWritten, mw.err
 }
 
-// WriteToSkipMiddleware writes the formated Msg into a give io.Writer and satisfies
-// the io.WriteTo interface but will skip the given Middleware
+// WriteToSkipMiddleware writes the formatted Msg into the given io.Writer, but skips the specified
+// middleware type.
+//
+// This method writes the email message to the provided io.Writer after applying all middlewares,
+// except for the specified middleware type, which will be skipped. It temporarily removes the
+// middleware of the given type, writes the message, and then restores the original middleware list.
+//
+// Parameters:
+//   - writer: The io.Writer to which the formatted message will be written.
+//   - middleWareType: The MiddlewareType that should be skipped during the writing process.
+//
+// Returns:
+//   - The total number of bytes written.
+//   - An error if any occurred during the writing process, otherwise nil.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322
 func (m *Msg) WriteToSkipMiddleware(writer io.Writer, middleWareType MiddlewareType) (int64, error) {
 	var origMiddlewares, middlewares []Middleware
 	origMiddlewares = m.middlewares
@@ -1912,30 +2173,39 @@ func (m *Msg) WriteToSkipMiddleware(writer io.Writer, middleWareType MiddlewareT
 	return mw.bytesWritten, mw.err
 }
 
-// Write is an alias method to WriteTo due to compatibility reasons
+// Write is an alias method to WriteTo for compatibility reasons.
+//
+// This method provides a backward-compatible way to write the formatted Msg to the provided io.Writer
+// by calling the WriteTo method. It writes the email message, including headers, body, and attachments,
+// to the io.Writer and returns the number of bytes written and any error encountered.
+//
+// Parameters:
+//   - writer: The io.Writer to which the formatted message will be written.
+//
+// Returns:
+//   - The total number of bytes written.
+//   - An error if any occurred during the writing process, otherwise nil.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322
 func (m *Msg) Write(writer io.Writer) (int64, error) {
 	return m.WriteTo(writer)
 }
 
-// appendFile adds a File to the Msg (as attachment or embed)
-func (m *Msg) appendFile(files []*File, file *File, opts ...FileOption) []*File {
-	// Override defaults with optionally provided FileOption functions
-	for _, opt := range opts {
-		if opt == nil {
-			continue
-		}
-		opt(file)
-	}
-
-	if files == nil {
-		return []*File{file}
-	}
-
-	return append(files, file)
-}
-
-// WriteToFile stores the Msg as file on disk. It will try to create the given filename
-// Already existing files will be overwritten
+// WriteToFile stores the Msg as a file on disk. It will try to create the given filename,
+// and if the file already exists, it will be overwritten.
+//
+// This method writes the email message, including its headers, body, and attachments, to a file on disk.
+// If the file cannot be created or an error occurs during writing, an error is returned.
+//
+// Parameters:
+//   - name: The name of the file to be created or overwritten.
+//
+// Returns:
+//   - An error if the file cannot be created or if writing to the file fails, otherwise nil.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322
 func (m *Msg) WriteToFile(name string) error {
 	file, err := os.Create(name)
 	if err != nil {
@@ -1949,22 +2219,58 @@ func (m *Msg) WriteToFile(name string) error {
 	return file.Close()
 }
 
-// WriteToSendmail returns WriteToSendmailWithCommand with a default sendmail path
+// WriteToSendmail returns WriteToSendmailWithCommand with a default sendmail path.
+//
+// This method sends the email message using the default sendmail path. It calls WriteToSendmailWithCommand
+// using the standard SendmailPath. If sending via sendmail fails, an error is returned.
+//
+// Returns:
+//   - An error if sending the message via sendmail fails, otherwise nil.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5321
 func (m *Msg) WriteToSendmail() error {
 	return m.WriteToSendmailWithCommand(SendmailPath)
 }
 
 // WriteToSendmailWithCommand returns WriteToSendmailWithContext with a default timeout
-// of 5 seconds and a given sendmail path
+// of 5 seconds and a given sendmail path.
+//
+// This method sends the email message using the provided sendmail path, with a default timeout of 5 seconds.
+// It creates a context with the specified timeout and then calls WriteToSendmailWithContext to send the message.
+//
+// Parameters:
+//   - sendmailPath: The path to the sendmail executable to be used for sending the message.
+//
+// Returns:
+//   - An error if sending the message via sendmail fails, otherwise nil.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5321
 func (m *Msg) WriteToSendmailWithCommand(sendmailPath string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	return m.WriteToSendmailWithContext(ctx, sendmailPath)
 }
 
-// WriteToSendmailWithContext opens an pipe to the local sendmail binary and tries to send the
-// mail though that. It takes a context.Context, the path to the sendmail binary and additional
-// arguments for the sendmail binary as parameters
+// WriteToSendmailWithContext opens a pipe to the local sendmail binary and tries to send the
+// email through it. It takes a context.Context, the path to the sendmail binary, and additional
+// arguments for the sendmail binary as parameters.
+//
+// This method establishes a pipe to the sendmail executable using the provided context and arguments.
+// It writes the email message to the sendmail process via STDIN. If any errors occur during the
+// communication with the sendmail binary, they will be captured and returned.
+//
+// Parameters:
+//   - ctx: The context to control the timeout and cancellation of the sendmail process.
+//   - sendmailPath: The path to the sendmail executable.
+//   - args: Additional arguments for the sendmail binary.
+//
+// Returns:
+//   - An error if sending the message via sendmail fails, otherwise nil.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5321
 func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sendmailPath string, args ...string) error {
 	cmdCtx := exec.CommandContext(ctx, sendmailPath)
 	cmdCtx.Args = append(cmdCtx.Args, "-oi", "-t")
@@ -2017,10 +2323,19 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sendmailPath strin
 
 // NewReader returns a Reader type that satisfies the io.Reader interface.
 //
-// IMPORTANT: when creating a new Reader, the current state of the Msg is taken, as
-// basis for the Reader. If you perform changes on Msg after creating the Reader, these
-// changes will not be reflected in the Reader. You will have to use Msg.UpdateReader
-// first to update the Reader's buffer with the current Msg content
+// This method creates a new Reader for the Msg, capturing the current state of the message.
+// Any subsequent changes made to the Msg after creating the Reader will not be reflected in the Reader's buffer.
+// To reflect these changes in the Reader, you must call Msg.UpdateReader to update the Reader's content with
+// the current state of the Msg.
+//
+// Returns:
+//   - A pointer to a Reader, which allows the Msg to be read as a stream of bytes.
+//
+// IMPORTANT: Any changes made to the Msg after creating the Reader will not be reflected in the Reader unless
+// Msg.UpdateReader is called.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322
 func (m *Msg) NewReader() *Reader {
 	reader := &Reader{}
 	buffer := bytes.Buffer{}
@@ -2032,8 +2347,17 @@ func (m *Msg) NewReader() *Reader {
 	return reader
 }
 
-// UpdateReader will update a Reader with the content of the given Msg and reset the
-// Reader position to the start
+// UpdateReader updates a Reader with the current content of the Msg and resets the
+// Reader's position to the start.
+//
+// This method rewrites the content of the provided Reader to reflect any changes made to the Msg.
+// It resets the Reader's position to the beginning and updates the buffer with the latest message content.
+//
+// Parameters:
+//   - reader: A pointer to the Reader that will be updated with the Msg's current content.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322
 func (m *Msg) UpdateReader(reader *Reader) {
 	buffer := bytes.Buffer{}
 	_, err := m.Write(&buffer)
@@ -2042,14 +2366,27 @@ func (m *Msg) UpdateReader(reader *Reader) {
 	reader.err = err
 }
 
-// HasSendError returns true if the Msg experienced an error during the message delivery and the
-// sendError field of the Msg is not nil
+// HasSendError returns true if the Msg experienced an error during message delivery
+// and the sendError field of the Msg is not nil.
+//
+// This method checks whether the message has encountered a delivery error by verifying if the
+// sendError field is populated.
+//
+// Returns:
+//   - A boolean value indicating whether a send error occurred (true if an error is present).
 func (m *Msg) HasSendError() bool {
 	return m.sendError != nil
 }
 
-// SendErrorIsTemp returns true if the Msg experienced an error during the message delivery and the
-// corresponding error was of temporary nature and should be retried later
+// SendErrorIsTemp returns true if the Msg experienced a delivery error, and the corresponding
+// error was of a temporary nature, meaning it can be retried later.
+//
+// This method checks whether the encountered sendError is a temporary error that can be retried.
+// It uses the errors.As function to determine if the error is of type SendError and checks if
+// the error is marked as temporary.
+//
+// Returns:
+//   - A boolean value indicating whether the send error is temporary (true if the error is temporary).
 func (m *Msg) SendErrorIsTemp() bool {
 	var err *SendError
 	if errors.As(m.sendError, &err) && err != nil {
@@ -2058,12 +2395,32 @@ func (m *Msg) SendErrorIsTemp() bool {
 	return false
 }
 
-// SendError returns the sendError field of the Msg
+// SendError returns the sendError field of the Msg.
+//
+// This method retrieves the error that occurred during the message delivery process, if any.
+// It returns the sendError field, which holds the error encountered during sending.
+//
+// Returns:
+//   - The error encountered during message delivery, or nil if no error occurred.
 func (m *Msg) SendError() error {
 	return m.sendError
 }
 
-// addAddr adds an additional address to the given addrHeader of the Msg
+// addAddr adds an additional address to the given addrHeader of the Msg.
+//
+// This method appends an email address to the specified address header (such as "To", "Cc", or "Bcc")
+// without overwriting existing addresses. It first collects the current addresses in the header, then
+// adds the new address and updates the header.
+//
+// Parameters:
+//   - header: The AddrHeader (e.g., HeaderTo, HeaderCc) to which the address will be added.
+//   - addr: The email address to add to the specified header.
+//
+// Returns:
+//   - An error if the address cannot be added, otherwise nil.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322
 func (m *Msg) addAddr(header AddrHeader, addr string) error {
 	var addresses []string
 	for _, address := range m.addrHeader[header] {
@@ -2073,13 +2430,69 @@ func (m *Msg) addAddr(header AddrHeader, addr string) error {
 	return m.SetAddrHeader(header, addresses...)
 }
 
+// appendFile adds a File to the Msg, either as an attachment or an embed.
+//
+// This method appends a File to the list of files (attachments or embeds) for the message. It applies
+// optional FileOption functions to customize the file properties before adding it. If no files are
+// already present, a new list is created.
+//
+// Parameters:
+//   - files: The current list of files (either attachments or embeds).
+//   - file: The File to be added.
+//   - opts: Optional FileOption functions to customize the file.
+//
+// Returns:
+//   - A slice of File pointers representing the updated list of files.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
+func (m *Msg) appendFile(files []*File, file *File, opts ...FileOption) []*File {
+	// Override defaults with optionally provided FileOption functions
+	for _, opt := range opts {
+		if opt == nil {
+			continue
+		}
+		opt(file)
+	}
+
+	if files == nil {
+		return []*File{file}
+	}
+
+	return append(files, file)
+}
+
 // encodeString encodes a string based on the configured message encoder and the corresponding
-// charset for the Msg
+// charset for the Msg.
+//
+// This method encodes the provided string using the message's charset and encoder settings.
+// The encoding ensures that the string is properly formatted according to the message's
+// character encoding (e.g., UTF-8, ISO-8859-1).
+//
+// Parameters:
+//   - str: The string to be encoded.
+//
+// Returns:
+//   - The encoded string based on the message's charset and encoder.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2047
 func (m *Msg) encodeString(str string) string {
 	return m.encoder.Encode(string(m.charset), str)
 }
 
-// hasAlt returns true if the Msg has more than one part
+// hasAlt returns true if the Msg has more than one part.
+//
+// This method checks whether the message contains more than one part, indicating that
+// the message has alternative content (e.g., both plain text and HTML parts). It ignores
+// any parts marked as deleted and returns true only if more than one valid part exists
+// and no PGP type is set.
+//
+// Returns:
+//   - A boolean value indicating whether the message has multiple parts (true if more than one part exists).
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2046
 func (m *Msg) hasAlt() bool {
 	count := 0
 	for _, part := range m.parts {
@@ -2090,22 +2503,66 @@ func (m *Msg) hasAlt() bool {
 	return count > 1 && m.pgptype == 0
 }
 
-// hasMixed returns true if the Msg has mixed parts
+// hasMixed returns true if the Msg has mixed parts.
+//
+// This method checks whether the message contains mixed content, such as attachments along with
+// message parts (e.g., text or HTML). A message is considered to have mixed parts if there are both
+// attachments and message parts, or if there are multiple attachments.
+//
+// Returns:
+//   - A boolean value indicating whether the message has mixed parts.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2046#section-5.1.3
 func (m *Msg) hasMixed() bool {
 	return m.pgptype == 0 && ((len(m.parts) > 0 && len(m.attachments) > 0) || len(m.attachments) > 1)
 }
 
-// hasRelated returns true if the Msg has related parts
+// hasRelated returns true if the Msg has related parts.
+//
+// This method checks whether the message contains related parts, such as inline embedded files
+// (e.g., images) that are referenced within the message body. A message is considered to have
+// related parts if there are both message parts and embedded files, or if there are multiple embedded files.
+//
+// Returns:
+//   - A boolean value indicating whether the message has related parts.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2387
 func (m *Msg) hasRelated() bool {
 	return m.pgptype == 0 && ((len(m.parts) > 0 && len(m.embeds) > 0) || len(m.embeds) > 1)
 }
 
-// hasPGPType returns true if the Msg should be treated as PGP encoded message
+// hasPGPType returns true if the Msg should be treated as a PGP-encoded message.
+//
+// This method checks whether the message is configured to be treated as a PGP-encoded message by examining
+// the pgptype field. If the PGP type is set to a value greater than 0, the message is considered PGP-encoded.
+//
+// Returns:
+//   - A boolean value indicating whether the message is PGP-encoded.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc4880
 func (m *Msg) hasPGPType() bool {
 	return m.pgptype > 0
 }
 
-// newPart returns a new Part for the Msg
+// newPart returns a new Part for the Msg.
+//
+// This method creates a new Part for the message with the specified content type,
+// using the message's current charset and encoding settings. Optional PartOption
+// functions can be applied to customize the Part further.
+//
+// Parameters:
+//   - contentType: The content type for the new Part (e.g., text/plain, text/html).
+//   - opts: Optional PartOption functions to customize the Part.
+//
+// Returns:
+//   - A pointer to the newly created Part structure.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2045
+//   - https://datatracker.ietf.org/doc/html/rfc2046
 func (m *Msg) newPart(contentType ContentType, opts ...PartOption) *Part {
 	p := &Part{
 		contentType: contentType,
@@ -2124,13 +2581,26 @@ func (m *Msg) newPart(contentType ContentType, opts ...PartOption) *Part {
 	return p
 }
 
-// setEncoder creates a new mime.WordEncoder based on the encoding setting of the message
+// setEncoder creates a new mime.WordEncoder based on the encoding setting of the message.
+//
+// This method sets the message's encoder by creating a new mime.WordEncoder that matches the
+// current encoding setting (e.g., quoted-printable or base64). The encoder is used to encode
+// message headers and body content appropriately.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2047
 func (m *Msg) setEncoder() {
 	m.encoder = getEncoder(m.encoding)
 }
 
-// checkUserAgent checks if a useragent/x-mailer is set and if not will set a default
-// version string
+// checkUserAgent checks if a User-Agent or X-Mailer header is set, and if not, sets a default version string.
+//
+// This method ensures that the message includes a User-Agent and X-Mailer header, unless the noDefaultUserAgent
+// flag is set. If neither of these headers is present, a default User-Agent string with the current library
+// version is added.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.7
 func (m *Msg) checkUserAgent() {
 	if m.noDefaultUserAgent {
 		return
@@ -2143,7 +2613,16 @@ func (m *Msg) checkUserAgent() {
 	}
 }
 
-// addDefaultHeader sets some default headers, if they haven't been set before
+// addDefaultHeader sets default headers if they haven't been set before.
+//
+// This method ensures that essential headers such as "Date", "Message-ID", and "MIME-Version" are set
+// in the message. If these headers are not already present, they will be set to default values.
+// The "Date" and "Message-ID" headers are generated, and the "MIME-Version" is set to the message's current setting.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.1 (Date)
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.4 (Message-ID)
+//   - https://datatracker.ietf.org/doc/html/rfc2045#section-4 (MIME-Version)
 func (m *Msg) addDefaultHeader() {
 	if _, ok := m.genHeader[HeaderDate]; !ok {
 		m.SetDate()
@@ -2154,7 +2633,22 @@ func (m *Msg) addDefaultHeader() {
 	m.SetGenHeader(HeaderMIMEVersion, string(m.mimever))
 }
 
-// fileFromEmbedFS returns a File pointer from a given file in the provided embed.FS
+// fileFromEmbedFS returns a File pointer from a given file in the provided embed.FS.
+//
+// This method retrieves a file from the embedded filesystem (embed.FS) and returns a File structure
+// that can be used as an attachment or embed in the email message. The file's content is read when
+// writing to an io.Writer, and the file is identified by its base name.
+//
+// Parameters:
+//   - name: The name of the file to retrieve from the embedded filesystem.
+//   - fs: A pointer to the embed.FS from which the file will be opened.
+//
+// Returns:
+//   - A pointer to the File structure representing the embedded file.
+//   - An error if the file cannot be opened or read from the embedded filesystem.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func fileFromEmbedFS(name string, fs *embed.FS) (*File, error) {
 	_, err := fs.Open(name)
 	if err != nil {
@@ -2178,7 +2672,21 @@ func fileFromEmbedFS(name string, fs *embed.FS) (*File, error) {
 	}, nil
 }
 
-// fileFromFS returns a File pointer from a given file in the system's file system
+// fileFromFS returns a File pointer from a given file in the system's file system.
+//
+// This method retrieves a file from the system's file system and returns a File structure
+// that can be used as an attachment or embed in the email message. The file is identified
+// by its base name, and its content is read when writing to an io.Writer.
+//
+// Parameters:
+//   - name: The name of the file to retrieve from the system's file system.
+//
+// Returns:
+//   - A pointer to the File structure representing the file from the system's file system.
+//   - Nil if the file does not exist or cannot be accessed.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func fileFromFS(name string) *File {
 	_, err := os.Stat(name)
 	if err != nil {
@@ -2203,7 +2711,22 @@ func fileFromFS(name string) *File {
 	}
 }
 
-// fileFromReader returns a File pointer from a given io.Reader
+// fileFromReader returns a File pointer from a given io.Reader.
+//
+// This method reads all data from the provided io.Reader and creates a File structure
+// that can be used as an attachment or embed in the email message. The file's content
+// is stored in memory and written to an io.Writer when needed.
+//
+// Parameters:
+//   - name: The name of the file to be represented by the reader's content.
+//   - reader: The io.Reader from which the file content will be read.
+//
+// Returns:
+//   - A pointer to the File structure representing the content of the io.Reader.
+//   - An error if the content cannot be read from the io.Reader.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func fileFromReader(name string, reader io.Reader) (*File, error) {
 	d, err := io.ReadAll(reader)
 	if err != nil {
@@ -2224,7 +2747,21 @@ func fileFromReader(name string, reader io.Reader) (*File, error) {
 	}, nil
 }
 
-// fileFromReadSeeker returns a File pointer from a given io.ReadSeeker
+// fileFromReadSeeker returns a File pointer from a given io.ReadSeeker.
+//
+// This method creates a File structure from an io.ReadSeeker, allowing efficient handling of file content
+// by seeking and reading from the source without fully loading it into memory. The content is written
+// to an io.Writer when needed, and the reader's position is reset to the start after writing.
+//
+// Parameters:
+//   - name: The name of the file to be represented by the io.ReadSeeker.
+//   - reader: The io.ReadSeeker from which the file content will be read.
+//
+// Returns:
+//   - A pointer to the File structure representing the content of the io.ReadSeeker.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func fileFromReadSeeker(name string, reader io.ReadSeeker) *File {
 	return &File{
 		Name:   name,
@@ -2240,7 +2777,23 @@ func fileFromReadSeeker(name string, reader io.ReadSeeker) *File {
 	}
 }
 
-// fileFromHTMLTemplate returns a File pointer form a given html/template.Template
+// fileFromHTMLTemplate returns a File pointer from a given html/template.Template.
+//
+// This method executes the provided HTML template with the given data and creates a File structure
+// representing the output. The rendered template content is stored in a buffer and then processed
+// as a file attachment or embed.
+//
+// Parameters:
+//   - name: The name of the file to be created from the template output.
+//   - tpl: A pointer to the html/template.Template to be executed.
+//   - data: The data to populate the template.
+//
+// Returns:
+//   - A pointer to the File structure representing the rendered template.
+//   - An error if the template is nil or if it fails to execute.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func fileFromHTMLTemplate(name string, tpl *ht.Template, data interface{}) (*File, error) {
 	if tpl == nil {
 		return nil, errors.New(errTplPointerNil)
@@ -2252,7 +2805,23 @@ func fileFromHTMLTemplate(name string, tpl *ht.Template, data interface{}) (*Fil
 	return fileFromReader(name, &buffer)
 }
 
-// fileFromTextTemplate returns a File pointer form a given text/template.Template
+// fileFromTextTemplate returns a File pointer from a given text/template.Template.
+//
+// This method executes the provided text template with the given data and creates a File structure
+// representing the output. The rendered template content is stored in a buffer and then processed
+// as a file attachment or embed.
+//
+// Parameters:
+//   - name: The name of the file to be created from the template output.
+//   - tpl: A pointer to the text/template.Template to be executed.
+//   - data: The data to populate the template.
+//
+// Returns:
+//   - A pointer to the File structure representing the rendered template.
+//   - An error if the template is nil or if it fails to execute.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2183
 func fileFromTextTemplate(name string, tpl *tt.Template, data interface{}) (*File, error) {
 	if tpl == nil {
 		return nil, errors.New(errTplPointerNil)
@@ -2264,7 +2833,19 @@ func fileFromTextTemplate(name string, tpl *tt.Template, data interface{}) (*Fil
 	return fileFromReader(name, &buffer)
 }
 
-// getEncoder creates a new mime.WordEncoder based on the encoding setting of the message
+// getEncoder creates a new mime.WordEncoder based on the encoding setting of the message.
+//
+// This function returns a mime.WordEncoder based on the specified encoding (e.g., quoted-printable or base64).
+// The encoder is used for encoding message headers and body content according to the chosen encoding standard.
+//
+// Parameters:
+//   - enc: The Encoding type for the message (e.g., EncodingQP for quoted-printable or EncodingB64 for base64).
+//
+// Returns:
+//   - A mime.WordEncoder based on the encoding setting.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2047
 func getEncoder(enc Encoding) mime.WordEncoder {
 	switch enc {
 	case EncodingQP:
@@ -2276,8 +2857,21 @@ func getEncoder(enc Encoding) mime.WordEncoder {
 	}
 }
 
-// writeFuncFromBuffer is a common method to convert a byte buffer into a writeFunc as
-// often required by this library
+// writeFuncFromBuffer converts a byte buffer into a writeFunc, which is commonly required by go-mail.
+//
+// This function wraps a byte buffer into a write function that can be used to write the buffer's content
+// to an io.Writer. It returns a function that writes the buffer's content to the given writer and returns
+// the number of bytes written and any error that occurred during writing.
+//
+// Parameters:
+//   - buffer: A pointer to the bytes.Buffer containing the data to be written.
+//
+// Returns:
+//   - A function that writes the buffer's content to an io.Writer, returning the number of bytes written
+//     and any error encountered during the write operation.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322
 func writeFuncFromBuffer(buffer *bytes.Buffer) func(io.Writer) (int64, error) {
 	writeFunc := func(w io.Writer) (int64, error) {
 		numBytes, err := w.Write(buffer.Bytes())
