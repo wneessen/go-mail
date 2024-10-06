@@ -136,8 +136,14 @@ const (
 	ImportanceUrgent
 )
 
-// NumString returns a numerical string representation of the Importance, mapping ImportanceHigh and
-// ImportanceUrgent to "1" and others to "0".
+// NumString returns a numerical string representation of the Importance level.
+//
+// This method maps ImportanceHigh and ImportanceUrgent to "1", while ImportanceNonUrgent and ImportanceLow
+// are mapped to "0". Other values return an empty string.
+//
+// Returns:
+//   - A string representing the numerical value of the Importance level ("1" or "0"), or an empty string
+//     if the Importance level is unrecognized.
 func (i Importance) NumString() string {
 	switch i {
 	case ImportanceNonUrgent:
@@ -153,8 +159,14 @@ func (i Importance) NumString() string {
 	}
 }
 
-// XPrioString returns the X-Priority string representation of the Importance, mapping ImportanceHigh and
-// ImportanceUrgent to "1" and others to "5".
+// XPrioString returns the X-Priority string representation of the Importance level.
+//
+// This method maps ImportanceHigh and ImportanceUrgent to "1", while ImportanceNonUrgent and ImportanceLow
+// are mapped to "5". Other values return an empty string.
+//
+// Returns:
+//   - A string representing the X-Priority value of the Importance level ("1" or "5"), or an empty string
+//     if the Importance level is unrecognized.
 func (i Importance) XPrioString() string {
 	switch i {
 	case ImportanceNonUrgent:
@@ -170,8 +182,14 @@ func (i Importance) XPrioString() string {
 	}
 }
 
-// String satisfies the fmt.Stringer interface for the Importance type and returns the string representation of the
-// Importance level.
+// String satisfies the fmt.Stringer interface for the Importance type and returns the string
+// representation of the Importance level.
+//
+// This method provides a human-readable string for each Importance level.
+//
+// Returns:
+//   - A string representing the Importance level ("non-urgent", "low", "high", or "urgent"), or an empty
+//     string if the Importance level is unrecognized.
 func (i Importance) String() string {
 	switch i {
 	case ImportanceNonUrgent:
@@ -187,13 +205,20 @@ func (i Importance) String() string {
 	}
 }
 
-// String satisfies the fmt.Stringer interface for the Header type and returns the string representation of the Header.
+// String satisfies the fmt.Stringer interface for the Header type and returns the string
+// representation of the Header.
+//
+// Returns:
+//   - A string representing the Header.
 func (h Header) String() string {
 	return string(h)
 }
 
-// String satisfies the fmt.Stringer interface for the AddrHeader type and returns the string representation of the
-// AddrHeader.
+// String satisfies the fmt.Stringer interface for the AddrHeader type and returns the string
+// representation of the AddrHeader.
+//
+// Returns:
+//   - A string representing the AddrHeader.
 func (a AddrHeader) String() string {
 	return string(a)
 }
