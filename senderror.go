@@ -54,7 +54,11 @@ const (
 	ErrAmbiguous
 )
 
-// SendError is an error wrapper for delivery errors of the Msg
+// SendError is an error wrapper for delivery errors of the Msg.
+//
+// This struct represents an error that occurs during the delivery of a message. It holds
+// details about the affected message, a list of errors, the recipient list, and whether
+// the error is temporary or permanent. It also includes a reason code for the error.
 type SendError struct {
 	affectedMsg *Msg
 	errlist     []error
@@ -66,7 +70,16 @@ type SendError struct {
 // SendErrReason represents a comparable reason on why the delivery failed
 type SendErrReason int
 
-// Error implements the error interface for the SendError type
+// Error implements the error interface for the SendError type.
+//
+// This function returns a detailed error message string for the SendError, including the
+// reason for failure, list of errors, affected recipients, and the message ID of the
+// affected message (if available). If the reason is unknown (greater than 10), it returns
+// "unknown reason". The error message is built dynamically based on the content of the
+// error list, recipient list, and message ID.
+//
+// Returns:
+//   - A string representing the error message.
 func (e *SendError) Error() string {
 	if e.Reason > 10 {
 		return "unknown reason"
@@ -101,7 +114,17 @@ func (e *SendError) Error() string {
 	return errMessage.String()
 }
 
-// Is implements the errors.Is functionality and compares the SendErrReason
+// Is implements the errors.Is functionality and compares the SendErrReason.
+//
+// This function allows for comparison between two errors by checking if the provided
+// error matches the SendError type and, if so, compares the SendErrReason and the
+// temporary status (isTemp) of both errors.
+//
+// Parameters:
+//   - errType: The error to compare against the current SendError.
+//
+// Returns:
+//   - true if the errors have the same reason and temporary status, false otherwise.
 func (e *SendError) Is(errType error) bool {
 	var t *SendError
 	if errors.As(errType, &t) && t != nil {
@@ -110,7 +133,13 @@ func (e *SendError) Is(errType error) bool {
 	return false
 }
 
-// IsTemp returns true if the delivery error is of temporary nature and can be retried
+// IsTemp returns true if the delivery error is of a temporary nature and can be retried.
+//
+// This function checks whether the SendError indicates a temporary error, which suggests
+// that the delivery can be retried. If the SendError is nil, it returns false.
+//
+// Returns:
+//   - true if the error is temporary, false otherwise.
 func (e *SendError) IsTemp() bool {
 	if e == nil {
 		return false
@@ -118,8 +147,13 @@ func (e *SendError) IsTemp() bool {
 	return e.isTemp
 }
 
-// MessageID returns the message ID of the affected Msg that caused the error
-// If no message ID was set for the Msg, an empty string will be returned
+// MessageID returns the message ID of the affected Msg that caused the error.
+//
+// This function retrieves the message ID of the Msg associated with the SendError.
+// If no message ID was set or if the SendError or Msg is nil, it returns an empty string.
+//
+// Returns:
+//   - The message ID as a string, or an empty string if no ID is available.
 func (e *SendError) MessageID() string {
 	if e == nil || e.affectedMsg == nil {
 		return ""
@@ -127,7 +161,13 @@ func (e *SendError) MessageID() string {
 	return e.affectedMsg.GetMessageID()
 }
 
-// Msg returns the pointer to the affected message that caused the error
+// Msg returns the pointer to the affected message that caused the error.
+//
+// This function retrieves the Msg associated with the SendError. If the SendError or
+// the affectedMsg is nil, it returns nil.
+//
+// Returns:
+//   - A pointer to the Msg that caused the error, or nil if not available.
 func (e *SendError) Msg() *Msg {
 	if e == nil || e.affectedMsg == nil {
 		return nil
@@ -135,7 +175,14 @@ func (e *SendError) Msg() *Msg {
 	return e.affectedMsg
 }
 
-// String implements the Stringer interface for the SendErrReason
+// String satisfies the fmt.Stringer interface for the SendErrReason type.
+//
+// This function converts the SendErrReason into a human-readable string representation based
+// on the error type. If the error reason does not match any predefined case, it returns
+// "unknown reason".
+//
+// Returns:
+//   - A string representation of the SendErrReason.
 func (r SendErrReason) String() string {
 	switch r {
 	case ErrGetSender:
@@ -164,8 +211,16 @@ func (r SendErrReason) String() string {
 	return "unknown reason"
 }
 
-// isTempError checks the given SMTP error and returns true if the given error is of temporary nature
-// and should be retried
+// isTempError checks if the given SMTP error is of a temporary nature and should be retried.
+//
+// This function inspects the error message and returns true if the first character of the
+// error message is '4', indicating a temporary SMTP error that can be retried.
+//
+// Parameters:
+//   - err: The error to check.
+//
+// Returns:
+//   - true if the error is temporary, false otherwise.
 func isTempError(err error) bool {
 	return err.Error()[0] == '4'
 }
