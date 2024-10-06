@@ -828,20 +828,38 @@ func (c *Client) SetUsername(username string) {
 	c.user = username
 }
 
-// SetPassword sets or overrides the password, the Client will use for the SMTP authentication.
+// SetPassword sets or overrides the password that the Client will use for SMTP authentication.
+//
+// This method updates the password used by the Client for authenticating with the SMTP server.
+//
+// Parameters:
+//   - password: The password to be set for SMTP authentication.
 func (c *Client) SetPassword(password string) {
 	c.pass = password
 }
 
-// SetSMTPAuth sets or overrides the SMTPAuthType that is currently set on the Client for the SMTP
+// SetSMTPAuth sets or overrides the SMTPAuthType currently configured on the Client for SMTP
 // authentication.
+//
+// This method updates the authentication type used by the Client for authenticating with the
+// SMTP server and resets any custom SMTP authentication mechanism.
+//
+// Parameters:
+//   - authtype: The SMTPAuthType to be set for the Client.
 func (c *Client) SetSMTPAuth(authtype SMTPAuthType) {
 	c.smtpAuthType = authtype
 	c.smtpAuth = nil
 }
 
-// SetSMTPAuthCustom sets or overrides the custom SMTP authentication mechanism currently set for
-// the Client. The provided authentication mechanism has to satisfy the smtp.Auth interface.
+// SetSMTPAuthCustom sets or overrides the custom SMTP authentication mechanism currently
+// configured for the Client. The provided authentication mechanism must satisfy the
+// smtp.Auth interface.
+//
+// This method updates the authentication mechanism used by the Client for authenticating
+// with the SMTP server and sets the authentication type to SMTPAuthCustom.
+//
+// Parameters:
+//   - smtpAuth: The custom SMTP authentication mechanism to be set for the Client.
 func (c *Client) SetSMTPAuthCustom(smtpAuth smtp.Auth) {
 	c.smtpAuth = smtpAuth
 	c.smtpAuthType = SMTPAuthCustom
@@ -849,15 +867,19 @@ func (c *Client) SetSMTPAuthCustom(smtpAuth smtp.Auth) {
 
 // DialWithContext establishes a connection to the server using the provided context.Context.
 //
-// Before connecting to the server, the function will add a deadline of the Client's timeout
-// to the provided context.Context.
+// This function adds a deadline based on the Client's timeout to the provided context.Context
+// before connecting to the server. After dialing the defined DialContextFunc and successfully
+// establishing the connection, it sends the HELO/EHLO SMTP command, followed by optional
+// STARTTLS and SMTP AUTH commands. If debug logging is enabled, it attaches the log.Logger.
 //
-// After dialing the DialContextFunc defined in the Client and successfully establishing the
-// connection to the SMTP server, it will send the HELO/EHLO SMTP command followed by the
-// optional STARTTLS and SMTP AUTH commands. It will also attach the log.Logger in case
-// debug logging is enabled on the Client.
+// After this method is called, the Client will have an active (cancelable) connection to the
+// SMTP server.
 //
-// From this point in time the Client has an active (cancelable) connection to the SMTP server.
+// Parameters:
+//   - dialCtx: The context.Context used to control the connection timeout and cancellation.
+//
+// Returns:
+//   - An error if the connection to the SMTP server fails or any subsequent command fails.
 func (c *Client) DialWithContext(dialCtx context.Context) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -914,8 +936,15 @@ func (c *Client) DialWithContext(dialCtx context.Context) error {
 	return nil
 }
 
-// Close terminates the connection to the SMTP server, returning an error if the disconnection fails.
-// If the connection is already closed, we considered this a no-op and disregard any error.
+// Close terminates the connection to the SMTP server, returning an error if the disconnection
+// fails. If the connection is already closed, this method is a no-op and disregards any error.
+//
+// This function checks if the Client's SMTP connection is active. If not, it simply returns
+// without any action. If the connection is active, it attempts to gracefully close the
+// connection using the Quit method.
+//
+// Returns:
+//   - An error if the disconnection fails; otherwise, returns nil.
 func (c *Client) Close() error {
 	if !c.smtpClient.HasConnection() {
 		return nil
@@ -928,6 +957,13 @@ func (c *Client) Close() error {
 }
 
 // Reset sends an SMTP RSET command to reset the state of the current SMTP session.
+//
+// This method checks the connection to the SMTP server and, if the connection is valid,
+// it sends an RSET command to reset the session state. If the connection is invalid or
+// the command fails, an error is returned.
+//
+// Returns:
+//   - An error if the connection check fails or if sending the RSET command fails; otherwise, returns nil.
 func (c *Client) Reset() error {
 	if err := c.checkConn(); err != nil {
 		return err
@@ -939,16 +975,38 @@ func (c *Client) Reset() error {
 	return nil
 }
 
-// DialAndSend establishes a connection to the server and sends out the provided Msg. It will call
-// DialAndSendWithContext with an empty Context.Background
+// DialAndSend establishes a connection to the server and sends out the provided Msg.
+// It calls DialAndSendWithContext with an empty Context.Background.
+//
+// This method simplifies the process of connecting to the SMTP server and sending messages
+// by using a default context. It prepares the messages for sending and ensures the connection
+// is established before attempting to send them.
+//
+// Parameters:
+//   - messages: A variadic list of pointers to Msg objects to be sent.
+//
+// Returns:
+//   - An error if the connection fails or if sending the messages fails; otherwise, returns nil.
 func (c *Client) DialAndSend(messages ...*Msg) error {
 	ctx := context.Background()
 	return c.DialAndSendWithContext(ctx, messages...)
 }
 
-// DialAndSendWithContext establishes a connection to the SMTP server using DialWithContext using the
-// provided context.Context, then sends out the given Msg. After successful delivery the Client
-// will close the connection to the server.
+// DialAndSendWithContext establishes a connection to the SMTP server using DialWithContext
+// with the provided context.Context, then sends out the given Msg. After successful delivery,
+// the Client will close the connection to the server.
+//
+// This method first attempts to connect to the SMTP server using the provided context.
+// Upon successful connection, it sends the specified messages and ensures that the connection
+// is closed after the operation, regardless of success or failure in sending the messages.
+//
+// Parameters:
+//   - ctx: The context.Context to control the connection timeout and cancellation.
+//   - messages: A variadic list of pointers to Msg objects to be sent.
+//
+// Returns:
+//   - An error if the connection fails, if sending the messages fails, or if closing the
+//     connection fails; otherwise, returns nil.
 func (c *Client) DialAndSendWithContext(ctx context.Context, messages ...*Msg) error {
 	if err := c.DialWithContext(ctx); err != nil {
 		return fmt.Errorf("dial failed: %w", err)
@@ -966,9 +1024,18 @@ func (c *Client) DialAndSendWithContext(ctx context.Context, messages ...*Msg) e
 	return nil
 }
 
-// auth attempts to authenticate the client using SMTP AUTH mechanisms. It checks the connection, determines
-// the supported authentication methods, and applies the appropriate authentication type. Returns an error if
-// authentication fails.
+// auth attempts to authenticate the client using SMTP AUTH mechanisms. It checks the connection,
+// determines the supported authentication methods, and applies the appropriate authentication
+// type. An error is returned if authentication fails.
+//
+// This method first verifies the connection to the SMTP server. If no custom authentication
+// mechanism is provided, it checks which authentication methods are supported by the server.
+// Based on the configured SMTPAuthType, it sets up the appropriate authentication mechanism.
+// Finally, it attempts to authenticate the client using the selected method.
+//
+// Returns:
+//   - An error if the connection check fails, if no supported authentication method is found,
+//     or if the authentication process fails.
 func (c *Client) auth() error {
 	if err := c.checkConn(); err != nil {
 		return fmt.Errorf("failed to authenticate: %w", err)
@@ -1041,8 +1108,21 @@ func (c *Client) auth() error {
 	return nil
 }
 
-// sendSingleMsg sends out a single message and returns an error if the transmission/delivery fails.
-// It is invoked by the public Send methods
+// sendSingleMsg sends out a single message and returns an error if the transmission or
+// delivery fails. It is invoked by the public Send methods.
+//
+// This method handles the process of sending a single email message through the SMTP
+// client. It performs several checks and operations, including verifying the encoding,
+// retrieving the sender and recipient addresses, and managing delivery status notifications
+// (DSN). It attempts to send the message and handles any errors that occur during the
+// transmission process, ensuring that any necessary cleanup is performed (such as resetting
+// the SMTP client if an error occurs).
+//
+// Parameters:
+//   - message: A pointer to the Msg object representing the email message to be sent.
+//
+// Returns:
+//   - An error if any part of the sending process fails; otherwise, returns nil.
 func (c *Client) sendSingleMsg(message *Msg) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -1141,7 +1221,18 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 	return nil
 }
 
-// checkConn makes sure that a required server connection is available and extends the connection deadline
+// checkConn ensures that a required server connection is available and extends the connection
+// deadline.
+//
+// This method verifies whether there is an active connection to the SMTP server. If there is no
+// connection, it returns an error. If the "noNoop" flag is not set, it sends a NOOP command to
+// the server to confirm the connection is still valid. Finally, it updates the connection
+// deadline based on the specified timeout value. If any operation fails, the appropriate error
+// is returned.
+//
+// Returns:
+//   - An error if there is no active connection, if the NOOP command fails, or if extending
+//     the deadline fails; otherwise, returns nil.
 func (c *Client) checkConn() error {
 	if !c.smtpClient.HasConnection() {
 		return ErrNoActiveConnection
@@ -1160,11 +1251,25 @@ func (c *Client) checkConn() error {
 }
 
 // serverFallbackAddr returns the currently set combination of hostname and fallback port.
+//
+// This method constructs and returns the server address using the host and fallback port
+// currently configured for the Client. It is useful for establishing a connection when
+// the primary port is unavailable.
+//
+// Returns:
+//   - A string representing the server address in the format "host:fallbackPort".
 func (c *Client) serverFallbackAddr() string {
 	return fmt.Sprintf("%s:%d", c.host, c.fallbackPort)
 }
 
 // setDefaultHelo sets the HELO/EHLO hostname to the local machine's hostname.
+//
+// This method retrieves the local hostname using the operating system's hostname function
+// and sets it as the HELO/EHLO string for the Client. If retrieving the hostname fails,
+// an error is returned.
+//
+// Returns:
+//   - An error if there is a failure in reading the local hostname; otherwise, returns nil.
 func (c *Client) setDefaultHelo() error {
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -1176,6 +1281,16 @@ func (c *Client) setDefaultHelo() error {
 
 // tls establishes a TLS connection based on the client's TLS policy and configuration.
 // Returns an error if no active connection exists or if a TLS error occurs.
+//
+// This method first checks if there is an active connection to the SMTP server. If SSL is not
+// being used and the TLS policy is not set to NoTLS, it checks for STARTTLS support. Depending
+// on the TLS policy (mandatory or opportunistic), it may initiate a TLS connection using the
+// StartTLS method. The method also retrieves the TLS connection state to determine if the
+// connection is encrypted and returns any errors encountered during these processes.
+//
+// Returns:
+//   - An error if there is no active connection, if STARTTLS is required but not supported,
+//     or if there are issues during the TLS handshake; otherwise, returns nil.
 func (c *Client) tls() error {
 	if !c.smtpClient.HasConnection() {
 		return ErrNoActiveConnection
