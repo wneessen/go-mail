@@ -41,7 +41,6 @@ const (
 )
 
 const (
-
 	// DSNMailReturnHeadersOnly requests that only the message headers of the mail message are returned in
 	// a DSN (Delivery Status Notification).
 	//
@@ -84,7 +83,6 @@ const (
 )
 
 type (
-
 	// DialContextFunc defines a function type for establishing a network connection using context, network
 	// type, and address. It is used to specify custom DialContext function.
 	//
@@ -106,7 +104,15 @@ type (
 	// Option is a function type that modifies the configuration or behavior of a Client instance.
 	Option func(*Client) error
 
-	// Client is the go-mail client that is responsible for connecting and interacting with an SMTP server.
+	// Client is responsible for connecting and interacting with an SMTP server.
+	//
+	// This struct represents the go-mail client, which manages the connection, authentication, and communication
+	// with an SMTP server. It contains various configuration options, including connection timeouts, encryption
+	// settings, authentication methods, and Delivery Status Notification (DSN) preferences.
+	//
+	// References:
+	//   - https://datatracker.ietf.org/doc/html/rfc3207#section-2
+	//   - https://datatracker.ietf.org/doc/html/rfc8314
 	Client struct {
 		// connTimeout specifies timeout for the connection to the SMTP server.
 		connTimeout time.Duration
@@ -236,10 +242,18 @@ var (
 )
 
 // NewClient creates a new Client instance with the provided host and optional configuration Option functions.
-// It initializes default values for connection timeout, port, TLS settings, and HELO/EHLO hostname.
-// Option functions, if provided, override default values.
 //
-// Returns an error if critical defaults are unset.
+// This function initializes a Client with default values, such as connection timeout, port, TLS settings,
+// and the HELO/EHLO hostname. Option functions, if provided, can override the default configuration.
+// It ensures that essential values, like the host, are set. An error is returned if critical defaults are unset.
+//
+// Parameters:
+//   - host: The hostname of the SMTP server to connect to.
+//   - opts: Optional configuration functions to override default settings.
+//
+// Returns:
+//   - A pointer to the initialized Client.
+//   - An error if any critical default values are missing or options fail to apply.
 func NewClient(host string, opts ...Option) (*Client, error) {
 	c := &Client{
 		connTimeout: DefaultTimeout,
@@ -272,8 +286,17 @@ func NewClient(host string, opts ...Option) (*Client, error) {
 	return c, nil
 }
 
-// WithPort sets the port number for the Client and overrides the default port. It validates the port number to
-// ensure it is between 1 and 65535. An error is returned if the provided port number is invalid.
+// WithPort sets the port number for the Client and overrides the default port.
+//
+// This function sets the specified port number for the Client, ensuring that the port number is valid
+// (between 1 and 65535). If the provided port number is invalid, an error is returned.
+//
+// Parameters:
+//   - port: The port number to be used by the Client. Must be between 1 and 65535.
+//
+// Returns:
+//   - An Option function that applies the port setting to the Client.
+//   - An error if the port number is outside the valid range.
 func WithPort(port int) Option {
 	return func(c *Client) error {
 		if port < 1 || port > 65535 {
@@ -284,8 +307,17 @@ func WithPort(port int) Option {
 	}
 }
 
-// WithTimeout sets the connection timeout for the Client to the provided duration and overrides the default
-// timeout. An error is returned if the provided timeout is invalid.
+// WithTimeout sets the connection timeout for the Client and overrides the default timeout.
+//
+// This function configures the Client with a specified connection timeout duration. It validates that the
+// provided timeout is greater than zero. If the timeout is invalid, an error is returned.
+//
+// Parameters:
+//   - timeout: The duration to be set as the connection timeout. Must be greater than zero.
+//
+// Returns:
+//   - An Option function that applies the timeout setting to the Client.
+//   - An error if the timeout duration is invalid.
 func WithTimeout(timeout time.Duration) Option {
 	return func(c *Client) error {
 		if timeout <= 0 {
@@ -297,6 +329,11 @@ func WithTimeout(timeout time.Duration) Option {
 }
 
 // WithSSL enables implicit SSL/TLS for the Client.
+//
+// This function configures the Client to use implicit SSL/TLS for secure communication.
+//
+// Returns:
+//   - An Option function that enables SSL/TLS for the Client.
 func WithSSL() Option {
 	return func(c *Client) error {
 		c.useSSL = true
@@ -307,13 +344,16 @@ func WithSSL() Option {
 // WithSSLPort enables implicit SSL/TLS with an optional fallback for the Client. The correct port is
 // automatically set.
 //
-// If this option is used with NewClient, the default port 25 will be overriden with port 465. If fallback
-// is set to true and the SSL/TLS connection fails, the Client will attempt to connect on port 25 using
-// using an unencrypted connection.
+// When this option is used with NewClient, the default port 25 is overridden with port 465 for SSL/TLS connections.
+// If fallback is set to true and the SSL/TLS connection fails, the Client attempts to connect on port 25 using an
+// unencrypted connection. If WithPort has already been used to set a different port, that port takes precedence,
+// and the automatic fallback mechanism is skipped.
 //
-// Note: If a different port has already been set otherwise using WithPort, the selected port has higher
-// precedence and is used to establish the SSL/TLS connection. In this case the authmatic fallback
-// mechanism is skipped at all.
+// Parameters:
+//   - fallback: A boolean indicating whether to fall back to port 25 without SSL/TLS if the connection fails.
+//
+// Returns:
+//   - An Option function that enables SSL/TLS and configures the fallback mechanism for the Client.
 func WithSSLPort(fallback bool) Option {
 	return func(c *Client) error {
 		c.SetSSLPort(true, fallback)
@@ -321,12 +361,15 @@ func WithSSLPort(fallback bool) Option {
 	}
 }
 
-// WithDebugLog enables debug logging for the Client. The debug logger will log incoming and outgoing
-// communication between the Client and the server to os.StdErr.
+// WithDebugLog enables debug logging for the Client.
 //
-// Note: The SMTP communication might include unencrypted authentication data, depending if you are
-// using SMTP authentication and the type of authentication mechanism. This could pose a data
-// protection problem. Use debug logging with care.
+// This function activates debug logging, which logs incoming and outgoing communication between the
+// Client and the SMTP server to os.Stderr. Be cautious when using this option, as the logs may include
+// unencrypted authentication data, depending on the SMTP authentication method in use, which could
+// pose a data protection risk.
+//
+// Returns:
+//   - An Option function that enables debug logging for the Client.
 func WithDebugLog() Option {
 	return func(c *Client) error {
 		c.useDebugLog = true
@@ -334,10 +377,16 @@ func WithDebugLog() Option {
 	}
 }
 
-// WithLogger defines a custom logger for the Client. The logger has to satisfy the log.Logger
-// interface and is only used when debug logging is enabled on the Client.
+// WithLogger defines a custom logger for the Client.
 //
-// By default we use log.Stdlog.
+// This function sets a custom logger for the Client, which must satisfy the log.Logger interface. The custom
+// logger is used only when debug logging is enabled. By default, log.Stdlog is used if no custom logger is provided.
+//
+// Parameters:
+//   - logger: A logger that satisfies the log.Logger interface.
+//
+// Returns:
+//   - An Option function that sets the custom logger for the Client.
 func WithLogger(logger log.Logger) Option {
 	return func(c *Client) error {
 		c.logger = logger
@@ -345,9 +394,17 @@ func WithLogger(logger log.Logger) Option {
 	}
 }
 
-// WithHELO sets the HELO/EHLO string used for the the Client.
+// WithHELO sets the HELO/EHLO string used by the Client.
 //
-// By default we use os.Hostname to identify the HELO/EHLO string.
+// This function configures the HELO/EHLO string sent by the Client when initiating communication
+// with the SMTP server. By default, os.Hostname is used to identify the HELO/EHLO string.
+//
+// Parameters:
+//   - helo: The string to be used for the HELO/EHLO greeting. Must not be empty.
+//
+// Returns:
+//   - An Option function that sets the HELO/EHLO string for the Client.
+//   - An error if the provided HELO string is empty.
 func WithHELO(helo string) Option {
 	return func(c *Client) error {
 		if helo == "" {
@@ -358,9 +415,18 @@ func WithHELO(helo string) Option {
 	}
 }
 
-// WithTLSPolicy sets the TLSPolicy of the Client and overrides the DefaultTLSPolicy
+// WithTLSPolicy sets the TLSPolicy of the Client and overrides the DefaultTLSPolicy.
 //
-// Note: To follow best-practices for SMTP TLS connections, it is recommended to use
+// This function configures the Client's TLSPolicy, specifying how the Client handles TLS for SMTP connections.
+// It overrides the default policy. For best practices regarding SMTP TLS connections, it is recommended to use
+// WithTLSPortPolicy instead.
+//
+// Parameters:
+//   - policy: The TLSPolicy to be applied to the Client.
+//
+// Returns:
+//   - An Option function that sets the TLSPolicy for the Client.
+//
 // WithTLSPortPolicy instead.
 func WithTLSPolicy(policy TLSPolicy) Option {
 	return func(c *Client) error {
@@ -372,13 +438,17 @@ func WithTLSPolicy(policy TLSPolicy) Option {
 // WithTLSPortPolicy enables explicit TLS via STARTTLS for the Client using the provided TLSPolicy. The
 // correct port is automatically set.
 //
-// If TLSMandatory or TLSOpportunistic are provided as TLSPolicy, port 587 will be used for the connection.
-// If the connection fails with TLSOpportunistic, the Client will attempt to connect on port 25 using
-// using an unencrypted connection as a fallback. If NoTLS is provided, the Client will always use port 25.
+// When TLSMandatory or TLSOpportunistic is provided as the TLSPolicy, port 587 is used for the connection.
+// If the connection fails with TLSOpportunistic, the Client attempts to connect on port 25 using an unencrypted
+// connection as a fallback. If NoTLS is specified, the Client will always use port 25.
+// If WithPort has already been used to set a different port, that port takes precedence, and the automatic fallback
+// mechanism is skipped.
 //
-// Note: If a different port has already been set otherwise using WithPort, the selected port has higher
-// precedence and is used to establish the SSL/TLS connection. In this case the authmatic fallback
-// mechanism is skipped at all.
+// Parameters:
+//   - policy: The TLSPolicy to be used for STARTTLS communication.
+//
+// Returns:
+//   - An Option function that sets the TLSPortPolicy for the Client.
 func WithTLSPortPolicy(policy TLSPolicy) Option {
 	return func(c *Client) error {
 		c.SetTLSPortPolicy(policy)
@@ -386,8 +456,17 @@ func WithTLSPortPolicy(policy TLSPolicy) Option {
 	}
 }
 
-// WithTLSConfig sets the tls.Config for the Client and overrides the default. An error is returned
-// if the provided tls.Config is invalid.
+// WithTLSConfig sets the tls.Config for the Client and overrides the default configuration.
+//
+// This function configures the Client with a custom tls.Config. It overrides the default TLS settings.
+// An error is returned if the provided tls.Config is nil or invalid.
+//
+// Parameters:
+//   - tlsconfig: A pointer to a tls.Config struct to be used for the Client. Must not be nil.
+//
+// Returns:
+//   - An Option function that sets the tls.Config for the Client.
+//   - An error if the provided tls.Config is invalid.
 func WithTLSConfig(tlsconfig *tls.Config) Option {
 	return func(c *Client) error {
 		if tlsconfig == nil {
@@ -398,7 +477,15 @@ func WithTLSConfig(tlsconfig *tls.Config) Option {
 	}
 }
 
-// WithSMTPAuth configures the Client to use the specified SMTPAuthType for the SMTP authentication.
+// WithSMTPAuth configures the Client to use the specified SMTPAuthType for SMTP authentication.
+//
+// This function sets the Client to use the specified SMTPAuthType for authenticating with the SMTP server.
+//
+// Parameters:
+//   - authtype: The SMTPAuthType to be used for SMTP authentication.
+//
+// Returns:
+//   - An Option function that configures the Client to use the specified SMTPAuthType.
 func WithSMTPAuth(authtype SMTPAuthType) Option {
 	return func(c *Client) error {
 		c.smtpAuthType = authtype
@@ -406,8 +493,16 @@ func WithSMTPAuth(authtype SMTPAuthType) Option {
 	}
 }
 
-// WithSMTPAuthCustom sets a custom SMTP authentication mechanism for the Client. The provided
-// authentication mechanism has to satisfy the smtp.Auth interface.
+// WithSMTPAuthCustom sets a custom SMTP authentication mechanism for the Client.
+//
+// This function configures the Client to use a custom SMTP authentication mechanism. The provided
+// mechanism must satisfy the smtp.Auth interface.
+//
+// Parameters:
+//   - smtpAuth: The custom SMTP authentication mechanism, which must implement the smtp.Auth interface.
+//
+// Returns:
+//   - An Option function that sets the custom SMTP authentication for the Client.
 func WithSMTPAuthCustom(smtpAuth smtp.Auth) Option {
 	return func(c *Client) error {
 		c.smtpAuth = smtpAuth
@@ -416,7 +511,15 @@ func WithSMTPAuthCustom(smtpAuth smtp.Auth) Option {
 	}
 }
 
-// WithUsername sets the username, the Client will use for the SMTP authentication.
+// WithUsername sets the username that the Client will use for SMTP authentication.
+//
+// This function configures the Client with the specified username for SMTP authentication.
+//
+// Parameters:
+//   - username: The username to be used for SMTP authentication.
+//
+// Returns:
+//   - An Option function that sets the username for the Client.
 func WithUsername(username string) Option {
 	return func(c *Client) error {
 		c.user = username
@@ -424,7 +527,15 @@ func WithUsername(username string) Option {
 	}
 }
 
-// WithPassword sets the password, the Client will use for the SMTP authentication.
+// WithPassword sets the password that the Client will use for SMTP authentication.
+//
+// This function configures the Client with the specified password for SMTP authentication.
+//
+// Parameters:
+//   - password: The password to be used for SMTP authentication.
+//
+// Returns:
+//   - An Option function that sets the password for the Client.
 func WithPassword(password string) Option {
 	return func(c *Client) error {
 		c.pass = password
@@ -432,13 +543,17 @@ func WithPassword(password string) Option {
 	}
 }
 
-// WithDSN enables DSN (Delivery Status Notifications) for the Client as described in the RFC 1891. DSN
-// only work if the server supports them.
+// WithDSN enables DSN (Delivery Status Notifications) for the Client as described in RFC 1891.
 //
-// By default we set DSNMailReturnOption to DSNMailReturnFull and DSNRcptNotifyOption to DSNRcptNotifySuccess
-// and DSNRcptNotifyFailure.
+// This function configures the Client to request DSN, which provides status notifications for email delivery.
+// DSN is only effective if the SMTP server supports it. By default, DSNMailReturnOption is set to DSNMailReturnFull,
+// and DSNRcptNotifyOption is set to DSNRcptNotifySuccess and DSNRcptNotifyFailure.
 //
-// https://datatracker.ietf.org/doc/html/rfc1891
+// Returns:
+//   - An Option function that enables DSN for the Client.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc1891
 func WithDSN() Option {
 	return func(c *Client) error {
 		c.requestDSN = true
@@ -448,12 +563,21 @@ func WithDSN() Option {
 	}
 }
 
-// WithDSNMailReturnType enables DSN (Delivery Status Notifications) for the Client as described in the
-// RFC 1891. DSN only work if the server supports them.
+// WithDSNMailReturnType enables DSN (Delivery Status Notifications) for the Client as described in RFC 1891.
 //
-// It will set the DSNMailReturnOption to the provided value.
+// This function configures the Client to request DSN and sets the DSNMailReturnOption to the provided value.
+// DSN is only effective if the SMTP server supports it. The provided option must be either DSNMailReturnHeadersOnly
+// or DSNMailReturnFull; otherwise, an error is returned.
 //
-// https://datatracker.ietf.org/doc/html/rfc1891
+// Parameters:
+//   - option: The DSNMailReturnOption to be used (DSNMailReturnHeadersOnly or DSNMailReturnFull).
+//
+// Returns:
+//   - An Option function that sets the DSNMailReturnOption for the Client.
+//   - An error if an invalid DSNMailReturnOption is provided.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc1891
 func WithDSNMailReturnType(option DSNMailReturnOption) Option {
 	return func(c *Client) error {
 		switch option {
@@ -469,12 +593,22 @@ func WithDSNMailReturnType(option DSNMailReturnOption) Option {
 	}
 }
 
-// WithDSNRcptNotifyType enables DSN (Delivery Status Notifications) for the Client as described in the
-// RFC 1891. DSN only work if the server supports them.
+// WithDSNRcptNotifyType enables DSN (Delivery Status Notifications) for the Client as described in RFC 1891.
 //
-// It will set the DSNRcptNotifyOption to the provided values.
+// This function configures the Client to request DSN and sets the DSNRcptNotifyOption to the provided values.
+// The provided options must be valid DSNRcptNotifyOption types. If DSNRcptNotifyNever is combined with
+// any other notification type (such as DSNRcptNotifySuccess, DSNRcptNotifyFailure, or DSNRcptNotifyDelay),
+// an error is returned.
 //
-// https://datatracker.ietf.org/doc/html/rfc1891
+// Parameters:
+//   - opts: A variadic list of DSNRcptNotifyOption values (e.g., DSNRcptNotifySuccess, DSNRcptNotifyFailure).
+//
+// Returns:
+//   - An Option function that sets the DSNRcptNotifyOption for the Client.
+//   - An error if invalid DSNRcptNotifyOption values are provided or incompatible combinations are used.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc1891
 func WithDSNRcptNotifyType(opts ...DSNRcptNotifyOption) Option {
 	return func(c *Client) error {
 		var rcptOpts []string
@@ -508,8 +642,11 @@ func WithDSNRcptNotifyType(opts ...DSNRcptNotifyOption) Option {
 
 // WithoutNoop indicates that the Client should skip the "NOOP" command during the dial.
 //
-// This is useful for servers which delay potentially unwanted clients when they perform commands
-// other than AUTH. For example Microsoft Exchange's Tarpit.
+// This option is useful for servers that delay potentially unwanted clients when they perform
+// commands other than AUTH, such as Microsoft's Exchange Tarpit.
+//
+// Returns:
+//   - An Option function that configures the Client to skip the "NOOP" command.
 func WithoutNoop() Option {
 	return func(c *Client) error {
 		c.noNoop = true
@@ -517,8 +654,16 @@ func WithoutNoop() Option {
 	}
 }
 
-// WithDialContextFunc sets the provided DialContextFunc as DialContext and overrides the default DialContext for
-// connecting to the SMTP server
+// WithDialContextFunc sets the provided DialContextFunc as the DialContext for connecting to the SMTP server.
+//
+// This function overrides the default DialContext function used by the Client when establishing a connection
+// to the SMTP server with the provided DialContextFunc.
+//
+// Parameters:
+//   - dialCtxFunc: The custom DialContextFunc to be used for connecting to the SMTP server.
+//
+// Returns:
+//   - An Option function that sets the custom DialContextFunc for the Client.
 func WithDialContextFunc(dialCtxFunc DialContextFunc) Option {
 	return func(c *Client) error {
 		c.dialContextFunc = dialCtxFunc
@@ -526,35 +671,50 @@ func WithDialContextFunc(dialCtxFunc DialContextFunc) Option {
 	}
 }
 
-// TLSPolicy returns the TLSPolicy that is currently set on the Client as string
+// TLSPolicy returns the TLSPolicy that is currently set on the Client as a string.
+//
+// This method retrieves the current TLSPolicy configured for the Client and returns it as a string representation.
+//
+// Returns:
+//   - A string representing the currently set TLSPolicy for the Client.
 func (c *Client) TLSPolicy() string {
 	return c.tlspolicy.String()
 }
 
 // ServerAddr returns the server address that is currently set on the Client in the format "host:port".
+//
+// This method constructs and returns the server address using the host and port currently configured
+// for the Client.
+//
+// Returns:
+//   - A string representing the server address in the format "host:port".
 func (c *Client) ServerAddr() string {
 	return fmt.Sprintf("%s:%d", c.host, c.port)
 }
 
-// SetTLSPolicy sets or overrides the TLSPolicy that is currently set on the Client with the given
-// TLSPolicy.
+// SetTLSPolicy sets or overrides the TLSPolicy currently configured on the Client with the given TLSPolicy.
 //
-// Note: To follow best-practices for SMTP TLS connections, it is recommended to use SetTLSPortPolicy
-// instead.
+// This method allows the user to set a new TLSPolicy for the Client. For best practices regarding
+// SMTP TLS connections, it is recommended to use SetTLSPortPolicy instead.
+//
+// Parameters:
+//   - policy: The TLSPolicy to be set for the Client.
 func (c *Client) SetTLSPolicy(policy TLSPolicy) {
 	c.tlspolicy = policy
 }
 
-// SetTLSPortPolicy sets or overrides the TLSPolicy that is currently set on the Client with the given
-// TLSPolicy. The correct port is automatically set.
+// SetTLSPortPolicy sets or overrides the TLSPolicy currently configured on the Client with the given TLSPolicy.
+// The correct port is automatically set based on the specified policy.
 //
-// If TLSMandatory or TLSOpportunistic are provided as TLSPolicy, port 587 will be used for the connection.
+// If TLSMandatory or TLSOpportunistic is provided as the TLSPolicy, port 587 will be used for the connection.
 // If the connection fails with TLSOpportunistic, the Client will attempt to connect on port 25 using
-// using an unencrypted connection as a fallback. If NoTLS is provided, the Client will always use port 25.
+// an unencrypted connection as a fallback. If NoTLS is provided, the Client will always use port 25.
 //
-// Note: If a different port has already been set otherwise using WithPort, the selected port has higher
-// precedence and is used to establish the SSL/TLS connection. In this case the authmatic fallback
-// mechanism is skipped at all.
+// Note: If a different port has already been set using WithPort, that port takes precedence and is used
+// to establish the SSL/TLS connection, skipping the automatic fallback mechanism.
+//
+// Parameters:
+//   - policy: The TLSPolicy to be set for the Client.
 func (c *Client) SetTLSPortPolicy(policy TLSPolicy) {
 	if c.port == DefaultPort {
 		c.port = DefaultPortTLS
@@ -570,21 +730,29 @@ func (c *Client) SetTLSPortPolicy(policy TLSPolicy) {
 	c.tlspolicy = policy
 }
 
-// SetSSL sets or overrides wether the Client should use implicit SSL/TLS.
+// SetSSL sets or overrides whether the Client should use implicit SSL/TLS.
+//
+// This method configures the Client to either enable or disable implicit SSL/TLS for secure communication.
+//
+// Parameters:
+//   - ssl: A boolean value indicating whether to enable (true) or disable (false) implicit SSL/TLS.
 func (c *Client) SetSSL(ssl bool) {
 	c.useSSL = ssl
 }
 
-// SetSSLPort sets or overrides wether the Client should use implicit SSL/TLS with optional fallback. The
-// correct port is automatically set.
+// SetSSLPort sets or overrides whether the Client should use implicit SSL/TLS with optional fallback.
+// The correct port is automatically set.
 //
-// If ssl is set to true, the default port 25 will be overriden with port 465. If fallback is set to true
-// and the SSL/TLS connection fails, the Client will attempt to connect on port 25 using using an
-// unencrypted connection.
+// If ssl is set to true, the default port 25 will be overridden with port 465. If fallback is set to true
+// and the SSL/TLS connection fails, the Client will attempt to connect on port 25 using an unencrypted
+// connection.
 //
-// Note: If a different port has already been set otherwise using WithPort, the selected port has higher
-// precedence and is used to establish the SSL/TLS connection. In this case the authmatic fallback
-// mechanism is skipped at all.
+// Note: If a different port has already been set using WithPort, that port takes precedence and is used
+// to establish the SSL/TLS connection, skipping the automatic fallback mechanism.
+//
+// Parameters:
+//   - ssl: A boolean value indicating whether to enable implicit SSL/TLS.
+//   - fallback: A boolean value indicating whether to enable fallback to an unencrypted connection.
 func (c *Client) SetSSLPort(ssl bool, fallback bool) {
 	if c.port == DefaultPort {
 		if ssl {
@@ -600,12 +768,15 @@ func (c *Client) SetSSLPort(ssl bool, fallback bool) {
 	c.useSSL = ssl
 }
 
-// SetDebugLog sets or overrides wether the Client is using debug logging. The debug logger will log
-// incoming and outgoing communication between the Client and the server to os.StdErr.
+// SetDebugLog sets or overrides whether the Client is using debug logging. The debug logger will log incoming
+// and outgoing communication between the Client and the server to os.Stderr.
 //
-// Note: The SMTP communication might include unencrypted authentication data, depending if you are
-// using SMTP authentication and the type of authentication mechanism. This could pose a data
-// protection problem. Use debug logging with care.
+// Note: The SMTP communication might include unencrypted authentication data, depending on whether you are using
+// SMTP authentication and the type of authentication mechanism. This could pose a data protection risk. Use
+// debug logging with caution.
+//
+// Parameters:
+//   - val: A boolean value indicating whether to enable (true) or disable (false) debug logging.
 func (c *Client) SetDebugLog(val bool) {
 	c.useDebugLog = val
 	if c.smtpClient != nil {
@@ -613,10 +784,14 @@ func (c *Client) SetDebugLog(val bool) {
 	}
 }
 
-// SetLogger sets of overrides the custom logger currently set for the Client. The logger has to satisfy
-// the log.Logger interface and is only used when debug logging is enabled on the Client.
+// SetLogger sets or overrides the custom logger currently used by the Client. The logger must
+// satisfy the log.Logger interface and is only utilized when debug logging is enabled on the
+// Client.
 //
-// By default we use log.Stdlog.
+// By default, log.Stdlog is used if no custom logger is provided.
+//
+// Parameters:
+//   - logger: A logger that satisfies the log.Logger interface to be set for the Client.
 func (c *Client) SetLogger(logger log.Logger) {
 	c.logger = logger
 	if c.smtpClient != nil {
@@ -624,12 +799,18 @@ func (c *Client) SetLogger(logger log.Logger) {
 	}
 }
 
-// SetTLSConfig sets or overrides the tls.Config that is currently set for the Client with the given value.
-// An error is returned if the provided tls.Config is invalid.
+// SetTLSConfig sets or overrides the tls.Config currently configured for the Client with the
+// given value. An error is returned if the provided tls.Config is invalid.
+//
+// This method ensures that the provided tls.Config is not nil before updating the Client's
+// TLS configuration.
+//
+// Parameters:
+//   - tlsconfig: A pointer to the tls.Config struct to be set for the Client. Must not be nil.
+//
+// Returns:
+//   - An error if the provided tls.Config is invalid or nil.
 func (c *Client) SetTLSConfig(tlsconfig *tls.Config) error {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-
 	if tlsconfig == nil {
 		return ErrInvalidTLSConfig
 	}
@@ -637,7 +818,12 @@ func (c *Client) SetTLSConfig(tlsconfig *tls.Config) error {
 	return nil
 }
 
-// SetUsername sets or overrides the username, the Client will use for the SMTP authentication.
+// SetUsername sets or overrides the username that the Client will use for SMTP authentication.
+//
+// This method updates the username used by the Client for authenticating with the SMTP server.
+//
+// Parameters:
+//   - username: The username to be set for SMTP authentication.
 func (c *Client) SetUsername(username string) {
 	c.user = username
 }
