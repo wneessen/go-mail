@@ -12,8 +12,16 @@ import (
 )
 
 // randNum returns a random number with a maximum value of maxval.
-// go-mail compiled with Go 1.22+ will make use of the novel math/rand/v2 interface
-// Older versions of Go will use math/rand
+//
+// This function generates a random integer between 0 and maxval (exclusive). It utilizes
+// the math/rand/v2 interface for Go 1.22+ and will default to math/rand for older Go versions.
+// If maxval is less than or equal to 0, it returns 0.
+//
+// Parameters:
+//   - maxval: The upper bound for the random number generation (exclusive).
+//
+// Returns:
+//   - A random integer between 0 and maxval. If maxval is less than or equal to 0, it returns 0.
 func randNum(maxval int) int {
 	if maxval <= 0 {
 		return 0

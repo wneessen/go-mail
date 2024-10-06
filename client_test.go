@@ -483,20 +483,20 @@ func TestWithDSN(t *testing.T) {
 		t.Errorf("failed to create new client: %s", err)
 		return
 	}
-	if !c.dsn {
-		t.Errorf("WithDSN failed. c.dsn expected to be: %t, got: %t", true, c.dsn)
+	if !c.requestDSN {
+		t.Errorf("WithDSN failed. c.requestDSN expected to be: %t, got: %t", true, c.requestDSN)
 	}
-	if c.dsnmrtype != DSNMailReturnFull {
-		t.Errorf("WithDSN failed. c.dsnmrtype expected to be: %s, got: %s", DSNMailReturnFull,
-			c.dsnmrtype)
+	if c.dsnReturnType != DSNMailReturnFull {
+		t.Errorf("WithDSN failed. c.dsnReturnType expected to be: %s, got: %s", DSNMailReturnFull,
+			c.dsnReturnType)
 	}
-	if c.dsnrntype[0] != string(DSNRcptNotifyFailure) {
-		t.Errorf("WithDSN failed. c.dsnrntype[0] expected to be: %s, got: %s", DSNRcptNotifyFailure,
-			c.dsnrntype[0])
+	if c.dsnRcptNotifyType[0] != string(DSNRcptNotifyFailure) {
+		t.Errorf("WithDSN failed. c.dsnRcptNotifyType[0] expected to be: %s, got: %s", DSNRcptNotifyFailure,
+			c.dsnRcptNotifyType[0])
 	}
-	if c.dsnrntype[1] != string(DSNRcptNotifySuccess) {
-		t.Errorf("WithDSN failed. c.dsnrntype[1] expected to be: %s, got: %s", DSNRcptNotifySuccess,
-			c.dsnrntype[1])
+	if c.dsnRcptNotifyType[1] != string(DSNRcptNotifySuccess) {
+		t.Errorf("WithDSN failed. c.dsnRcptNotifyType[1] expected to be: %s, got: %s", DSNRcptNotifySuccess,
+			c.dsnRcptNotifyType[1])
 	}
 }
 
@@ -519,8 +519,8 @@ func TestWithDSNMailReturnType(t *testing.T) {
 				t.Errorf("failed to create new client: %s", err)
 				return
 			}
-			if string(c.dsnmrtype) != tt.want {
-				t.Errorf("WithDSNMailReturnType failed. Expected %s, got: %s", tt.want, string(c.dsnmrtype))
+			if string(c.dsnReturnType) != tt.want {
+				t.Errorf("WithDSNMailReturnType failed. Expected %s, got: %s", tt.want, string(c.dsnReturnType))
 			}
 		})
 	}
@@ -547,11 +547,11 @@ func TestWithDSNRcptNotifyType(t *testing.T) {
 				t.Errorf("failed to create new client: %s", err)
 				return
 			}
-			if len(c.dsnrntype) <= 0 && !tt.sf {
+			if len(c.dsnRcptNotifyType) <= 0 && !tt.sf {
 				t.Errorf("WithDSNRcptNotifyType failed. Expected at least one DSNRNType but got none")
 			}
-			if !tt.sf && c.dsnrntype[0] != tt.want {
-				t.Errorf("WithDSNRcptNotifyType failed. Expected %s, got: %s", tt.want, c.dsnrntype[0])
+			if !tt.sf && c.dsnRcptNotifyType[0] != tt.want {
+				t.Errorf("WithDSNRcptNotifyType failed. Expected %s, got: %s", tt.want, c.dsnRcptNotifyType[0])
 			}
 		})
 	}
@@ -602,6 +602,10 @@ func TestSetSMTPAuthCustom(t *testing.T) {
 			if c.smtpAuth == nil {
 				t.Errorf("failed to set custom SMTP auth method. SMTP Auth method is empty")
 			}
+			if c.smtpAuthType != SMTPAuthCustom {
+				t.Errorf("failed to set custom SMTP auth method. SMTP Auth type is not custom: %s",
+					c.smtpAuthType)
+			}
 			p, _, err := c.smtpAuth.Start(&si)
 			if err != nil {
 				t.Errorf("SMTP Auth Start() method returned error: %s", err)
@@ -610,6 +614,32 @@ func TestSetSMTPAuthCustom(t *testing.T) {
 				t.Errorf("SMTP Auth Start() method is returned proto: %s, expected: %s", p, tt.want)
 			}
 		})
+	}
+}
+
+// TestClient_Close_double tests if a close on an already closed connection causes an error.
+func TestClient_Close_double(t *testing.T) {
+	c, err := getTestConnection(true)
+	if err != nil {
+		t.Skipf("failed to create test client: %s. Skipping tests", err)
+	}
+	ctx := context.Background()
+	if err = c.DialWithContext(ctx); err != nil {
+		t.Errorf("failed to dial with context: %s", err)
+		return
+	}
+	if c.smtpClient == nil {
+		t.Errorf("DialWithContext didn't fail but no SMTP client found.")
+		return
+	}
+	if !c.smtpClient.HasConnection() {
+		t.Errorf("DialWithContext didn't fail but no connection found.")
+	}
+	if err = c.Close(); err != nil {
+		t.Errorf("failed to close connection: %s", err)
+	}
+	if err = c.Close(); err != nil {
+		t.Errorf("failed 2nd close connection: %s", err)
 	}
 }
 
@@ -2387,7 +2417,6 @@ func TestXOAuth2OK_faker(t *testing.T) {
 		"250 8BITMIME",
 		"250 OK",
 		"235 2.7.0 Accepted",
-		"250 OK",
 		"221 OK",
 	}
 	var wrote strings.Builder
@@ -2408,10 +2437,10 @@ func TestXOAuth2OK_faker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unable to create new client: %v", err)
 	}
-	if err := c.DialWithContext(context.Background()); err != nil {
+	if err = c.DialWithContext(context.Background()); err != nil {
 		t.Fatalf("unexpected dial error: %v", err)
 	}
-	if err := c.Close(); err != nil {
+	if err = c.Close(); err != nil {
 		t.Fatalf("disconnect from test server failed: %v", err)
 	}
 	if !strings.Contains(wrote.String(), "AUTH XOAUTH2 dXNlcj11c2VyAWF1dGg9QmVhcmVyIHRva2VuAQE=\r\n") {
@@ -2425,7 +2454,6 @@ func TestXOAuth2Unsupported_faker(t *testing.T) {
 		"250-fake.server",
 		"250-AUTH LOGIN PLAIN",
 		"250 8BITMIME",
-		"250 OK",
 		"250 OK",
 		"221 OK",
 	}
@@ -2445,18 +2473,18 @@ func TestXOAuth2Unsupported_faker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unable to create new client: %v", err)
 	}
-	if err := c.DialWithContext(context.Background()); err == nil {
+	if err = c.DialWithContext(context.Background()); err == nil {
 		t.Fatal("expected dial error got nil")
 	} else {
 		if !errors.Is(err, ErrXOauth2AuthNotSupported) {
 			t.Fatalf("expected %v; got %v", ErrXOauth2AuthNotSupported, err)
 		}
 	}
-	if err := c.Close(); err != nil {
+	if err = c.Close(); err != nil {
 		t.Fatalf("disconnect from test server failed: %v", err)
 	}
 	client := strings.Split(wrote.String(), "\r\n")
-	if len(client) != 5 {
+	if len(client) != 4 {
 		t.Fatalf("unexpected number of client requests got %d; want 5", len(client))
 	}
 	if !strings.HasPrefix(client[0], "EHLO") {
@@ -2465,10 +2493,7 @@ func TestXOAuth2Unsupported_faker(t *testing.T) {
 	if client[1] != "NOOP" {
 		t.Fatalf("expected NOOP, got %q", client[1])
 	}
-	if client[2] != "NOOP" {
-		t.Fatalf("expected NOOP, got %q", client[2])
-	}
-	if client[3] != "QUIT" {
+	if client[2] != "QUIT" {
 		t.Fatalf("expected QUIT, got %q", client[3])
 	}
 }

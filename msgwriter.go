@@ -18,22 +18,39 @@ import (
 	"strings"
 )
 
-// MaxHeaderLength defines the maximum line length for a mail header
-// RFC 2047 suggests 76 characters
-const MaxHeaderLength = 76
+const (
+	// MaxHeaderLength defines the maximum line length for a mail header.
+	//
+	// This constant follows the recommendation of RFC 2047, which suggests a maximum length of 76 characters.
+	//
+	// References:
+	//   - https://datatracker.ietf.org/doc/html/rfc2047
+	MaxHeaderLength = 76
 
-// MaxBodyLength defines the maximum line length for the mail body
-// RFC 2047 suggests 76 characters
-const MaxBodyLength = 76
+	// MaxBodyLength defines the maximum line length for the mail body.
+	//
+	// This constant follows the recommendation of RFC 2047, which suggests a maximum length of 76 characters.
+	//
+	// References:
+	//   - https://datatracker.ietf.org/doc/html/rfc2047
+	MaxBodyLength = 76
 
-// SingleNewLine represents a new line that can be used by the msgWriter to issue a carriage return
-const SingleNewLine = "\r\n"
+	// SingleNewLine represents a single newline character sequence ("\r\n").
+	//
+	// This constant can be used by the msgWriter to issue a carriage return when writing mail content.
+	SingleNewLine = "\r\n"
 
-// DoubleNewLine represents a double new line that can be used by the msgWriter to
-// indicate a new segement of the mail
-const DoubleNewLine = "\r\n\r\n"
+	// DoubleNewLine represents a double newline character sequence ("\r\n\r\n").
+	//
+	// This constant can be used by the msgWriter to indicate a new segment of the mail when writing mail content.
+	DoubleNewLine = "\r\n\r\n"
+)
 
-// msgWriter handles the I/O to the io.WriteCloser of the SMTP client
+// msgWriter handles the I/O operations for writing to the io.WriteCloser of the SMTP client.
+//
+// This struct keeps track of the number of bytes written, the character set used, and the depth of the
+// current multipart section. It also handles encoding, error tracking, and managing multipart and part
+// writers for constructing the email message body.
 type msgWriter struct {
 	bytesWritten    int64
 	charset         Charset
@@ -45,7 +62,18 @@ type msgWriter struct {
 	writer          io.Writer
 }
 
-// Write implements the io.Writer interface for msgWriter
+// Write implements the io.Writer interface for msgWriter.
+//
+// This method writes the provided payload to the underlying writer. It keeps track of the number of bytes
+// written and handles any errors encountered during the writing process. If a previous error exists, it
+// prevents further writing and returns the error.
+//
+// Parameters:
+//   - payload: A byte slice containing the data to be written.
+//
+// Returns:
+//   - The number of bytes successfully written.
+//   - An error if the writing process fails, or if a previous error was encountered.
 func (mw *msgWriter) Write(payload []byte) (int, error) {
 	if mw.err != nil {
 		return 0, fmt.Errorf("failed to write due to previous error: %w", mw.err)
@@ -57,7 +85,19 @@ func (mw *msgWriter) Write(payload []byte) (int, error) {
 	return n, mw.err
 }
 
-// writeMsg formats the message and sends it to its io.Writer
+// writeMsg formats the message and writes it to the msgWriter's io.Writer.
+//
+// This method handles the process of writing the message headers and body content, including handling
+// multipart structures (e.g., mixed, related, alternative), PGP types, and attachments/embeds. It sets the
+// required headers (e.g., "From", "To", "Cc") and iterates over the message parts, writing them to the
+// output writer.
+//
+// Parameters:
+//   - msg: A pointer to the Msg struct containing the message data and headers to be written.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2045 (Multipurpose Internet Mail Extensions - MIME)
+//   - https://datatracker.ietf.org/doc/html/rfc5322 (Internet Message Format)
 func (mw *msgWriter) writeMsg(msg *Msg) {
 	msg.addDefaultHeader()
 	msg.checkUserAgent()
@@ -136,7 +176,13 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 	}
 }
 
-// writeGenHeader writes out all generic headers to the msgWriter
+// writeGenHeader writes out all generic headers to the msgWriter.
+//
+// This function extracts all generic headers from the provided Msg object, sorts them, and writes them
+// to the msgWriter in alphabetical order.
+//
+// Parameters:
+//   - msg: The Msg object containing the headers to be written.
 func (mw *msgWriter) writeGenHeader(msg *Msg) {
 	keys := make([]string, 0, len(msg.genHeader))
 	for key := range msg.genHeader {
@@ -148,14 +194,32 @@ func (mw *msgWriter) writeGenHeader(msg *Msg) {
 	}
 }
 
-// writePreformatedHeader writes out all preformated generic headers to the msgWriter
+// writePreformattedGenHeader writes out all preformatted generic headers to the msgWriter.
+//
+// This function iterates over all preformatted generic headers from the provided Msg object and writes
+// them to the msgWriter in the format "key: value" followed by a newline.
+//
+// Parameters:
+//   - msg: The Msg object containing the preformatted headers to be written.
 func (mw *msgWriter) writePreformattedGenHeader(msg *Msg) {
 	for key, val := range msg.preformHeader {
 		mw.writeString(fmt.Sprintf("%s: %s%s", key, val, SingleNewLine))
 	}
 }
 
-// startMP writes a multipart beginning
+// startMP writes a multipart beginning.
+//
+// This function initializes a multipart writer for the msgWriter using the specified MIME type and
+// boundary. It sets the Content-Type header to indicate the multipart type and writes the boundary
+// information. If a boundary is provided, it is set explicitly; otherwise, a default boundary is
+// generated. It also handles writing a new part when nested multipart structures are used.
+//
+// Parameters:
+//   - mimeType: The MIME type of the multipart content (e.g., "mixed", "alternative").
+//   - boundary: The boundary string separating different parts of the multipart message.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2046
 func (mw *msgWriter) startMP(mimeType MIMEType, boundary string) {
 	multiPartWriter := multipart.NewWriter(mw)
 	if boundary != "" {
@@ -175,7 +239,10 @@ func (mw *msgWriter) startMP(mimeType MIMEType, boundary string) {
 	mw.depth++
 }
 
-// stopMP closes the multipart
+// stopMP closes the multipart.
+//
+// This function closes the current multipart writer if there is an active multipart structure.
+// It decreases the depth level of multipart nesting.
 func (mw *msgWriter) stopMP() {
 	if mw.depth > 0 {
 		mw.err = mw.multiPartWriter[mw.depth-1].Close()
@@ -183,7 +250,17 @@ func (mw *msgWriter) stopMP() {
 	}
 }
 
-// addFiles adds the attachments/embeds file content to the mail body
+// addFiles adds the attachments/embeds file content to the mail body.
+//
+// This function iterates through the list of files, setting necessary headers for each file,
+// including Content-Type, Content-Transfer-Encoding, Content-Disposition, and Content-ID
+// (if the file is an embed). It determines the appropriate MIME type for each file based on
+// its extension or the provided ContentType. It writes file headers and file content
+// to the mail body using the appropriate encoding.
+//
+// Parameters:
+//   - files: A slice of File objects to be added to the mail body.
+//   - isAttachment: A boolean indicating whether the files are attachments (true) or embeds (false).
 func (mw *msgWriter) addFiles(files []*File, isAttachment bool) {
 	for _, file := range files {
 		encoding := EncodingB64
@@ -242,12 +319,29 @@ func (mw *msgWriter) addFiles(files []*File, isAttachment bool) {
 	}
 }
 
-// newPart creates a new MIME multipart io.Writer and sets the partwriter to it
+// newPart creates a new MIME multipart io.Writer and sets the partWriter to it.
+//
+// This function creates a new MIME part using the provided header information and assigns it
+// to the partWriter. It interacts with the current multipart writer at the specified depth
+// to create the part.
+//
+// Parameters:
+//   - header: A map containing the header fields and their corresponding values for the new part.
 func (mw *msgWriter) newPart(header map[string][]string) {
 	mw.partWriter, mw.err = mw.multiPartWriter[mw.depth-1].CreatePart(header)
 }
 
-// writePart writes the corresponding part to the Msg body
+// writePart writes the corresponding part to the Msg body.
+//
+// This function writes a MIME part to the message body, setting the appropriate headers such
+// as Content-Type and Content-Transfer-Encoding. It determines the charset for the part,
+// either using the part's own charset or a fallback charset if none is specified. If the part
+// is at the top level (depth 0), headers are written directly. For nested parts, it creates
+// a new MIME part with the provided headers.
+//
+// Parameters:
+//   - part: The Part object containing the data to be written.
+//   - charset: The Charset used as a fallback if the part does not specify one.
 func (mw *msgWriter) writePart(part *Part, charset Charset) {
 	partCharset := part.charset
 	if partCharset.String() == "" {
@@ -272,7 +366,14 @@ func (mw *msgWriter) writePart(part *Part, charset Charset) {
 	mw.writeBody(part.writeFunc, part.encoding)
 }
 
-// writeString writes a string into the msgWriter's io.Writer interface
+// writeString writes a string into the msgWriter's io.Writer interface.
+//
+// This function writes the given string to the msgWriter's underlying writer. It checks for
+// existing errors before performing the write operation. It also tracks the number of bytes
+// written and updates the bytesWritten field accordingly.
+//
+// Parameters:
+//   - s: The string to be written.
 func (mw *msgWriter) writeString(s string) {
 	if mw.err != nil {
 		return
@@ -282,7 +383,16 @@ func (mw *msgWriter) writeString(s string) {
 	mw.bytesWritten += int64(n)
 }
 
-// writeHeader writes a header into the msgWriter's io.Writer
+// writeHeader writes a header into the msgWriter's io.Writer.
+//
+// This function writes a header key and its associated values to the msgWriter. It ensures
+// proper formatting of long headers by inserting line breaks as needed. The header values
+// are joined and split into words to ensure compliance with the maximum header length
+// (MaxHeaderLength). After processing the header, it is written to the underlying writer.
+//
+// Parameters:
+//   - key: The Header key to be written.
+//   - values: A variadic parameter representing the values associated with the header.
 func (mw *msgWriter) writeHeader(key Header, values ...string) {
 	buffer := strings.Builder{}
 	charLength := MaxHeaderLength - 2
@@ -317,7 +427,17 @@ func (mw *msgWriter) writeHeader(key Header, values ...string) {
 	mw.writeString("\r\n")
 }
 
-// writeBody writes an io.Reader into an io.Writer using provided Encoding
+// writeBody writes an io.Reader into an io.Writer using the provided Encoding.
+//
+// This function writes data from an io.Reader to the underlying writer using a specified
+// encoding (quoted-printable, base64, or no encoding). It handles encoding of the content
+// and manages writing the encoded data to the appropriate writer, depending on the depth
+// (whether the data is part of a multipart structure or not). It also tracks the number
+// of bytes written and manages any errors encountered during the process.
+//
+// Parameters:
+//   - writeFunc: A function that writes the body content to the given io.Writer.
+//   - encoding: The encoding type to use when writing the content (e.g., base64, quoted-printable).
 func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encoding Encoding) {
 	var writer io.Writer
 	var encodedWriter io.WriteCloser
