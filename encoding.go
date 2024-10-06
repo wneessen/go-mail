@@ -184,18 +184,38 @@ const (
 	MIMERelated MIMEType = "related"
 )
 
-// String satisfies the fmt.Stringer interface for the Charset type. It converts a Charset into a printable format.
+// String satisfies the fmt.Stringer interface for the Charset type.
+// It converts a Charset into a printable format.
+//
+// This method returns the string representation of the Charset, allowing it to be easily
+// printed or logged.
+//
+// Returns:
+//   - A string representation of the Charset.
 func (c Charset) String() string {
 	return string(c)
 }
 
-// String satisfies the fmt.Stringer interface for the ContentType type. It converts a ContentType into a printable
-// format.
+// String satisfies the fmt.Stringer interface for the ContentType type.
+// It converts a ContentType into a printable format.
+//
+// This method returns the string representation of the ContentType, enabling its use
+// in formatted output such as logging or displaying information to the user.
+//
+// Returns:
+//   - A string representation of the ContentType.
 func (c ContentType) String() string {
 	return string(c)
 }
 
-// String satisfies the fmt.Stringer interface for the Encoding type. It converts an Encoding into a printable format.
+// String satisfies the fmt.Stringer interface for the Encoding type.
+// It converts an Encoding into a printable format.
+//
+// This method returns the string representation of the Encoding, which can be used
+// for displaying or logging purposes.
+//
+// Returns:
+//   - A string representation of the Encoding.
 func (e Encoding) String() string {
 	return string(e)
 }
