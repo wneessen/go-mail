@@ -972,12 +972,12 @@ func (m *Msg) Subject(subj string) {
 
 // SetMessageID generates and sets a unique "Message-ID" header for the Msg.
 //
-// This method creates a "Message-ID" string using the current process ID, random numbers, and the hostname
-// of the machine. The generated ID helps uniquely identify the message in email systems, facilitating tracking
-// and preventing duplication. If the hostname cannot be retrieved, it defaults to "localhost.localdomain".
+// This method creates a "Message-ID" string using a randomly generated string and the hostname of the machine.
+// The generated ID helps uniquely identify the message in email systems, facilitating tracking and preventing
+// duplication. If the hostname cannot be retrieved, it defaults to "localhost.localdomain".
 //
 // The generated Message-ID follows the format
-// "<processID.randomNumberPrimary.randomNumberSecondary.randomString@hostname>".
+// "<randomString@hostname>".
 //
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.4
@@ -986,13 +986,9 @@ func (m *Msg) SetMessageID() {
 	if err != nil {
 		hostname = "localhost.localdomain"
 	}
-	randNumPrimary := randNum(100000000)
-	randNumSecondary := randNum(10000)
-	randString, _ := randomStringSecure(17)
-	procID := os.Getpid() * randNumSecondary
-	messageID := fmt.Sprintf("%d.%d%d.%s@%s", procID, randNumPrimary, randNumSecondary,
-		randString, hostname)
-	m.SetMessageIDWithValue(messageID)
+	// We have 64 possible characters, which for a 22 character string, provides approx. 132 bits of entropy.
+	randString, _ := randomStringSecure(22)
+	m.SetMessageIDWithValue(fmt.Sprintf("%s@%s", randString, hostname))
 }
 
 // GetMessageID retrieves the "Message-ID" header from the Msg.
