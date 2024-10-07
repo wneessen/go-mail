@@ -11,16 +11,17 @@ import (
 )
 
 // Range of characters for the secure string generation
-const cr = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+const cr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
 
 // Bitmask sizes for the string generators (based on 93 chars total)
 //
 // These constants define bitmask-related values used for efficient random string generation.
-// The bitmask operates over 93 possible characters, and the constants help determine the
+// The bitmask operates over 66 possible characters, and the constants help determine the
 // number of bits and indices used in the process.
 const (
-	// letterIdxBits: Number of bits (7) needed to represent a letter index.
-	letterIdxBits = 7
+	// letterIdxBits: Number of bits needed to represent a letter index. We have 64 possible characters
+	// which fit into 6 bits.
+	letterIdxBits = 6
 	// letterIdxMask: Bitmask to extract letter indices (all 1-bits for letterIdxBits).
 	letterIdxMask = 1<<letterIdxBits - 1
 	// letterIdxMax: The maximum number of letter indices that fit in 63 bits.
