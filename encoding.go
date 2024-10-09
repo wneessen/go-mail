@@ -157,7 +157,7 @@ const (
 	MIMEAlternative MIMEType = "alternative"
 	MIMEMixed       MIMEType = "mixed"
 	MIMERelated     MIMEType = "related"
-	MIMESMime       MIMEType = `signed; protocol="application/pkcs7-signature"; micalg=sha256`
+	MIMESMime       MIMEType = `signed; protocol="application/pkcs7-signature"; micalg=sha-256`
 )
 
 // String is a standard method to convert an Charset into a printable format

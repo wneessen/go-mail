@@ -173,7 +173,7 @@ func TestMsgWriter_writeMsg_SMime(t *testing.T) {
 	mw := &msgWriter{writer: &buf, charset: CharsetUTF8, encoder: mime.QEncoding}
 	mw.writeMsg(m)
 	ms := buf.String()
-	if !strings.Contains(ms, `multipart/signed; protocol="application/pkcs7-signature"; micalg=sha256;`) {
+	if !strings.Contains(ms, `multipart/signed; protocol="application/pkcs7-signature"; micalg=sha-256;`) {
 		t.Errorf("writeMsg failed. Expected PGP encoding header but didn't find it in message output")
 	}
 }
