@@ -161,6 +161,7 @@ func TestMsgWriter_writeMsg_SMime(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to load dummy certificate. Cause: %v", err)
 	}
+
 	m := NewMsg()
 	if err := m.SignWithSMime(keyPair); err != nil {
 		t.Errorf("set of certificate was not successful")
@@ -173,7 +174,22 @@ func TestMsgWriter_writeMsg_SMime(t *testing.T) {
 	mw := &msgWriter{writer: &buf, charset: CharsetUTF8, encoder: mime.QEncoding}
 	mw.writeMsg(m)
 	ms := buf.String()
-	if !strings.Contains(ms, `multipart/signed; protocol="application/pkcs7-signature"; micalg=sha-256;`) {
-		t.Errorf("writeMsg failed. Expected PGP encoding header but didn't find it in message output")
+
+	if !strings.Contains(ms, "MIME-Version: 1.0") {
+		t.Errorf("writeMsg failed. Unable to find MIME-Version")
+	}
+	if !strings.Contains(ms, "Subject: This is a subject") {
+		t.Errorf("writeMsg failed. Unable to find subject")
+	}
+	if !strings.Contains(ms, "From: \"Toni Tester\" <test@example.com>") {
+		t.Errorf("writeMsg failed. Unable to find transmitter")
+	}
+	if !strings.Contains(ms, "To: \"Toni Receiver\" <receiver@example.com>") {
+		t.Errorf("writeMsg failed. Unable to find receiver")
+	}
+
+	boundary := ms[strings.LastIndex(ms, "--")-60 : strings.LastIndex(ms, "--")]
+	if !strings.Contains(ms, fmt.Sprintf("Content-Type: multipart/signed; protocol=\"application/pkcs7-signature\"; micalg=sha-256;\r\n boundary=%s", boundary)) {
+		t.Errorf("writeMsg failed. Unable to find Content-Type")
 	}
 }
