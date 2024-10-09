@@ -16,10 +16,15 @@ package smtp
 import (
 	"bufio"
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha1"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"flag"
 	"fmt"
+	"hash"
 	"io"
 	"net"
 	"net/textproto"
@@ -28,6 +33,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/wneessen/go-mail/log"
 )
@@ -38,6 +45,7 @@ type authTest struct {
 	name       string
 	responses  []string
 	sf         []bool
+	hasNonce   bool
 }
 
 var authTests = []authTest{
@@ -47,6 +55,7 @@ var authTests = []authTest{
 		"PLAIN",
 		[]string{"\x00user\x00pass"},
 		[]bool{false, false},
+		false,
 	},
 	{
 		PlainAuth("foo", "bar", "baz", "testserver"),
@@ -54,13 +63,47 @@ var authTests = []authTest{
 		"PLAIN",
 		[]string{"foo\x00bar\x00baz"},
 		[]bool{false, false},
+		false,
+	},
+	{
+		PlainAuth("foo", "bar", "baz", "testserver"),
+		[]string{"foo"},
+		"PLAIN",
+		[]string{"foo\x00bar\x00baz", ""},
+		[]bool{true},
+		false,
 	},
 	{
 		LoginAuth("user", "pass", "testserver"),
-		[]string{"Username:", "Password:", "User Name\x00", "Password\x00", "Invalid:"},
+		[]string{"Username:", "Password:"},
 		"LOGIN",
-		[]string{"", "user", "pass", "user", "pass", ""},
-		[]bool{false, false, false, false, true},
+		[]string{"", "user", "pass"},
+		[]bool{false, false},
+		false,
+	},
+	{
+		LoginAuth("user", "pass", "testserver"),
+		[]string{"User Name\x00", "Password\x00"},
+		"LOGIN",
+		[]string{"", "user", "pass"},
+		[]bool{false, false},
+		false,
+	},
+	{
+		LoginAuth("user", "pass", "testserver"),
+		[]string{"Invalid", "Invalid:"},
+		"LOGIN",
+		[]string{"", "user", "pass"},
+		[]bool{false, false},
+		false,
+	},
+	{
+		LoginAuth("user", "pass", "testserver"),
+		[]string{"Invalid", "Invalid:", "Too many"},
+		"LOGIN",
+		[]string{"", "user", "pass", ""},
+		[]bool{false, false, true},
+		false,
 	},
 	{
 		CRAMMD5Auth("user", "pass"),
@@ -68,6 +111,7 @@ var authTests = []authTest{
 		"CRAM-MD5",
 		[]string{"", "user 287eb355114cf5c471c26a875f1ca4ae"},
 		[]bool{false, false},
+		false,
 	},
 	{
 		XOAuth2Auth("username", "token"),
@@ -75,6 +119,47 @@ var authTests = []authTest{
 		"XOAUTH2",
 		[]string{"user=username\x01auth=Bearer token\x01\x01", ""},
 		[]bool{false},
+		false,
+	},
+	{
+		ScramSHA1Auth("username", "password"),
+		[]string{"", "r=foo"},
+		"SCRAM-SHA-1",
+		[]string{"", "n,,n=username,r=", ""},
+		[]bool{false, true},
+		true,
+	},
+	{
+		ScramSHA1Auth("username", "password"),
+		[]string{"", "v=foo"},
+		"SCRAM-SHA-1",
+		[]string{"", "n,,n=username,r=", ""},
+		[]bool{false, true},
+		true,
+	},
+	{
+		ScramSHA256Auth("username", "password"),
+		[]string{""},
+		"SCRAM-SHA-256",
+		[]string{"", "n,,n=username,r=", ""},
+		[]bool{false},
+		true,
+	},
+	{
+		ScramSHA1PlusAuth("username", "password", nil),
+		[]string{""},
+		"SCRAM-SHA-1-PLUS",
+		[]string{"", "", ""},
+		[]bool{true},
+		true,
+	},
+	{
+		ScramSHA256PlusAuth("username", "password", nil),
+		[]string{""},
+		"SCRAM-SHA-256-PLUS",
+		[]string{"", "", ""},
+		[]bool{true},
+		true,
 	},
 }
 
@@ -100,9 +185,19 @@ testLoop:
 				t.Errorf("#%d error: %s", i, err)
 				continue testLoop
 			}
+			if test.hasNonce {
+				if !bytes.HasPrefix(resp, expected) {
+					t.Errorf("#%d got response: %s, expected response to start with: %s", i, resp, expected)
+				}
+				continue testLoop
+			}
 			if !bytes.Equal(resp, expected) {
 				t.Errorf("#%d got %s, expected %s", i, resp, expected)
 				continue testLoop
+			}
+			_, err = test.auth.Next([]byte("2.7.0 Authentication successful"), false)
+			if err != nil {
+				t.Errorf("#%d success message error: %s", i, err)
 			}
 		}
 	}
@@ -277,6 +372,240 @@ func TestXOAuth2Error(t *testing.T) {
 	// the Next method returns an empty response. It must be sent
 	if client[2] != "" {
 		t.Fatalf("got %q; want empty response", client[2])
+	}
+}
+
+func TestAuthSCRAMSHA1_OK(t *testing.T) {
+	hostname := "127.0.0.1"
+	port := "2585"
+
+	go func() {
+		startSMTPServer(false, hostname, port, sha1.New)
+	}()
+	time.Sleep(time.Millisecond * 500)
+
+	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%s", hostname, port))
+	if err != nil {
+		t.Errorf("failed to dial server: %v", err)
+	}
+	client, err := NewClient(conn, hostname)
+	if err != nil {
+		t.Errorf("failed to create client: %v", err)
+	}
+	if err = client.Hello(hostname); err != nil {
+		t.Errorf("failed to send HELO: %v", err)
+	}
+	if err = client.Auth(ScramSHA1Auth("username", "password")); err != nil {
+		t.Errorf("failed to authenticate: %v", err)
+	}
+}
+
+func TestAuthSCRAMSHA256_OK(t *testing.T) {
+	hostname := "127.0.0.1"
+	port := "2586"
+
+	go func() {
+		startSMTPServer(false, hostname, port, sha256.New)
+	}()
+	time.Sleep(time.Millisecond * 500)
+
+	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%s", hostname, port))
+	if err != nil {
+		t.Errorf("failed to dial server: %v", err)
+	}
+	client, err := NewClient(conn, hostname)
+	if err != nil {
+		t.Errorf("failed to create client: %v", err)
+	}
+	if err = client.Hello(hostname); err != nil {
+		t.Errorf("failed to send HELO: %v", err)
+	}
+	if err = client.Auth(ScramSHA256Auth("username", "password")); err != nil {
+		t.Errorf("failed to authenticate: %v", err)
+	}
+}
+
+func TestAuthSCRAMSHA1PLUS_OK(t *testing.T) {
+	hostname := "127.0.0.1"
+	port := "2590"
+
+	go func() {
+		startSMTPServer(true, hostname, port, sha1.New)
+	}()
+	time.Sleep(time.Millisecond * 500)
+
+	cert, err := tls.X509KeyPair(localhostCert, localhostKey)
+	if err != nil {
+		fmt.Printf("error creating TLS cert: %s", err)
+		return
+	}
+	tlsConfig := tls.Config{Certificates: []tls.Certificate{cert}, InsecureSkipVerify: true}
+
+	conn, err := tls.Dial("tcp", fmt.Sprintf("%s:%s", hostname, port), &tlsConfig)
+	if err != nil {
+		t.Errorf("failed to dial server: %v", err)
+	}
+	client, err := NewClient(conn, hostname)
+	if err != nil {
+		t.Errorf("failed to create client: %v", err)
+	}
+	if err = client.Hello(hostname); err != nil {
+		t.Errorf("failed to send HELO: %v", err)
+	}
+
+	tlsConnState := conn.ConnectionState()
+	if err = client.Auth(ScramSHA1PlusAuth("username", "password", &tlsConnState)); err != nil {
+		t.Errorf("failed to authenticate: %v", err)
+	}
+}
+
+func TestAuthSCRAMSHA256PLUS_OK(t *testing.T) {
+	hostname := "127.0.0.1"
+	port := "2591"
+
+	go func() {
+		startSMTPServer(true, hostname, port, sha256.New)
+	}()
+	time.Sleep(time.Millisecond * 500)
+
+	cert, err := tls.X509KeyPair(localhostCert, localhostKey)
+	if err != nil {
+		fmt.Printf("error creating TLS cert: %s", err)
+		return
+	}
+	tlsConfig := tls.Config{Certificates: []tls.Certificate{cert}, InsecureSkipVerify: true}
+
+	conn, err := tls.Dial("tcp", fmt.Sprintf("%s:%s", hostname, port), &tlsConfig)
+	if err != nil {
+		t.Errorf("failed to dial server: %v", err)
+	}
+	client, err := NewClient(conn, hostname)
+	if err != nil {
+		t.Errorf("failed to create client: %v", err)
+	}
+	if err = client.Hello(hostname); err != nil {
+		t.Errorf("failed to send HELO: %v", err)
+	}
+
+	tlsConnState := conn.ConnectionState()
+	if err = client.Auth(ScramSHA256PlusAuth("username", "password", &tlsConnState)); err != nil {
+		t.Errorf("failed to authenticate: %v", err)
+	}
+}
+
+func TestAuthSCRAMSHA1_fail(t *testing.T) {
+	hostname := "127.0.0.1"
+	port := "2587"
+
+	go func() {
+		startSMTPServer(false, hostname, port, sha1.New)
+	}()
+	time.Sleep(time.Millisecond * 500)
+
+	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%s", hostname, port))
+	if err != nil {
+		t.Errorf("failed to dial server: %v", err)
+	}
+	client, err := NewClient(conn, hostname)
+	if err != nil {
+		t.Errorf("failed to create client: %v", err)
+	}
+	if err = client.Hello(hostname); err != nil {
+		t.Errorf("failed to send HELO: %v", err)
+	}
+	if err = client.Auth(ScramSHA1Auth("username", "invalid")); err == nil {
+		t.Errorf("expected auth error, got nil")
+	}
+}
+
+func TestAuthSCRAMSHA256_fail(t *testing.T) {
+	hostname := "127.0.0.1"
+	port := "2588"
+
+	go func() {
+		startSMTPServer(false, hostname, port, sha256.New)
+	}()
+	time.Sleep(time.Millisecond * 500)
+
+	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%s", hostname, port))
+	if err != nil {
+		t.Errorf("failed to dial server: %v", err)
+	}
+	client, err := NewClient(conn, hostname)
+	if err != nil {
+		t.Errorf("failed to create client: %v", err)
+	}
+	if err = client.Hello(hostname); err != nil {
+		t.Errorf("failed to send HELO: %v", err)
+	}
+	if err = client.Auth(ScramSHA256Auth("username", "invalid")); err == nil {
+		t.Errorf("expected auth error, got nil")
+	}
+}
+
+func TestAuthSCRAMSHA1PLUS_fail(t *testing.T) {
+	hostname := "127.0.0.1"
+	port := "2592"
+
+	go func() {
+		startSMTPServer(true, hostname, port, sha1.New)
+	}()
+	time.Sleep(time.Millisecond * 500)
+
+	cert, err := tls.X509KeyPair(localhostCert, localhostKey)
+	if err != nil {
+		fmt.Printf("error creating TLS cert: %s", err)
+		return
+	}
+	tlsConfig := tls.Config{Certificates: []tls.Certificate{cert}, InsecureSkipVerify: true}
+
+	conn, err := tls.Dial("tcp", fmt.Sprintf("%s:%s", hostname, port), &tlsConfig)
+	if err != nil {
+		t.Errorf("failed to dial server: %v", err)
+	}
+	client, err := NewClient(conn, hostname)
+	if err != nil {
+		t.Errorf("failed to create client: %v", err)
+	}
+	if err = client.Hello(hostname); err != nil {
+		t.Errorf("failed to send HELO: %v", err)
+	}
+	tlsConnState := conn.ConnectionState()
+	if err = client.Auth(ScramSHA1PlusAuth("username", "invalid", &tlsConnState)); err == nil {
+		t.Errorf("expected auth error, got nil")
+	}
+}
+
+func TestAuthSCRAMSHA256PLUS_fail(t *testing.T) {
+	hostname := "127.0.0.1"
+	port := "2593"
+
+	go func() {
+		startSMTPServer(true, hostname, port, sha1.New)
+	}()
+	time.Sleep(time.Millisecond * 500)
+
+	cert, err := tls.X509KeyPair(localhostCert, localhostKey)
+	if err != nil {
+		fmt.Printf("error creating TLS cert: %s", err)
+		return
+	}
+	tlsConfig := tls.Config{Certificates: []tls.Certificate{cert}, InsecureSkipVerify: true}
+
+	conn, err := tls.Dial("tcp", fmt.Sprintf("%s:%s", hostname, port), &tlsConfig)
+	if err != nil {
+		t.Errorf("failed to dial server: %v", err)
+	}
+	client, err := NewClient(conn, hostname)
+	if err != nil {
+		t.Errorf("failed to create client: %v", err)
+	}
+	if err = client.Hello(hostname); err != nil {
+		t.Errorf("failed to send HELO: %v", err)
+	}
+	tlsConnState := conn.ConnectionState()
+	if err = client.Auth(ScramSHA256PlusAuth("username", "invalid", &tlsConnState)); err == nil {
+		t.Errorf("expected auth error, got nil")
 	}
 }
 
@@ -1311,6 +1640,357 @@ func TestTLSConnState(t *testing.T) {
 	<-serverDone
 }
 
+func TestClient_GetTLSConnectionState(t *testing.T) {
+	ln := newLocalListener(t)
+	defer func() {
+		_ = ln.Close()
+	}()
+	clientDone := make(chan bool)
+	serverDone := make(chan bool)
+	go func() {
+		defer close(serverDone)
+		c, err := ln.Accept()
+		if err != nil {
+			t.Errorf("Server accept: %v", err)
+			return
+		}
+		defer func() {
+			_ = c.Close()
+		}()
+		if err := serverHandle(c, t); err != nil {
+			t.Errorf("server error: %v", err)
+		}
+	}()
+	go func() {
+		defer close(clientDone)
+		c, err := Dial(ln.Addr().String())
+		if err != nil {
+			t.Errorf("Client dial: %v", err)
+			return
+		}
+		defer func() {
+			_ = c.Quit()
+		}()
+		cfg := &tls.Config{ServerName: "example.com"}
+		testHookStartTLS(cfg) // set the RootCAs
+		if err := c.StartTLS(cfg); err != nil {
+			t.Errorf("StartTLS: %v", err)
+			return
+		}
+		cs, err := c.GetTLSConnectionState()
+		if err != nil {
+			t.Errorf("failed to get TLSConnectionState: %s", err)
+			return
+		}
+		if cs.Version == 0 || !cs.HandshakeComplete {
+			t.Errorf("ConnectionState = %#v; expect non-zero Version and HandshakeComplete", cs)
+		}
+	}()
+	<-clientDone
+	<-serverDone
+}
+
+func TestClient_GetTLSConnectionState_noTLS(t *testing.T) {
+	ln := newLocalListener(t)
+	defer func() {
+		_ = ln.Close()
+	}()
+	clientDone := make(chan bool)
+	serverDone := make(chan bool)
+	go func() {
+		defer close(serverDone)
+		c, err := ln.Accept()
+		if err != nil {
+			t.Errorf("Server accept: %v", err)
+			return
+		}
+		defer func() {
+			_ = c.Close()
+		}()
+		if err := serverHandle(c, t); err != nil {
+			t.Errorf("server error: %v", err)
+		}
+	}()
+	go func() {
+		defer close(clientDone)
+		c, err := Dial(ln.Addr().String())
+		if err != nil {
+			t.Errorf("Client dial: %v", err)
+			return
+		}
+		defer func() {
+			_ = c.Quit()
+		}()
+		_, err = c.GetTLSConnectionState()
+		if err == nil {
+			t.Error("GetTLSConnectionState: expected error; got nil")
+			return
+		}
+	}()
+	<-clientDone
+	<-serverDone
+}
+
+func TestClient_GetTLSConnectionState_noConn(t *testing.T) {
+	ln := newLocalListener(t)
+	defer func() {
+		_ = ln.Close()
+	}()
+	clientDone := make(chan bool)
+	serverDone := make(chan bool)
+	go func() {
+		defer close(serverDone)
+		c, err := ln.Accept()
+		if err != nil {
+			t.Errorf("Server accept: %v", err)
+			return
+		}
+		defer func() {
+			_ = c.Close()
+		}()
+		if err := serverHandle(c, t); err != nil {
+			t.Errorf("server error: %v", err)
+		}
+	}()
+	go func() {
+		defer close(clientDone)
+		c, err := Dial(ln.Addr().String())
+		if err != nil {
+			t.Errorf("Client dial: %v", err)
+			return
+		}
+		_ = c.Close()
+		_, err = c.GetTLSConnectionState()
+		if err == nil {
+			t.Error("GetTLSConnectionState: expected error; got nil")
+			return
+		}
+	}()
+	<-clientDone
+	<-serverDone
+}
+
+func TestClient_GetTLSConnectionState_unableErr(t *testing.T) {
+	ln := newLocalListener(t)
+	defer func() {
+		_ = ln.Close()
+	}()
+	clientDone := make(chan bool)
+	serverDone := make(chan bool)
+	go func() {
+		defer close(serverDone)
+		c, err := ln.Accept()
+		if err != nil {
+			t.Errorf("Server accept: %v", err)
+			return
+		}
+		defer func() {
+			_ = c.Close()
+		}()
+		if err := serverHandle(c, t); err != nil {
+			t.Errorf("server error: %v", err)
+		}
+	}()
+	go func() {
+		defer close(clientDone)
+		c, err := Dial(ln.Addr().String())
+		if err != nil {
+			t.Errorf("Client dial: %v", err)
+			return
+		}
+		defer func() {
+			_ = c.Quit()
+		}()
+		c.tls = true
+		_, err = c.GetTLSConnectionState()
+		if err == nil {
+			t.Error("GetTLSConnectionState: expected error; got nil")
+			return
+		}
+	}()
+	<-clientDone
+	<-serverDone
+}
+
+func TestClient_HasConnection(t *testing.T) {
+	ln := newLocalListener(t)
+	defer func() {
+		_ = ln.Close()
+	}()
+	clientDone := make(chan bool)
+	serverDone := make(chan bool)
+	go func() {
+		defer close(serverDone)
+		c, err := ln.Accept()
+		if err != nil {
+			t.Errorf("Server accept: %v", err)
+			return
+		}
+		defer func() {
+			_ = c.Close()
+		}()
+		if err := serverHandle(c, t); err != nil {
+			t.Errorf("server error: %v", err)
+		}
+	}()
+	go func() {
+		defer close(clientDone)
+		c, err := Dial(ln.Addr().String())
+		if err != nil {
+			t.Errorf("Client dial: %v", err)
+			return
+		}
+		cfg := &tls.Config{ServerName: "example.com"}
+		testHookStartTLS(cfg) // set the RootCAs
+		if err := c.StartTLS(cfg); err != nil {
+			t.Errorf("StartTLS: %v", err)
+			return
+		}
+		if !c.HasConnection() {
+			t.Error("HasConnection: expected true; got false")
+			return
+		}
+		if err = c.Quit(); err != nil {
+			t.Errorf("closing connection failed: %s", err)
+			return
+		}
+		if c.HasConnection() {
+			t.Error("HasConnection: expected false; got true")
+		}
+	}()
+	<-clientDone
+	<-serverDone
+}
+
+func TestClient_SetDSNMailReturnOption(t *testing.T) {
+	ln := newLocalListener(t)
+	defer func() {
+		_ = ln.Close()
+	}()
+	clientDone := make(chan bool)
+	serverDone := make(chan bool)
+	go func() {
+		defer close(serverDone)
+		c, err := ln.Accept()
+		if err != nil {
+			t.Errorf("Server accept: %v", err)
+			return
+		}
+		defer func() {
+			_ = c.Close()
+		}()
+		if err := serverHandle(c, t); err != nil {
+			t.Errorf("server error: %v", err)
+		}
+	}()
+	go func() {
+		defer close(clientDone)
+		c, err := Dial(ln.Addr().String())
+		if err != nil {
+			t.Errorf("Client dial: %v", err)
+			return
+		}
+		defer func() {
+			_ = c.Quit()
+		}()
+		c.SetDSNMailReturnOption("foo")
+		if c.dsnmrtype != "foo" {
+			t.Errorf("SetDSNMailReturnOption: expected %s; got %s", "foo", c.dsnrntype)
+		}
+	}()
+	<-clientDone
+	<-serverDone
+}
+
+func TestClient_SetDSNRcptNotifyOption(t *testing.T) {
+	ln := newLocalListener(t)
+	defer func() {
+		_ = ln.Close()
+	}()
+	clientDone := make(chan bool)
+	serverDone := make(chan bool)
+	go func() {
+		defer close(serverDone)
+		c, err := ln.Accept()
+		if err != nil {
+			t.Errorf("Server accept: %v", err)
+			return
+		}
+		defer func() {
+			_ = c.Close()
+		}()
+		if err := serverHandle(c, t); err != nil {
+			t.Errorf("server error: %v", err)
+		}
+	}()
+	go func() {
+		defer close(clientDone)
+		c, err := Dial(ln.Addr().String())
+		if err != nil {
+			t.Errorf("Client dial: %v", err)
+			return
+		}
+		defer func() {
+			_ = c.Quit()
+		}()
+		c.SetDSNRcptNotifyOption("foo")
+		if c.dsnrntype != "foo" {
+			t.Errorf("SetDSNMailReturnOption: expected %s; got %s", "foo", c.dsnrntype)
+		}
+	}()
+	<-clientDone
+	<-serverDone
+}
+
+func TestClient_UpdateDeadline(t *testing.T) {
+	ln := newLocalListener(t)
+	defer func() {
+		_ = ln.Close()
+	}()
+	clientDone := make(chan bool)
+	serverDone := make(chan bool)
+	go func() {
+		defer close(serverDone)
+		c, err := ln.Accept()
+		if err != nil {
+			t.Errorf("Server accept: %v", err)
+			return
+		}
+		defer func() {
+			_ = c.Close()
+		}()
+		if err = serverHandle(c, t); err != nil {
+			t.Errorf("server error: %v", err)
+		}
+	}()
+	go func() {
+		defer close(clientDone)
+		c, err := Dial(ln.Addr().String())
+		if err != nil {
+			t.Errorf("Client dial: %v", err)
+			return
+		}
+		defer func() {
+			_ = c.Close()
+		}()
+		if !c.HasConnection() {
+			t.Error("HasConnection: expected true; got false")
+			return
+		}
+		if err = c.UpdateDeadline(time.Millisecond * 20); err != nil {
+			t.Errorf("failed to update deadline: %s", err)
+			return
+		}
+		time.Sleep(time.Millisecond * 50)
+		if !c.HasConnection() {
+			t.Error("HasConnection: expected true; got false")
+			return
+		}
+	}()
+	<-clientDone
+	<-serverDone
+}
+
 func newLocalListener(t *testing.T) net.Listener {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -1356,6 +2036,8 @@ func serverHandle(c net.Conn, t *testing.T) error {
 			}
 			config := &tls.Config{Certificates: []tls.Certificate{keypair}}
 			return tf(config)
+		case "QUIT":
+			return nil
 		default:
 			t.Fatalf("unrecognized command: %q", s.Text())
 		}
@@ -1451,5 +2133,261 @@ func SkipFlaky(t testing.TB, issue int) {
 	t.Helper()
 	if !*flaky {
 		t.Skipf("skipping known flaky test without the -flaky flag; see golang.org/issue/%d", issue)
+	}
+}
+
+// testSCRAMSMTPServer represents a test server for SCRAM-based SMTP authentication.
+// It does not do any acutal computation of the challanges but verifies that the expected
+// fields are present. We have actual real authentication tests for all SCRAM modes in the
+// go-mail client_test.go
+type testSCRAMSMTPServer struct {
+	authMechanism string
+	nonce         string
+	hostname      string
+	port          string
+	tlsServer     bool
+	h             func() hash.Hash
+}
+
+func (s *testSCRAMSMTPServer) handleConnection(conn net.Conn) {
+	defer func() {
+		_ = conn.Close()
+	}()
+
+	reader := bufio.NewReader(conn)
+	writer := bufio.NewWriter(conn)
+	writeLine := func(data string) error {
+		_, err := writer.WriteString(data + "\r\n")
+		if err != nil {
+			return fmt.Errorf("unable to write line: %w", err)
+		}
+		return writer.Flush()
+	}
+	writeOK := func() {
+		_ = writeLine("250 2.0.0 OK")
+	}
+
+	if err := writeLine("220 go-mail test server ready ESMTP"); err != nil {
+		return
+	}
+
+	data, err := reader.ReadString('\n')
+	if err != nil {
+		return
+	}
+	data = strings.TrimSpace(data)
+	if strings.HasPrefix(data, "EHLO") {
+		_ = writeLine(fmt.Sprintf("250-%s", s.hostname))
+		_ = writeLine("250-AUTH SCRAM-SHA-1 SCRAM-SHA-256")
+		writeOK()
+	} else {
+		_ = writeLine("500 Invalid command")
+		return
+	}
+
+	for {
+		data, err = reader.ReadString('\n')
+		if err != nil {
+			fmt.Printf("failed to read data: %v", err)
+		}
+		data = strings.TrimSpace(data)
+		if strings.HasPrefix(data, "AUTH") {
+			parts := strings.Split(data, " ")
+			if len(parts) < 2 {
+				_ = writeLine("500 Syntax error")
+				return
+			}
+
+			authMechanism := parts[1]
+			if authMechanism != "SCRAM-SHA-1" && authMechanism != "SCRAM-SHA-256" &&
+				authMechanism != "SCRAM-SHA-1-PLUS" && authMechanism != "SCRAM-SHA-256-PLUS" {
+				_ = writeLine("504 Unrecognized authentication mechanism")
+				return
+			}
+			s.authMechanism = authMechanism
+			_ = writeLine("334 ")
+			s.handleSCRAMAuth(conn)
+			return
+		} else {
+			_ = writeLine("500 Invalid command")
+		}
+	}
+}
+
+func (s *testSCRAMSMTPServer) handleSCRAMAuth(conn net.Conn) {
+	reader := bufio.NewReader(conn)
+	writer := bufio.NewWriter(conn)
+	writeLine := func(data string) error {
+		_, err := writer.WriteString(data + "\r\n")
+		if err != nil {
+			return fmt.Errorf("unable to write line: %w", err)
+		}
+		return writer.Flush()
+	}
+	var authMsg string
+
+	data, err := reader.ReadString('\n')
+	if err != nil {
+		_ = writeLine("535 Authentication failed")
+		return
+	}
+	data = strings.TrimSpace(data)
+	decodedMessage, err := base64.StdEncoding.DecodeString(data)
+	if err != nil {
+		_ = writeLine("535 Authentication failed")
+		return
+	}
+	splits := strings.Split(string(decodedMessage), ",")
+	if len(splits) != 4 {
+		_ = writeLine("535 Authentication failed - expected 4 parts")
+		return
+	}
+	if !s.tlsServer && splits[0] != "n" {
+		_ = writeLine("535 Authentication failed - expected n to be in the first part")
+		return
+	}
+	if s.tlsServer && !strings.HasPrefix(splits[0], "p=") {
+		_ = writeLine("535 Authentication failed - expected p= to be in the first part")
+		return
+	}
+	if splits[2] != "n=username" {
+		_ = writeLine("535 Authentication failed - expected n=username to be in the third part")
+		return
+	}
+	if !strings.HasPrefix(splits[3], "r=") {
+		_ = writeLine("535 Authentication failed - expected r= to be in the fourth part")
+		return
+	}
+	authMsg = splits[2] + "," + splits[3]
+
+	clientNonce := s.extractNonce(string(decodedMessage))
+	if clientNonce == "" {
+		_ = writeLine("535 Authentication failed")
+		return
+	}
+
+	s.nonce = clientNonce + "server_nonce"
+	serverFirstMessage := fmt.Sprintf("r=%s,s=%s,i=4096", s.nonce,
+		base64.StdEncoding.EncodeToString([]byte("salt")))
+	_ = writeLine(fmt.Sprintf("334 %s", base64.StdEncoding.EncodeToString([]byte(serverFirstMessage))))
+	authMsg = authMsg + "," + serverFirstMessage
+
+	data, err = reader.ReadString('\n')
+	if err != nil {
+		_ = writeLine("535 Authentication failed")
+		return
+	}
+	data = strings.TrimSpace(data)
+	decodedFinalMessage, err := base64.StdEncoding.DecodeString(data)
+	if err != nil {
+		_ = writeLine("535 Authentication failed")
+		return
+	}
+	splits = strings.Split(string(decodedFinalMessage), ",")
+
+	if !s.tlsServer && splits[0] != "c=biws" {
+		_ = writeLine("535 Authentication failed - expected c=biws to be in the first part")
+		return
+	}
+	if s.tlsServer {
+		if !strings.HasPrefix(splits[0], "c=") {
+			_ = writeLine("535 Authentication failed - expected c= to be in the first part")
+			return
+		}
+		channelBind, err := base64.StdEncoding.DecodeString(splits[0][2:])
+		if err != nil {
+			_ = writeLine("535 Authentication failed - base64 channel bind is not valid - " + err.Error())
+			return
+		}
+		if !strings.HasPrefix(string(channelBind), "p=") {
+			_ = writeLine("535 Authentication failed - expected channel binding to start with p=-")
+			return
+		}
+		cbType := string(channelBind[2:])
+		if !strings.HasPrefix(cbType, "tls-unique") && !strings.HasPrefix(cbType, "tls-exporter") {
+			_ = writeLine("535 Authentication failed - expected channel binding type tls-unique or tls-exporter")
+			return
+		}
+	}
+
+	if !strings.HasPrefix(splits[1], "r=") {
+		_ = writeLine("535 Authentication failed - expected r to be in the second part")
+		return
+	}
+	if !strings.Contains(splits[1], "server_nonce") {
+		_ = writeLine("535 Authentication failed - expected server_nonce to be in the second part")
+		return
+	}
+	if !strings.HasPrefix(splits[2], "p=") {
+		_ = writeLine("535 Authentication failed - expected p to be in the third part")
+		return
+	}
+
+	authMsg = authMsg + "," + splits[0] + "," + splits[1]
+	saltedPwd := pbkdf2.Key([]byte("password"), []byte("salt"), 4096, s.h().Size(), s.h)
+	mac := hmac.New(s.h, saltedPwd)
+	mac.Write([]byte("Server Key"))
+	skey := mac.Sum(nil)
+	mac.Reset()
+
+	mac = hmac.New(s.h, skey)
+	mac.Write([]byte(authMsg))
+	ssig := mac.Sum(nil)
+	mac.Reset()
+
+	serverFinalMessage := fmt.Sprintf("v=%s", base64.StdEncoding.EncodeToString(ssig))
+	_ = writeLine(fmt.Sprintf("334 %s", base64.StdEncoding.EncodeToString([]byte(serverFinalMessage))))
+
+	_, err = reader.ReadString('\n')
+	if err != nil {
+		_ = writeLine("535 Authentication failed")
+		return
+	}
+
+	_ = writeLine("235 Authentication successful")
+}
+
+func (s *testSCRAMSMTPServer) extractNonce(message string) string {
+	parts := strings.Split(message, ",")
+	for _, part := range parts {
+		if strings.HasPrefix(part, "r=") {
+			return part[2:]
+		}
+	}
+	return ""
+}
+
+func startSMTPServer(tlsServer bool, hostname, port string, h func() hash.Hash) {
+	server := &testSCRAMSMTPServer{
+		hostname:  hostname,
+		port:      port,
+		tlsServer: tlsServer,
+		h:         h,
+	}
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%s", hostname, port))
+	if err != nil {
+		fmt.Printf("Failed to start SMTP server: %v", err)
+	}
+	defer func() {
+		_ = listener.Close()
+	}()
+
+	cert, err := tls.X509KeyPair(localhostCert, localhostKey)
+	if err != nil {
+		fmt.Printf("error creating TLS cert: %s", err)
+		return
+	}
+	tlsConfig := tls.Config{Certificates: []tls.Certificate{cert}}
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			fmt.Printf("Failed to accept connection: %v", err)
+			continue
+		}
+		if server.tlsServer {
+			conn = tls.Server(conn, &tlsConfig)
+		}
+		go server.handleConnection(conn)
 	}
 }

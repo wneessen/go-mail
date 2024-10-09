@@ -30,34 +30,70 @@ import (
 	"net/textproto"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/wneessen/go-mail/log"
 )
 
+var (
+
+	// ErrNonTLSConnection is returned when an attempt is made to retrieve TLS state on a non-TLS connection.
+	ErrNonTLSConnection = errors.New("connection is not using TLS")
+
+	// ErrNoConnection is returned when attempting to perform an operation that requires an established
+	// connection but none exists.
+	ErrNoConnection = errors.New("connection is not established")
+)
+
 // A Client represents a client connection to an SMTP server.
 type Client struct {
-	// Text is the textproto.Conn used by the Client. It is exported to allow for
-	// clients to add extensions.
+	// Text is the textproto.Conn used by the Client. It is exported to allow for clients to add extensions.
 	Text *textproto.Conn
-	// keep a reference to the connection so it can be used to create a TLS
-	// connection later
+
+	// auth supported auth mechanisms
+	auth []string
+
+	// keep a reference to the connection so it can be used to create a TLS connection later
 	conn net.Conn
-	// whether the Client is using TLS
-	tls        bool
-	serverName string
-	// map of supported extensions
+
+	// debug logging is enabled
+	debug bool
+
+	// didHello indicates whether we've said HELO/EHLO
+	didHello bool
+
+	// dsnmrtype defines the mail return option in case DSN is enabled
+	dsnmrtype string
+
+	// dsnrntype defines the recipient notify option in case DSN is enabled
+	dsnrntype string
+
+	// ext is a map of supported extensions
 	ext map[string]string
-	// supported auth mechanisms
-	auth       []string
-	localName  string // the name to use in HELO/EHLO
-	didHello   bool   // whether we've said HELO/EHLO
-	helloError error  // the error from the hello
-	// debug logging
-	debug  bool       // debug logging is enabled
-	logger log.Logger // logger will be used for debug logging
-	// DSN support
-	dsnmrtype string // dsnmrtype defines the mail return option in case DSN is enabled
-	dsnrntype string // dsnrntype defines the recipient notify option in case DSN is enabled
+
+	// helloError is the error from the hello
+	helloError error
+
+	// isConnected indicates if the Client has an active connection
+	isConnected bool
+
+	// localName is the name to use in HELO/EHLO
+	localName string // the name to use in HELO/EHLO
+
+	// logger will be used for debug logging
+	logger log.Logger
+
+	// mutex is used to synchronize access to shared resources, ensuring that only one goroutine can access
+	// the resource at a time.
+	mutex sync.RWMutex
+
+	// tls indicates whether the Client is using TLS
+	tls bool
+
+	// serverName denotes the name of the server to which the application will connect. Used for
+	// identification and routing.
+	serverName string
 }
 
 // Dial returns a new [Client] connected to an SMTP server at addr.
@@ -88,13 +124,18 @@ func NewClient(conn net.Conn, host string) (*Client, error) {
 	}
 	c := &Client{Text: text, conn: conn, serverName: host, localName: "localhost"}
 	_, c.tls = conn.(*tls.Conn)
+	c.isConnected = true
 
 	return c, nil
 }
 
 // Close closes the connection.
 func (c *Client) Close() error {
-	return c.Text.Close()
+	c.mutex.Lock()
+	err := c.Text.Close()
+	c.isConnected = false
+	c.mutex.Unlock()
+	return err
 }
 
 // hello runs a hello exchange if needed.
@@ -121,28 +162,39 @@ func (c *Client) Hello(localName string) error {
 	if c.didHello {
 		return errors.New("smtp: Hello called after other methods")
 	}
+
+	c.mutex.Lock()
 	c.localName = localName
+	c.mutex.Unlock()
+
 	return c.hello()
 }
 
 // cmd is a convenience function that sends a command and returns the response
 func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, string, error) {
+	c.mutex.Lock()
+
 	c.debugLog(log.DirClientToServer, format, args...)
 	id, err := c.Text.Cmd(format, args...)
 	if err != nil {
+		c.mutex.Unlock()
 		return 0, "", err
 	}
 	c.Text.StartResponse(id)
-	defer c.Text.EndResponse(id)
 	code, msg, err := c.Text.ReadResponse(expectCode)
 	c.debugLog(log.DirServerToClient, "%d %s", code, msg)
+	c.Text.EndResponse(id)
+	c.mutex.Unlock()
 	return code, msg, err
 }
 
 // helo sends the HELO greeting to the server. It should be used only when the
 // server does not support ehlo.
 func (c *Client) helo() error {
+	c.mutex.Lock()
 	c.ext = nil
+	c.mutex.Unlock()
+
 	_, _, err := c.cmd(250, "HELO %s", c.localName)
 	return err
 }
@@ -157,9 +209,13 @@ func (c *Client) StartTLS(config *tls.Config) error {
 	if err != nil {
 		return err
 	}
+
+	c.mutex.Lock()
 	c.conn = tls.Client(c.conn, config)
 	c.Text = textproto.NewConn(c.conn)
 	c.tls = true
+	c.mutex.Unlock()
+
 	return c.ehlo()
 }
 
@@ -167,11 +223,15 @@ func (c *Client) StartTLS(config *tls.Config) error {
 // The return values are their zero values if [Client.StartTLS] did
 // not succeed.
 func (c *Client) TLSConnectionState() (state tls.ConnectionState, ok bool) {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+
 	tc, ok := c.conn.(*tls.Conn)
 	if !ok {
 		return
 	}
-	return tc.ConnectionState(), true
+	state, ok = tc.ConnectionState(), true
+	return
 }
 
 // Verify checks the validity of an email address on the server.
@@ -257,6 +317,8 @@ func (c *Client) Mail(from string) error {
 		return err
 	}
 	cmdStr := "MAIL FROM:<%s>"
+
+	c.mutex.RLock()
 	if c.ext != nil {
 		if _, ok := c.ext["8BITMIME"]; ok {
 			cmdStr += " BODY=8BITMIME"
@@ -269,6 +331,8 @@ func (c *Client) Mail(from string) error {
 			cmdStr += fmt.Sprintf(" RET=%s", c.dsnmrtype)
 		}
 	}
+	c.mutex.RUnlock()
+
 	_, _, err := c.cmd(250, cmdStr, from)
 	return err
 }
@@ -280,7 +344,11 @@ func (c *Client) Rcpt(to string) error {
 	if err := validateLine(to); err != nil {
 		return err
 	}
+
+	c.mutex.RLock()
 	_, ok := c.ext["DSN"]
+	c.mutex.RUnlock()
+
 	if ok && c.dsnrntype != "" {
 		_, _, err := c.cmd(25, "RCPT TO:<%s> NOTIFY=%s", to, c.dsnrntype)
 		return err
@@ -294,10 +362,21 @@ type dataCloser struct {
 	io.WriteCloser
 }
 
+// Close releases the lock, closes the WriteCloser, waits for a response, and then returns any error encountered.
 func (d *dataCloser) Close() error {
+	d.c.mutex.Lock()
 	_ = d.WriteCloser.Close()
 	_, _, err := d.c.Text.ReadResponse(250)
+	d.c.mutex.Unlock()
 	return err
+}
+
+// Write writes data to the underlying WriteCloser while ensuring thread-safety by locking and unlocking a mutex.
+func (d *dataCloser) Write(p []byte) (n int, err error) {
+	d.c.mutex.Lock()
+	n, err = d.WriteCloser.Write(p)
+	d.c.mutex.Unlock()
+	return
 }
 
 // Data issues a DATA command to the server and returns a writer that
@@ -309,7 +388,14 @@ func (c *Client) Data() (io.WriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &dataCloser{c, c.Text.DotWriter()}, nil
+	datacloser := &dataCloser{}
+
+	c.mutex.Lock()
+	datacloser.c = c
+	datacloser.WriteCloser = c.Text.DotWriter()
+	c.mutex.Unlock()
+
+	return datacloser, nil
 }
 
 var testHookStartTLS func(*tls.Config) // nil, except for tests
@@ -405,7 +491,10 @@ func (c *Client) Extension(ext string) (bool, string) {
 		return false, ""
 	}
 	ext = strings.ToUpper(ext)
+
+	c.mutex.RLock()
 	param, ok := c.ext[ext]
+	c.mutex.RUnlock()
 	return ok, param
 }
 
@@ -438,7 +527,12 @@ func (c *Client) Quit() error {
 	if err != nil {
 		return err
 	}
-	return c.Text.Close()
+	c.mutex.Lock()
+	err = c.Text.Close()
+	c.isConnected = false
+	c.mutex.Unlock()
+
+	return err
 }
 
 // SetDebugLog enables the debug logging for incoming and outgoing SMTP messages
@@ -470,6 +564,44 @@ func (c *Client) SetDSNMailReturnOption(d string) {
 // SetDSNRcptNotifyOption sets the DSN recipient notify option for the Mail method
 func (c *Client) SetDSNRcptNotifyOption(d string) {
 	c.dsnrntype = d
+}
+
+// HasConnection checks if the client has an active connection.
+// Returns true if the `conn` field is not nil, indicating an active connection.
+func (c *Client) HasConnection() bool {
+	c.mutex.RLock()
+	isConn := c.isConnected
+	c.mutex.RUnlock()
+	return isConn
+}
+
+// UpdateDeadline sets a new deadline on the SMTP connection with the specified timeout duration.
+func (c *Client) UpdateDeadline(timeout time.Duration) error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	if err := c.conn.SetDeadline(time.Now().Add(timeout)); err != nil {
+		return fmt.Errorf("smtp: failed to update deadline: %w", err)
+	}
+	return nil
+}
+
+// GetTLSConnectionState retrieves the TLS connection state of the client's current connection.
+// Returns an error if the connection is not using TLS or if the connection is not established.
+func (c *Client) GetTLSConnectionState() (*tls.ConnectionState, error) {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+
+	if !c.isConnected {
+		return nil, ErrNoConnection
+	}
+	if !c.tls {
+		return nil, ErrNonTLSConnection
+	}
+	if conn, ok := c.conn.(*tls.Conn); ok {
+		cstate := conn.ConnectionState()
+		return &cstate, nil
+	}
+	return nil, errors.New("unable to retrieve TLS connection state")
 }
 
 // debugLog checks if the debug flag is set and if so logs the provided message to

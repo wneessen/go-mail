@@ -5,6 +5,7 @@
 package mail
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -14,6 +15,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,11 +23,18 @@ import (
 	"github.com/wneessen/go-mail/smtp"
 )
 
-// DefaultHost is used as default hostname for the Client
-const DefaultHost = "localhost"
-
-// TestRcpt
-const TestRcpt = "go-mail@mytrashmailer.com"
+const (
+	// DefaultHost is used as default hostname for the Client
+	DefaultHost = "localhost"
+	// TestRcpt is a trash mail address to send test mails to
+	TestRcpt = "couttifaddebro-1473@yopmail.com"
+	// TestServerProto is the protocol used for the simple SMTP test server
+	TestServerProto = "tcp"
+	// TestServerAddr is the address the simple SMTP test server listens on
+	TestServerAddr = "127.0.0.1"
+	// TestServerPortBase is the base port for the simple SMTP test server
+	TestServerPortBase = 2025
+)
 
 // TestNewClient tests the NewClient() method with its default options
 func TestNewClient(t *testing.T) {
@@ -474,20 +483,20 @@ func TestWithDSN(t *testing.T) {
 		t.Errorf("failed to create new client: %s", err)
 		return
 	}
-	if !c.dsn {
-		t.Errorf("WithDSN failed. c.dsn expected to be: %t, got: %t", true, c.dsn)
+	if !c.requestDSN {
+		t.Errorf("WithDSN failed. c.requestDSN expected to be: %t, got: %t", true, c.requestDSN)
 	}
-	if c.dsnmrtype != DSNMailReturnFull {
-		t.Errorf("WithDSN failed. c.dsnmrtype expected to be: %s, got: %s", DSNMailReturnFull,
-			c.dsnmrtype)
+	if c.dsnReturnType != DSNMailReturnFull {
+		t.Errorf("WithDSN failed. c.dsnReturnType expected to be: %s, got: %s", DSNMailReturnFull,
+			c.dsnReturnType)
 	}
-	if c.dsnrntype[0] != string(DSNRcptNotifyFailure) {
-		t.Errorf("WithDSN failed. c.dsnrntype[0] expected to be: %s, got: %s", DSNRcptNotifyFailure,
-			c.dsnrntype[0])
+	if c.dsnRcptNotifyType[0] != string(DSNRcptNotifyFailure) {
+		t.Errorf("WithDSN failed. c.dsnRcptNotifyType[0] expected to be: %s, got: %s", DSNRcptNotifyFailure,
+			c.dsnRcptNotifyType[0])
 	}
-	if c.dsnrntype[1] != string(DSNRcptNotifySuccess) {
-		t.Errorf("WithDSN failed. c.dsnrntype[1] expected to be: %s, got: %s", DSNRcptNotifySuccess,
-			c.dsnrntype[1])
+	if c.dsnRcptNotifyType[1] != string(DSNRcptNotifySuccess) {
+		t.Errorf("WithDSN failed. c.dsnRcptNotifyType[1] expected to be: %s, got: %s", DSNRcptNotifySuccess,
+			c.dsnRcptNotifyType[1])
 	}
 }
 
@@ -510,8 +519,8 @@ func TestWithDSNMailReturnType(t *testing.T) {
 				t.Errorf("failed to create new client: %s", err)
 				return
 			}
-			if string(c.dsnmrtype) != tt.want {
-				t.Errorf("WithDSNMailReturnType failed. Expected %s, got: %s", tt.want, string(c.dsnmrtype))
+			if string(c.dsnReturnType) != tt.want {
+				t.Errorf("WithDSNMailReturnType failed. Expected %s, got: %s", tt.want, string(c.dsnReturnType))
 			}
 		})
 	}
@@ -538,11 +547,11 @@ func TestWithDSNRcptNotifyType(t *testing.T) {
 				t.Errorf("failed to create new client: %s", err)
 				return
 			}
-			if len(c.dsnrntype) <= 0 && !tt.sf {
+			if len(c.dsnRcptNotifyType) <= 0 && !tt.sf {
 				t.Errorf("WithDSNRcptNotifyType failed. Expected at least one DSNRNType but got none")
 			}
-			if !tt.sf && c.dsnrntype[0] != tt.want {
-				t.Errorf("WithDSNRcptNotifyType failed. Expected %s, got: %s", tt.want, c.dsnrntype[0])
+			if !tt.sf && c.dsnRcptNotifyType[0] != tt.want {
+				t.Errorf("WithDSNRcptNotifyType failed. Expected %s, got: %s", tt.want, c.dsnRcptNotifyType[0])
 			}
 		})
 	}
@@ -593,6 +602,10 @@ func TestSetSMTPAuthCustom(t *testing.T) {
 			if c.smtpAuth == nil {
 				t.Errorf("failed to set custom SMTP auth method. SMTP Auth method is empty")
 			}
+			if c.smtpAuthType != SMTPAuthCustom {
+				t.Errorf("failed to set custom SMTP auth method. SMTP Auth type is not custom: %s",
+					c.smtpAuthType)
+			}
 			p, _, err := c.smtpAuth.Start(&si)
 			if err != nil {
 				t.Errorf("SMTP Auth Start() method returned error: %s", err)
@@ -604,6 +617,32 @@ func TestSetSMTPAuthCustom(t *testing.T) {
 	}
 }
 
+// TestClient_Close_double tests if a close on an already closed connection causes an error.
+func TestClient_Close_double(t *testing.T) {
+	c, err := getTestConnection(true)
+	if err != nil {
+		t.Skipf("failed to create test client: %s. Skipping tests", err)
+	}
+	ctx := context.Background()
+	if err = c.DialWithContext(ctx); err != nil {
+		t.Errorf("failed to dial with context: %s", err)
+		return
+	}
+	if c.smtpClient == nil {
+		t.Errorf("DialWithContext didn't fail but no SMTP client found.")
+		return
+	}
+	if !c.smtpClient.HasConnection() {
+		t.Errorf("DialWithContext didn't fail but no connection found.")
+	}
+	if err = c.Close(); err != nil {
+		t.Errorf("failed to close connection: %s", err)
+	}
+	if err = c.Close(); err != nil {
+		t.Errorf("failed 2nd close connection: %s", err)
+	}
+}
+
 // TestClient_DialWithContext tests the DialWithContext method for the Client object
 func TestClient_DialWithContext(t *testing.T) {
 	c, err := getTestConnection(true)
@@ -611,15 +650,16 @@ func TestClient_DialWithContext(t *testing.T) {
 		t.Skipf("failed to create test client: %s. Skipping tests", err)
 	}
 	ctx := context.Background()
-	if err := c.DialWithContext(ctx); err != nil {
+	if err = c.DialWithContext(ctx); err != nil {
 		t.Errorf("failed to dial with context: %s", err)
 		return
 	}
-	if c.connection == nil {
-		t.Errorf("DialWithContext didn't fail but no connection found.")
-	}
 	if c.smtpClient == nil {
 		t.Errorf("DialWithContext didn't fail but no SMTP client found.")
+		return
+	}
+	if !c.smtpClient.HasConnection() {
+		t.Errorf("DialWithContext didn't fail but no connection found.")
 	}
 	if err := c.Close(); err != nil {
 		t.Errorf("failed to close connection: %s", err)
@@ -629,24 +669,25 @@ func TestClient_DialWithContext(t *testing.T) {
 // TestClient_DialWithContext_Fallback tests the Client.DialWithContext method with the fallback
 // port functionality
 func TestClient_DialWithContext_Fallback(t *testing.T) {
-	c, err := getTestConnection(true)
+	c, err := getTestConnectionNoTestPort(true)
 	if err != nil {
 		t.Skipf("failed to create test client: %s. Skipping tests", err)
 	}
 	c.SetTLSPortPolicy(TLSOpportunistic)
 	c.port = 999
 	ctx := context.Background()
-	if err := c.DialWithContext(ctx); err != nil {
+	if err = c.DialWithContext(ctx); err != nil {
 		t.Errorf("failed to dial with context: %s", err)
 		return
 	}
-	if c.connection == nil {
-		t.Errorf("DialWithContext didn't fail but no connection found.")
-	}
 	if c.smtpClient == nil {
 		t.Errorf("DialWithContext didn't fail but no SMTP client found.")
+		return
 	}
-	if err := c.Close(); err != nil {
+	if !c.smtpClient.HasConnection() {
+		t.Errorf("DialWithContext didn't fail but no connection found.")
+	}
+	if err = c.Close(); err != nil {
 		t.Errorf("failed to close connection: %s", err)
 	}
 
@@ -666,18 +707,19 @@ func TestClient_DialWithContext_Debug(t *testing.T) {
 		t.Skipf("failed to create test client: %s. Skipping tests", err)
 	}
 	ctx := context.Background()
-	if err := c.DialWithContext(ctx); err != nil {
+	if err = c.DialWithContext(ctx); err != nil {
 		t.Errorf("failed to dial with context: %s", err)
 		return
 	}
-	if c.connection == nil {
-		t.Errorf("DialWithContext didn't fail but no connection found.")
-	}
 	if c.smtpClient == nil {
 		t.Errorf("DialWithContext didn't fail but no SMTP client found.")
+		return
+	}
+	if !c.smtpClient.HasConnection() {
+		t.Errorf("DialWithContext didn't fail but no connection found.")
 	}
 	c.SetDebugLog(true)
-	if err := c.Close(); err != nil {
+	if err = c.Close(); err != nil {
 		t.Errorf("failed to close connection: %s", err)
 	}
 }
@@ -690,19 +732,20 @@ func TestClient_DialWithContext_Debug_custom(t *testing.T) {
 		t.Skipf("failed to create test client: %s. Skipping tests", err)
 	}
 	ctx := context.Background()
-	if err := c.DialWithContext(ctx); err != nil {
+	if err = c.DialWithContext(ctx); err != nil {
 		t.Errorf("failed to dial with context: %s", err)
 		return
 	}
-	if c.connection == nil {
-		t.Errorf("DialWithContext didn't fail but no connection found.")
-	}
 	if c.smtpClient == nil {
 		t.Errorf("DialWithContext didn't fail but no SMTP client found.")
+		return
+	}
+	if !c.smtpClient.HasConnection() {
+		t.Errorf("DialWithContext didn't fail but no connection found.")
 	}
 	c.SetDebugLog(true)
 	c.SetLogger(log.New(os.Stderr, log.LevelDebug))
-	if err := c.Close(); err != nil {
+	if err = c.Close(); err != nil {
 		t.Errorf("failed to close connection: %s", err)
 	}
 }
@@ -714,10 +757,9 @@ func TestClient_DialWithContextInvalidHost(t *testing.T) {
 	if err != nil {
 		t.Skipf("failed to create test client: %s. Skipping tests", err)
 	}
-	c.connection = nil
 	c.host = "invalid.addr"
 	ctx := context.Background()
-	if err := c.DialWithContext(ctx); err == nil {
+	if err = c.DialWithContext(ctx); err == nil {
 		t.Errorf("dial succeeded but was supposed to fail")
 		return
 	}
@@ -730,10 +772,9 @@ func TestClient_DialWithContextInvalidHELO(t *testing.T) {
 	if err != nil {
 		t.Skipf("failed to create test client: %s. Skipping tests", err)
 	}
-	c.connection = nil
 	c.helo = ""
 	ctx := context.Background()
-	if err := c.DialWithContext(ctx); err == nil {
+	if err = c.DialWithContext(ctx); err == nil {
 		t.Errorf("dial succeeded but was supposed to fail")
 		return
 	}
@@ -750,7 +791,7 @@ func TestClient_DialWithContextInvalidAuth(t *testing.T) {
 	c.pass = "invalid"
 	c.SetSMTPAuthCustom(smtp.LoginAuth("invalid", "invalid", "invalid"))
 	ctx := context.Background()
-	if err := c.DialWithContext(ctx); err == nil {
+	if err = c.DialWithContext(ctx); err == nil {
 		t.Errorf("dial succeeded but was supposed to fail")
 		return
 	}
@@ -762,8 +803,7 @@ func TestClient_checkConn(t *testing.T) {
 	if err != nil {
 		t.Skipf("failed to create test client: %s. Skipping tests", err)
 	}
-	c.connection = nil
-	if err := c.checkConn(); err == nil {
+	if err = c.checkConn(); err == nil {
 		t.Errorf("connCheck() should fail but succeeded")
 	}
 }
@@ -794,21 +834,23 @@ func TestClient_DialWithContextOptions(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			if err := c.DialWithContext(ctx); err != nil && !tt.sf {
+			if err = c.DialWithContext(ctx); err != nil && !tt.sf {
 				t.Errorf("failed to dial with context: %s", err)
 				return
 			}
 			if !tt.sf {
-				if c.connection == nil && !tt.sf {
-					t.Errorf("DialWithContext didn't fail but no connection found.")
-				}
 				if c.smtpClient == nil && !tt.sf {
 					t.Errorf("DialWithContext didn't fail but no SMTP client found.")
+					return
 				}
-				if err := c.Reset(); err != nil {
+				if !c.smtpClient.HasConnection() && !tt.sf {
+					t.Errorf("DialWithContext didn't fail but no connection found.")
+					return
+				}
+				if err = c.Reset(); err != nil {
 					t.Errorf("failed to reset connection: %s", err)
 				}
-				if err := c.Close(); err != nil {
+				if err = c.Close(); err != nil {
 					t.Errorf("failed to close connection: %s", err)
 				}
 			}
@@ -1003,17 +1045,15 @@ func TestClient_DialSendCloseBroken(t *testing.T) {
 			}
 			if tt.closestart {
 				_ = c.smtpClient.Close()
-				_ = c.connection.Close()
 			}
-			if err := c.Send(m); err != nil && !tt.sf {
+			if err = c.Send(m); err != nil && !tt.sf {
 				t.Errorf("Send() failed: %s", err)
 				return
 			}
 			if tt.closeearly {
 				_ = c.smtpClient.Close()
-				_ = c.connection.Close()
 			}
-			if err := c.Close(); err != nil && !tt.sf {
+			if err = c.Close(); err != nil && !tt.sf {
 				t.Errorf("Close() failed: %s", err)
 				return
 			}
@@ -1063,17 +1103,15 @@ func TestClient_DialSendCloseBrokenWithDSN(t *testing.T) {
 			}
 			if tt.closestart {
 				_ = c.smtpClient.Close()
-				_ = c.connection.Close()
 			}
-			if err := c.Send(m); err != nil && !tt.sf {
+			if err = c.Send(m); err != nil && !tt.sf {
 				t.Errorf("Send() failed: %s", err)
 				return
 			}
 			if tt.closeearly {
 				_ = c.smtpClient.Close()
-				_ = c.connection.Close()
 			}
-			if err := c.Close(); err != nil && !tt.sf {
+			if err = c.Close(); err != nil && !tt.sf {
 				t.Errorf("Close() failed: %s", err)
 				return
 			}
@@ -1251,6 +1289,876 @@ func TestClient_DialAndSendWithContext_withSendError(t *testing.T) {
 	}
 }
 
+func TestClient_SendErrorNoEncoding(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	featureSet := "250-AUTH PLAIN\r\n250-DSN\r\n250 SMTPUTF8"
+	serverPort := TestServerPortBase + 1
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, false, serverPort); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 300)
+
+	message := NewMsg()
+	if err := message.From("valid-from@domain.tld"); err != nil {
+		t.Errorf("failed to set FROM address: %s", err)
+		return
+	}
+	if err := message.To("valid-to@domain.tld"); err != nil {
+		t.Errorf("failed to set TO address: %s", err)
+		return
+	}
+	message.Subject("Test subject")
+	message.SetBodyString(TypeTextPlain, "Test body")
+	message.SetMessageIDWithValue("this.is.a.message.id")
+	message.SetEncoding(NoEncoding)
+
+	client, err := NewClient(TestServerAddr, WithPort(serverPort),
+		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
+		WithUsername("toni@tester.com"),
+		WithPassword("V3ryS3cr3t+"))
+	if err != nil {
+		t.Errorf("unable to create new client: %s", err)
+	}
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to test server: %s", err)
+	}
+	if err = client.Send(message); err == nil {
+		t.Error("expected Send() to fail but didn't")
+	}
+
+	var sendErr *SendError
+	if !errors.As(err, &sendErr) {
+		t.Errorf("expected *SendError type as returned error, but got %T", sendErr)
+	}
+	if errors.As(err, &sendErr) {
+		if sendErr.IsTemp() {
+			t.Errorf("expected permanent error but IsTemp() returned true")
+		}
+		if sendErr.Reason != ErrNoUnencoded {
+			t.Errorf("expected ErrNoUnencoded error, but got %s", sendErr.Reason)
+		}
+		if !strings.EqualFold(sendErr.MessageID(), "<this.is.a.message.id>") {
+			t.Errorf("expected message ID: %q, but got %q", "<this.is.a.message.id>",
+				sendErr.MessageID())
+		}
+		if sendErr.Msg() == nil {
+			t.Errorf("expected message to be set, but got nil")
+		}
+	}
+
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close server connection: %s", err)
+	}
+}
+
+func TestClient_SendErrorMailFrom(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	serverPort := TestServerPortBase + 2
+	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, false, serverPort); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 300)
+
+	message := NewMsg()
+	if err := message.From("invalid-from@domain.tld"); err != nil {
+		t.Errorf("failed to set FROM address: %s", err)
+		return
+	}
+	if err := message.To("valid-to@domain.tld"); err != nil {
+		t.Errorf("failed to set TO address: %s", err)
+		return
+	}
+	message.Subject("Test subject")
+	message.SetBodyString(TypeTextPlain, "Test body")
+	message.SetMessageIDWithValue("this.is.a.message.id")
+
+	client, err := NewClient(TestServerAddr, WithPort(serverPort),
+		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
+		WithUsername("toni@tester.com"),
+		WithPassword("V3ryS3cr3t+"))
+	if err != nil {
+		t.Errorf("unable to create new client: %s", err)
+	}
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to test server: %s", err)
+	}
+	if err = client.Send(message); err == nil {
+		t.Error("expected Send() to fail but didn't")
+	}
+
+	var sendErr *SendError
+	if !errors.As(err, &sendErr) {
+		t.Errorf("expected *SendError type as returned error, but got %T", sendErr)
+	}
+	if errors.As(err, &sendErr) {
+		if sendErr.IsTemp() {
+			t.Errorf("expected permanent error but IsTemp() returned true")
+		}
+		if sendErr.Reason != ErrSMTPMailFrom {
+			t.Errorf("expected ErrSMTPMailFrom error, but got %s", sendErr.Reason)
+		}
+		if !strings.EqualFold(sendErr.MessageID(), "<this.is.a.message.id>") {
+			t.Errorf("expected message ID: %q, but got %q", "<this.is.a.message.id>",
+				sendErr.MessageID())
+		}
+		if sendErr.Msg() == nil {
+			t.Errorf("expected message to be set, but got nil")
+		}
+	}
+
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close server connection: %s", err)
+	}
+}
+
+func TestClient_SendErrorMailFromReset(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	serverPort := TestServerPortBase + 3
+	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, true, serverPort); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 300)
+
+	message := NewMsg()
+	if err := message.From("invalid-from@domain.tld"); err != nil {
+		t.Errorf("failed to set FROM address: %s", err)
+		return
+	}
+	if err := message.To("valid-to@domain.tld"); err != nil {
+		t.Errorf("failed to set TO address: %s", err)
+		return
+	}
+	message.Subject("Test subject")
+	message.SetBodyString(TypeTextPlain, "Test body")
+	message.SetMessageIDWithValue("this.is.a.message.id")
+
+	client, err := NewClient(TestServerAddr, WithPort(serverPort),
+		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
+		WithUsername("toni@tester.com"),
+		WithPassword("V3ryS3cr3t+"))
+	if err != nil {
+		t.Errorf("unable to create new client: %s", err)
+	}
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to test server: %s", err)
+	}
+	if err = client.Send(message); err == nil {
+		t.Error("expected Send() to fail but didn't")
+	}
+
+	var sendErr *SendError
+	if !errors.As(err, &sendErr) {
+		t.Errorf("expected *SendError type as returned error, but got %T", sendErr)
+	}
+	if errors.As(err, &sendErr) {
+		if sendErr.IsTemp() {
+			t.Errorf("expected permanent error but IsTemp() returned true")
+		}
+		if sendErr.Reason != ErrSMTPMailFrom {
+			t.Errorf("expected ErrSMTPMailFrom error, but got %s", sendErr.Reason)
+		}
+		if !strings.EqualFold(sendErr.MessageID(), "<this.is.a.message.id>") {
+			t.Errorf("expected message ID: %q, but got %q", "<this.is.a.message.id>",
+				sendErr.MessageID())
+		}
+		if len(sendErr.errlist) != 2 {
+			t.Errorf("expected 2 errors, but got %d", len(sendErr.errlist))
+			return
+		}
+		if !strings.EqualFold(sendErr.errlist[0].Error(), "503 5.1.2 Invalid from: <invalid-from@domain.tld>") {
+			t.Errorf("expected error: %q, but got %q",
+				"503 5.1.2 Invalid from: <invalid-from@domain.tld>", sendErr.errlist[0].Error())
+		}
+		if !strings.EqualFold(sendErr.errlist[1].Error(), "500 5.1.2 Error: reset failed") {
+			t.Errorf("expected error: %q, but got %q",
+				"500 5.1.2 Error: reset failed", sendErr.errlist[1].Error())
+		}
+	}
+
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close server connection: %s", err)
+	}
+}
+
+func TestClient_SendErrorToReset(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	serverPort := TestServerPortBase + 4
+	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, true, serverPort); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 300)
+
+	message := NewMsg()
+	if err := message.From("valid-from@domain.tld"); err != nil {
+		t.Errorf("failed to set FROM address: %s", err)
+		return
+	}
+	if err := message.To("invalid-to@domain.tld"); err != nil {
+		t.Errorf("failed to set TO address: %s", err)
+		return
+	}
+	message.Subject("Test subject")
+	message.SetBodyString(TypeTextPlain, "Test body")
+	message.SetMessageIDWithValue("this.is.a.message.id")
+
+	client, err := NewClient(TestServerAddr, WithPort(serverPort),
+		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
+		WithUsername("toni@tester.com"),
+		WithPassword("V3ryS3cr3t+"))
+	if err != nil {
+		t.Errorf("unable to create new client: %s", err)
+	}
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to test server: %s", err)
+	}
+	if err = client.Send(message); err == nil {
+		t.Error("expected Send() to fail but didn't")
+	}
+
+	var sendErr *SendError
+	if !errors.As(err, &sendErr) {
+		t.Errorf("expected *SendError type as returned error, but got %T", sendErr)
+	}
+	if errors.As(err, &sendErr) {
+		if sendErr.IsTemp() {
+			t.Errorf("expected permanent error but IsTemp() returned true")
+		}
+		if sendErr.Reason != ErrSMTPRcptTo {
+			t.Errorf("expected ErrSMTPRcptTo error, but got %s", sendErr.Reason)
+		}
+		if !strings.EqualFold(sendErr.MessageID(), "<this.is.a.message.id>") {
+			t.Errorf("expected message ID: %q, but got %q", "<this.is.a.message.id>",
+				sendErr.MessageID())
+		}
+		if len(sendErr.errlist) != 2 {
+			t.Errorf("expected 2 errors, but got %d", len(sendErr.errlist))
+			return
+		}
+		if !strings.EqualFold(sendErr.errlist[0].Error(), "500 5.1.2 Invalid to: <invalid-to@domain.tld>") {
+			t.Errorf("expected error: %q, but got %q",
+				"500 5.1.2 Invalid to: <invalid-to@domain.tld>", sendErr.errlist[0].Error())
+		}
+		if !strings.EqualFold(sendErr.errlist[1].Error(), "500 5.1.2 Error: reset failed") {
+			t.Errorf("expected error: %q, but got %q",
+				"500 5.1.2 Error: reset failed", sendErr.errlist[1].Error())
+		}
+	}
+
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close server connection: %s", err)
+	}
+}
+
+func TestClient_SendErrorDataClose(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	serverPort := TestServerPortBase + 5
+	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, false, serverPort); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 300)
+
+	message := NewMsg()
+	if err := message.From("valid-from@domain.tld"); err != nil {
+		t.Errorf("failed to set FROM address: %s", err)
+		return
+	}
+	if err := message.To("valid-to@domain.tld"); err != nil {
+		t.Errorf("failed to set TO address: %s", err)
+		return
+	}
+	message.Subject("Test subject")
+	message.SetBodyString(TypeTextPlain, "DATA close should fail")
+	message.SetMessageIDWithValue("this.is.a.message.id")
+
+	client, err := NewClient(TestServerAddr, WithPort(serverPort),
+		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
+		WithUsername("toni@tester.com"),
+		WithPassword("V3ryS3cr3t+"))
+	if err != nil {
+		t.Errorf("unable to create new client: %s", err)
+	}
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to test server: %s", err)
+	}
+	if err = client.Send(message); err == nil {
+		t.Error("expected Send() to fail but didn't")
+	}
+
+	var sendErr *SendError
+	if !errors.As(err, &sendErr) {
+		t.Errorf("expected *SendError type as returned error, but got %T", sendErr)
+	}
+	if errors.As(err, &sendErr) {
+		if sendErr.IsTemp() {
+			t.Errorf("expected permanent error but IsTemp() returned true")
+		}
+		if sendErr.Reason != ErrSMTPDataClose {
+			t.Errorf("expected ErrSMTPDataClose error, but got %s", sendErr.Reason)
+		}
+		if !strings.EqualFold(sendErr.MessageID(), "<this.is.a.message.id>") {
+			t.Errorf("expected message ID: %q, but got %q", "<this.is.a.message.id>",
+				sendErr.MessageID())
+		}
+	}
+
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close server connection: %s", err)
+	}
+}
+
+func TestClient_SendErrorDataWrite(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	serverPort := TestServerPortBase + 6
+	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, false, serverPort); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 300)
+
+	message := NewMsg()
+	if err := message.From("valid-from@domain.tld"); err != nil {
+		t.Errorf("failed to set FROM address: %s", err)
+		return
+	}
+	if err := message.To("valid-to@domain.tld"); err != nil {
+		t.Errorf("failed to set TO address: %s", err)
+		return
+	}
+	message.Subject("Test subject")
+	message.SetBodyString(TypeTextPlain, "DATA write should fail")
+	message.SetMessageIDWithValue("this.is.a.message.id")
+	message.SetGenHeader("X-Test-Header", "DATA write should fail")
+
+	client, err := NewClient(TestServerAddr, WithPort(serverPort),
+		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
+		WithUsername("toni@tester.com"),
+		WithPassword("V3ryS3cr3t+"))
+	if err != nil {
+		t.Errorf("unable to create new client: %s", err)
+	}
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to test server: %s", err)
+	}
+	if err = client.Send(message); err == nil {
+		t.Error("expected Send() to fail but didn't")
+	}
+
+	var sendErr *SendError
+	if !errors.As(err, &sendErr) {
+		t.Errorf("expected *SendError type as returned error, but got %T", sendErr)
+	}
+	if errors.As(err, &sendErr) {
+		if sendErr.IsTemp() {
+			t.Errorf("expected permanent error but IsTemp() returned true")
+		}
+		if sendErr.Reason != ErrSMTPDataClose {
+			t.Errorf("expected ErrSMTPDataClose error, but got %s", sendErr.Reason)
+		}
+		if !strings.EqualFold(sendErr.MessageID(), "<this.is.a.message.id>") {
+			t.Errorf("expected message ID: %q, but got %q", "<this.is.a.message.id>",
+				sendErr.MessageID())
+		}
+	}
+}
+
+func TestClient_SendErrorReset(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	serverPort := TestServerPortBase + 7
+	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, true, serverPort); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 300)
+
+	message := NewMsg()
+	if err := message.From("valid-from@domain.tld"); err != nil {
+		t.Errorf("failed to set FROM address: %s", err)
+		return
+	}
+	if err := message.To("valid-to@domain.tld"); err != nil {
+		t.Errorf("failed to set TO address: %s", err)
+		return
+	}
+	message.Subject("Test subject")
+	message.SetBodyString(TypeTextPlain, "Test body")
+	message.SetMessageIDWithValue("this.is.a.message.id")
+
+	client, err := NewClient(TestServerAddr, WithPort(serverPort),
+		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
+		WithUsername("toni@tester.com"),
+		WithPassword("V3ryS3cr3t+"))
+	if err != nil {
+		t.Errorf("unable to create new client: %s", err)
+	}
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to test server: %s", err)
+	}
+	if err = client.Send(message); err == nil {
+		t.Error("expected Send() to fail but didn't")
+	}
+
+	var sendErr *SendError
+	if !errors.As(err, &sendErr) {
+		t.Errorf("expected *SendError type as returned error, but got %T", sendErr)
+	}
+	if errors.As(err, &sendErr) {
+		if sendErr.IsTemp() {
+			t.Errorf("expected permanent error but IsTemp() returned true")
+		}
+		if sendErr.Reason != ErrSMTPReset {
+			t.Errorf("expected ErrSMTPReset error, but got %s", sendErr.Reason)
+		}
+		if !strings.EqualFold(sendErr.MessageID(), "<this.is.a.message.id>") {
+			t.Errorf("expected message ID: %q, but got %q", "<this.is.a.message.id>",
+				sendErr.MessageID())
+		}
+	}
+
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close server connection: %s", err)
+	}
+}
+
+func TestClient_DialSendConcurrent_online(t *testing.T) {
+	if os.Getenv("TEST_ALLOW_SEND") == "" {
+		t.Skipf("TEST_ALLOW_SEND is not set. Skipping mail sending test")
+	}
+
+	client, err := getTestConnection(true)
+	if err != nil {
+		t.Skipf("failed to create test client: %s. Skipping tests", err)
+	}
+
+	var messages []*Msg
+	for i := 0; i < 10; i++ {
+		message := NewMsg()
+		if err := message.FromFormat("go-mail Test Mailer", os.Getenv("TEST_FROM")); err != nil {
+			t.Errorf("failed to set FROM address: %s", err)
+			return
+		}
+		if err := message.To(TestRcpt); err != nil {
+			t.Errorf("failed to set TO address: %s", err)
+			return
+		}
+		message.Subject(fmt.Sprintf("Test subject for mail %d", i))
+		message.SetBodyString(TypeTextPlain, fmt.Sprintf("This is the test body of the mail no. %d", i))
+		message.SetMessageID()
+		messages = append(messages, message)
+	}
+
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to test server: %s", err)
+	}
+
+	wg := sync.WaitGroup{}
+	for id, message := range messages {
+		wg.Add(1)
+		go func(curMsg *Msg, curID int) {
+			defer wg.Done()
+			if goroutineErr := client.Send(curMsg); err != nil {
+				t.Errorf("failed to send message with ID %d: %s", curID, goroutineErr)
+			}
+		}(message, id)
+	}
+	wg.Wait()
+
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close server connection: %s", err)
+	}
+}
+
+func TestClient_DialSendConcurrent_local(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	serverPort := TestServerPortBase + 20
+	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, false, serverPort); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 500)
+
+	client, err := NewClient(TestServerAddr, WithPort(serverPort),
+		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
+		WithUsername("toni@tester.com"),
+		WithPassword("V3ryS3cr3t+"))
+	if err != nil {
+		t.Errorf("unable to create new client: %s", err)
+	}
+
+	var messages []*Msg
+	for i := 0; i < 20; i++ {
+		message := NewMsg()
+		if err := message.From("valid-from@domain.tld"); err != nil {
+			t.Errorf("failed to set FROM address: %s", err)
+			return
+		}
+		if err := message.To("valid-to@domain.tld"); err != nil {
+			t.Errorf("failed to set TO address: %s", err)
+			return
+		}
+		message.Subject("Test subject")
+		message.SetBodyString(TypeTextPlain, "Test body")
+		message.SetMessageIDWithValue("this.is.a.message.id")
+		messages = append(messages, message)
+	}
+
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to test server: %s", err)
+	}
+
+	wg := sync.WaitGroup{}
+	for id, message := range messages {
+		wg.Add(1)
+		go func(curMsg *Msg, curID int) {
+			defer wg.Done()
+			if goroutineErr := client.Send(curMsg); err != nil {
+				t.Errorf("failed to send message with ID %d: %s", curID, goroutineErr)
+			}
+		}(message, id)
+	}
+	wg.Wait()
+
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close server connection: %s", err)
+	}
+}
+
+func TestClient_AuthSCRAMSHAX(t *testing.T) {
+	if os.Getenv("TEST_ONLINE_SCRAM") == "" {
+		t.Skipf("TEST_ONLINE_SCRAM is not set. Skipping online SCRAM tests")
+	}
+	hostname := os.Getenv("TEST_HOST_SCRAM")
+	username := os.Getenv("TEST_USER_SCRAM")
+	password := os.Getenv("TEST_PASS_SCRAM")
+
+	tests := []struct {
+		name     string
+		authtype SMTPAuthType
+	}{
+		{"SCRAM-SHA-1", SMTPAuthSCRAMSHA1},
+		{"SCRAM-SHA-256", SMTPAuthSCRAMSHA256},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, err := NewClient(hostname,
+				WithTLSPortPolicy(TLSMandatory),
+				WithSMTPAuth(tt.authtype),
+				WithUsername(username), WithPassword(password))
+			if err != nil {
+				t.Errorf("unable to create new client: %s", err)
+				return
+			}
+			if err = client.DialWithContext(context.Background()); err != nil {
+				t.Errorf("failed to dial to test server: %s", err)
+			}
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close server connection: %s", err)
+			}
+		})
+	}
+}
+
+func TestClient_AuthLoginSuccess(t *testing.T) {
+	tests := []struct {
+		name       string
+		featureSet string
+	}{
+		{"default", "250-AUTH LOGIN\r\n250-X-DEFAULT-LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"},
+		{"mox server", "250-AUTH LOGIN\r\n250-X-MOX-LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"},
+		{"null byte", "250-AUTH LOGIN\r\n250-X-NULLBYTE-LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"},
+		{"bogus responses", "250-AUTH LOGIN\r\n250-X-BOGUS-LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"},
+		{"empty responses", "250-AUTH LOGIN\r\n250-X-EMPTY-LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"},
+	}
+
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			serverPort := TestServerPortBase + 40 + i
+			go func() {
+				if err := simpleSMTPServer(ctx, tt.featureSet, true, serverPort); err != nil {
+					t.Errorf("failed to start test server: %s", err)
+					return
+				}
+			}()
+			time.Sleep(time.Millisecond * 300)
+
+			client, err := NewClient(TestServerAddr,
+				WithPort(serverPort),
+				WithTLSPortPolicy(NoTLS),
+				WithSMTPAuth(SMTPAuthLogin),
+				WithUsername("toni@tester.com"),
+				WithPassword("V3ryS3cr3t+"))
+			if err != nil {
+				t.Errorf("unable to create new client: %s", err)
+				return
+			}
+			if err = client.DialWithContext(context.Background()); err != nil {
+				t.Errorf("failed to dial to test server: %s", err)
+			}
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close server connection: %s", err)
+			}
+		})
+	}
+}
+
+func TestClient_AuthLoginFail(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	serverPort := TestServerPortBase + 50
+	featureSet := "250-AUTH LOGIN\r\n250-X-DEFAULT-LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, true, serverPort); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 300)
+
+	client, err := NewClient(TestServerAddr,
+		WithPort(serverPort),
+		WithTLSPortPolicy(NoTLS),
+		WithSMTPAuth(SMTPAuthLogin),
+		WithUsername("toni@tester.com"),
+		WithPassword("InvalidPassword"))
+	if err != nil {
+		t.Errorf("unable to create new client: %s", err)
+		return
+	}
+	if err = client.DialWithContext(context.Background()); err == nil {
+		t.Error("expected to fail to dial to test server, but it succeeded")
+	}
+}
+
+func TestClient_AuthLoginFail_noTLS(t *testing.T) {
+	if os.Getenv("TEST_SKIP_ONLINE") != "" {
+		t.Skipf("env variable TEST_SKIP_ONLINE is set. Skipping online tests")
+	}
+	th := os.Getenv("TEST_HOST")
+	if th == "" {
+		t.Skipf("no host set. Skipping online tests")
+	}
+	tp := 587
+	if tps := os.Getenv("TEST_PORT"); tps != "" {
+		tpi, err := strconv.Atoi(tps)
+		if err == nil {
+			tp = tpi
+		}
+	}
+	client, err := NewClient(th, WithPort(tp), WithSMTPAuth(SMTPAuthLogin), WithTLSPolicy(NoTLS))
+	if err != nil {
+		t.Errorf("failed to create new client: %s", err)
+	}
+	u := os.Getenv("TEST_SMTPAUTH_USER")
+	if u != "" {
+		client.SetUsername(u)
+	}
+	p := os.Getenv("TEST_SMTPAUTH_PASS")
+	if p != "" {
+		client.SetPassword(p)
+	}
+	// We don't want to log authentication data in tests
+	client.SetDebugLog(false)
+
+	if err = client.DialWithContext(context.Background()); err == nil {
+		t.Error("expected to fail to dial to test server, but it succeeded")
+	}
+	if !errors.Is(err, smtp.ErrUnencrypted) {
+		t.Errorf("expected error to be %s, but got %s", smtp.ErrUnencrypted, err)
+	}
+}
+
+func TestClient_AuthSCRAMSHAX_fail(t *testing.T) {
+	if os.Getenv("TEST_ONLINE_SCRAM") == "" {
+		t.Skipf("TEST_ONLINE_SCRAM is not set. Skipping online SCRAM tests")
+	}
+	hostname := os.Getenv("TEST_HOST_SCRAM")
+
+	tests := []struct {
+		name     string
+		authtype SMTPAuthType
+	}{
+		{"SCRAM-SHA-1", SMTPAuthSCRAMSHA1},
+		{"SCRAM-SHA-1-PLUS", SMTPAuthSCRAMSHA1PLUS},
+		{"SCRAM-SHA-256", SMTPAuthSCRAMSHA256},
+		{"SCRAM-SHA-256-PLUS", SMTPAuthSCRAMSHA256PLUS},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, err := NewClient(hostname,
+				WithTLSPortPolicy(TLSMandatory),
+				WithSMTPAuth(tt.authtype),
+				WithUsername("invalid"), WithPassword("invalid"))
+			if err != nil {
+				t.Errorf("unable to create new client: %s", err)
+				return
+			}
+			if err = client.DialWithContext(context.Background()); err == nil {
+				t.Errorf("expected error but got nil")
+			}
+		})
+	}
+}
+
+func TestClient_AuthSCRAMSHAX_unsupported(t *testing.T) {
+	if os.Getenv("TEST_ALLOW_SEND") == "" {
+		t.Skipf("TEST_ALLOW_SEND is not set. Skipping mail sending test")
+	}
+
+	client, err := getTestConnection(true)
+	if err != nil {
+		t.Skipf("failed to create test client: %s. Skipping tests", err)
+	}
+
+	tests := []struct {
+		name     string
+		authtype SMTPAuthType
+		expErr   error
+	}{
+		{"SCRAM-SHA-1", SMTPAuthSCRAMSHA1, ErrSCRAMSHA1AuthNotSupported},
+		{"SCRAM-SHA-1-PLUS", SMTPAuthSCRAMSHA1PLUS, ErrSCRAMSHA1PLUSAuthNotSupported},
+		{"SCRAM-SHA-256", SMTPAuthSCRAMSHA256, ErrSCRAMSHA256AuthNotSupported},
+		{"SCRAM-SHA-256-PLUS", SMTPAuthSCRAMSHA256PLUS, ErrSCRAMSHA256PLUSAuthNotSupported},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client.SetSMTPAuth(tt.authtype)
+			client.SetTLSPolicy(TLSMandatory)
+			if err = client.DialWithContext(context.Background()); err == nil {
+				t.Errorf("expected error but got nil")
+			}
+			if !errors.Is(err, tt.expErr) {
+				t.Errorf("expected error %s, but got %s", tt.expErr, err)
+			}
+		})
+	}
+}
+
+func TestClient_AuthSCRAMSHAXPLUS_tlsexporter(t *testing.T) {
+	if os.Getenv("TEST_ONLINE_SCRAM") == "" {
+		t.Skipf("TEST_ONLINE_SCRAM is not set. Skipping online SCRAM tests")
+	}
+	hostname := os.Getenv("TEST_HOST_SCRAM")
+	username := os.Getenv("TEST_USER_SCRAM")
+	password := os.Getenv("TEST_PASS_SCRAM")
+
+	tests := []struct {
+		name     string
+		authtype SMTPAuthType
+	}{
+		{"SCRAM-SHA-1-PLUS", SMTPAuthSCRAMSHA1PLUS},
+		{"SCRAM-SHA-256-PLUS", SMTPAuthSCRAMSHA256PLUS},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, err := NewClient(hostname,
+				WithTLSPortPolicy(TLSMandatory),
+				WithSMTPAuth(tt.authtype),
+				WithUsername(username), WithPassword(password))
+			if err != nil {
+				t.Errorf("unable to create new client: %s", err)
+				return
+			}
+			if err = client.DialWithContext(context.Background()); err != nil {
+				t.Errorf("failed to dial to test server: %s", err)
+			}
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close server connection: %s", err)
+			}
+		})
+	}
+}
+
+func TestClient_AuthSCRAMSHAXPLUS_tlsunique(t *testing.T) {
+	if os.Getenv("TEST_ONLINE_SCRAM") == "" {
+		t.Skipf("TEST_ONLINE_SCRAM is not set. Skipping online SCRAM tests")
+	}
+	hostname := os.Getenv("TEST_HOST_SCRAM")
+	username := os.Getenv("TEST_USER_SCRAM")
+	password := os.Getenv("TEST_PASS_SCRAM")
+	tlsConfig := &tls.Config{}
+	tlsConfig.MaxVersion = tls.VersionTLS12
+	tlsConfig.ServerName = hostname
+
+	tests := []struct {
+		name     string
+		authtype SMTPAuthType
+	}{
+		{"SCRAM-SHA-1-PLUS", SMTPAuthSCRAMSHA1PLUS},
+		{"SCRAM-SHA-256-PLUS", SMTPAuthSCRAMSHA256PLUS},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, err := NewClient(hostname,
+				WithTLSPortPolicy(TLSMandatory),
+				WithTLSConfig(tlsConfig),
+				WithSMTPAuth(tt.authtype),
+				WithUsername(username), WithPassword(password))
+			if err != nil {
+				t.Errorf("unable to create new client: %s", err)
+				return
+			}
+			if err = client.DialWithContext(context.Background()); err != nil {
+				t.Errorf("failed to dial to test server: %s", err)
+			}
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close server connection: %s", err)
+			}
+		})
+	}
+}
+
 // getTestConnection takes environment variables to establish a connection to a real
 // SMTP server to test all functionality that requires a connection
 func getTestConnection(auth bool) (*Client, error) {
@@ -1273,6 +2181,50 @@ func getTestConnection(auth bool) (*Client, error) {
 		sv = true
 	}
 	c, err := NewClient(th, WithPort(tp))
+	if err != nil {
+		return c, err
+	}
+	c.tlsconfig.InsecureSkipVerify = sv
+	if auth {
+		st := os.Getenv("TEST_SMTPAUTH_TYPE")
+		if st != "" {
+			c.SetSMTPAuth(SMTPAuthType(st))
+		}
+		u := os.Getenv("TEST_SMTPAUTH_USER")
+		if u != "" {
+			c.SetUsername(u)
+		}
+		p := os.Getenv("TEST_SMTPAUTH_PASS")
+		if p != "" {
+			c.SetPassword(p)
+		}
+		// We don't want to log authentication data in tests
+		c.SetDebugLog(false)
+	}
+	if err = c.DialWithContext(context.Background()); err != nil {
+		return c, fmt.Errorf("connection to test server failed: %w", err)
+	}
+	if err = c.Close(); err != nil {
+		return c, fmt.Errorf("disconnect from test server failed: %w", err)
+	}
+	return c, nil
+}
+
+// getTestConnectionNoTestPort takes environment variables (except the port) to establish a
+// connection to a real SMTP server to test all functionality that requires a connection
+func getTestConnectionNoTestPort(auth bool) (*Client, error) {
+	if os.Getenv("TEST_SKIP_ONLINE") != "" {
+		return nil, fmt.Errorf("env variable TEST_SKIP_ONLINE is set. Skipping online tests")
+	}
+	th := os.Getenv("TEST_HOST")
+	if th == "" {
+		return nil, fmt.Errorf("no TEST_HOST set")
+	}
+	sv := false
+	if sve := os.Getenv("TEST_TLS_SKIP_VERIFY"); sve != "" {
+		sv = true
+	}
+	c, err := NewClient(th)
 	if err != nil {
 		return c, err
 	}
@@ -1357,7 +2309,14 @@ func getTestConnectionWithDSN(auth bool) (*Client, error) {
 	if th == "" {
 		return nil, fmt.Errorf("no TEST_HOST set")
 	}
-	c, err := NewClient(th, WithDSN())
+	tp := 25
+	if tps := os.Getenv("TEST_PORT"); tps != "" {
+		tpi, err := strconv.Atoi(tps)
+		if err == nil {
+			tp = tpi
+		}
+	}
+	c, err := NewClient(th, WithDSN(), WithPort(tp))
 	if err != nil {
 		return c, err
 	}
@@ -1385,6 +2344,72 @@ func getTestConnectionWithDSN(auth bool) (*Client, error) {
 }
 
 func TestXOAuth2OK(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	serverPort := TestServerPortBase + 30
+	featureSet := "250-AUTH XOAUTH2\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, false, serverPort); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 500)
+
+	c, err := NewClient("127.0.0.1",
+		WithPort(serverPort),
+		WithTLSPortPolicy(TLSOpportunistic),
+		WithSMTPAuth(SMTPAuthXOAUTH2),
+		WithUsername("user"),
+		WithPassword("token"))
+	if err != nil {
+		t.Fatalf("unable to create new client: %v", err)
+	}
+	if err = c.DialWithContext(context.Background()); err != nil {
+		t.Fatalf("unexpected dial error: %v", err)
+	}
+	if err = c.Close(); err != nil {
+		t.Fatalf("disconnect from test server failed: %v", err)
+	}
+}
+
+func TestXOAuth2Unsupported(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	serverPort := TestServerPortBase + 31
+	featureSet := "250-AUTH LOGIN PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, false, serverPort); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 500)
+
+	c, err := NewClient("127.0.0.1",
+		WithPort(serverPort),
+		WithTLSPolicy(TLSOpportunistic),
+		WithSMTPAuth(SMTPAuthXOAUTH2),
+		WithUsername("user"),
+		WithPassword("token"))
+	if err != nil {
+		t.Fatalf("unable to create new client: %v", err)
+	}
+	if err = c.DialWithContext(context.Background()); err == nil {
+		t.Fatal("expected dial error got nil")
+	} else {
+		if !errors.Is(err, ErrXOauth2AuthNotSupported) {
+			t.Fatalf("expected %v; got %v", ErrXOauth2AuthNotSupported, err)
+		}
+	}
+	if err = c.Close(); err != nil {
+		t.Fatalf("disconnect from test server failed: %v", err)
+	}
+}
+
+func TestXOAuth2OK_faker(t *testing.T) {
 	server := []string{
 		"220 Fake server ready ESMTP",
 		"250-fake.server",
@@ -1392,7 +2417,6 @@ func TestXOAuth2OK(t *testing.T) {
 		"250 8BITMIME",
 		"250 OK",
 		"235 2.7.0 Accepted",
-		"250 OK",
 		"221 OK",
 	}
 	var wrote strings.Builder
@@ -1413,10 +2437,10 @@ func TestXOAuth2OK(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unable to create new client: %v", err)
 	}
-	if err := c.DialWithContext(context.Background()); err != nil {
+	if err = c.DialWithContext(context.Background()); err != nil {
 		t.Fatalf("unexpected dial error: %v", err)
 	}
-	if err := c.Close(); err != nil {
+	if err = c.Close(); err != nil {
 		t.Fatalf("disconnect from test server failed: %v", err)
 	}
 	if !strings.Contains(wrote.String(), "AUTH XOAUTH2 dXNlcj11c2VyAWF1dGg9QmVhcmVyIHRva2VuAQE=\r\n") {
@@ -1424,13 +2448,12 @@ func TestXOAuth2OK(t *testing.T) {
 	}
 }
 
-func TestXOAuth2Unsupported(t *testing.T) {
+func TestXOAuth2Unsupported_faker(t *testing.T) {
 	server := []string{
 		"220 Fake server ready ESMTP",
 		"250-fake.server",
 		"250-AUTH LOGIN PLAIN",
 		"250 8BITMIME",
-		"250 OK",
 		"250 OK",
 		"221 OK",
 	}
@@ -1450,18 +2473,18 @@ func TestXOAuth2Unsupported(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unable to create new client: %v", err)
 	}
-	if err := c.DialWithContext(context.Background()); err == nil {
+	if err = c.DialWithContext(context.Background()); err == nil {
 		t.Fatal("expected dial error got nil")
 	} else {
 		if !errors.Is(err, ErrXOauth2AuthNotSupported) {
 			t.Fatalf("expected %v; got %v", ErrXOauth2AuthNotSupported, err)
 		}
 	}
-	if err := c.Close(); err != nil {
+	if err = c.Close(); err != nil {
 		t.Fatalf("disconnect from test server failed: %v", err)
 	}
 	client := strings.Split(wrote.String(), "\r\n")
-	if len(client) != 5 {
+	if len(client) != 4 {
 		t.Fatalf("unexpected number of client requests got %d; want 5", len(client))
 	}
 	if !strings.HasPrefix(client[0], "EHLO") {
@@ -1470,10 +2493,7 @@ func TestXOAuth2Unsupported(t *testing.T) {
 	if client[1] != "NOOP" {
 		t.Fatalf("expected NOOP, got %q", client[1])
 	}
-	if client[2] != "NOOP" {
-		t.Fatalf("expected NOOP, got %q", client[2])
-	}
-	if client[3] != "QUIT" {
+	if client[2] != "QUIT" {
 		t.Fatalf("expected QUIT, got %q", client[3])
 	}
 }
@@ -1494,3 +2514,202 @@ func (f faker) RemoteAddr() net.Addr             { return nil }
 func (f faker) SetDeadline(time.Time) error      { return nil }
 func (f faker) SetReadDeadline(time.Time) error  { return nil }
 func (f faker) SetWriteDeadline(time.Time) error { return nil }
+
+// simpleSMTPServer starts a simple TCP server that resonds to SMTP commands.
+// The provided featureSet represents in what the server responds to EHLO command
+// failReset controls if a RSET succeeds
+func simpleSMTPServer(ctx context.Context, featureSet string, failReset bool, port int) error {
+	listener, err := net.Listen(TestServerProto, fmt.Sprintf("%s:%d", TestServerAddr, port))
+	if err != nil {
+		return fmt.Errorf("unable to listen on %s://%s: %w", TestServerProto, TestServerAddr, err)
+	}
+
+	defer func() {
+		if err := listener.Close(); err != nil {
+			fmt.Printf("unable to close listener: %s\n", err)
+			os.Exit(1)
+		}
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			connection, err := listener.Accept()
+			var opErr *net.OpError
+			if err != nil {
+				if errors.As(err, &opErr) && opErr.Temporary() {
+					continue
+				}
+				return fmt.Errorf("unable to accept connection: %w", err)
+			}
+			handleTestServerConnection(connection, featureSet, failReset)
+		}
+	}
+}
+
+func handleTestServerConnection(connection net.Conn, featureSet string, failReset bool) {
+	defer func() {
+		if err := connection.Close(); err != nil {
+			fmt.Printf("unable to close connection: %s\n", err)
+		}
+	}()
+
+	reader := bufio.NewReader(connection)
+	writer := bufio.NewWriter(connection)
+
+	writeLine := func(data string) error {
+		_, err := writer.WriteString(data + "\r\n")
+		if err != nil {
+			return fmt.Errorf("unable to write line: %w", err)
+		}
+		return writer.Flush()
+	}
+	writeOK := func() {
+		_ = writeLine("250 2.0.0 OK")
+	}
+
+	if err := writeLine("220 go-mail test server ready ESMTP"); err != nil {
+		fmt.Printf("unable to write to client: %s\n", err)
+		return
+	}
+
+	data, err := reader.ReadString('\n')
+	if err != nil {
+		return
+	}
+	if !strings.HasPrefix(data, "EHLO") && !strings.HasPrefix(data, "HELO") {
+		fmt.Printf("expected EHLO, got %q", data)
+		return
+	}
+	if err = writeLine("250-localhost.localdomain\r\n" + featureSet); err != nil {
+		return
+	}
+
+	for {
+		data, err = reader.ReadString('\n')
+		if err != nil {
+			break
+		}
+		time.Sleep(time.Millisecond)
+
+		var datastring string
+		data = strings.TrimSpace(data)
+		switch {
+		case strings.HasPrefix(data, "MAIL FROM:"):
+			from := strings.TrimPrefix(data, "MAIL FROM:")
+			from = strings.ReplaceAll(from, "BODY=8BITMIME", "")
+			from = strings.ReplaceAll(from, "SMTPUTF8", "")
+			from = strings.TrimSpace(from)
+			if !strings.EqualFold(from, "<valid-from@domain.tld>") {
+				_ = writeLine(fmt.Sprintf("503 5.1.2 Invalid from: %s", from))
+				break
+			}
+			writeOK()
+		case strings.HasPrefix(data, "RCPT TO:"):
+			to := strings.TrimPrefix(data, "RCPT TO:")
+			to = strings.TrimSpace(to)
+			if !strings.EqualFold(to, "<valid-to@domain.tld>") {
+				_ = writeLine(fmt.Sprintf("500 5.1.2 Invalid to: %s", to))
+				break
+			}
+			writeOK()
+		case strings.HasPrefix(data, "AUTH XOAUTH2"):
+			auth := strings.TrimPrefix(data, "AUTH XOAUTH2 ")
+			if !strings.EqualFold(auth, "dXNlcj11c2VyAWF1dGg9QmVhcmVyIHRva2VuAQE=") {
+				_ = writeLine("535 5.7.8 Error: authentication failed")
+				break
+			}
+			_ = writeLine("235 2.7.0 Authentication successful")
+		case strings.HasPrefix(data, "AUTH PLAIN"):
+			auth := strings.TrimPrefix(data, "AUTH PLAIN ")
+			if !strings.EqualFold(auth, "AHRvbmlAdGVzdGVyLmNvbQBWM3J5UzNjcjN0Kw==") {
+				_ = writeLine("535 5.7.8 Error: authentication failed")
+				break
+			}
+			_ = writeLine("235 2.7.0 Authentication successful")
+		case strings.HasPrefix(data, "AUTH LOGIN"):
+			var username, password string
+			userResp := "VXNlcm5hbWU6"
+			passResp := "UGFzc3dvcmQ6"
+			if strings.Contains(featureSet, "250-X-MOX-LOGIN") {
+				userResp = ""
+				passResp = "UGFzc3dvcmQ="
+			}
+			if strings.Contains(featureSet, "250-X-NULLBYTE-LOGIN") {
+				userResp = "VXNlciBuYW1lAA=="
+				passResp = "UGFzc3dvcmQA"
+			}
+			if strings.Contains(featureSet, "250-X-BOGUS-LOGIN") {
+				userResp = "Qm9ndXM="
+				passResp = "Qm9ndXM="
+			}
+			if strings.Contains(featureSet, "250-X-EMPTY-LOGIN") {
+				userResp = ""
+				passResp = ""
+			}
+			_ = writeLine("334 " + userResp)
+
+			ddata, derr := reader.ReadString('\n')
+			if derr != nil {
+				fmt.Printf("failed to read username data from connection: %s\n", derr)
+				break
+			}
+			ddata = strings.TrimSpace(ddata)
+			username = ddata
+			_ = writeLine("334 " + passResp)
+
+			ddata, derr = reader.ReadString('\n')
+			if derr != nil {
+				fmt.Printf("failed to read password data from connection: %s\n", derr)
+				break
+			}
+			ddata = strings.TrimSpace(ddata)
+			password = ddata
+
+			if !strings.EqualFold(username, "dG9uaUB0ZXN0ZXIuY29t") ||
+				!strings.EqualFold(password, "VjNyeVMzY3IzdCs=") {
+				_ = writeLine("535 5.7.8 Error: authentication failed")
+				break
+			}
+			_ = writeLine("235 2.7.0 Authentication successful")
+		case strings.EqualFold(data, "DATA"):
+			_ = writeLine("354 End data with <CR><LF>.<CR><LF>")
+			for {
+				ddata, derr := reader.ReadString('\n')
+				if derr != nil {
+					fmt.Printf("failed to read DATA data from connection: %s\n", derr)
+					break
+				}
+				ddata = strings.TrimSpace(ddata)
+				if strings.EqualFold(ddata, "DATA write should fail") {
+					_ = writeLine("500 5.0.0 Error during DATA transmission")
+					break
+				}
+				if ddata == "." {
+					if strings.Contains(datastring, "DATA close should fail") {
+						_ = writeLine("500 5.0.0 Error during DATA closing")
+						break
+					}
+					_ = writeLine("250 2.0.0 Ok: queued as 1234567890")
+					break
+				}
+				datastring += ddata + "\n"
+			}
+		case strings.EqualFold(data, "noop"),
+			strings.EqualFold(data, "vrfy"):
+			writeOK()
+		case strings.EqualFold(data, "rset"):
+			if failReset {
+				_ = writeLine("500 5.1.2 Error: reset failed")
+				break
+			}
+			writeOK()
+		case strings.EqualFold(data, "quit"):
+			_ = writeLine("221 2.0.0 Bye")
+		default:
+			_ = writeLine("500 5.5.2 Error: bad syntax")
+		}
+	}
+}

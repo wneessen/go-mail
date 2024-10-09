@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: Copyright (c) 2022-2024 The go-mail Authors
+#
+# SPDX-License-Identifier: MIT
+
+version = 1
+SPDX-PackageName = "go-mail"
+SPDX-PackageSupplier = "Winni Neessen <winni@neessen.dev>"
+SPDX-PackageDownloadLocation = "https://github.com/wneessen/go-mail"
+annotations = []

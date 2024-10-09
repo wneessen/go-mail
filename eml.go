@@ -18,14 +18,35 @@ import (
 	"strings"
 )
 
-// EMLToMsgFromString will parse a given EML string and returns a pre-filled Msg pointer
+// EMLToMsgFromString parses a given EML string and returns a pre-filled Msg pointer.
+//
+// This function takes an EML formatted string, converts it into a bytes buffer, and then
+// calls EMLToMsgFromReader to parse the buffer and create a Msg object. This provides a
+// convenient way to convert EML strings directly into Msg objects.
+//
+// Parameters:
+//   - emlString: A string containing the EML formatted message.
+//
+// Returns:
+//   - A pointer to the Msg object populated with the parsed data, and an error if parsing
+//     fails.
 func EMLToMsgFromString(emlString string) (*Msg, error) {
 	eb := bytes.NewBufferString(emlString)
 	return EMLToMsgFromReader(eb)
 }
 
-// EMLToMsgFromReader will parse a reader that holds EML content and returns a pre-filled
-// Msg pointer
+// EMLToMsgFromReader parses a reader that holds EML content and returns a pre-filled Msg pointer.
+//
+// This function reads EML content from the provided io.Reader and populates a Msg object
+// with the parsed data. It initializes the Msg and extracts headers and body parts from
+// the EML content. Any errors encountered during parsing are returned.
+//
+// Parameters:
+//   - reader: An io.Reader containing the EML formatted message.
+//
+// Returns:
+//   - A pointer to the Msg object populated with the parsed data, and an error if parsing
+//     fails.
 func EMLToMsgFromReader(reader io.Reader) (*Msg, error) {
 	msg := &Msg{
 		addrHeader:    make(map[AddrHeader][]*netmail.Address),
@@ -46,8 +67,19 @@ func EMLToMsgFromReader(reader io.Reader) (*Msg, error) {
 	return msg, nil
 }
 
-// EMLToMsgFromFile will open and parse a .eml file at a provided file path and returns a
-// pre-filled Msg pointer
+// EMLToMsgFromFile opens and parses a .eml file at a provided file path and returns a
+// pre-filled Msg pointer.
+//
+// This function attempts to read and parse an EML file located at the specified file path.
+// It initializes a Msg object and populates it with the parsed headers and body. Any errors
+// encountered during the file operations or parsing are returned.
+//
+// Parameters:
+//   - filePath: The path to the .eml file to be parsed.
+//
+// Returns:
+//   - A pointer to the Msg object populated with the parsed data, and an error if parsing
+//     fails.
 func EMLToMsgFromFile(filePath string) (*Msg, error) {
 	msg := &Msg{
 		addrHeader:    make(map[AddrHeader][]*netmail.Address),
@@ -68,7 +100,19 @@ func EMLToMsgFromFile(filePath string) (*Msg, error) {
 	return msg, nil
 }
 
-// parseEML parses the EML's headers and body and inserts the parsed values into the Msg
+// parseEML parses the EML's headers and body and inserts the parsed values into the Msg.
+//
+// This function extracts relevant header fields and body content from the parsed EML message
+// and stores them in the provided Msg object. It handles various header types and body
+// parts, ensuring that the Msg is correctly populated with all necessary information.
+//
+// Parameters:
+//   - parsedMsg: A pointer to the netmail.Message containing the parsed EML data.
+//   - bodybuf: A bytes.Buffer containing the body content of the EML message.
+//   - msg: A pointer to the Msg object to be populated with the parsed data.
+//
+// Returns:
+//   - An error if any issues occur during the parsing process; otherwise, returns nil.
 func parseEML(parsedMsg *netmail.Message, bodybuf *bytes.Buffer, msg *Msg) error {
 	if err := parseEMLHeaders(&parsedMsg.Header, msg); err != nil {
 		return fmt.Errorf("failed to parse EML headers: %w", err)
@@ -79,7 +123,18 @@ func parseEML(parsedMsg *netmail.Message, bodybuf *bytes.Buffer, msg *Msg) error
 	return nil
 }
 
-// readEML opens an EML file and uses net/mail to parse the header and body
+// readEML opens an EML file and uses net/mail to parse the header and body.
+//
+// This function opens the specified EML file for reading and utilizes the net/mail package
+// to parse the message's headers and body. It returns the parsed message and a buffer
+// containing the body content, along with any errors encountered during the process.
+//
+// Parameters:
+//   - filePath: The path to the EML file to be opened and parsed.
+//
+// Returns:
+//   - A pointer to the parsed netmail.Message, a bytes.Buffer containing the body, and an
+//     error if any issues occur during file operations or parsing.
 func readEML(filePath string) (*netmail.Message, *bytes.Buffer, error) {
 	fileHandle, err := os.Open(filePath)
 	if err != nil {
@@ -91,7 +146,19 @@ func readEML(filePath string) (*netmail.Message, *bytes.Buffer, error) {
 	return readEMLFromReader(fileHandle)
 }
 
-// readEMLFromReader uses net/mail to parse the header and body from a given io.Reader
+// readEMLFromReader uses net/mail to parse the header and body from a given io.Reader.
+//
+// This function reads the EML content from the provided io.Reader and uses the net/mail
+// package to parse the message's headers and body. It returns the parsed netmail.Message
+// along with a bytes.Buffer containing the body content. Any errors encountered during
+// the parsing process are returned.
+//
+// Parameters:
+//   - reader: An io.Reader containing the EML formatted message.
+//
+// Returns:
+//   - A pointer to the parsed netmail.Message, a bytes.Buffer containing the body, and an
+//     error if any issues occur during parsing.
 func readEMLFromReader(reader io.Reader) (*netmail.Message, *bytes.Buffer, error) {
 	parsedMsg, err := netmail.ReadMessage(reader)
 	if err != nil {
@@ -106,8 +173,18 @@ func readEMLFromReader(reader io.Reader) (*netmail.Message, *bytes.Buffer, error
 	return parsedMsg, &buf, nil
 }
 
-// parseEMLHeaders will check the EML headers for the most common headers and set the
-// according settings in the Msg
+// parseEMLHeaders parses the EML's headers and populates the Msg with relevant information.
+//
+// This function checks the EML headers for common headers and sets the corresponding fields
+// in the Msg object. It extracts address headers, content types, and other relevant data
+// for further processing.
+//
+// Parameters:
+//   - mailHeader: A pointer to the netmail.Header containing the EML headers.
+//   - msg: A pointer to the Msg object to be populated with parsed header information.
+//
+// Returns:
+//   - An error if parsing the headers fails; otherwise, returns nil.
 func parseEMLHeaders(mailHeader *netmail.Header, msg *Msg) error {
 	commonHeaders := []Header{
 		HeaderContentType, HeaderImportance, HeaderInReplyTo, HeaderListUnsubscribe,
@@ -175,7 +252,19 @@ func parseEMLHeaders(mailHeader *netmail.Header, msg *Msg) error {
 	return nil
 }
 
-// parseEMLBodyParts parses the body of a EML based on the different content types and encodings
+// parseEMLBodyParts parses the body of an EML based on the different content types and encodings.
+//
+// This function examines the content type of the parsed EML message and processes the body
+// parts accordingly. It handles both plain text and multipart types, ensuring that the
+// Msg object is populated with the appropriate body content.
+//
+// Parameters:
+//   - parsedMsg: A pointer to the netmail.Message containing the parsed EML data.
+//   - bodybuf: A bytes.Buffer containing the body content of the EML message.
+//   - msg: A pointer to the Msg object to be populated with the parsed body content.
+//
+// Returns:
+//   - An error if any issues occur during the body parsing process; otherwise, returns nil.
 func parseEMLBodyParts(parsedMsg *netmail.Message, bodybuf *bytes.Buffer, msg *Msg) error {
 	// Extract the transfer encoding of the body
 	mediatype, params, err := mime.ParseMediaType(parsedMsg.Header.Get(HeaderContentType.String()))
@@ -212,10 +301,24 @@ func parseEMLBodyParts(parsedMsg *netmail.Message, bodybuf *bytes.Buffer, msg *M
 	return nil
 }
 
-// parseEMLBodyPlain parses the mail body of plain type mails
+// parseEMLBodyPlain parses the mail body of plain type messages.
+//
+// This function handles the parsing of plain text messages based on their encoding. It
+// identifies the content transfer encoding and decodes the body content accordingly,
+// storing the result in the provided Msg object.
+//
+// Parameters:
+//   - mediatype: The media type of the message (e.g., text/plain).
+//   - parsedMsg: A pointer to the netmail.Message containing the parsed EML data.
+//   - bodybuf: A bytes.Buffer containing the body content of the EML message.
+//   - msg: A pointer to the Msg object to be populated with the parsed body content.
+//
+// Returns:
+//   - An error if any issues occur during the parsing of the plain body; otherwise, returns nil.
 func parseEMLBodyPlain(mediatype string, parsedMsg *netmail.Message, bodybuf *bytes.Buffer, msg *Msg) error {
 	contentTransferEnc := parsedMsg.Header.Get(HeaderContentTransferEnc.String())
-	// According to RFC2045, if no Content-Transfer-Encoding is set, we can imply 7bit US-ASCII encoding
+	// If no Content-Transfer-Encoding is set, we can imply 7bit US-ASCII encoding
+	// https://datatracker.ietf.org/doc/html/rfc2045#section-6.1
 	if contentTransferEnc == "" || strings.EqualFold(contentTransferEnc, EncodingUSASCII.String()) {
 		msg.SetEncoding(EncodingUSASCII)
 		msg.SetBodyString(ContentType(mediatype), bodybuf.String())
@@ -249,7 +352,20 @@ func parseEMLBodyPlain(mediatype string, parsedMsg *netmail.Message, bodybuf *by
 	return fmt.Errorf("unsupported Content-Transfer-Encoding")
 }
 
-// parseEMLMultipart parses a multipart body part of a EML
+// parseEMLMultipart parses a multipart body part of an EML message.
+//
+// This function handles the parsing of multipart messages, extracting the individual parts
+// and determining their content types. It processes each part according to its content type
+// and ensures that all relevant data is stored in the Msg object.
+//
+// Parameters:
+//   - params: A map containing the parameters from the multipart content type.
+//   - bodybuf: A bytes.Buffer containing the body content of the EML message.
+//   - msg: A pointer to the Msg object to be populated with the parsed body parts.
+//
+// Returns:
+//   - An error if any issues occur during the parsing of the multipart body; otherwise,
+//     returns nil.
 func parseEMLMultipart(params map[string]string, bodybuf *bytes.Buffer, msg *Msg) error {
 	boundary, ok := params["boundary"]
 	if !ok {
@@ -349,7 +465,15 @@ ReadNextPart:
 	return nil
 }
 
-// parseEMLEncoding parses and determines the encoding of the message
+// parseEMLEncoding parses and determines the encoding of the message.
+//
+// This function extracts the content transfer encoding from the EML headers and sets the
+// corresponding encoding in the Msg object. It ensures that the correct encoding is used
+// for further processing of the message content.
+//
+// Parameters:
+//   - mailHeader: A pointer to the netmail.Header containing the EML headers.
+//   - msg: A pointer to the Msg object to be updated with the encoding information.
 func parseEMLEncoding(mailHeader *netmail.Header, msg *Msg) {
 	if value := mailHeader.Get(HeaderContentTransferEnc.String()); value != "" {
 		switch {
@@ -363,7 +487,15 @@ func parseEMLEncoding(mailHeader *netmail.Header, msg *Msg) {
 	}
 }
 
-// parseEMLContentTypeCharset parses and determines the charset and content type of the message
+// parseEMLContentTypeCharset parses and determines the charset and content type of the message.
+//
+// This function extracts the content type and charset from the EML headers, setting them
+// appropriately in the Msg object. It ensures that the Msg object is configured with the
+// correct content type for further processing.
+//
+// Parameters:
+//   - mailHeader: A pointer to the netmail.Header containing the EML headers.
+//   - msg: A pointer to the Msg object to be updated with content type and charset information.
 func parseEMLContentTypeCharset(mailHeader *netmail.Header, msg *Msg) {
 	if value := mailHeader.Get(HeaderContentType.String()); value != "" {
 		contentType, optional := parseMultiPartHeader(value)
@@ -377,7 +509,18 @@ func parseEMLContentTypeCharset(mailHeader *netmail.Header, msg *Msg) {
 	}
 }
 
-// handleEMLMultiPartBase64Encoding sets the content body of a base64 encoded Part
+// handleEMLMultiPartBase64Encoding sets the content body of a base64 encoded Part.
+//
+// This function decodes the base64 encoded content of a multipart part and stores the
+// resulting content in the provided Part object. It handles any errors that occur during
+// the decoding process.
+//
+// Parameters:
+//   - multiPartData: A byte slice containing the base64 encoded data.
+//   - part: A pointer to the Part object where the decoded content will be stored.
+//
+// Returns:
+//   - An error if the base64 decoding fails; otherwise, returns nil.
 func handleEMLMultiPartBase64Encoding(multiPartData []byte, part *Part) error {
 	part.SetEncoding(EncodingB64)
 	content, err := base64.StdEncoding.DecodeString(string(multiPartData))
@@ -388,8 +531,17 @@ func handleEMLMultiPartBase64Encoding(multiPartData []byte, part *Part) error {
 	return nil
 }
 
-// parseMultiPartHeader parses a multipart header and returns the value and optional parts as
-// separate map
+// parseMultiPartHeader parses a multipart header and returns the value and optional parts as a map.
+//
+// This function splits a multipart header into its main value and any optional parameters,
+// returning them separately. It helps in processing multipart messages by extracting
+// relevant information from headers.
+//
+// Parameters:
+//   - multiPartHeader: A string representing the multipart header to be parsed.
+//
+// Returns:
+//   - The main header value as a string and a map of optional parameters.
 func parseMultiPartHeader(multiPartHeader string) (header string, optional map[string]string) {
 	optional = make(map[string]string)
 	headerSplit := strings.SplitN(multiPartHeader, ";", 2)
@@ -404,7 +556,20 @@ func parseMultiPartHeader(multiPartHeader string) (header string, optional map[s
 	return
 }
 
-// parseEMLAttachmentEmbed parses a multipart that is an attachment or embed
+// parseEMLAttachmentEmbed parses a multipart that is an attachment or embed.
+//
+// This function handles the parsing of multipart sections that are marked as attachments or
+// embedded content. It processes the content disposition and sets the appropriate fields in
+// the Msg object based on the parsed data.
+//
+// Parameters:
+//   - contentDisposition: A slice of strings containing the content disposition header.
+//   - multiPart: A pointer to the multipart.Part to be parsed.
+//   - msg: A pointer to the Msg object to be populated with the attachment or embed data.
+//
+// Returns:
+//   - An error if any issues occur during the parsing of attachments or embeds; otherwise,
+//     returns nil.
 func parseEMLAttachmentEmbed(contentDisposition []string, multiPart *multipart.Part, msg *Msg) error {
 	cdType, optional := parseMultiPartHeader(contentDisposition[0])
 	filename := "generic.attachment"

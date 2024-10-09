@@ -10,24 +10,25 @@ permissions:
 on:
   push:
     branches:
-      - main # or the name of your main branch
+      - main
+    paths:
+      - '**.go'
+      - 'go.*'
+      - '.github/workflows/sonarqube.yml'
   pull_request:
     branches:
-      - main # or the name of your main branch
-env:
-  TEST_HOST: ${{ secrets.TEST_HOST }}
-  TEST_FROM: ${{ secrets.TEST_USER }}
-  TEST_ALLOW_SEND: "1"
-  TEST_SMTPAUTH_USER: ${{ secrets.TEST_USER }}
-  TEST_SMTPAUTH_PASS: ${{ secrets.TEST_PASS }}
-  TEST_SMTPAUTH_TYPE: "LOGIN"
+      - main
+    paths:
+      - '**.go'
+      - 'go.*'
+      - '.github/workflows/sonarqube.yml'
 jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@5c7944e73c4c2a096b17a9cb74d65b6c2bbafbde # v2.9.1
+        uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
         with:
           egress-policy: audit
 
@@ -38,13 +39,13 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
         with:
-          go-version: '1.23.x'
+          go-version: '1.23'
           
       - name: Run unit Tests
         run: |
-          go test -v -race --coverprofile=./cov.out ./...
+          go test -shuffle=on -race --coverprofile=./cov.out ./...
 
-      - uses: sonarsource/sonarqube-scan-action@0c0f3958d90fc466625f1d1af1f47bddd4cc6bd1 # master
+      - uses: sonarsource/sonarqube-scan-action@884b79409bbd464b2a59edc326a4b77dc56b2195 # master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}

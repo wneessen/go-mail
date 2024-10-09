@@ -7,23 +7,41 @@ package mail
 import (
 	"crypto/rand"
 	"encoding/binary"
-	"fmt"
-	"math/big"
 	"strings"
 )
 
 // Range of characters for the secure string generation
-const cr = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+const cr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
 
 // Bitmask sizes for the string generators (based on 93 chars total)
+//
+// These constants define bitmask-related values used for efficient random string generation.
+// The bitmask operates over 66 possible characters, and the constants help determine the
+// number of bits and indices used in the process.
 const (
-	letterIdxBits = 7                    // 7 bits to represent a letter index
-	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
-	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
+	// letterIdxBits: Number of bits needed to represent a letter index. We have 64 possible characters
+	// which fit into 6 bits.
+	letterIdxBits = 6
+	// letterIdxMask: Bitmask to extract letter indices (all 1-bits for letterIdxBits).
+	letterIdxMask = 1<<letterIdxBits - 1
+	// letterIdxMax: The maximum number of letter indices that fit in 63 bits.
+	letterIdxMax = 63 / letterIdxBits
 )
 
-// randomStringSecure returns a random, string of length characters. This method uses the
-// crypto/random package and therfore is cryptographically secure
+// randomStringSecure returns a random string of the specified length.
+//
+// This function generates a cryptographically secure random string of the given length using
+// the crypto/rand package. It ensures that the randomness is secure and suitable for
+// cryptographic purposes. The function reads random bytes, converts them to indices within
+// a character range, and builds the string. If an error occurs while reading from the random
+// pool, it returns the error.
+//
+// Parameters:
+//   - length: The length of the random string to be generated.
+//
+// Returns:
+//   - A randomly generated string.
+//   - An error if the random generation fails.
 func randomStringSecure(length int) (string, error) {
 	randString := strings.Builder{}
 	randString.Grow(length)
@@ -51,24 +69,4 @@ func randomStringSecure(length int) (string, error) {
 	}
 
 	return randString.String(), nil
-}
-
-// randNum returns a random number with a maximum value of length
-func randNum(length int) (int, error) {
-	if length <= 0 {
-		return 0, fmt.Errorf("provided number is <= 0: %d", length)
-	}
-	length64 := big.NewInt(int64(length))
-	if !length64.IsUint64() {
-		return 0, fmt.Errorf("big.NewInt() generation returned negative value: %d", length64)
-	}
-	randNum64, err := rand.Int(rand.Reader, length64)
-	if err != nil {
-		return 0, err
-	}
-	randomNum := int(randNum64.Int64())
-	if randomNum < 0 {
-		return 0, fmt.Errorf("generated random number does not fit as int64: %d", randNum64)
-	}
-	return randomNum, nil
 }

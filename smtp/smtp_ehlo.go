@@ -25,6 +25,9 @@ func (c *Client) ehlo() error {
 	if err != nil {
 		return err
 	}
+
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	ext := make(map[string]string)
 	extList := strings.Split(msg, "\n")
 	if len(extList) > 1 {

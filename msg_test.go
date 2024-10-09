@@ -786,13 +786,11 @@ func TestMsg_SetMessageIDWithValue(t *testing.T) {
 // TestMsg_SetMessageIDRandomness tests the randomness of Msg.SetMessageID methods
 func TestMsg_SetMessageIDRandomness(t *testing.T) {
 	var mids []string
-	for i := 0; i < 100; i++ {
-		m := NewMsg()
+	m := NewMsg()
+	for i := 0; i < 50_000; i++ {
 		m.SetMessageID()
-		mid := m.GetGenHeader(HeaderMessageID)
-		if len(mid) > 0 {
-			mids = append(mids, mid[0])
-		}
+		mid := m.GetMessageID()
+		mids = append(mids, mid)
 	}
 	c := make(map[string]int)
 	for i := range mids {
@@ -802,6 +800,21 @@ func TestMsg_SetMessageIDRandomness(t *testing.T) {
 		if v > 1 {
 			t.Errorf("MessageID randomness not given. MessageID %q was generated %d times", k, v)
 		}
+	}
+}
+
+func TestMsg_GetMessageID(t *testing.T) {
+	expected := "this.is.a.message.id"
+	msg := NewMsg()
+	msg.SetMessageIDWithValue(expected)
+	val := msg.GetMessageID()
+	if !strings.EqualFold(val, fmt.Sprintf("<%s>", expected)) {
+		t.Errorf("GetMessageID() failed. Expected: %s, got: %s", fmt.Sprintf("<%s>", expected), val)
+	}
+	msg.genHeader[HeaderMessageID] = nil
+	val = msg.GetMessageID()
+	if val != "" {
+		t.Errorf("GetMessageID() failed. Expected empty string, got: %s", val)
 	}
 }
 

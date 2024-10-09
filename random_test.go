@@ -38,33 +38,12 @@ func TestRandomStringSecure(t *testing.T) {
 	}
 }
 
-// TestRandomNum tests the randomNum method
-func TestRandomNum(t *testing.T) {
-	tt := []struct {
-		testName string
-		max      int
-	}{
-		{"Max: 1", 1},
-		{"Max: 20", 20},
-		{"Max: 50", 50},
-		{"Max: 100", 100},
-		{"Max: 1000", 1000},
-		{"Max: 10000", 10000},
-		{"Max: 100000000", 100000000},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.testName, func(t *testing.T) {
-			rn, err := randNum(tc.max)
-			if err != nil {
-				t.Errorf("random number generation failed: %s", err)
-			}
-			if rn < 0 {
-				t.Errorf("random number generation failed: %d is smaller than zero", rn)
-			}
-			if rn > tc.max {
-				t.Errorf("random number generation failed: %d is bigger than given value %d", rn, tc.max)
-			}
-		})
+func BenchmarkGenerator_RandomStringSecure(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, err := randomStringSecure(22)
+		if err != nil {
+			b.Errorf("RandomStringFromCharRange() failed: %s", err)
+		}
 	}
 }
