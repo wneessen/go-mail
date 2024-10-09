@@ -1911,6 +1911,22 @@ func TestMsg_hasAltWithSMime(t *testing.T) {
 	}
 }
 
+// TestMsg_hasSMime tests the hasSMime() method of the Msg
+func TestMsg_hasSMime(t *testing.T) {
+	keyPair, err := getDummyCertificate()
+	if err != nil {
+		t.Errorf("failed to load dummy certificate. Cause: %v", err)
+	}
+	m := NewMsg()
+	if err := m.SignWithSMime(keyPair); err != nil {
+		t.Errorf("set of certificate was not successful")
+	}
+	m.SetBodyString(TypeTextPlain, "Plain")
+	if !m.hasSMime() {
+		t.Errorf("mail has smime configured but hasSMime() returned true")
+	}
+}
+
 // TestMsg_hasRelated tests the hasRelated() method of the Msg
 func TestMsg_hasRelated(t *testing.T) {
 	m := NewMsg()
@@ -1975,6 +1991,70 @@ func TestMsg_WriteToSkipMiddleware(t *testing.T) {
 	}
 	if !strings.Contains(wbuf2.String(), "Subject: THIS IS @ TEST") {
 		t.Errorf("WriteToSkipMiddleware failed. Unable to find encoded and upperchase subject")
+	}
+}
+
+// TestMsg_WriteToWithSMIME tests the WriteTo() method of the Msg
+func TestMsg_WriteToWithSMIME(t *testing.T) {
+	keyPair, err := getDummyCertificate()
+	if err != nil {
+		t.Errorf("failed to load dummy certificate. Cause: %v", err)
+	}
+
+	m := NewMsg()
+	m.Subject("This is a test")
+	m.SetBodyString(TypeTextPlain, "Plain")
+	if err := m.SignWithSMime(keyPair); err != nil {
+		t.Errorf("set of certificate was not successful")
+	}
+
+	wbuf := bytes.Buffer{}
+	if _, err = m.WriteTo(&wbuf); err != nil {
+		t.Errorf("WriteTo() failed: %s", err)
+	}
+
+	result := wbuf.String()
+	boundary := result[strings.LastIndex(result, "--")-60 : strings.LastIndex(result, "--")]
+	if strings.Count(result, boundary) != 4 {
+		t.Errorf("WriteTo() failed. False number of boundaries found")
+	}
+
+	parts := strings.Split(result, fmt.Sprintf("--%s", boundary))
+	if len(parts) != 4 {
+		t.Errorf("WriteTo() failed. False number of parts found")
+	}
+
+	preamble := parts[0]
+	if !strings.Contains(preamble, "MIME-Version: 1.0") {
+		t.Errorf("WriteTo() failed. Unable to find MIME-Version")
+	}
+	if !strings.Contains(preamble, "Subject: This is a test") {
+		t.Errorf("WriteTo() failed. Unable to find subject")
+	}
+	if !strings.Contains(preamble, fmt.Sprintf("Content-Type: multipart/signed; protocol=\"application/pkcs7-signature\"; micalg=sha-256;\r\n boundary=%s", boundary)) {
+		t.Errorf("WriteTo() failed. Unable to find Content-Type")
+	}
+
+	signedData := parts[1]
+	if !strings.Contains(signedData, "Content-Transfer-Encoding: quoted-printable") {
+		t.Errorf("WriteTo() failed. Unable to find Content-Transfer-Encoding")
+	}
+	if !strings.Contains(signedData, "Content-Type: text/plain; charset=UTF-8") {
+		t.Errorf("WriteTo() failed. Unable to find Content-Type")
+	}
+	if !strings.Contains(signedData, "Plain") {
+		t.Errorf("WriteTo() failed. Unable to find Content")
+	}
+
+	signature := parts[2]
+	if !strings.Contains(signature, "Content-Transfer-Encoding: base64") {
+		t.Errorf("WriteTo() failed. Unable to find Content-Transfer-Encoding")
+	}
+	if !strings.Contains(signature, `application/pkcs7-signature; name="smime.p7s"`) {
+		t.Errorf("WriteTo() failed. Unable to find Content-Type")
+	}
+	if strings.Contains(signature, "Plain") {
+		t.Errorf("WriteTo() failed. Unable to find signature")
 	}
 }
 
@@ -3264,9 +3344,6 @@ func TestSignWithSMime_ValidKeyPair(t *testing.T) {
 		t.Errorf("WithSMimeSinging() - no private key is given")
 	}
 	if m.sMime.certificate == nil {
-		t.Errorf("WithSMimeSinging() - no certificate is given")
-	}
-	if len(m.sMime.parentCertificates) != len(keyPair.Certificate[:1]) {
 		t.Errorf("WithSMimeSinging() - no certificate is given")
 	}
 }

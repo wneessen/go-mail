@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	// ErrNoFromAddress should be used when a FROM address is requrested but not set
+	// ErrNoFromAddress should be used when a FROM address is requested but not set
 	ErrNoFromAddress = errors.New("no FROM address set")
 
 	// ErrNoRcptAddresses should be used when the list of RCPTs is empty
@@ -1000,15 +1000,15 @@ func (m *Msg) signMessage(msg *Msg) (*Msg, error) {
 	return m, err
 }
 
+// createSignaturePart creates an additional part that be used for storing the S/MIME signature of the given body
 func (m *Msg) createSignaturePart(encoding Encoding, contentType ContentType, charSet Charset, body []byte) (*Part, error) {
-	message := m.sMime.createMessage(encoding, contentType, charSet, body)
-	signaturePart := m.newPart(typeSMimeSigned, WithPartEncoding(EncodingB64), WithSMimeSinging())
-
+	message := m.sMime.prepareMessage(encoding, contentType, charSet, body)
 	signedMessage, err := m.sMime.signMessage(message)
 	if err != nil {
 		return nil, err
 	}
 
+	signaturePart := m.newPart(typeSMimeSigned, WithPartEncoding(EncodingB64), WithSMimeSinging())
 	signaturePart.SetContent(*signedMessage)
 
 	return signaturePart, nil
