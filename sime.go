@@ -61,33 +61,34 @@ func newSMime(keyPair *tls.Certificate) (*SMime, error) {
 	}, nil
 }
 
-// sign with the S/MIME method the message of the actual *Part
-func (sm *SMime) sign(signaturePart *Part, message string) error {
+// signMessage signs the message with S/MIME
+func (sm *SMime) signMessage(message string) (*string, error) {
 	lines := parseLines([]byte(message))
 	toBeSigned := lines.bytesFromLines([]byte("\r\n"))
 
-	tmp, err := pkcs7.NewSignedData(toBeSigned)
-	tmp.SetDigestAlgorithm(pkcs7.OIDDigestAlgorithmSHA256)
+	signedData, err := pkcs7.NewSignedData(toBeSigned)
+	signedData.SetDigestAlgorithm(pkcs7.OIDDigestAlgorithmSHA256)
 	if err != nil {
-		return ErrCouldNotInitialize
+		return nil, ErrCouldNotInitialize
 	}
 
-	if err = tmp.AddSignerChain(sm.certificate, sm.privateKey, sm.parentCertificates, pkcs7.SignerInfoConfig{}); err != nil {
-		return ErrCouldNotAddSigner
+	if err = signedData.AddSignerChain(sm.certificate, sm.privateKey, sm.parentCertificates, pkcs7.SignerInfoConfig{}); err != nil {
+		return nil, ErrCouldNotAddSigner
 	}
 
-	signatureDER, err := tmp.Finish()
+	signedData.Detach()
+
+	signatureDER, err := signedData.Finish()
 	if err != nil {
-		return ErrCouldNotFinishSigning
+		return nil, ErrCouldNotFinishSigning
 	}
 
 	pemMsg, err := encodeToPEM(signatureDER)
 	if err != nil {
-		return ErrCouldNoEncodeToPEM
+		return nil, ErrCouldNoEncodeToPEM
 	}
-	signaturePart.SetContent(*pemMsg)
 
-	return nil
+	return pemMsg, nil
 }
 
 // createMessage prepares the message that will be used for the sign method later

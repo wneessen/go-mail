@@ -261,7 +261,12 @@ func (mw *msgWriter) writePart(part *Part, charset Charset) {
 	if partCharset.String() == "" {
 		partCharset = charset
 	}
-	contentType := fmt.Sprintf("%s; charset=%s", part.contentType, partCharset)
+
+	contentType := part.contentType.String()
+	if !part.IsSMimeSigned() {
+		contentType = strings.Join([]string{contentType, "; charset=", partCharset.String()}, "")
+	}
+
 	contentTransferEnc := part.encoding.String()
 	if mw.depth == 0 {
 		mw.writeHeader(HeaderContentType, contentType)

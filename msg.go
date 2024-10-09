@@ -1004,9 +1004,12 @@ func (m *Msg) createSignaturePart(encoding Encoding, contentType ContentType, ch
 	message := m.sMime.createMessage(encoding, contentType, charSet, body)
 	signaturePart := m.newPart(typeSMimeSigned, WithPartEncoding(EncodingB64), WithSMimeSinging())
 
-	if err := m.sMime.sign(signaturePart, message); err != nil {
+	signedMessage, err := m.sMime.signMessage(message)
+	if err != nil {
 		return nil, err
 	}
+
+	signaturePart.SetContent(*signedMessage)
 
 	return signaturePart, nil
 }
