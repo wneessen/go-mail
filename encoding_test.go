@@ -126,3 +126,24 @@ func TestCharset_String(t *testing.T) {
 		})
 	}
 }
+
+// TestContentType_String tests the mime type method of the MIMEType object
+func TestMimeType_String(t *testing.T) {
+	tests := []struct {
+		mt   MIMEType
+		want string
+	}{
+		{MIMEAlternative, "alternative"},
+		{MIMEMixed, "mixed"},
+		{MIMERelated, "related"},
+		{MIMESMime, `signed; protocol="application/pkcs7-signature"; micalg=sha-256`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.mt.String(), func(t *testing.T) {
+			if tt.mt.String() != tt.want {
+				t.Errorf("wrong string for mime type returned. Expected: %s, got: %s",
+					tt.want, tt.mt.String())
+			}
+		})
+	}
+}

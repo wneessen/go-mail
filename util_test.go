@@ -10,6 +10,7 @@ const (
 	keyFilePath  = "dummy-child-key.pem"
 )
 
+// getDummyCertificate loads a certificate and a private key form local disk for testing purposes
 func getDummyCertificate() (*tls.Certificate, error) {
 	keyPair, err := tls.LoadX509KeyPair(certFilePath, keyFilePath)
 	if err != nil {

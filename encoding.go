@@ -174,3 +174,8 @@ func (c ContentType) String() string {
 func (e Encoding) String() string {
 	return string(e)
 }
+
+// String is a standard method to convert an MIMEType into a printable format
+func (e MIMEType) String() string {
+	return string(e)
+}
