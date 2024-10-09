@@ -16,9 +16,6 @@ var (
 	// ErrInvalidKeyPair should be used if key pair is invalid
 	ErrInvalidKeyPair = errors.New("invalid key pair")
 
-	// ErrInvalidCertificate should be used if a certificate is invalid
-	ErrInvalidCertificate = errors.New("invalid certificate")
-
 	// ErrCouldNotInitialize should be used if the signed data could not initialize
 	ErrCouldNotInitialize = errors.New("could not initialize signed data")
 
@@ -34,9 +31,8 @@ var (
 
 // SMime is used to sign messages with S/MIME
 type SMime struct {
-	privateKey         *rsa.PrivateKey
-	certificate        *x509.Certificate
-	parentCertificates []*x509.Certificate
+	privateKey  *rsa.PrivateKey
+	certificate *x509.Certificate
 }
 
 // NewSMime construct a new instance of SMime with a provided *tls.Certificate
@@ -45,19 +41,9 @@ func newSMime(keyPair *tls.Certificate) (*SMime, error) {
 		return nil, ErrInvalidKeyPair
 	}
 
-	parentCertificates := make([]*x509.Certificate, 0)
-	for _, cert := range keyPair.Certificate[1:] {
-		c, err := x509.ParseCertificate(cert)
-		if err != nil {
-			return nil, ErrInvalidCertificate
-		}
-		parentCertificates = append(parentCertificates, c)
-	}
-
 	return &SMime{
-		privateKey:         keyPair.PrivateKey.(*rsa.PrivateKey),
-		certificate:        keyPair.Leaf,
-		parentCertificates: parentCertificates,
+		privateKey:  keyPair.PrivateKey.(*rsa.PrivateKey),
+		certificate: keyPair.Leaf,
 	}, nil
 }
 
@@ -72,7 +58,7 @@ func (sm *SMime) signMessage(message string) (*string, error) {
 		return nil, ErrCouldNotInitialize
 	}
 
-	if err = signedData.AddSignerChain(sm.certificate, sm.privateKey, sm.parentCertificates, pkcs7.SignerInfoConfig{}); err != nil {
+	if err = signedData.AddSigner(sm.certificate, sm.privateKey, pkcs7.SignerInfoConfig{}); err != nil {
 		return nil, ErrCouldNotAddSigner
 	}
 
@@ -92,7 +78,7 @@ func (sm *SMime) signMessage(message string) (*string, error) {
 }
 
 // createMessage prepares the message that will be used for the sign method later
-func (sm *SMime) createMessage(encoding Encoding, contentType ContentType, charset Charset, body []byte) string {
+func (sm *SMime) prepareMessage(encoding Encoding, contentType ContentType, charset Charset, body []byte) string {
 	return fmt.Sprintf("Content-Transfer-Encoding: %v\r\nContent-Type: %v; charset=%v\r\n\r\n%v", encoding, contentType, charset, string(body))
 }
 
