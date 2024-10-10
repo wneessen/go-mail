@@ -7,6 +7,7 @@ package mail
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"embed"
 	"errors"
 	"fmt"
@@ -24,7 +25,7 @@ import (
 )
 
 var (
-	// ErrNoFromAddress indicates that the FROM address is not set, which is required.
+	// ErrNoFromAddress should be used when a FROM address is requested but not set
 	ErrNoFromAddress = errors.New("no FROM address set")
 
 	// ErrNoRcptAddresses indicates that no recipient addresses have been set.
@@ -144,6 +145,9 @@ type Msg struct {
 	//
 	// This can be useful in scenarios where headers are conditionally passed based on receipt - i. e. SMTP proxies.
 	noDefaultUserAgent bool
+
+	// SMime represents a middleware used to sign messages with S/MIME
+	sMime *SMime
 }
 
 // SendmailPath is the default system path to the sendmail binary - at least on standard Unix-like OS.
@@ -333,8 +337,16 @@ func WithNoDefaultUserAgent() MsgOption {
 	}
 }
 
-// SetCharset sets or overrides the currently set encoding charset of the Msg.
-//
+// SignWithSMime configures the Msg to be signed with S/MIME
+func (m *Msg) SignWithSMime(keyPair *tls.Certificate) error {
+	sMime, err := newSMime(keyPair)
+	if err != nil {
+		return err
+	}
+	m.sMime = sMime
+	return nil
+}
+
 // This method allows you to specify a character set for the email message. The charset is
 // important for ensuring that the content of the message is correctly interpreted by
 // mail clients. Common charset values include UTF-8, ISO-8859-1, and others. If a charset
@@ -2115,6 +2127,38 @@ func (m *Msg) applyMiddlewares(msg *Msg) *Msg {
 	return msg
 }
 
+// signMessage sign the Msg with S/MIME
+func (m *Msg) signMessage(msg *Msg) (*Msg, error) {
+	signedPart := msg.GetParts()[0]
+	body, err := signedPart.GetContent()
+	if err != nil {
+		return nil, err
+	}
+
+	signaturePart, err := m.createSignaturePart(signedPart.GetEncoding(), signedPart.GetContentType(), signedPart.GetCharset(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	m.parts = append(m.parts, signaturePart)
+
+	return m, err
+}
+
+// createSignaturePart creates an additional part that be used for storing the S/MIME signature of the given body
+func (m *Msg) createSignaturePart(encoding Encoding, contentType ContentType, charSet Charset, body []byte) (*Part, error) {
+	message := m.sMime.prepareMessage(encoding, contentType, charSet, body)
+	signedMessage, err := m.sMime.signMessage(message)
+	if err != nil {
+		return nil, err
+	}
+
+	signaturePart := m.newPart(typeSMimeSigned, WithPartEncoding(EncodingB64), WithSMimeSinging())
+	signaturePart.SetContent(*signedMessage)
+
+	return signaturePart, nil
+}
+
 // WriteTo writes the formatted Msg into the given io.Writer and satisfies the io.WriterTo interface.
 //
 // This method writes the email message, including its headers, body, and attachments, to the provided
@@ -2132,7 +2176,18 @@ func (m *Msg) applyMiddlewares(msg *Msg) *Msg {
 //   - https://datatracker.ietf.org/doc/html/rfc5322
 func (m *Msg) WriteTo(writer io.Writer) (int64, error) {
 	mw := &msgWriter{writer: writer, charset: m.charset, encoder: m.encoder}
-	mw.writeMsg(m.applyMiddlewares(m))
+	msg := m.applyMiddlewares(m)
+
+	if m.hasSMime() {
+		signedMsg, err := m.signMessage(msg)
+		if err != nil {
+			return 0, err
+		}
+		msg = signedMsg
+	}
+
+	mw.writeMsg(msg)
+
 	return mw.bytesWritten, mw.err
 }
 
@@ -2496,7 +2551,7 @@ func (m *Msg) hasAlt() bool {
 			count++
 		}
 	}
-	return count > 1 && m.pgptype == 0
+	return count > 1 && m.pgptype == 0 && !m.hasSMime()
 }
 
 // hasMixed returns true if the Msg has mixed parts.
@@ -2512,6 +2567,11 @@ func (m *Msg) hasAlt() bool {
 //   - https://datatracker.ietf.org/doc/html/rfc2046#section-5.1.3
 func (m *Msg) hasMixed() bool {
 	return m.pgptype == 0 && ((len(m.parts) > 0 && len(m.attachments) > 0) || len(m.attachments) > 1)
+}
+
+// hasSMime returns true if the Msg has should be signed with S/MIME
+func (m *Msg) hasSMime() bool {
+	return m.sMime != nil
 }
 
 // hasRelated returns true if the Msg has related parts.

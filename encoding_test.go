@@ -61,6 +61,11 @@ func TestContentType_String(t *testing.T) {
 			"ContentType: application/pgp-encrypted", TypePGPEncrypted,
 			"application/pgp-encrypted",
 		},
+
+		{
+			"ContentType: pkcs7-signature", typeSMimeSigned,
+			`application/pkcs7-signature; name="smime.p7s"`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -117,6 +122,27 @@ func TestCharset_String(t *testing.T) {
 			if tt.c.String() != tt.want {
 				t.Errorf("wrong string for Charset returned. Expected: %s, got: %s",
 					tt.want, tt.c.String())
+			}
+		})
+	}
+}
+
+// TestContentType_String tests the mime type method of the MIMEType object
+func TestMimeType_String(t *testing.T) {
+	tests := []struct {
+		mt   MIMEType
+		want string
+	}{
+		{MIMEAlternative, "alternative"},
+		{MIMEMixed, "mixed"},
+		{MIMERelated, "related"},
+		{MIMESMime, `signed; protocol="application/pkcs7-signature"; micalg=sha-256`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.mt.String(), func(t *testing.T) {
+			if tt.mt.String() != tt.want {
+				t.Errorf("wrong string for mime type returned. Expected: %s, got: %s",
+					tt.want, tt.mt.String())
 			}
 		})
 	}
