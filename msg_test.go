@@ -1909,15 +1909,15 @@ func TestMsg_hasAlt(t *testing.T) {
 
 // TestMsg_hasAlt tests the hasAlt() method of the Msg with active S/MIME
 func TestMsg_hasAltWithSMime(t *testing.T) {
-	keyPair, err := getDummyCertificate()
+	privateKey, certificate, intermediateCertificate, err := getDummyCryptoMaterial()
 	if err != nil {
-		t.Errorf("failed to load dummy certificate. Cause: %v", err)
+		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
 	}
 	m := NewMsg()
 	m.SetBodyString(TypeTextPlain, "Plain")
 	m.AddAlternativeString(TypeTextHTML, "<b>HTML</b>")
-	if err := m.SignWithSMime(keyPair); err != nil {
-		t.Errorf("set of certificate was not successful")
+	if err := m.SignWithSMime(privateKey, certificate, intermediateCertificate); err != nil {
+		t.Errorf("failed to init smime configuration")
 	}
 	if m.hasAlt() {
 		t.Errorf("mail has alternative parts and S/MIME is active, but hasAlt() returned true")
@@ -1926,13 +1926,13 @@ func TestMsg_hasAltWithSMime(t *testing.T) {
 
 // TestMsg_hasSMime tests the hasSMime() method of the Msg
 func TestMsg_hasSMime(t *testing.T) {
-	keyPair, err := getDummyCertificate()
+	privateKey, certificate, intermediateCertificate, err := getDummyCryptoMaterial()
 	if err != nil {
-		t.Errorf("failed to load dummy certificate. Cause: %v", err)
+		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
 	}
 	m := NewMsg()
-	if err := m.SignWithSMime(keyPair); err != nil {
-		t.Errorf("set of certificate was not successful")
+	if err := m.SignWithSMime(privateKey, certificate, intermediateCertificate); err != nil {
+		t.Errorf("failed to init smime configuration")
 	}
 	m.SetBodyString(TypeTextPlain, "Plain")
 	if !m.hasSMime() {
@@ -2009,16 +2009,16 @@ func TestMsg_WriteToSkipMiddleware(t *testing.T) {
 
 // TestMsg_WriteToWithSMIME tests the WriteTo() method of the Msg
 func TestMsg_WriteToWithSMIME(t *testing.T) {
-	keyPair, err := getDummyCertificate()
+	privateKey, certificate, intermediateCertificate, err := getDummyCryptoMaterial()
 	if err != nil {
-		t.Errorf("failed to load dummy certificate. Cause: %v", err)
+		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
 	}
 
 	m := NewMsg()
 	m.Subject("This is a test")
 	m.SetBodyString(TypeTextPlain, "Plain")
-	if err := m.SignWithSMime(keyPair); err != nil {
-		t.Errorf("set of certificate was not successful")
+	if err := m.SignWithSMime(privateKey, certificate, intermediateCertificate); err != nil {
+		t.Errorf("failed to init smime configuration")
 	}
 
 	wbuf := bytes.Buffer{}
@@ -3345,12 +3345,12 @@ func TestNewMsgWithNoDefaultUserAgent(t *testing.T) {
 
 // TestSignWithSMime_ValidKeyPair tests WithSMimeSinging with given key pair
 func TestSignWithSMime_ValidKeyPair(t *testing.T) {
-	keyPair, err := getDummyCertificate()
+	privateKey, certificate, intermediateCertificate, err := getDummyCryptoMaterial()
 	if err != nil {
-		t.Errorf("failed to load dummy certificate. Cause: %v", err)
+		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
 	}
 	m := NewMsg()
-	if err := m.SignWithSMime(keyPair); err != nil {
+	if err := m.SignWithSMime(privateKey, certificate, intermediateCertificate); err != nil {
 		t.Errorf("failed to set sMime. Cause: %v", err)
 	}
 	if m.sMime.privateKey == nil {
@@ -3361,13 +3361,41 @@ func TestSignWithSMime_ValidKeyPair(t *testing.T) {
 	}
 }
 
-// TestSignWithSMime_InvalidKeyPair tests WithSMimeSinging with given invalid key pair
-func TestSignWithSMime_InvalidKeyPair(t *testing.T) {
+// TestSignWithSMime_InvalidPrivateKey tests WithSMimeSinging with given invalid private key
+func TestSignWithSMime_InvalidPrivateKey(t *testing.T) {
 	m := NewMsg()
 
-	err := m.SignWithSMime(nil)
-	if !errors.Is(err, ErrInvalidKeyPair) {
-		t.Errorf("failed to check sMimeAuthConfig values correctly: %s", err)
+	err := m.SignWithSMime(nil, nil, nil)
+	if !errors.Is(err, ErrInvalidPrivateKey) {
+		t.Errorf("failed to pre-check SignWithSMime method values correctly: %s", err)
+	}
+}
+
+// TestSignWithSMime_InvalidCertificate tests WithSMimeSinging with given invalid certificate
+func TestSignWithSMime_InvalidCertificate(t *testing.T) {
+	privateKey, _, _, err := getDummyCryptoMaterial()
+	if err != nil {
+		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
+	}
+	m := NewMsg()
+
+	err = m.SignWithSMime(privateKey, nil, nil)
+	if !errors.Is(err, ErrInvalidCertificate) {
+		t.Errorf("failed to pre-check SignWithSMime method values correctly: %s", err)
+	}
+}
+
+// TestSignWithSMime_InvalidIntermediateCertificate tests WithSMimeSinging with given invalid intermediate certificate
+func TestSignWithSMime_InvalidIntermediateCertificate(t *testing.T) {
+	privateKey, certificate, _, err := getDummyCryptoMaterial()
+	if err != nil {
+		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
+	}
+	m := NewMsg()
+
+	err = m.SignWithSMime(privateKey, certificate, nil)
+	if !errors.Is(err, ErrInvalidIntermediateCertificate) {
+		t.Errorf("failed to pre-check SignWithSMime method values correctly: %s", err)
 	}
 }
 
@@ -3401,13 +3429,13 @@ func FuzzMsg_From(f *testing.F) {
 
 // TestMsg_createSignaturePart tests the Msg.createSignaturePart method
 func TestMsg_createSignaturePart(t *testing.T) {
-	keyPair, err := getDummyCertificate()
+	privateKey, certificate, intermediateCertificate, err := getDummyCryptoMaterial()
 	if err != nil {
-		t.Errorf("failed to load dummy certificate. Cause: %v", err)
+		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
 	}
 	m := NewMsg()
-	if err := m.SignWithSMime(keyPair); err != nil {
-		t.Errorf("set of certificate was not successful")
+	if err := m.SignWithSMime(privateKey, certificate, intermediateCertificate); err != nil {
+		t.Errorf("failed to init smime configuration")
 	}
 	body := []byte("This is the body")
 	part, err := m.createSignaturePart(EncodingQP, TypeTextPlain, CharsetUTF7, body)
@@ -3431,15 +3459,15 @@ func TestMsg_createSignaturePart(t *testing.T) {
 
 // TestMsg_signMessage tests the Msg.signMessage method
 func TestMsg_signMessage(t *testing.T) {
-	keyPair, err := getDummyCertificate()
+	privateKey, certificate, intermediateCertificate, err := getDummyCryptoMaterial()
 	if err != nil {
-		t.Errorf("failed to load dummy certificate. Cause: %v", err)
+		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
 	}
 	body := []byte("This is the body")
 	m := NewMsg()
 	m.SetBodyString(TypeTextPlain, string(body))
-	if err := m.SignWithSMime(keyPair); err != nil {
-		t.Errorf("set of certificate was not successful")
+	if err := m.SignWithSMime(privateKey, certificate, intermediateCertificate); err != nil {
+		t.Errorf("failed to init smime configuration")
 	}
 	msg, err := m.signMessage(m)
 	if err != nil {

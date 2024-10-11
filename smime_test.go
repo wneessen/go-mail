@@ -10,32 +10,35 @@ import (
 
 // TestNewSMime tests the newSMime method
 func TestNewSMime(t *testing.T) {
-	keyPair, err := getDummyCertificate()
+	privateKey, certificate, intermediateCertificate, err := getDummyCryptoMaterial()
 	if err != nil {
-		t.Errorf("Error getting dummy certificate: %s", err)
+		t.Errorf("Error getting dummy crypto material: %s", err)
 	}
 
-	sMime, err := newSMime(keyPair)
+	sMime, err := newSMime(privateKey, certificate, intermediateCertificate)
 	if err != nil {
 		t.Errorf("Error creating new SMime from keyPair: %s", err)
 	}
 
-	if sMime.privateKey != keyPair.PrivateKey {
+	if sMime.privateKey != privateKey {
 		t.Errorf("NewSMime() did not return the same private key")
 	}
-	if sMime.certificate != keyPair.Leaf {
-		t.Errorf("NewSMime() did not return the same leaf certificate")
+	if sMime.certificate != certificate {
+		t.Errorf("NewSMime() did not return the same certificate")
+	}
+	if sMime.intermediateCertificate != intermediateCertificate {
+		t.Errorf("NewSMime() did not return the same intermedidate certificate")
 	}
 }
 
 // TestSign tests the sign method
 func TestSign(t *testing.T) {
-	keyPair, err := getDummyCertificate()
+	privateKey, certificate, intermediateCertificate, err := getDummyCryptoMaterial()
 	if err != nil {
-		t.Errorf("Error getting dummy certificate: %s", err)
+		t.Errorf("Error getting dummy crypto material: %s", err)
 	}
 
-	sMime, err := newSMime(keyPair)
+	sMime, err := newSMime(privateKey, certificate, intermediateCertificate)
 	if err != nil {
 		t.Errorf("Error creating new SMime from keyPair: %s", err)
 	}
@@ -53,12 +56,12 @@ func TestSign(t *testing.T) {
 
 // TestPrepareMessage tests the createMessage method
 func TestPrepareMessage(t *testing.T) {
-	keyPair, err := getDummyCertificate()
+	privateKey, certificate, intermediateCertificate, err := getDummyCryptoMaterial()
 	if err != nil {
-		t.Errorf("Error getting dummy certificate: %s", err)
+		t.Errorf("Error getting dummy crypto material: %s", err)
 	}
 
-	sMime, err := newSMime(keyPair)
+	sMime, err := newSMime(privateKey, certificate, intermediateCertificate)
 	if err != nil {
 		t.Errorf("Error creating new SMime from keyPair: %s", err)
 	}

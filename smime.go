@@ -3,7 +3,6 @@ package mail
 import (
 	"bytes"
 	"crypto/rsa"
-	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
@@ -13,11 +12,14 @@ import (
 )
 
 var (
-	// ErrInvalidKeyPair should be used if key pair is invalid
-	ErrInvalidKeyPair = errors.New("invalid key pair")
+	// ErrInvalidPrivateKey should be used if private key is invalid
+	ErrInvalidPrivateKey = errors.New("invalid private key")
 
-	// ErrInvalidParentCertificates should be used if one of the parent certificates is invalid
-	ErrInvalidParentCertificates = errors.New("invalid parent certificates")
+	// ErrInvalidCertificate should be used if the certificate is invalid
+	ErrInvalidCertificate = errors.New("invalid certificate")
+
+	// ErrInvalidIntermediateCertificate should be used if the intermediate certificate is invalid
+	ErrInvalidIntermediateCertificate = errors.New("invalid intermediate certificate")
 
 	// ErrCouldNotInitialize should be used if the signed data could not initialize
 	ErrCouldNotInitialize = errors.New("could not initialize signed data")
@@ -34,30 +36,32 @@ var (
 
 // SMime is used to sign messages with S/MIME
 type SMime struct {
-	privateKey         *rsa.PrivateKey
-	parentCertificates []*x509.Certificate
-	certificate        *x509.Certificate
+	privateKey              *rsa.PrivateKey
+	certificate             *x509.Certificate
+	intermediateCertificate *x509.Certificate
 }
 
-// NewSMime construct a new instance of SMime with a provided *tls.Certificate
-func newSMime(keyPair *tls.Certificate) (*SMime, error) {
-	if keyPair == nil {
-		return nil, ErrInvalidKeyPair
+// NewSMime construct a new instance of SMime with provided parameters
+// privateKey as *rsa.PrivateKey
+// certificate as *x509.Certificate
+// intermediateCertificate as *x509.Certificate
+func newSMime(privateKey *rsa.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) (*SMime, error) {
+	if privateKey == nil {
+		return nil, ErrInvalidPrivateKey
 	}
 
-	parentCertificates := make([]*x509.Certificate, 0)
-	for _, cert := range keyPair.Certificate[1:] {
-		c, err := x509.ParseCertificate(cert)
-		if err != nil {
-			return nil, ErrInvalidParentCertificates
-		}
-		parentCertificates = append(parentCertificates, c)
+	if certificate == nil {
+		return nil, ErrInvalidCertificate
+	}
+
+	if intermediateCertificate == nil {
+		return nil, ErrInvalidIntermediateCertificate
 	}
 
 	return &SMime{
-		privateKey:         keyPair.PrivateKey.(*rsa.PrivateKey),
-		certificate:        keyPair.Leaf,
-		parentCertificates: parentCertificates,
+		privateKey:              privateKey,
+		certificate:             certificate,
+		intermediateCertificate: intermediateCertificate,
 	}, nil
 }
 
@@ -72,7 +76,7 @@ func (sm *SMime) signMessage(message string) (*string, error) {
 		return nil, ErrCouldNotInitialize
 	}
 
-	if err = signedData.AddSignerChain(sm.certificate, sm.privateKey, sm.parentCertificates, pkcs7.SignerInfoConfig{}); err != nil {
+	if err = signedData.AddSignerChain(sm.certificate, sm.privateKey, []*x509.Certificate{sm.intermediateCertificate}, pkcs7.SignerInfoConfig{}); err != nil {
 		return nil, ErrCouldNotAddSigner
 	}
 

@@ -7,7 +7,8 @@ package mail
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
+	"crypto/rsa"
+	"crypto/x509"
 	"embed"
 	"errors"
 	"fmt"
@@ -338,8 +339,8 @@ func WithNoDefaultUserAgent() MsgOption {
 }
 
 // SignWithSMime configures the Msg to be signed with S/MIME
-func (m *Msg) SignWithSMime(keyPair *tls.Certificate) error {
-	sMime, err := newSMime(keyPair)
+func (m *Msg) SignWithSMime(privateKey *rsa.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) error {
+	sMime, err := newSMime(privateKey, certificate, intermediateCertificate)
 	if err != nil {
 		return err
 	}

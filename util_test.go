@@ -1,6 +1,7 @@
 package mail
 
 import (
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 )
@@ -10,14 +11,24 @@ const (
 	keyFilePath  = "dummy-child-key.pem"
 )
 
-// getDummyCertificate loads a certificate and a private key form local disk for testing purposes
-func getDummyCertificate() (*tls.Certificate, error) {
+// getDummyCryptoMaterial loads a certificate and a private key form local disk for testing purposes
+func getDummyCryptoMaterial() (*rsa.PrivateKey, *x509.Certificate, *x509.Certificate, error) {
 	keyPair, err := tls.LoadX509KeyPair(certFilePath, keyFilePath)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 
-	keyPair.Leaf, err = x509.ParseCertificate(keyPair.Certificate[0])
+	privateKey := keyPair.PrivateKey.(*rsa.PrivateKey)
 
-	return &keyPair, nil
+	certificate, err := x509.ParseCertificate(keyPair.Certificate[0])
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	intermediateCertificate, err := x509.ParseCertificate(keyPair.Certificate[1])
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return privateKey, certificate, intermediateCertificate, nil
 }
