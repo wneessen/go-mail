@@ -11,8 +11,9 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"go.mozilla.org/pkcs7"
 	"strings"
+
+	"go.mozilla.org/pkcs7"
 )
 
 var (

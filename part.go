@@ -152,7 +152,6 @@ func (p *Part) SetDescription(description string) {
 	p.description = description
 }
 
-
 // SetIsSMimeSigned sets the flag for signing the Part with S/MIME
 func (p *Part) SetIsSMimeSigned(smime bool) {
 	p.smime = smime
