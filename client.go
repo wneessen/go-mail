@@ -256,11 +256,12 @@ var (
 //   - An error if any critical default values are missing or options fail to apply.
 func NewClient(host string, opts ...Option) (*Client, error) {
 	c := &Client{
-		connTimeout: DefaultTimeout,
-		host:        host,
-		port:        DefaultPort,
-		tlsconfig:   &tls.Config{ServerName: host, MinVersion: DefaultTLSMinVersion},
-		tlspolicy:   DefaultTLSPolicy,
+		smtpAuthType: SMTPAuthNoAuth,
+		connTimeout:  DefaultTimeout,
+		host:         host,
+		port:         DefaultPort,
+		tlsconfig:    &tls.Config{ServerName: host, MinVersion: DefaultTLSMinVersion},
+		tlspolicy:    DefaultTLSPolicy,
 	}
 
 	// Set default HELO/EHLO hostname
@@ -1028,9 +1029,16 @@ func (c *Client) DialAndSendWithContext(ctx context.Context, messages ...*Msg) e
 // determines the supported authentication methods, and applies the appropriate authentication
 // type. An error is returned if authentication fails.
 //
-// This method first verifies the connection to the SMTP server. If no custom authentication
-// mechanism is provided, it checks which authentication methods are supported by the server.
-// Based on the configured SMTPAuthType, it sets up the appropriate authentication mechanism.
+// By default NewClient sets the SMTP authentication type to SMTPAuthNoAuth, meaning, that no
+// SMTP authentication will be performed. If the user makes use of SetSMTPAuth or initialzes the
+// client with WithSMTPAuth, the SMTP authentication type will be set in the Client, forcing
+// this method to determine if the server supports the selected authentication method and
+// assigning the corresponding smtp.Auth function to it.
+//
+// If the user set a custom SMTP authentication function using SetSMTPAuthCustom or
+// WithSMTPAuthCustom, we will not perform any detection and assignment logic and will trust
+// the user with their provided smtp.Auth function.
+//
 // Finally, it attempts to authenticate the client using the selected method.
 //
 // Returns:
@@ -1040,7 +1048,8 @@ func (c *Client) auth() error {
 	if err := c.checkConn(); err != nil {
 		return fmt.Errorf("failed to authenticate: %w", err)
 	}
-	if c.smtpAuth == nil && c.smtpAuthType != SMTPAuthCustom {
+
+	if c.smtpAuth == nil && c.smtpAuthType != SMTPAuthNoAuth {
 		hasSMTPAuth, smtpAuthType := c.smtpClient.Extension("AUTH")
 		if !hasSMTPAuth {
 			return fmt.Errorf("server does not support SMTP AUTH")
