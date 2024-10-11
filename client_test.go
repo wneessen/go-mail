@@ -1188,8 +1188,8 @@ func TestClient_DialWithContext_switchAuth(t *testing.T) {
 
 	// We switch to LOGIN auth, which the server supports
 	client.SetSMTPAuth(SMTPAuthLogin)
-	client.SetUsername(os.Getenv("TEST_USER"))
-	client.SetPassword(os.Getenv("TEST_PASS"))
+	client.SetUsername(os.Getenv("TEST_SMTPAUTH_USER"))
+	client.SetPassword(os.Getenv("TEST_SMTPAUTH_PASS"))
 	if err = client.DialWithContext(context.Background()); err != nil {
 		t.Errorf("failed to dial to sending server: %s", err)
 	}
@@ -1208,8 +1208,8 @@ func TestClient_DialWithContext_switchAuth(t *testing.T) {
 	}
 
 	// We switch to CUSTOM by providing PLAIN auth as function - the server supports this
-	client.SetSMTPAuthCustom(smtp.PlainAuth("", os.Getenv("TEST_USER"), os.Getenv("TEST_PASS"),
-		os.Getenv("TEST_HOST")))
+	client.SetSMTPAuthCustom(smtp.PlainAuth("", os.Getenv("TEST_SMTPAUTH_USER"),
+		os.Getenv("TEST_SMTPAUTH_PASS"), os.Getenv("TEST_HOST")))
 	if client.smtpAuthType != SMTPAuthCustom {
 		t.Errorf("expected auth type to be Custom, got: %s", client.smtpAuthType)
 	}
