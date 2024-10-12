@@ -82,7 +82,8 @@ type Client struct {
 	localName string // the name to use in HELO/EHLO
 
 	// logger will be used for debug logging
-	logger log.Logger
+	logger       log.Logger
+	authIsActive bool
 
 	// mutex is used to synchronize access to shared resources, ensuring that only one goroutine can access
 	// the resource at a time.
@@ -174,7 +175,12 @@ func (c *Client) Hello(localName string) error {
 func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, string, error) {
 	c.mutex.Lock()
 
-	c.debugLog(log.DirClientToServer, format, args...)
+	var logMsg []interface{}
+	logMsg = args
+	if c.authIsActive {
+		logMsg = []interface{}{"<auth redacted>"}
+	}
+	c.debugLog(log.DirClientToServer, format, logMsg...)
 	id, err := c.Text.Cmd(format, args...)
 	if err != nil {
 		c.mutex.Unlock()
@@ -182,7 +188,12 @@ func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, s
 	}
 	c.Text.StartResponse(id)
 	code, msg, err := c.Text.ReadResponse(expectCode)
-	c.debugLog(log.DirServerToClient, "%d %s", code, msg)
+
+	logMsg = []interface{}{code, msg}
+	if c.authIsActive && code >= 300 {
+		logMsg = []interface{}{code, "<auth redacted>"}
+	}
+	c.debugLog(log.DirServerToClient, "%d %s", logMsg...)
 	c.Text.EndResponse(id)
 	c.mutex.Unlock()
 	return code, msg, err
@@ -256,6 +267,16 @@ func (c *Client) Auth(a Auth) error {
 	if err := c.hello(); err != nil {
 		return err
 	}
+
+	c.mutex.Lock()
+	c.authIsActive = true
+	c.mutex.Unlock()
+	defer func() {
+		c.mutex.Lock()
+		c.authIsActive = false
+		c.mutex.Unlock()
+	}()
+
 	encoding := base64.StdEncoding
 	mech, resp, err := a.Start(&ServerInfo{c.serverName, c.tls, c.auth})
 	if err != nil {
