@@ -54,6 +54,9 @@ type Client struct {
 	// auth supported auth mechanisms
 	auth []string
 
+	// authIsActive indicates that the Client is currently during SMTP authentication
+	authIsActive bool
+
 	// keep a reference to the connection so it can be used to create a TLS connection later
 	conn net.Conn
 
@@ -78,12 +81,14 @@ type Client struct {
 	// isConnected indicates if the Client has an active connection
 	isConnected bool
 
+	// logAuthData indicates if the Client should include SMTP authentication data in the logs
+	logAuthData bool
+
 	// localName is the name to use in HELO/EHLO
 	localName string // the name to use in HELO/EHLO
 
 	// logger will be used for debug logging
-	logger       log.Logger
-	authIsActive bool
+	logger log.Logger
 
 	// mutex is used to synchronize access to shared resources, ensuring that only one goroutine can access
 	// the resource at a time.
@@ -177,10 +182,13 @@ func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, s
 
 	var logMsg []interface{}
 	logMsg = args
+	logFmt := format
 	if c.authIsActive {
-		logMsg = []interface{}{"<auth redacted>"}
+		logMsg = []interface{}{"<SMTP auth data redacted>"}
+		logFmt = "%s"
 	}
-	c.debugLog(log.DirClientToServer, format, logMsg...)
+	c.debugLog(log.DirClientToServer, logFmt, logMsg...)
+
 	id, err := c.Text.Cmd(format, args...)
 	if err != nil {
 		c.mutex.Unlock()
@@ -190,10 +198,11 @@ func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, s
 	code, msg, err := c.Text.ReadResponse(expectCode)
 
 	logMsg = []interface{}{code, msg}
-	if c.authIsActive && code >= 300 {
-		logMsg = []interface{}{code, "<auth redacted>"}
+	if c.authIsActive && code >= 300 && code <= 400 {
+		logMsg = []interface{}{code, "<SMTP auth data redacted>"}
 	}
 	c.debugLog(log.DirServerToClient, "%d %s", logMsg...)
+
 	c.Text.EndResponse(id)
 	c.mutex.Unlock()
 	return code, msg, err
@@ -269,11 +278,15 @@ func (c *Client) Auth(a Auth) error {
 	}
 
 	c.mutex.Lock()
-	c.authIsActive = true
+	if !c.logAuthData {
+		c.authIsActive = true
+	}
 	c.mutex.Unlock()
 	defer func() {
 		c.mutex.Lock()
-		c.authIsActive = false
+		if !c.logAuthData {
+			c.authIsActive = false
+		}
 		c.mutex.Unlock()
 	}()
 
@@ -575,6 +588,13 @@ func (c *Client) SetLogger(l log.Logger) {
 		return
 	}
 	c.logger = l
+}
+
+// SetLogAuthData enables logging of authentication data in the Client.
+func (c *Client) SetLogAuthData() {
+	c.mutex.Lock()
+	c.logAuthData = true
+	c.mutex.Unlock()
 }
 
 // SetDSNMailReturnOption sets the DSN mail return option for the Mail method
