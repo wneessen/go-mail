@@ -145,6 +145,9 @@ type (
 		// isEncrypted indicates wether the Client connection is encrypted or not.
 		isEncrypted bool
 
+		// logAuthData indicates whether authentication-related data should be logged.
+		logAuthData bool
+
 		// logger is a logger that satisfies the log.Logger interface.
 		logger log.Logger
 
@@ -364,9 +367,10 @@ func WithSSLPort(fallback bool) Option {
 // WithDebugLog enables debug logging for the Client.
 //
 // This function activates debug logging, which logs incoming and outgoing communication between the
-// Client and the SMTP server to os.Stderr. Be cautious when using this option, as the logs may include
-// unencrypted authentication data, depending on the SMTP authentication method in use, which could
-// pose a data protection risk.
+// Client and the SMTP server to os.Stderr. By default the debug logging will redact any kind of SMTP
+// authentication data. If you need access to the actual authentication data in your logs, you can
+// enable authentication data logging with the WithLogAuthData option or by setting it with the
+// Client.SetLogAuthData method.
 //
 // Returns:
 //   - An Option function that enables debug logging for the Client.
@@ -671,6 +675,22 @@ func WithDialContextFunc(dialCtxFunc DialContextFunc) Option {
 	}
 }
 
+// WithLogAuthData enables logging of authentication data.
+//
+// This function sets the logAuthData field of the Client to true, enabling the logging of authentication data.
+//
+// Be cautious when using this option, as the logs may include unencrypted authentication data, depending on
+// the SMTP authentication method in use, which could pose a data protection risk.
+//
+// Returns:
+//   - An Option function that configures the Client to enable authentication data logging.
+func WithLogAuthData() Option {
+	return func(c *Client) error {
+		c.logAuthData = true
+		return nil
+	}
+}
+
 // TLSPolicy returns the TLSPolicy that is currently set on the Client as a string.
 //
 // This method retrieves the current TLSPolicy configured for the Client and returns it as a string representation.
@@ -865,6 +885,19 @@ func (c *Client) SetSMTPAuthCustom(smtpAuth smtp.Auth) {
 	c.smtpAuthType = SMTPAuthCustom
 }
 
+// SetLogAuthData sets or overrides the logging of SMTP authentication data for the Client.
+//
+// This function sets the logAuthData field of the Client to true, enabling the logging of authentication data.
+//
+// Be cautious when using this option, as the logs may include unencrypted authentication data, depending on
+// the SMTP authentication method in use, which could pose a data protection risk.
+//
+// Parameters:
+//   - logAuth: Set wether or not to log SMTP authentication data for the Client.
+func (c *Client) SetLogAuthData(logAuth bool) {
+	c.logAuthData = logAuth
+}
+
 // DialWithContext establishes a connection to the server using the provided context.Context.
 //
 // This function adds a deadline based on the Client's timeout to the provided context.Context
@@ -920,6 +953,9 @@ func (c *Client) DialWithContext(dialCtx context.Context) error {
 	}
 	if c.useDebugLog {
 		c.smtpClient.SetDebugLog(true)
+	}
+	if c.logAuthData {
+		c.smtpClient.SetLogAuthData()
 	}
 	if err = c.smtpClient.Hello(c.helo); err != nil {
 		return err
