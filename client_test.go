@@ -123,6 +123,7 @@ func TestNewClientWithOptions(t *testing.T) {
 		{"WithoutNoop()", WithoutNoop(), false},
 		{"WithDebugLog()", WithDebugLog(), false},
 		{"WithLogger()", WithLogger(log.New(os.Stderr, log.LevelDebug)), false},
+		{"WithLogger()", WithLogAuthData(), false},
 		{"WithDialContextFunc()", WithDialContextFunc(func(ctx context.Context, network, address string) (net.Conn, error) {
 			return nil, nil
 		}), false},
@@ -575,6 +576,23 @@ func TestWithoutNoop(t *testing.T) {
 	}
 	if c.noNoop {
 		t.Errorf("WithoutNoop failed. c.noNoop expected to be: %t, got: %t", false, c.noNoop)
+	}
+}
+
+func TestClient_SetLogAuthData(t *testing.T) {
+	c, err := NewClient(DefaultHost, WithLogAuthData())
+	if err != nil {
+		t.Errorf("failed to create new client: %s", err)
+		return
+	}
+	if !c.logAuthData {
+		t.Errorf("WithLogAuthData failed. c.logAuthData expected to be: %t, got: %t", true,
+			c.logAuthData)
+	}
+	c.SetLogAuthData(false)
+	if c.logAuthData {
+		t.Errorf("SetLogAuthData failed. c.logAuthData expected to be: %t, got: %t", false,
+			c.logAuthData)
 	}
 }
 

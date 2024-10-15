@@ -54,6 +54,9 @@ type Client struct {
 	// auth supported auth mechanisms
 	auth []string
 
+	// authIsActive indicates that the Client is currently during SMTP authentication
+	authIsActive bool
+
 	// keep a reference to the connection so it can be used to create a TLS connection later
 	conn net.Conn
 
@@ -77,6 +80,9 @@ type Client struct {
 
 	// isConnected indicates if the Client has an active connection
 	isConnected bool
+
+	// logAuthData indicates if the Client should include SMTP authentication data in the logs
+	logAuthData bool
 
 	// localName is the name to use in HELO/EHLO
 	localName string // the name to use in HELO/EHLO
@@ -174,7 +180,15 @@ func (c *Client) Hello(localName string) error {
 func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, string, error) {
 	c.mutex.Lock()
 
-	c.debugLog(log.DirClientToServer, format, args...)
+	var logMsg []interface{}
+	logMsg = args
+	logFmt := format
+	if c.authIsActive {
+		logMsg = []interface{}{"<SMTP auth data redacted>"}
+		logFmt = "%s"
+	}
+	c.debugLog(log.DirClientToServer, logFmt, logMsg...)
+
 	id, err := c.Text.Cmd(format, args...)
 	if err != nil {
 		c.mutex.Unlock()
@@ -182,7 +196,13 @@ func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, s
 	}
 	c.Text.StartResponse(id)
 	code, msg, err := c.Text.ReadResponse(expectCode)
-	c.debugLog(log.DirServerToClient, "%d %s", code, msg)
+
+	logMsg = []interface{}{code, msg}
+	if c.authIsActive && code >= 300 && code <= 400 {
+		logMsg = []interface{}{code, "<SMTP auth data redacted>"}
+	}
+	c.debugLog(log.DirServerToClient, "%d %s", logMsg...)
+
 	c.Text.EndResponse(id)
 	c.mutex.Unlock()
 	return code, msg, err
@@ -256,6 +276,20 @@ func (c *Client) Auth(a Auth) error {
 	if err := c.hello(); err != nil {
 		return err
 	}
+
+	c.mutex.Lock()
+	if !c.logAuthData {
+		c.authIsActive = true
+	}
+	c.mutex.Unlock()
+	defer func() {
+		c.mutex.Lock()
+		if !c.logAuthData {
+			c.authIsActive = false
+		}
+		c.mutex.Unlock()
+	}()
+
 	encoding := base64.StdEncoding
 	mech, resp, err := a.Start(&ServerInfo{c.serverName, c.tls, c.auth})
 	if err != nil {
@@ -554,6 +588,13 @@ func (c *Client) SetLogger(l log.Logger) {
 		return
 	}
 	c.logger = l
+}
+
+// SetLogAuthData enables logging of authentication data in the Client.
+func (c *Client) SetLogAuthData() {
+	c.mutex.Lock()
+	c.logAuthData = true
+	c.mutex.Unlock()
 }
 
 // SetDSNMailReturnOption sets the DSN mail return option for the Mail method

@@ -1111,6 +1111,32 @@ func TestClient_SetLogger(t *testing.T) {
 	c.logger.Debugf(log.Log{Direction: log.DirServerToClient, Format: "%s", Messages: []interface{}{"test"}})
 }
 
+func TestClient_SetLogAuthData(t *testing.T) {
+	server := strings.Join(strings.Split(newClientServer, "\n"), "\r\n")
+
+	var cmdbuf strings.Builder
+	bcmdbuf := bufio.NewWriter(&cmdbuf)
+	out := func() string {
+		if err := bcmdbuf.Flush(); err != nil {
+			t.Errorf("failed to flush: %s", err)
+		}
+		return cmdbuf.String()
+	}
+	var fake faker
+	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
+	c, err := NewClient(fake, "fake.host")
+	if err != nil {
+		t.Fatalf("NewClient: %v\n(after %v)", err, out())
+	}
+	defer func() {
+		_ = c.Close()
+	}()
+	c.SetLogAuthData()
+	if !c.logAuthData {
+		t.Error("Expected logAuthData to be true but received false")
+	}
+}
+
 var newClientServer = `220 hello world
 250-mx.google.com at your service
 250-SIZE 35651584
