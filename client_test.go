@@ -1180,6 +1180,81 @@ func TestClient_Send_withBrokenRecipient(t *testing.T) {
 	}
 }
 
+func TestClient_DialWithContext_switchAuth(t *testing.T) {
+	if os.Getenv("TEST_ALLOW_SEND") == "" {
+		t.Skipf("TEST_ALLOW_SEND is not set. Skipping mail sending test")
+	}
+
+	// We start with no auth explicitly set
+	client, err := NewClient(
+		os.Getenv("TEST_HOST"),
+		WithTLSPortPolicy(TLSMandatory),
+	)
+	defer func() {
+		_ = client.Close()
+	}()
+	if err != nil {
+		t.Errorf("failed to create client: %s", err)
+		return
+	}
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to sending server: %s", err)
+	}
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close client connection: %s", err)
+	}
+
+	// We switch to LOGIN auth, which the server supports
+	client.SetSMTPAuth(SMTPAuthLogin)
+	client.SetUsername(os.Getenv("TEST_SMTPAUTH_USER"))
+	client.SetPassword(os.Getenv("TEST_SMTPAUTH_PASS"))
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to sending server: %s", err)
+	}
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close client connection: %s", err)
+	}
+
+	// We switch to CRAM-MD5, which the server does not support - error expected
+	client.SetSMTPAuth(SMTPAuthCramMD5)
+	if err = client.DialWithContext(context.Background()); err == nil {
+		t.Errorf("expected error when dialing with unsupported auth mechanism, got nil")
+		return
+	}
+	if !errors.Is(err, ErrCramMD5AuthNotSupported) {
+		t.Errorf("expected dial error: %s, but got: %s", ErrCramMD5AuthNotSupported, err)
+	}
+
+	// We switch to CUSTOM by providing PLAIN auth as function - the server supports this
+	client.SetSMTPAuthCustom(smtp.PlainAuth("", os.Getenv("TEST_SMTPAUTH_USER"),
+		os.Getenv("TEST_SMTPAUTH_PASS"), os.Getenv("TEST_HOST")))
+	if client.smtpAuthType != SMTPAuthCustom {
+		t.Errorf("expected auth type to be Custom, got: %s", client.smtpAuthType)
+	}
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to sending server: %s", err)
+	}
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close client connection: %s", err)
+	}
+
+	// We switch back to explicit no authenticaiton
+	client.SetSMTPAuth(SMTPAuthNoAuth)
+	if err = client.DialWithContext(context.Background()); err != nil {
+		t.Errorf("failed to dial to sending server: %s", err)
+	}
+	if err = client.Close(); err != nil {
+		t.Errorf("failed to close client connection: %s", err)
+	}
+
+	// Finally we set an empty string as SMTPAuthType and expect and error. This way we can
+	// verify that we do not accidentaly skip authentication with an empty string SMTPAuthType
+	client.SetSMTPAuth("")
+	if err = client.DialWithContext(context.Background()); err == nil {
+		t.Errorf("expected error when dialing with empty auth mechanism, got nil")
+	}
+}
+
 // TestClient_auth tests the Dial(), Send() and Close() method of Client with broken settings
 func TestClient_auth(t *testing.T) {
 	tests := []struct {

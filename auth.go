@@ -47,7 +47,7 @@ const (
 	// SMTPAuthNoAuth is equivalent to performing no authentication at all. It is a convenience
 	// option and should not be used. Instead, for mail servers that do no support/require
 	// authentication, the Client should not be passed the WithSMTPAuth option at all.
-	SMTPAuthNoAuth SMTPAuthType = ""
+	SMTPAuthNoAuth SMTPAuthType = "NOAUTH"
 
 	// SMTPAuthPlain is the "PLAIN" authentication mechanism as described in RFC 4616.
 	//
