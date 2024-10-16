@@ -383,7 +383,7 @@ ReadNextPart:
 		return fmt.Errorf("failed to get next part of multipart message: %w", err)
 	}
 	for err == nil {
-		// Multipart/related and Multipart/alternative parts need to be parsed seperately
+		// Multipart/related and Multipart/alternative parts need to be parsed separately
 		if contentTypeSlice, ok := multiPart.Header[HeaderContentType.String()]; ok && len(contentTypeSlice) == 1 {
 			contentType, _ := parseMultiPartHeader(contentTypeSlice[0])
 			if strings.EqualFold(contentType, TypeMultipartRelated.String()) ||
