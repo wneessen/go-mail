@@ -2163,7 +2163,7 @@ func SkipFlaky(t testing.TB, issue int) {
 }
 
 // testSCRAMSMTPServer represents a test server for SCRAM-based SMTP authentication.
-// It does not do any acutal computation of the challanges but verifies that the expected
+// It does not do any acutal computation of the challenges but verifies that the expected
 // fields are present. We have actual real authentication tests for all SCRAM modes in the
 // go-mail client_test.go
 type testSCRAMSMTPServer struct {

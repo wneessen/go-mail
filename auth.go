@@ -35,7 +35,7 @@ const (
 	// IETF draft. The IETF draft is more lax than the MS spec, therefore we follow the I-D, which
 	// automatically matches the MS spec.
 	//
-	// Since the "LOGIN" SASL authentication mechansim transmits the username and password in
+	// Since the "LOGIN" SASL authentication mechanism transmits the username and password in
 	// plaintext over the internet connection, we only allow this mechanism over a TLS secured
 	// connection.
 	//
@@ -51,7 +51,7 @@ const (
 
 	// SMTPAuthPlain is the "PLAIN" authentication mechanism as described in RFC 4616.
 	//
-	// Since the "PLAIN" SASL authentication mechansim transmits the username and password in
+	// Since the "PLAIN" SASL authentication mechanism transmits the username and password in
 	// plaintext over the internet connection, we only allow this mechanism over a TLS secured
 	// connection.
 	//
@@ -76,7 +76,7 @@ const (
 	//
 	// SCRAM-SHA-X-PLUS authentication require TLS channel bindings to protect against MitM attacks and
 	// to guarantee that the integrity of the transport layer is preserved throughout the authentication
-	// process. Therefore we only allow this mechansim over a TLS secured connection.
+	// process. Therefore we only allow this mechanism over a TLS secured connection.
 	//
 	// SCRAM-SHA-1-PLUS is still considered secure for certain applications, particularly when used as part
 	// of a challenge-response authentication mechanism (as we use it). However, it is generally
@@ -95,7 +95,7 @@ const (
 	//
 	// SCRAM-SHA-X-PLUS authentication require TLS channel bindings to protect against MitM attacks and
 	// to guarantee that the integrity of the transport layer is preserved throughout the authentication
-	// process. Therefore we only allow this mechansim over a TLS secured connection.
+	// process. Therefore we only allow this mechanism over a TLS secured connection.
 	//
 	// https://datatracker.ietf.org/doc/html/rfc7677
 	SMTPAuthSCRAMSHA256PLUS SMTPAuthType = "SCRAM-SHA-256-PLUS"
