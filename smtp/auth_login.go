@@ -29,7 +29,7 @@ type loginAuth struct {
 // See: https://datatracker.ietf.org/doc/html/draft-murchison-sasl-login-00
 // Since there is no official standard RFC and we've seen different implementations
 // of this mechanism (sending "Username:", "Username", "username", "User name", etc.)
-// we follow the IETF-Draft and ignore any server challange to allow compatiblity
+// we follow the IETF-Draft and ignore any server challenge to allow compatibility
 // with most mail servers/providers.
 //
 // LoginAuth will only send the credentials if the connection is using TLS
