@@ -41,42 +41,48 @@ func NewJSON(output io.Writer, level Level) *JSONlog {
 	}
 }
 
+// logMessage is a helper function to handle different log levels and formats.
+func logMessage(level Level, log *slog.Logger, logData Log, formatFunc func(string, ...interface{}) string) {
+	lGroup := log.WithGroup(DirString).With(
+		slog.String(DirFromString, logData.directionFrom()),
+		slog.String(DirToString, logData.directionTo()),
+	)
+	switch level {
+	case LevelDebug:
+		lGroup.Debug(formatFunc(logData.Format, logData.Messages...))
+	case LevelInfo:
+		lGroup.Info(formatFunc(logData.Format, logData.Messages...))
+	case LevelWarn:
+		lGroup.Warn(formatFunc(logData.Format, logData.Messages...))
+	case LevelError:
+		lGroup.Error(formatFunc(logData.Format, logData.Messages...))
+	}
+}
+
 // Debugf logs a debug message via the structured JSON logger
 func (l *JSONlog) Debugf(log Log) {
 	if l.level >= LevelDebug {
-		l.log.WithGroup(DirString).With(
-			slog.String(DirFromString, log.directionFrom()),
-			slog.String(DirToString, log.directionTo()),
-		).Debug(fmt.Sprintf(log.Format, log.Messages...))
+		logMessage(LevelDebug, l.log, log, fmt.Sprintf)
 	}
 }
 
 // Infof logs a info message via the structured JSON logger
 func (l *JSONlog) Infof(log Log) {
 	if l.level >= LevelInfo {
-		l.log.WithGroup(DirString).With(
-			slog.String(DirFromString, log.directionFrom()),
-			slog.String(DirToString, log.directionTo()),
-		).Info(fmt.Sprintf(log.Format, log.Messages...))
+		logMessage(LevelInfo, l.log, log, fmt.Sprintf)
 	}
 }
 
 // Warnf logs a warn message via the structured JSON logger
 func (l *JSONlog) Warnf(log Log) {
 	if l.level >= LevelWarn {
-		l.log.WithGroup(DirString).With(
-			slog.String(DirFromString, log.directionFrom()),
-			slog.String(DirToString, log.directionTo()),
-		).Warn(fmt.Sprintf(log.Format, log.Messages...))
+		logMessage(LevelWarn, l.log, log, fmt.Sprintf)
 	}
 }
 
 // Errorf logs a warn message via the structured JSON logger
 func (l *JSONlog) Errorf(log Log) {
 	if l.level >= LevelError {
-		l.log.WithGroup(DirString).With(
-			slog.String(DirFromString, log.directionFrom()),
-			slog.String(DirToString, log.directionTo()),
-		).Error(fmt.Sprintf(log.Format, log.Messages...))
+		logMessage(LevelError, l.log, log, fmt.Sprintf)
 	}
 }

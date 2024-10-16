@@ -35,34 +35,36 @@ func New(output io.Writer, level Level) *Stdlog {
 	}
 }
 
+// logStdMessage is a helper function to handle different log levels and formats for Stdlog.
+func logStdMessage(logger *log.Logger, logData Log, callDepth int) {
+	format := fmt.Sprintf("%s %s", logData.directionPrefix(), logData.Format)
+	_ = logger.Output(callDepth, fmt.Sprintf(format, logData.Messages...))
+}
+
 // Debugf performs a Printf() on the debug logger
 func (l *Stdlog) Debugf(log Log) {
 	if l.level >= LevelDebug {
-		format := fmt.Sprintf("%s %s", log.directionPrefix(), log.Format)
-		_ = l.debug.Output(CallDepth, fmt.Sprintf(format, log.Messages...))
+		logStdMessage(l.debug, log, CallDepth)
 	}
 }
 
 // Infof performs a Printf() on the info logger
 func (l *Stdlog) Infof(log Log) {
 	if l.level >= LevelInfo {
-		format := fmt.Sprintf("%s %s", log.directionPrefix(), log.Format)
-		_ = l.info.Output(CallDepth, fmt.Sprintf(format, log.Messages...))
+		logStdMessage(l.info, log, CallDepth)
 	}
 }
 
 // Warnf performs a Printf() on the warn logger
 func (l *Stdlog) Warnf(log Log) {
 	if l.level >= LevelWarn {
-		format := fmt.Sprintf("%s %s", log.directionPrefix(), log.Format)
-		_ = l.warn.Output(CallDepth, fmt.Sprintf(format, log.Messages...))
+		logStdMessage(l.warn, log, CallDepth)
 	}
 }
 
 // Errorf performs a Printf() on the error logger
 func (l *Stdlog) Errorf(log Log) {
 	if l.level >= LevelError {
-		format := fmt.Sprintf("%s %s", log.directionPrefix(), log.Format)
-		_ = l.err.Output(CallDepth, fmt.Sprintf(format, log.Messages...))
+		logStdMessage(l.err, log, CallDepth)
 	}
 }
