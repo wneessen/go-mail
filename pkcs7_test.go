@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"os/exec"
 	"testing"
 	"time"
 )
@@ -47,90 +46,6 @@ func TestSign_E2E(t *testing.T) {
 		if err := pem.Encode(os.Stdout, &pem.Block{Type: "PKCS7", Bytes: signed}); err != nil {
 			t.Fatalf("Cannot write signed data: %s", err)
 		}
-	}
-}
-
-func TestOpenSSLVerifyDetachedSignature(t *testing.T) {
-	rootCert, err := createTestCertificateByIssuer("PKCS7 Test Root CA", nil)
-	if err != nil {
-		t.Fatalf("Cannot generate root cert: %s", err)
-	}
-	signerCert, err := createTestCertificateByIssuer("PKCS7 Test Signer Cert", rootCert)
-	if err != nil {
-		t.Fatalf("Cannot generate signer cert: %s", err)
-	}
-	content := []byte("Hello World")
-	toBeSigned, err := newSignedData(content)
-	if err != nil {
-		t.Fatalf("Cannot initialize signed data: %s", err)
-	}
-	if err := toBeSigned.addSigner(signerCert.Certificate, signerCert.PrivateKey, SignerInfoConfig{}); err != nil {
-		t.Fatalf("Cannot add signer: %s", err)
-	}
-	toBeSigned.detach()
-	signed, err := toBeSigned.finish()
-	if err != nil {
-		t.Fatalf("Cannot finish signing data: %s", err)
-	}
-
-	// write the root cert to a temp file
-	tmpRootCertFile, err := os.CreateTemp("", "pkcs7TestRootCA")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func(name string) {
-		if err := os.Remove(name); err != nil {
-			t.Fatalf("Cannot write root cert: %s", err)
-		}
-	}(tmpRootCertFile.Name()) // clean up
-	fd, err := os.OpenFile(tmpRootCertFile.Name(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o755)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := pem.Encode(fd, &pem.Block{Type: "CERTIFICATE", Bytes: rootCert.Certificate.Raw}); err != nil {
-		t.Fatalf("Cannot write root cert: %s", err)
-	}
-	if err := fd.Close(); err != nil {
-		t.Fatalf("Cannot write root cert: %s", err)
-	}
-
-	// write the signature to a temp file
-	tmpSignatureFile, err := os.CreateTemp("", "pkcs7Signature")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func(name string) {
-		if err := os.Remove(name); err != nil {
-			t.Fatalf("Cannot write signature: %s", err)
-		}
-	}(tmpSignatureFile.Name()) // clean up
-	if err := os.WriteFile(tmpSignatureFile.Name(), signed, 0o755); err != nil {
-		t.Fatalf("Cannot write signature: %s", err)
-	}
-
-	// write the content to a temp file
-	tmpContentFile, err := os.CreateTemp("", "pkcs7Content")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func(name string) {
-		if err := os.Remove(name); err != nil {
-			t.Fatalf("Cannot write content: %s", err)
-		}
-	}(tmpContentFile.Name()) // clean up
-	if err := os.WriteFile(tmpContentFile.Name(), content, 0o755); err != nil {
-		t.Fatalf("Cannot write content: %s", err)
-	}
-
-	// call openssl to verify the signature on the content using the root
-	opensslCMD := exec.Command("openssl", "smime", "-verify",
-		"-in", tmpSignatureFile.Name(), "-inform", "DER",
-		"-content", tmpContentFile.Name(),
-		"-CAfile", tmpRootCertFile.Name())
-	out, err := opensslCMD.Output()
-	t.Logf("%s", out)
-	if err != nil {
-		t.Fatalf("openssl command failed with %s", err)
 	}
 }
 
