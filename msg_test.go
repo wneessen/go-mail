@@ -3371,7 +3371,7 @@ func TestSignWithSMime_ValidECDSAKeyPair(t *testing.T) {
 	if err := m.SignWithSMimeECDSA(privateKey, certificate, intermediateCertificate); err != nil {
 		t.Errorf("failed to set sMime. Cause: %v", err)
 	}
-	if m.sMime.privateKey.rsa == nil {
+	if m.sMime.privateKey.ecdsa == nil {
 		t.Errorf("WithSMimeSinging() - no private key is given")
 	}
 	if m.sMime.certificate == nil {

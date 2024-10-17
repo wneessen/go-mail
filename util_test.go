@@ -16,7 +16,7 @@ const (
 	keyRSAFilePath  = "dummy-child-key-rsa.pem"
 
 	certECDSAFilePath = "dummy-chain-cert-ecdsa.pem"
-	keyECDSAFilePath  = "dummy-child-cert-ecdsa.pem"
+	keyECDSAFilePath  = "dummy-child-key-ecdsa.pem"
 )
 
 // getDummyRSACryptoMaterial loads a certificate (RSA) and the associated private key (ECDSA) form local disk for testing purposes
