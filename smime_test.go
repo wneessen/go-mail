@@ -6,25 +6,72 @@ package mail
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/rsa"
 	"encoding/base64"
 	"fmt"
 	"strings"
 	"testing"
 )
 
-// TestNewSMime tests the newSMime method
-func TestNewSMime(t *testing.T) {
-	privateKey, certificate, intermediateCertificate, err := getDummyCryptoMaterial()
+func TestGet_RSA(t *testing.T) {
+	p := privateKeyHolder{
+		ecdsa: nil,
+		rsa:   &rsa.PrivateKey{},
+	}
+
+	if p.get() == nil {
+		t.Errorf("get() did not return the correct private key")
+	}
+}
+
+func TestGet_ECDSA(t *testing.T) {
+	p := privateKeyHolder{
+		ecdsa: &ecdsa.PrivateKey{},
+		rsa:   nil,
+	}
+
+	if p.get() == nil {
+		t.Errorf("get() did not return the correct private key")
+	}
+}
+
+// TestNewSMimeWithRSA tests the newSMime method with RSA crypto material
+func TestNewSMimeWithRSA(t *testing.T) {
+	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
 	if err != nil {
 		t.Errorf("Error getting dummy crypto material: %s", err)
 	}
 
-	sMime, err := newSMime(privateKey, certificate, intermediateCertificate)
+	sMime, err := newSMimeWithRSA(privateKey, certificate, intermediateCertificate)
 	if err != nil {
 		t.Errorf("Error creating new SMime from keyPair: %s", err)
 	}
 
-	if sMime.privateKey != privateKey {
+	if sMime.privateKey.rsa != privateKey {
+		t.Errorf("NewSMime() did not return the same private key")
+	}
+	if sMime.certificate != certificate {
+		t.Errorf("NewSMime() did not return the same certificate")
+	}
+	if sMime.intermediateCertificate != intermediateCertificate {
+		t.Errorf("NewSMime() did not return the same intermedidate certificate")
+	}
+}
+
+// TestNewSMimeWithECDSA tests the newSMime method with ECDSA crypto material
+func TestNewSMimeWithECDSA(t *testing.T) {
+	privateKey, certificate, intermediateCertificate, err := getDummyECDSACryptoMaterial()
+	if err != nil {
+		t.Errorf("Error getting dummy crypto material: %s", err)
+	}
+
+	sMime, err := newSMimeWithECDSA(privateKey, certificate, intermediateCertificate)
+	if err != nil {
+		t.Errorf("Error creating new SMime from keyPair: %s", err)
+	}
+
+	if sMime.privateKey.ecdsa != privateKey {
 		t.Errorf("NewSMime() did not return the same private key")
 	}
 	if sMime.certificate != certificate {
@@ -37,12 +84,12 @@ func TestNewSMime(t *testing.T) {
 
 // TestSign tests the sign method
 func TestSign(t *testing.T) {
-	privateKey, certificate, intermediateCertificate, err := getDummyCryptoMaterial()
+	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
 	if err != nil {
 		t.Errorf("Error getting dummy crypto material: %s", err)
 	}
 
-	sMime, err := newSMime(privateKey, certificate, intermediateCertificate)
+	sMime, err := newSMimeWithRSA(privateKey, certificate, intermediateCertificate)
 	if err != nil {
 		t.Errorf("Error creating new SMime from keyPair: %s", err)
 	}
@@ -60,12 +107,12 @@ func TestSign(t *testing.T) {
 
 // TestPrepareMessage tests the createMessage method
 func TestPrepareMessage(t *testing.T) {
-	privateKey, certificate, intermediateCertificate, err := getDummyCryptoMaterial()
+	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
 	if err != nil {
 		t.Errorf("Error getting dummy crypto material: %s", err)
 	}
 
-	sMime, err := newSMime(privateKey, certificate, intermediateCertificate)
+	sMime, err := newSMimeWithRSA(privateKey, certificate, intermediateCertificate)
 	if err != nil {
 		t.Errorf("Error creating new SMime from keyPair: %s", err)
 	}

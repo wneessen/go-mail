@@ -7,7 +7,9 @@ package mail
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"embed"
 	"errors"
@@ -338,14 +340,48 @@ func WithNoDefaultUserAgent() MsgOption {
 	}
 }
 
-// SignWithSMime configures the Msg to be signed with S/MIME
-func (m *Msg) SignWithSMime(privateKey *rsa.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) error {
-	sMime, err := newSMime(privateKey, certificate, intermediateCertificate)
+// SignWithSMimeRSA configures the Msg to be signed with S/MIME
+func (m *Msg) SignWithSMimeRSA(privateKey *rsa.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) error {
+	sMime, err := newSMimeWithRSA(privateKey, certificate, intermediateCertificate)
 	if err != nil {
 		return err
 	}
 	m.sMime = sMime
 	return nil
+}
+
+// SignWithSMimeECDSA configures the Msg to be signed with S/MIME
+func (m *Msg) SignWithSMimeECDSA(privateKey *ecdsa.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) error {
+	sMime, err := newSMimeWithECDSA(privateKey, certificate, intermediateCertificate)
+	if err != nil {
+		return err
+	}
+	m.sMime = sMime
+	return nil
+}
+
+// SignWithTLSCertificate signs the Msg with the provided *tls.certificate.
+func (m *Msg) SignWithTLSCertificate(keyPairTlS *tls.Certificate) error {
+	intermediateCertificate, err := x509.ParseCertificate(keyPairTlS.Certificate[1])
+	if err != nil {
+		return fmt.Errorf("failed to parse intermediate certificate: %w", err)
+	}
+
+	switch keyPairTlS.PrivateKey.(type) {
+	case *rsa.PrivateKey:
+		if intermediateCertificate == nil {
+			return m.SignWithSMimeRSA(keyPairTlS.PrivateKey.(*rsa.PrivateKey), keyPairTlS.Leaf, nil)
+		}
+		return m.SignWithSMimeRSA(keyPairTlS.PrivateKey.(*rsa.PrivateKey), keyPairTlS.Leaf, intermediateCertificate)
+
+	case *ecdsa.PrivateKey:
+		if intermediateCertificate == nil {
+			return m.SignWithSMimeECDSA(keyPairTlS.PrivateKey.(*ecdsa.PrivateKey), keyPairTlS.Leaf, nil)
+		}
+		return m.SignWithSMimeECDSA(keyPairTlS.PrivateKey.(*ecdsa.PrivateKey), keyPairTlS.Leaf, intermediateCertificate)
+	default:
+		return fmt.Errorf("unsupported private key type: %T", keyPairTlS.PrivateKey)
+	}
 }
 
 // This method allows you to specify a character set for the email message. The charset is

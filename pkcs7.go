@@ -25,7 +25,7 @@ import (
 type PKCS7 struct {
 	Content      []byte
 	Certificates []*x509.Certificate
-	CRLs         []pkix.CertificateList
+	CRLs         []x509.RevocationList
 	Signers      []signerInfo
 	raw          interface{}
 }
@@ -47,9 +47,9 @@ type signedData struct {
 	Version                    int                        `asn1:"default:1"`
 	DigestAlgorithmIdentifiers []pkix.AlgorithmIdentifier `asn1:"set"`
 	ContentInfo                contentInfo
-	Certificates               rawCertificates        `asn1:"optional,tag:0"`
-	CRLs                       []pkix.CertificateList `asn1:"optional,tag:1"`
-	SignerInfos                []signerInfo           `asn1:"set"`
+	Certificates               rawCertificates       `asn1:"optional,tag:0"`
+	CRLs                       []x509.RevocationList `asn1:"optional,tag:1"`
+	SignerInfos                []signerInfo          `asn1:"set"`
 }
 
 type rawCertificates struct {
@@ -110,7 +110,9 @@ func marshalAttributes(attrs []attribute) ([]byte, error) {
 
 	// Remove the leading sequence octets
 	var raw asn1.RawValue
-	asn1.Unmarshal(encodedAttributes, &raw)
+	if _, err := asn1.Unmarshal(encodedAttributes, &raw); err != nil {
+		return nil, err
+	}
 	return raw.Bytes, nil
 }
 
@@ -377,7 +379,7 @@ func marshalCertificates(certs []*x509.Certificate) rawCertificates {
 // RawContent, we have to encode it into the RawContent. If its missing,
 // then `asn1.Marshal()` will strip out the certificate wrapper instead.
 func marshalCertificateBytes(certs []byte) (rawCertificates, error) {
-	var val = asn1.RawValue{Bytes: certs, Class: 2, Tag: 0, IsCompound: true}
+	val := asn1.RawValue{Bytes: certs, Class: 2, Tag: 0, IsCompound: true}
 	b, err := asn1.Marshal(val)
 	if err != nil {
 		return rawCertificates{}, err

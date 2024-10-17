@@ -157,13 +157,13 @@ func TestMsgWriter_writeMsg_PGP(t *testing.T) {
 
 // TestMsgWriter_writeMsg_SMime tests the writeMsg method of the msgWriter with S/MIME types set
 func TestMsgWriter_writeMsg_SMime(t *testing.T) {
-	privateKey, certificate, intermediateCertificate, err := getDummyCryptoMaterial()
+	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
 	if err != nil {
 		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
 	}
 
 	m := NewMsg()
-	if err := m.SignWithSMime(privateKey, certificate, intermediateCertificate); err != nil {
+	if err := m.SignWithSMimeRSA(privateKey, certificate, intermediateCertificate); err != nil {
 		t.Errorf("failed to init smime configuration")
 	}
 	_ = m.From(`"Toni Tester" <test@example.com>`)

@@ -6,14 +6,14 @@ package mail
 
 import (
 	"bytes"
+	"crypto"
+	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"strings"
-
-	"go.mozilla.org/pkcs7"
 )
 
 var (
@@ -22,35 +22,34 @@ var (
 
 	// ErrInvalidCertificate should be used if the certificate is invalid
 	ErrInvalidCertificate = errors.New("invalid certificate")
-
-	// ErrInvalidIntermediateCertificate should be used if the intermediate certificate is invalid
-	ErrInvalidIntermediateCertificate = errors.New("invalid intermediate certificate")
-
-	// ErrCouldNotInitialize should be used if the signed data could not initialize
-	ErrCouldNotInitialize = errors.New("could not initialize signed data")
-
-	// ErrCouldNotAddSigner should be used if the signer could not be added
-	ErrCouldNotAddSigner = errors.New("could not add signer message")
-
-	// ErrCouldNotFinishSigning should be used if the signing could not be finished
-	ErrCouldNotFinishSigning = errors.New("could not finish signing")
-
-	// ErrCouldNoEncodeToPEM should be used if the signature could not be encoded to PEM
-	ErrCouldNoEncodeToPEM = errors.New("could not encode to PEM")
 )
+
+// privateKeyHolder is the representation of a private key
+type privateKeyHolder struct {
+	ecdsa *ecdsa.PrivateKey
+	rsa   *rsa.PrivateKey
+}
+
+// get returns the private key of the privateKeyHolder
+func (p privateKeyHolder) get() crypto.PrivateKey {
+	if p.ecdsa != nil {
+		return p.ecdsa
+	}
+	return p.rsa
+}
 
 // SMime is used to sign messages with S/MIME
 type SMime struct {
-	privateKey              *rsa.PrivateKey
+	privateKey              privateKeyHolder
 	certificate             *x509.Certificate
 	intermediateCertificate *x509.Certificate
 }
 
-// NewSMime construct a new instance of SMime with provided parameters
+// newSMimeWithRSA construct a new instance of SMime with provided parameters
 // privateKey as *rsa.PrivateKey
 // certificate as *x509.Certificate
-// intermediateCertificate as *x509.Certificate
-func newSMime(privateKey *rsa.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) (*SMime, error) {
+// intermediateCertificate (optional) as *x509.Certificate
+func newSMimeWithRSA(privateKey *rsa.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) (*SMime, error) {
 	if privateKey == nil {
 		return nil, ErrInvalidPrivateKey
 	}
@@ -59,12 +58,28 @@ func newSMime(privateKey *rsa.PrivateKey, certificate *x509.Certificate, interme
 		return nil, ErrInvalidCertificate
 	}
 
-	if intermediateCertificate == nil {
-		return nil, ErrInvalidIntermediateCertificate
+	return &SMime{
+		privateKey:              privateKeyHolder{rsa: privateKey},
+		certificate:             certificate,
+		intermediateCertificate: intermediateCertificate,
+	}, nil
+}
+
+// newSMimeWithECDSA construct a new instance of SMime with provided parameters
+// privateKey as *ecdsa.PrivateKey
+// certificate as *x509.Certificate
+// intermediateCertificate (optional) as *x509.Certificate
+func newSMimeWithECDSA(privateKey *ecdsa.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) (*SMime, error) {
+	if privateKey == nil {
+		return nil, ErrInvalidPrivateKey
+	}
+
+	if certificate == nil {
+		return nil, ErrInvalidCertificate
 	}
 
 	return &SMime{
-		privateKey:              privateKey,
+		privateKey:              privateKeyHolder{ecdsa: privateKey},
 		certificate:             certificate,
 		intermediateCertificate: intermediateCertificate,
 	}, nil
@@ -75,26 +90,29 @@ func (sm *SMime) signMessage(message string) (*string, error) {
 	lines := parseLines([]byte(message))
 	toBeSigned := lines.bytesFromLines([]byte("\r\n"))
 
-	signedData, err := pkcs7.NewSignedData(toBeSigned)
-	signedData.SetDigestAlgorithm(pkcs7.OIDDigestAlgorithmSHA256)
-	if err != nil {
-		return nil, ErrCouldNotInitialize
+	signedData, err := newSignedData(toBeSigned)
+	if err != nil || signedData == nil {
+		return nil, fmt.Errorf("could not initialize signed data: %w", err)
 	}
 
-	if err = signedData.AddSignerChain(sm.certificate, sm.privateKey, []*x509.Certificate{sm.intermediateCertificate}, pkcs7.SignerInfoConfig{}); err != nil {
-		return nil, ErrCouldNotAddSigner
+	if err = signedData.addSigner(sm.certificate, sm.privateKey.get(), SignerInfoConfig{}); err != nil {
+		return nil, fmt.Errorf("could not add signer message: %w", err)
 	}
 
-	signedData.Detach()
+	if sm.intermediateCertificate != nil {
+		signedData.addCertificate(sm.intermediateCertificate)
+	}
 
-	signatureDER, err := signedData.Finish()
+	signedData.detach()
+
+	signatureDER, err := signedData.finish()
 	if err != nil {
-		return nil, ErrCouldNotFinishSigning
+		return nil, fmt.Errorf("could not finish signing: %w", err)
 	}
 
 	pemMsg, err := encodeToPEM(signatureDER)
 	if err != nil {
-		return nil, ErrCouldNoEncodeToPEM
+		return nil, fmt.Errorf("could not encode to PEM: %w", err)
 	}
 
 	return pemMsg, nil

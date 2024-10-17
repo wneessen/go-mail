@@ -12,7 +12,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"os/exec"
@@ -75,33 +74,53 @@ func TestOpenSSLVerifyDetachedSignature(t *testing.T) {
 	}
 
 	// write the root cert to a temp file
-	tmpRootCertFile, err := ioutil.TempFile("", "pkcs7TestRootCA")
+	tmpRootCertFile, err := os.CreateTemp("", "pkcs7TestRootCA")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmpRootCertFile.Name()) // clean up
-	fd, err := os.OpenFile(tmpRootCertFile.Name(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
+	defer func(name string) {
+		if err := os.Remove(name); err != nil {
+			t.Fatalf("Cannot write root cert: %s", err)
+		}
+	}(tmpRootCertFile.Name()) // clean up
+	fd, err := os.OpenFile(tmpRootCertFile.Name(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o755)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pem.Encode(fd, &pem.Block{Type: "CERTIFICATE", Bytes: rootCert.Certificate.Raw})
-	fd.Close()
+	if err := pem.Encode(fd, &pem.Block{Type: "CERTIFICATE", Bytes: rootCert.Certificate.Raw}); err != nil {
+		t.Fatalf("Cannot write root cert: %s", err)
+	}
+	if err := fd.Close(); err != nil {
+		t.Fatalf("Cannot write root cert: %s", err)
+	}
 
 	// write the signature to a temp file
-	tmpSignatureFile, err := ioutil.TempFile("", "pkcs7Signature")
+	tmpSignatureFile, err := os.CreateTemp("", "pkcs7Signature")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmpSignatureFile.Name()) // clean up
-	ioutil.WriteFile(tmpSignatureFile.Name(), signed, 0755)
+	defer func(name string) {
+		if err := os.Remove(name); err != nil {
+			t.Fatalf("Cannot write signature: %s", err)
+		}
+	}(tmpSignatureFile.Name()) // clean up
+	if err := os.WriteFile(tmpSignatureFile.Name(), signed, 0o755); err != nil {
+		t.Fatalf("Cannot write signature: %s", err)
+	}
 
 	// write the content to a temp file
-	tmpContentFile, err := ioutil.TempFile("", "pkcs7Content")
+	tmpContentFile, err := os.CreateTemp("", "pkcs7Content")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmpContentFile.Name()) // clean up
-	ioutil.WriteFile(tmpContentFile.Name(), content, 0755)
+	defer func(name string) {
+		if err := os.Remove(name); err != nil {
+			t.Fatalf("Cannot write content: %s", err)
+		}
+	}(tmpContentFile.Name()) // clean up
+	if err := os.WriteFile(tmpContentFile.Name(), content, 0o755); err != nil {
+		t.Fatalf("Cannot write content: %s", err)
+	}
 
 	// call openssl to verify the signature on the content using the root
 	opensslCMD := exec.Command("openssl", "smime", "-verify",
