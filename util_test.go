@@ -5,24 +5,50 @@
 package mail
 
 import (
+	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 )
 
 const (
-	certFilePath = "dummy-chain-cert.pem"
-	keyFilePath  = "dummy-child-key.pem"
+	certRSAFilePath = "dummy-chain-cert-rsa.pem"
+	keyRSAFilePath  = "dummy-child-key-rsa.pem"
+
+	certECDSAFilePath = "dummy-chain-cert-ecdsa.pem"
+	keyECDSAFilePath  = "dummy-child-cert-ecdsa.pem"
 )
 
-// getDummyCryptoMaterial loads a certificate and a private key form local disk for testing purposes
-func getDummyCryptoMaterial() (*rsa.PrivateKey, *x509.Certificate, *x509.Certificate, error) {
-	keyPair, err := tls.LoadX509KeyPair(certFilePath, keyFilePath)
+// getDummyRSACryptoMaterial loads a certificate (RSA) and the associated private key (ECDSA) form local disk for testing purposes
+func getDummyRSACryptoMaterial() (*rsa.PrivateKey, *x509.Certificate, *x509.Certificate, error) {
+	keyPair, err := tls.LoadX509KeyPair(certRSAFilePath, keyRSAFilePath)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
 	privateKey := keyPair.PrivateKey.(*rsa.PrivateKey)
+
+	certificate, err := x509.ParseCertificate(keyPair.Certificate[0])
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	intermediateCertificate, err := x509.ParseCertificate(keyPair.Certificate[1])
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return privateKey, certificate, intermediateCertificate, nil
+}
+
+// getDummyECDSACryptoMaterial loads a certificate (ECDSA) and the associated private key (ECDSA) form local disk for testing purposes
+func getDummyECDSACryptoMaterial() (*ecdsa.PrivateKey, *x509.Certificate, *x509.Certificate, error) {
+	keyPair, err := tls.LoadX509KeyPair(certECDSAFilePath, keyECDSAFilePath)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	privateKey := keyPair.PrivateKey.(*ecdsa.PrivateKey)
 
 	certificate, err := x509.ParseCertificate(keyPair.Certificate[0])
 	if err != nil {
