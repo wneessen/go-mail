@@ -48,4 +48,10 @@ func TestSMTPAuthType_UnmarshalString(t *testing.T) {
 			}
 		})
 	}
+	t.Run("should fail", func(t *testing.T) {
+		var authType SMTPAuthType
+		if err := authType.UnmarshalString("invalid"); err == nil {
+			t.Error("UnmarshalString() should have failed")
+		}
+	})
 }
