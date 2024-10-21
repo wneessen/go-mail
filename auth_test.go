@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 The go-mail Authors
+//
+// SPDX-License-Identifier: MIT
+
 package mail
 
 import "testing"
