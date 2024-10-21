@@ -4,7 +4,11 @@
 
 package mail
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"strings"
+)
 
 // SMTPAuthType is a type wrapper for a string type. It represents the type of SMTP authentication
 // mechanism to be used.
@@ -134,3 +138,33 @@ var (
 	// authentication type.
 	ErrSCRAMSHA256PLUSAuthNotSupported = errors.New("server does not support SMTP AUTH type: SCRAM-SHA-256-PLUS")
 )
+
+// UnmarshalString satisfies the fig.StringUnmarshaler interface for the SMTPAuthType type
+// https://pkg.go.dev/github.com/kkyr/fig#StringUnmarshaler
+func (sa *SMTPAuthType) UnmarshalString(value string) error {
+	switch strings.ToLower(value) {
+	case "cram-md5", "crammd5", "cram":
+		*sa = SMTPAuthCramMD5
+	case "custom":
+		*sa = SMTPAuthCustom
+	case "login":
+		*sa = SMTPAuthLogin
+	case "none", "noauth", "no":
+		*sa = SMTPAuthNoAuth
+	case "plain":
+		*sa = SMTPAuthPlain
+	case "scram-sha-1", "scram-sha1", "scramsha1":
+		*sa = SMTPAuthSCRAMSHA1
+	case "scram-sha-1-plus", "scram-sha1-plus", "scramsha1plus":
+		*sa = SMTPAuthSCRAMSHA1PLUS
+	case "scram-sha-256", "scram-sha256", "scramsha256":
+		*sa = SMTPAuthSCRAMSHA256
+	case "scram-sha-256-plus", "scram-sha256-plus", "scramsha256plus":
+		*sa = SMTPAuthSCRAMSHA256PLUS
+	case "xoauth2", "oauth2":
+		*sa = SMTPAuthXOAUTH2
+	default:
+		return fmt.Errorf("unsupported SMTP auth type: %s", value)
+	}
+	return nil
+}
