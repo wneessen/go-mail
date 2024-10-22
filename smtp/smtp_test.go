@@ -265,6 +265,46 @@ func TestAuthPlain(t *testing.T) {
 	}
 }
 
+func TestAuthPlainNoEnc(t *testing.T) {
+	tests := []struct {
+		authName string
+		server   *ServerInfo
+		err      string
+	}{
+		{
+			authName: "servername",
+			server:   &ServerInfo{Name: "servername", TLS: true},
+		},
+		{
+			// OK to use PlainAuth on localhost without TLS
+			authName: "localhost",
+			server:   &ServerInfo{Name: "localhost", TLS: false},
+		},
+		{
+			// Also OK on non-TLS secured connections. The NoEnc mechanism is meant to allow
+			// non-encrypted connections.
+			authName: "servername",
+			server:   &ServerInfo{Name: "servername", Auth: []string{"PLAIN"}},
+		},
+		{
+			authName: "servername",
+			server:   &ServerInfo{Name: "attacker", TLS: true},
+			err:      "wrong host name",
+		},
+	}
+	for i, tt := range tests {
+		auth := PlainAuth("foo", "bar", "baz", tt.authName, true)
+		_, _, err := auth.Start(tt.server)
+		got := ""
+		if err != nil {
+			got = err.Error()
+		}
+		if got != tt.err {
+			t.Errorf("%d. got error = %q; want %q", i, got, tt.err)
+		}
+	}
+}
+
 func TestAuthLogin(t *testing.T) {
 	tests := []struct {
 		authName string
@@ -300,6 +340,50 @@ func TestAuthLogin(t *testing.T) {
 	}
 	for i, tt := range tests {
 		auth := LoginAuth("foo", "bar", tt.authName, false)
+		_, _, err := auth.Start(tt.server)
+		got := ""
+		if err != nil {
+			got = err.Error()
+		}
+		if got != tt.err {
+			t.Errorf("%d. got error = %q; want %q", i, got, tt.err)
+		}
+	}
+}
+
+func TestAuthLoginNoEnc(t *testing.T) {
+	tests := []struct {
+		authName string
+		server   *ServerInfo
+		err      string
+	}{
+		{
+			authName: "servername",
+			server:   &ServerInfo{Name: "servername", TLS: true},
+		},
+		{
+			// OK to use LoginAuth on localhost without TLS
+			authName: "localhost",
+			server:   &ServerInfo{Name: "localhost", TLS: false},
+		},
+		{
+			// Also OK on non-TLS secured connections. The NoEnc mechanism is meant to allow
+			// non-encrypted connections.
+			authName: "servername",
+			server:   &ServerInfo{Name: "servername", Auth: []string{"LOGIN"}},
+		},
+		{
+			authName: "servername",
+			server:   &ServerInfo{Name: "servername", Auth: []string{"CRAM-MD5"}},
+		},
+		{
+			authName: "servername",
+			server:   &ServerInfo{Name: "attacker", TLS: true},
+			err:      "wrong host name",
+		},
+	}
+	for i, tt := range tests {
+		auth := LoginAuth("foo", "bar", tt.authName, true)
 		_, _, err := auth.Start(tt.server)
 		got := ""
 		if err != nil {
