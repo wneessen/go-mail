@@ -50,7 +50,7 @@ type authTest struct {
 
 var authTests = []authTest{
 	{
-		PlainAuth("", "user", "pass", "testserver"),
+		PlainAuth("", "user", "pass", "testserver", false),
 		[]string{},
 		"PLAIN",
 		[]string{"\x00user\x00pass"},
@@ -58,7 +58,15 @@ var authTests = []authTest{
 		false,
 	},
 	{
-		PlainAuth("foo", "bar", "baz", "testserver"),
+		PlainAuth("", "user", "pass", "testserver", true),
+		[]string{},
+		"PLAIN",
+		[]string{"\x00user\x00pass"},
+		[]bool{false, false},
+		false,
+	},
+	{
+		PlainAuth("foo", "bar", "baz", "testserver", false),
 		[]string{},
 		"PLAIN",
 		[]string{"foo\x00bar\x00baz"},
@@ -66,7 +74,7 @@ var authTests = []authTest{
 		false,
 	},
 	{
-		PlainAuth("foo", "bar", "baz", "testserver"),
+		PlainAuth("foo", "bar", "baz", "testserver", false),
 		[]string{"foo"},
 		"PLAIN",
 		[]string{"foo\x00bar\x00baz", ""},
@@ -74,7 +82,7 @@ var authTests = []authTest{
 		false,
 	},
 	{
-		LoginAuth("user", "pass", "testserver"),
+		LoginAuth("user", "pass", "testserver", false),
 		[]string{"Username:", "Password:"},
 		"LOGIN",
 		[]string{"", "user", "pass"},
@@ -82,7 +90,15 @@ var authTests = []authTest{
 		false,
 	},
 	{
-		LoginAuth("user", "pass", "testserver"),
+		LoginAuth("user", "pass", "testserver", true),
+		[]string{"Username:", "Password:"},
+		"LOGIN",
+		[]string{"", "user", "pass"},
+		[]bool{false, false},
+		false,
+	},
+	{
+		LoginAuth("user", "pass", "testserver", false),
 		[]string{"User Name\x00", "Password\x00"},
 		"LOGIN",
 		[]string{"", "user", "pass"},
@@ -90,7 +106,7 @@ var authTests = []authTest{
 		false,
 	},
 	{
-		LoginAuth("user", "pass", "testserver"),
+		LoginAuth("user", "pass", "testserver", false),
 		[]string{"Invalid", "Invalid:"},
 		"LOGIN",
 		[]string{"", "user", "pass"},
@@ -98,7 +114,7 @@ var authTests = []authTest{
 		false,
 	},
 	{
-		LoginAuth("user", "pass", "testserver"),
+		LoginAuth("user", "pass", "testserver", false),
 		[]string{"Invalid", "Invalid:", "Too many"},
 		"LOGIN",
 		[]string{"", "user", "pass", ""},
@@ -237,7 +253,7 @@ func TestAuthPlain(t *testing.T) {
 		},
 	}
 	for i, tt := range tests {
-		auth := PlainAuth("foo", "bar", "baz", tt.authName)
+		auth := PlainAuth("foo", "bar", "baz", tt.authName, false)
 		_, _, err := auth.Start(tt.server)
 		got := ""
 		if err != nil {
@@ -283,7 +299,7 @@ func TestAuthLogin(t *testing.T) {
 		},
 	}
 	for i, tt := range tests {
-		auth := LoginAuth("foo", "bar", tt.authName)
+		auth := LoginAuth("foo", "bar", tt.authName, false)
 		_, _, err := auth.Start(tt.server)
 		got := ""
 		if err != nil {
@@ -707,7 +723,7 @@ func TestBasic(t *testing.T) {
 	// fake TLS so authentication won't complain
 	c.tls = true
 	c.serverName = "smtp.google.com"
-	if err := c.Auth(PlainAuth("", "user", "pass", "smtp.google.com")); err != nil {
+	if err := c.Auth(PlainAuth("", "user", "pass", "smtp.google.com", false)); err != nil {
 		t.Fatalf("AUTH failed: %s", err)
 	}
 
@@ -1278,7 +1294,7 @@ func TestHello(t *testing.T) {
 		case 3:
 			c.tls = true
 			c.serverName = "smtp.google.com"
-			err = c.Auth(PlainAuth("", "user", "pass", "smtp.google.com"))
+			err = c.Auth(PlainAuth("", "user", "pass", "smtp.google.com", false))
 		case 4:
 			err = c.Mail("test@example.com")
 		case 5:
@@ -1523,7 +1539,7 @@ func TestSendMailWithAuth(t *testing.T) {
 		}
 	}()
 
-	err = SendMail(l.Addr().String(), PlainAuth("", "user", "pass", "smtp.google.com"), "test@example.com", []string{"other@example.com"}, []byte(strings.Replace(`From: test@example.com
+	err = SendMail(l.Addr().String(), PlainAuth("", "user", "pass", "smtp.google.com", false), "test@example.com", []string{"other@example.com"}, []byte(strings.Replace(`From: test@example.com
 To: other@example.com
 Subject: SendMail test
 
@@ -1558,7 +1574,7 @@ func TestAuthFailed(t *testing.T) {
 
 	c.tls = true
 	c.serverName = "smtp.google.com"
-	err = c.Auth(PlainAuth("", "user", "pass", "smtp.google.com"))
+	err = c.Auth(PlainAuth("", "user", "pass", "smtp.google.com", false))
 
 	if err == nil {
 		t.Error("Auth: expected error; got none")
