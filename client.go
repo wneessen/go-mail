@@ -1096,7 +1096,12 @@ func (c *Client) auth() error {
 			if !strings.Contains(smtpAuthType, string(SMTPAuthPlain)) {
 				return ErrPlainAuthNotSupported
 			}
-			c.smtpAuth = smtp.PlainAuth("", c.user, c.pass, c.host)
+			c.smtpAuth = smtp.PlainAuth("", c.user, c.pass, c.host, false)
+		case SMTPAuthPlainNoEnc:
+			if !strings.Contains(smtpAuthType, string(SMTPAuthPlain)) {
+				return ErrPlainAuthNotSupported
+			}
+			c.smtpAuth = smtp.PlainAuth("", c.user, c.pass, c.host, true)
 		case SMTPAuthLogin:
 			if !strings.Contains(smtpAuthType, string(SMTPAuthLogin)) {
 				return ErrLoginAuthNotSupported

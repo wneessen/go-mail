@@ -62,6 +62,20 @@ const (
 	// https://datatracker.ietf.org/doc/html/rfc4616/
 	SMTPAuthPlain SMTPAuthType = "PLAIN"
 
+	// SMTPAuthPlainNoEnc is the "PLAIN" authentication mechanism as described in RFC 4616.
+	//
+	// Since the "PLAIN" SASL authentication mechanism transmits the username and password in
+	// plaintext over the internet connection, bye default we only allow this mechanism over
+	// a TLS secured connection. This authentiation mechanism overrides this default and will
+	// allow PLAIN authentication via an unencrypted channel. This can be useful if the
+	// connection has already been secured in a different way (e. g. a SSH tunnel)
+	//
+	// Note: Use this authentication method with caution. If used in the wrong way, you might
+	// expose your authentication information over unencrypted channels!
+	//
+	// https://datatracker.ietf.org/doc/html/rfc4616/
+	SMTPAuthPlainNoEnc SMTPAuthType = "PLAIN-NOENC"
+
 	// SMTPAuthXOAUTH2 is the "XOAUTH2" SASL authentication mechanism.
 	// https://developers.google.com/gmail/imap/xoauth2-protocol
 	SMTPAuthXOAUTH2 SMTPAuthType = "XOAUTH2"
