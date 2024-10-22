@@ -182,10 +182,14 @@ func (sa *SMTPAuthType) UnmarshalString(value string) error {
 		*sa = SMTPAuthCustom
 	case "login":
 		*sa = SMTPAuthLogin
+	case "login-noenc":
+		*sa = SMTPAuthLoginNoEnc
 	case "none", "noauth", "no":
 		*sa = SMTPAuthNoAuth
 	case "plain":
 		*sa = SMTPAuthPlain
+	case "plain-noenc":
+		*sa = SMTPAuthPlainNoEnc
 	case "scram-sha-1", "scram-sha1", "scramsha1":
 		*sa = SMTPAuthSCRAMSHA1
 	case "scram-sha-1-plus", "scram-sha1-plus", "scramsha1plus":
