@@ -50,7 +50,7 @@ type authTest struct {
 
 var authTests = []authTest{
 	{
-		PlainAuth("", "user", "pass", "testserver"),
+		PlainAuth("", "user", "pass", "testserver", false),
 		[]string{},
 		"PLAIN",
 		[]string{"\x00user\x00pass"},
@@ -58,7 +58,15 @@ var authTests = []authTest{
 		false,
 	},
 	{
-		PlainAuth("foo", "bar", "baz", "testserver"),
+		PlainAuth("", "user", "pass", "testserver", true),
+		[]string{},
+		"PLAIN",
+		[]string{"\x00user\x00pass"},
+		[]bool{false, false},
+		false,
+	},
+	{
+		PlainAuth("foo", "bar", "baz", "testserver", false),
 		[]string{},
 		"PLAIN",
 		[]string{"foo\x00bar\x00baz"},
@@ -66,7 +74,7 @@ var authTests = []authTest{
 		false,
 	},
 	{
-		PlainAuth("foo", "bar", "baz", "testserver"),
+		PlainAuth("foo", "bar", "baz", "testserver", false),
 		[]string{"foo"},
 		"PLAIN",
 		[]string{"foo\x00bar\x00baz", ""},
@@ -74,7 +82,7 @@ var authTests = []authTest{
 		false,
 	},
 	{
-		LoginAuth("user", "pass", "testserver"),
+		LoginAuth("user", "pass", "testserver", false),
 		[]string{"Username:", "Password:"},
 		"LOGIN",
 		[]string{"", "user", "pass"},
@@ -82,7 +90,15 @@ var authTests = []authTest{
 		false,
 	},
 	{
-		LoginAuth("user", "pass", "testserver"),
+		LoginAuth("user", "pass", "testserver", true),
+		[]string{"Username:", "Password:"},
+		"LOGIN",
+		[]string{"", "user", "pass"},
+		[]bool{false, false},
+		false,
+	},
+	{
+		LoginAuth("user", "pass", "testserver", false),
 		[]string{"User Name\x00", "Password\x00"},
 		"LOGIN",
 		[]string{"", "user", "pass"},
@@ -90,7 +106,7 @@ var authTests = []authTest{
 		false,
 	},
 	{
-		LoginAuth("user", "pass", "testserver"),
+		LoginAuth("user", "pass", "testserver", false),
 		[]string{"Invalid", "Invalid:"},
 		"LOGIN",
 		[]string{"", "user", "pass"},
@@ -98,7 +114,7 @@ var authTests = []authTest{
 		false,
 	},
 	{
-		LoginAuth("user", "pass", "testserver"),
+		LoginAuth("user", "pass", "testserver", false),
 		[]string{"Invalid", "Invalid:", "Too many"},
 		"LOGIN",
 		[]string{"", "user", "pass", ""},
@@ -237,7 +253,47 @@ func TestAuthPlain(t *testing.T) {
 		},
 	}
 	for i, tt := range tests {
-		auth := PlainAuth("foo", "bar", "baz", tt.authName)
+		auth := PlainAuth("foo", "bar", "baz", tt.authName, false)
+		_, _, err := auth.Start(tt.server)
+		got := ""
+		if err != nil {
+			got = err.Error()
+		}
+		if got != tt.err {
+			t.Errorf("%d. got error = %q; want %q", i, got, tt.err)
+		}
+	}
+}
+
+func TestAuthPlainNoEnc(t *testing.T) {
+	tests := []struct {
+		authName string
+		server   *ServerInfo
+		err      string
+	}{
+		{
+			authName: "servername",
+			server:   &ServerInfo{Name: "servername", TLS: true},
+		},
+		{
+			// OK to use PlainAuth on localhost without TLS
+			authName: "localhost",
+			server:   &ServerInfo{Name: "localhost", TLS: false},
+		},
+		{
+			// Also OK on non-TLS secured connections. The NoEnc mechanism is meant to allow
+			// non-encrypted connections.
+			authName: "servername",
+			server:   &ServerInfo{Name: "servername", Auth: []string{"PLAIN"}},
+		},
+		{
+			authName: "servername",
+			server:   &ServerInfo{Name: "attacker", TLS: true},
+			err:      "wrong host name",
+		},
+	}
+	for i, tt := range tests {
+		auth := PlainAuth("foo", "bar", "baz", tt.authName, true)
 		_, _, err := auth.Start(tt.server)
 		got := ""
 		if err != nil {
@@ -283,7 +339,51 @@ func TestAuthLogin(t *testing.T) {
 		},
 	}
 	for i, tt := range tests {
-		auth := LoginAuth("foo", "bar", tt.authName)
+		auth := LoginAuth("foo", "bar", tt.authName, false)
+		_, _, err := auth.Start(tt.server)
+		got := ""
+		if err != nil {
+			got = err.Error()
+		}
+		if got != tt.err {
+			t.Errorf("%d. got error = %q; want %q", i, got, tt.err)
+		}
+	}
+}
+
+func TestAuthLoginNoEnc(t *testing.T) {
+	tests := []struct {
+		authName string
+		server   *ServerInfo
+		err      string
+	}{
+		{
+			authName: "servername",
+			server:   &ServerInfo{Name: "servername", TLS: true},
+		},
+		{
+			// OK to use LoginAuth on localhost without TLS
+			authName: "localhost",
+			server:   &ServerInfo{Name: "localhost", TLS: false},
+		},
+		{
+			// Also OK on non-TLS secured connections. The NoEnc mechanism is meant to allow
+			// non-encrypted connections.
+			authName: "servername",
+			server:   &ServerInfo{Name: "servername", Auth: []string{"LOGIN"}},
+		},
+		{
+			authName: "servername",
+			server:   &ServerInfo{Name: "servername", Auth: []string{"CRAM-MD5"}},
+		},
+		{
+			authName: "servername",
+			server:   &ServerInfo{Name: "attacker", TLS: true},
+			err:      "wrong host name",
+		},
+	}
+	for i, tt := range tests {
+		auth := LoginAuth("foo", "bar", tt.authName, true)
 		_, _, err := auth.Start(tt.server)
 		got := ""
 		if err != nil {
@@ -317,7 +417,11 @@ func TestXOAuth2OK(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
-	defer c.Close()
+	defer func() {
+		if err := c.Close(); err != nil {
+			t.Errorf("failed to close client: %s", err)
+		}
+	}()
 
 	auth := XOAuth2Auth("user", "token")
 	err = c.Auth(auth)
@@ -355,7 +459,11 @@ func TestXOAuth2Error(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
-	defer c.Close()
+	defer func() {
+		if err := c.Close(); err != nil {
+			t.Errorf("failed to close client: %s", err)
+		}
+	}()
 
 	auth := XOAuth2Auth("user", "token")
 	err = c.Auth(auth)
@@ -707,7 +815,7 @@ func TestBasic(t *testing.T) {
 	// fake TLS so authentication won't complain
 	c.tls = true
 	c.serverName = "smtp.google.com"
-	if err := c.Auth(PlainAuth("", "user", "pass", "smtp.google.com")); err != nil {
+	if err := c.Auth(PlainAuth("", "user", "pass", "smtp.google.com", false)); err != nil {
 		t.Fatalf("AUTH failed: %s", err)
 	}
 
@@ -1278,7 +1386,7 @@ func TestHello(t *testing.T) {
 		case 3:
 			c.tls = true
 			c.serverName = "smtp.google.com"
-			err = c.Auth(PlainAuth("", "user", "pass", "smtp.google.com"))
+			err = c.Auth(PlainAuth("", "user", "pass", "smtp.google.com", false))
 		case 4:
 			err = c.Mail("test@example.com")
 		case 5:
@@ -1523,7 +1631,7 @@ func TestSendMailWithAuth(t *testing.T) {
 		}
 	}()
 
-	err = SendMail(l.Addr().String(), PlainAuth("", "user", "pass", "smtp.google.com"), "test@example.com", []string{"other@example.com"}, []byte(strings.Replace(`From: test@example.com
+	err = SendMail(l.Addr().String(), PlainAuth("", "user", "pass", "smtp.google.com", false), "test@example.com", []string{"other@example.com"}, []byte(strings.Replace(`From: test@example.com
 To: other@example.com
 Subject: SendMail test
 
@@ -1531,6 +1639,7 @@ SendMail is working for me.
 `, "\n", "\r\n", -1)))
 	if err == nil {
 		t.Error("SendMail: Server doesn't support AUTH, expected to get an error, but got none ")
+		return
 	}
 	if err.Error() != "smtp: server doesn't support AUTH" {
 		t.Errorf("Expected: smtp: server doesn't support AUTH, got: %s", err)
@@ -1558,7 +1667,7 @@ func TestAuthFailed(t *testing.T) {
 
 	c.tls = true
 	c.serverName = "smtp.google.com"
-	err = c.Auth(PlainAuth("", "user", "pass", "smtp.google.com"))
+	err = c.Auth(PlainAuth("", "user", "pass", "smtp.google.com", false))
 
 	if err == nil {
 		t.Error("Auth: expected error; got none")

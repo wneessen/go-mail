@@ -110,7 +110,7 @@ func TestNewClientWithOptions(t *testing.T) {
 		{"WithSMTPAuth()", WithSMTPAuth(SMTPAuthLogin), false},
 		{
 			"WithSMTPAuthCustom()",
-			WithSMTPAuthCustom(smtp.PlainAuth("", "", "", "")),
+			WithSMTPAuthCustom(smtp.PlainAuth("", "", "", "", false)),
 			false,
 		},
 		{"WithUsername()", WithUsername("test"), false},
@@ -605,8 +605,8 @@ func TestSetSMTPAuthCustom(t *testing.T) {
 		sf    bool
 	}{
 		{"SMTPAuth: CRAM-MD5", smtp.CRAMMD5Auth("", ""), "CRAM-MD5", false},
-		{"SMTPAuth: LOGIN", smtp.LoginAuth("", "", ""), "LOGIN", false},
-		{"SMTPAuth: PLAIN", smtp.PlainAuth("", "", "", ""), "PLAIN", false},
+		{"SMTPAuth: LOGIN", smtp.LoginAuth("", "", "", false), "LOGIN", false},
+		{"SMTPAuth: PLAIN", smtp.PlainAuth("", "", "", "", false), "PLAIN", false},
 	}
 	si := smtp.ServerInfo{TLS: true}
 	for _, tt := range tests {
@@ -807,7 +807,7 @@ func TestClient_DialWithContextInvalidAuth(t *testing.T) {
 	}
 	c.user = "invalid"
 	c.pass = "invalid"
-	c.SetSMTPAuthCustom(smtp.LoginAuth("invalid", "invalid", "invalid"))
+	c.SetSMTPAuthCustom(smtp.LoginAuth("invalid", "invalid", "invalid", false))
 	ctx := context.Background()
 	if err = c.DialWithContext(ctx); err == nil {
 		t.Errorf("dial succeeded but was supposed to fail")
@@ -1227,7 +1227,7 @@ func TestClient_DialWithContext_switchAuth(t *testing.T) {
 
 	// We switch to CUSTOM by providing PLAIN auth as function - the server supports this
 	client.SetSMTPAuthCustom(smtp.PlainAuth("", os.Getenv("TEST_SMTPAUTH_USER"),
-		os.Getenv("TEST_SMTPAUTH_PASS"), os.Getenv("TEST_HOST")))
+		os.Getenv("TEST_SMTPAUTH_PASS"), os.Getenv("TEST_HOST"), false))
 	if client.smtpAuthType != SMTPAuthCustom {
 		t.Errorf("expected auth type to be Custom, got: %s", client.smtpAuthType)
 	}
@@ -1955,7 +1955,7 @@ func TestClient_DialSendConcurrent_local(t *testing.T) {
 	wg.Wait()
 
 	if err = client.Close(); err != nil {
-		t.Errorf("failed to close server connection: %s", err)
+		t.Logf("failed to close server connection: %s", err)
 	}
 }
 

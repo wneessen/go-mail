@@ -48,6 +48,25 @@ const (
 	// https://datatracker.ietf.org/doc/html/draft-murchison-sasl-login-00
 	SMTPAuthLogin SMTPAuthType = "LOGIN"
 
+	// SMTPAuthLoginNoEnc is the "LOGIN" SASL authentication mechanism. This authentication mechanism
+	// does not have an official RFC that could be followed. There is a spec by Microsoft and an
+	// IETF draft. The IETF draft is more lax than the MS spec, therefore we follow the I-D, which
+	// automatically matches the MS spec.
+	//
+	// Since the "LOGIN" SASL authentication mechanism transmits the username and password in
+	// plaintext over the internet connection, by default we only allow this mechanism over
+	// a TLS secured connection. This authentiation mechanism overrides this default and will
+	// allow LOGIN authentication via an unencrypted channel. This can be useful if the
+	// connection has already been secured in a different way (e. g. a SSH tunnel)
+	//
+	// Note: Use this authentication method with caution. If used in the wrong way, you might
+	// expose your authentication information over unencrypted channels!
+	//
+	// https://msopenspecs.azureedge.net/files/MS-XLOGIN/%5bMS-XLOGIN%5d.pdf
+	//
+	// https://datatracker.ietf.org/doc/html/draft-murchison-sasl-login-00
+	SMTPAuthLoginNoEnc SMTPAuthType = "LOGIN-NOENC"
+
 	// SMTPAuthNoAuth is equivalent to performing no authentication at all. It is a convenience
 	// option and should not be used. Instead, for mail servers that do no support/require
 	// authentication, the Client should not be passed the WithSMTPAuth option at all.
@@ -61,6 +80,20 @@ const (
 	//
 	// https://datatracker.ietf.org/doc/html/rfc4616/
 	SMTPAuthPlain SMTPAuthType = "PLAIN"
+
+	// SMTPAuthPlainNoEnc is the "PLAIN" authentication mechanism as described in RFC 4616.
+	//
+	// Since the "PLAIN" SASL authentication mechanism transmits the username and password in
+	// plaintext over the internet connection, by default we only allow this mechanism over
+	// a TLS secured connection. This authentiation mechanism overrides this default and will
+	// allow PLAIN authentication via an unencrypted channel. This can be useful if the
+	// connection has already been secured in a different way (e. g. a SSH tunnel)
+	//
+	// Note: Use this authentication method with caution. If used in the wrong way, you might
+	// expose your authentication information over unencrypted channels!
+	//
+	// https://datatracker.ietf.org/doc/html/rfc4616/
+	SMTPAuthPlainNoEnc SMTPAuthType = "PLAIN-NOENC"
 
 	// SMTPAuthXOAUTH2 is the "XOAUTH2" SASL authentication mechanism.
 	// https://developers.google.com/gmail/imap/xoauth2-protocol
@@ -149,10 +182,14 @@ func (sa *SMTPAuthType) UnmarshalString(value string) error {
 		*sa = SMTPAuthCustom
 	case "login":
 		*sa = SMTPAuthLogin
+	case "login-noenc":
+		*sa = SMTPAuthLoginNoEnc
 	case "none", "noauth", "no":
 		*sa = SMTPAuthNoAuth
 	case "plain":
 		*sa = SMTPAuthPlain
+	case "plain-noenc":
+		*sa = SMTPAuthPlainNoEnc
 	case "scram-sha-1", "scram-sha1", "scramsha1":
 		*sa = SMTPAuthSCRAMSHA1
 	case "scram-sha-1-plus", "scram-sha1-plus", "scramsha1plus":
