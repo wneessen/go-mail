@@ -417,7 +417,11 @@ func TestXOAuth2OK(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
-	defer c.Close()
+	defer func() {
+		if err := c.Close(); err != nil {
+			t.Errorf("failed to close client: %s", err)
+		}
+	}()
 
 	auth := XOAuth2Auth("user", "token")
 	err = c.Auth(auth)
@@ -455,7 +459,11 @@ func TestXOAuth2Error(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
-	defer c.Close()
+	defer func() {
+		if err := c.Close(); err != nil {
+			t.Errorf("failed to close client: %s", err)
+		}
+	}()
 
 	auth := XOAuth2Auth("user", "token")
 	err = c.Auth(auth)
@@ -1631,6 +1639,7 @@ SendMail is working for me.
 `, "\n", "\r\n", -1)))
 	if err == nil {
 		t.Error("SendMail: Server doesn't support AUTH, expected to get an error, but got none ")
+		return
 	}
 	if err.Error() != "smtp: server doesn't support AUTH" {
 		t.Errorf("Expected: smtp: server doesn't support AUTH, got: %s", err)
