@@ -10,9 +10,10 @@ import (
 
 // loginAuth is the type that satisfies the Auth interface for the "SMTP LOGIN" auth
 type loginAuth struct {
-	username, password string
-	host               string
-	respStep           uint8
+	username, password   string
+	host                 string
+	respStep             uint8
+	allowUnencryptedAuth bool
 }
 
 // LoginAuth returns an [Auth] that implements the LOGIN authentication
@@ -35,8 +36,8 @@ type loginAuth struct {
 // LoginAuth will only send the credentials if the connection is using TLS
 // or is connected to localhost. Otherwise authentication will fail with an
 // error, without sending the credentials.
-func LoginAuth(username, password, host string) Auth {
-	return &loginAuth{username, password, host, 0}
+func LoginAuth(username, password, host string, allowUnEnc bool) Auth {
+	return &loginAuth{username, password, host, 0, allowUnEnc}
 }
 
 // Start begins the SMTP authentication process by validating server's TLS status and hostname.
@@ -47,7 +48,7 @@ func (a *loginAuth) Start(server *ServerInfo) (string, []byte, error) {
 	// In particular, it doesn't matter if the server advertises LOGIN auth.
 	// That might just be the attacker saying
 	// "it's ok, you can trust me with your password."
-	if !server.TLS && !isLocalhost(server.Name) {
+	if !a.allowUnencryptedAuth && !server.TLS && !isLocalhost(server.Name) {
 		return "", nil, ErrUnencrypted
 	}
 	if server.Name != a.host {

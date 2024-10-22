@@ -605,7 +605,7 @@ func TestSetSMTPAuthCustom(t *testing.T) {
 		sf    bool
 	}{
 		{"SMTPAuth: CRAM-MD5", smtp.CRAMMD5Auth("", ""), "CRAM-MD5", false},
-		{"SMTPAuth: LOGIN", smtp.LoginAuth("", "", ""), "LOGIN", false},
+		{"SMTPAuth: LOGIN", smtp.LoginAuth("", "", "", false), "LOGIN", false},
 		{"SMTPAuth: PLAIN", smtp.PlainAuth("", "", "", "", false), "PLAIN", false},
 	}
 	si := smtp.ServerInfo{TLS: true}
@@ -807,7 +807,7 @@ func TestClient_DialWithContextInvalidAuth(t *testing.T) {
 	}
 	c.user = "invalid"
 	c.pass = "invalid"
-	c.SetSMTPAuthCustom(smtp.LoginAuth("invalid", "invalid", "invalid"))
+	c.SetSMTPAuthCustom(smtp.LoginAuth("invalid", "invalid", "invalid", false))
 	ctx := context.Background()
 	if err = c.DialWithContext(ctx); err == nil {
 		t.Errorf("dial succeeded but was supposed to fail")

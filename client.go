@@ -1106,7 +1106,12 @@ func (c *Client) auth() error {
 			if !strings.Contains(smtpAuthType, string(SMTPAuthLogin)) {
 				return ErrLoginAuthNotSupported
 			}
-			c.smtpAuth = smtp.LoginAuth(c.user, c.pass, c.host)
+			c.smtpAuth = smtp.LoginAuth(c.user, c.pass, c.host, false)
+		case SMTPAuthLoginNoEnc:
+			if !strings.Contains(smtpAuthType, string(SMTPAuthLogin)) {
+				return ErrLoginAuthNotSupported
+			}
+			c.smtpAuth = smtp.LoginAuth(c.user, c.pass, c.host, true)
 		case SMTPAuthCramMD5:
 			if !strings.Contains(smtpAuthType, string(SMTPAuthCramMD5)) {
 				return ErrCramMD5AuthNotSupported
