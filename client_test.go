@@ -2033,8 +2033,18 @@ func TestClient_Reset(t *testing.T) {
 	})
 }
 
-func TestClient_DialAndSend(t *testing.T) {
-	t.Run("dial and send", func(t *testing.T) {
+func TestClient_DialAndSendWithContext(t *testing.T) {
+	message := NewMsg()
+	if err := message.From(TestSenderValid); err != nil {
+		t.Errorf("failed to set sender address: %s", err)
+	}
+	if err := message.To(TestRcptValid); err != nil {
+		t.Errorf("failed to set recipient address: %s", err)
+	}
+	message.Subject("Testmail")
+	message.SetBodyString(TypeTextPlain, "Testmail")
+
+	t.Run("DialAndSend", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		PortAdder.Add(1)
@@ -2051,22 +2061,127 @@ func TestClient_DialAndSend(t *testing.T) {
 		}()
 		time.Sleep(time.Millisecond * 300)
 
-		message := NewMsg()
-		if err := message.From(TestSenderValid); err != nil {
-			t.Errorf("failed to set sender address: %s", err)
-		}
-		if err := message.To(TestRcptValid); err != nil {
-			t.Errorf("failed to set recipient address: %s", err)
-		}
-		message.Subject("Testmail")
-		message.SetBodyString(TypeTextPlain, "Testmail")
-
 		client, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS), WithPort(serverPort))
 		if err != nil {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialAndSend(message); err != nil {
 			t.Fatalf("failed to dial and send: %s", err)
+		}
+	})
+	t.Run("DialAndSendWithContext", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 300)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS), WithPort(serverPort))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialAndSendWithContext(ctxDial, message); err != nil {
+			t.Fatalf("failed to dial and send: %s", err)
+		}
+	})
+	t.Run("DialAndSendWithContext fail on dial", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnHelo: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 300)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS), WithPort(serverPort))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialAndSendWithContext(ctxDial, message); err == nil {
+			t.Errorf("client was supposed to fail on dial")
+		}
+	})
+	t.Run("DialAndSendWithContext fail on close", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnQuit: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 300)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS), WithPort(serverPort))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialAndSendWithContext(ctxDial, message); err == nil {
+			t.Errorf("client was supposed to fail on dial")
+		}
+	})
+	t.Run("DialAndSendWithContext fail on send", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnData: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 300)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS), WithPort(serverPort))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialAndSendWithContext(ctxDial, message); err == nil {
+			t.Errorf("client was supposed to fail on dial")
 		}
 	})
 }
@@ -3904,6 +4019,7 @@ func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "
 
 // serverProps represents the configuration properties for the SMTP server.
 type serverProps struct {
+	FailOnData     bool
 	FailOnHelo     bool
 	FailOnQuit     bool
 	FailOnReset    bool
@@ -3982,7 +4098,7 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 			t.Logf("failed to write line: %s", err)
 		}
 		if err = writer.Flush(); err != nil {
-			t.Logf("failed to flush writer: %s", err)
+			t.Logf("failed to flush line: %s", err)
 		}
 	}
 	writeOK := func() {
@@ -4100,13 +4216,9 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 					break
 				}
 				ddata = strings.TrimSpace(ddata)
-				if strings.EqualFold(ddata, "DATA write should fail") {
-					writeLine("500 5.0.0 Error during DATA transmission")
-					break
-				}
 				if ddata == "." {
-					if strings.Contains(datastring, "DATA close should fail") {
-						writeLine("500 5.0.0 Error during DATA closing")
+					if props.FailOnData {
+						writeLine("500 5.0.0 Error during DATA transmission")
 						break
 					}
 					writeLine("250 2.0.0 Ok: queued as 1234567890")
