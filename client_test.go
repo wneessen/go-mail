@@ -1138,7 +1138,7 @@ func TestClient_SetDebugLog(t *testing.T) {
 	serverPort := int(TestServerPortBase + PortAdder.Load())
 	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 	go func() {
-		if err := simpleSMTPServer(ctx, &serverProps{FeatureSet: featureSet, ListenPort: serverPort}); err != nil {
+		if err := simpleSMTPServer(ctx, t, &serverProps{FeatureSet: featureSet, ListenPort: serverPort}); err != nil {
 			t.Errorf("failed to start test server: %s", err)
 			return
 		}
@@ -1527,7 +1527,7 @@ func TestClient_Close(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, &serverProps{
+			if err := simpleSMTPServer(ctx, t, &serverProps{
 				FeatureSet: featureSet,
 				ListenPort: serverPort,
 			}); err != nil {
@@ -1561,7 +1561,7 @@ func TestClient_Close(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, &serverProps{
+			if err := simpleSMTPServer(ctx, t, &serverProps{
 				FeatureSet: featureSet,
 				ListenPort: serverPort,
 			}); err != nil {
@@ -1598,7 +1598,7 @@ func TestClient_Close(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, &serverProps{
+			if err := simpleSMTPServer(ctx, t, &serverProps{
 				FailOnQuit: true,
 				FeatureSet: featureSet,
 				ListenPort: serverPort,
@@ -1635,7 +1635,7 @@ func TestClient_DialWithContext(t *testing.T) {
 	serverPort := int(TestServerPortBase + PortAdder.Load())
 	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 	go func() {
-		if err := simpleSMTPServer(ctx, &serverProps{FeatureSet: featureSet, ListenPort: serverPort}); err != nil {
+		if err := simpleSMTPServer(ctx, t, &serverProps{FeatureSet: featureSet, ListenPort: serverPort}); err != nil {
 			t.Errorf("failed to start test server: %s", err)
 			return
 		}
@@ -1788,7 +1788,7 @@ func TestClient_DialWithContext(t *testing.T) {
 		failServerPort := int(TestServerPortBase + PortAdder.Load())
 		failFeatureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctxFail, &serverProps{
+			if err := simpleSMTPServer(ctxFail, t, &serverProps{
 				FailOnHelo: true,
 				FeatureSet: failFeatureSet,
 				ListenPort: failServerPort,
@@ -1836,7 +1836,7 @@ func TestClient_DialWithContext(t *testing.T) {
 		tlsServerPort := int(TestServerPortBase + PortAdder.Load())
 		tlsFeatureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250-STARTTLS\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctxTLS, &serverProps{
+			if err := simpleSMTPServer(ctxTLS, t, &serverProps{
 				FeatureSet: tlsFeatureSet,
 				ListenPort: tlsServerPort,
 			}); err != nil {
@@ -1866,7 +1866,7 @@ func TestClient_DialWithContext(t *testing.T) {
 		tlsServerPort := int(TestServerPortBase + PortAdder.Load())
 		tlsFeatureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctxTLS, &serverProps{
+			if err := simpleSMTPServer(ctxTLS, t, &serverProps{
 				FeatureSet: tlsFeatureSet,
 				ListenPort: tlsServerPort,
 			}); err != nil {
@@ -1896,7 +1896,7 @@ func TestClient_DialWithContext(t *testing.T) {
 		sslServerPort := int(TestServerPortBase + PortAdder.Load())
 		sslFeatureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctxSSL, &serverProps{
+			if err := simpleSMTPServer(ctxSSL, t, &serverProps{
 				SSLListener: true,
 				FeatureSet:  sslFeatureSet,
 				ListenPort:  sslServerPort,
@@ -3771,7 +3771,8 @@ type serverProps struct {
 // simpleSMTPServer starts a simple TCP server that resonds to SMTP commands.
 // The provided featureSet represents in what the server responds to EHLO command
 // failReset controls if a RSET succeeds
-func simpleSMTPServer(ctx context.Context, props *serverProps) error {
+func simpleSMTPServer(ctx context.Context, t *testing.T, props *serverProps) error {
+	t.Helper()
 	if props == nil {
 		return fmt.Errorf("no server properties provided")
 	}
@@ -3796,8 +3797,7 @@ func simpleSMTPServer(ctx context.Context, props *serverProps) error {
 
 	defer func() {
 		if err := listener.Close(); err != nil {
-			fmt.Printf("unable to close listener: %s\n", err)
-			os.Exit(1)
+			t.Logf("failed to close listener: %s", err)
 		}
 	}()
 
@@ -3814,37 +3814,37 @@ func simpleSMTPServer(ctx context.Context, props *serverProps) error {
 				}
 				return fmt.Errorf("unable to accept connection: %w", err)
 			}
-			handleTestServerConnection(connection, props)
+			handleTestServerConnection(connection, t, props)
 		}
 	}
 }
 
-func handleTestServerConnection(connection net.Conn, props *serverProps) {
-	defer func() {
+func handleTestServerConnection(connection net.Conn, t *testing.T, props *serverProps) {
+	t.Helper()
+	t.Cleanup(func() {
 		if err := connection.Close(); err != nil {
-			fmt.Printf("unable to close connection: %s\n", err)
+			t.Logf("failed to close connection: %s", err)
 		}
-	}()
+	})
 
 	reader := bufio.NewReader(connection)
 	writer := bufio.NewWriter(connection)
 
-	writeLine := func(data string) error {
+	writeLine := func(data string) {
 		_, err := writer.WriteString(data + "\r\n")
 		if err != nil {
-			return fmt.Errorf("unable to write line: %w", err)
+			t.Logf("failed to write line: %s", err)
 		}
-		return writer.Flush()
+		if err = writer.Flush(); err != nil {
+			t.Logf("failed to flush writer: %s", err)
+		}
 	}
 	writeOK := func() {
-		_ = writeLine("250 2.0.0 OK")
+		writeLine("250 2.0.0 OK")
 	}
 
 	if !props.IsTLS {
-		if err := writeLine("220 go-mail test server ready ESMTP"); err != nil {
-			fmt.Printf("unable to write to client: %s\n", err)
-			return
-		}
+		writeLine("220 go-mail test server ready ESMTP")
 	}
 
 	for {
@@ -3859,23 +3859,22 @@ func handleTestServerConnection(connection net.Conn, props *serverProps) {
 		switch {
 		case strings.HasPrefix(data, "EHLO"), strings.HasPrefix(data, "HELO"):
 			if len(strings.Split(data, " ")) != 2 {
-				_ = writeLine("501 Syntax: EHLO hostname")
+				writeLine("501 Syntax: EHLO hostname")
 				break
 			}
 			if props.FailOnHelo {
-				_ = writeLine("500 5.5.2 Error: fail on HELO")
+				writeLine("500 5.5.2 Error: fail on HELO")
 				break
 			}
-			if err = writeLine("250-localhost.localdomain\r\n" + props.FeatureSet); err != nil {
-				break
-			}
+			writeLine("250-localhost.localdomain\r\n" + props.FeatureSet)
+			break
 		case strings.HasPrefix(data, "MAIL FROM:"):
 			from := strings.TrimPrefix(data, "MAIL FROM:")
 			from = strings.ReplaceAll(from, "BODY=8BITMIME", "")
 			from = strings.ReplaceAll(from, "SMTPUTF8", "")
 			from = strings.TrimSpace(from)
 			if !strings.EqualFold(from, "<valid-from@domain.tld>") {
-				_ = writeLine(fmt.Sprintf("503 5.1.2 Invalid from: %s", from))
+				writeLine(fmt.Sprintf("503 5.1.2 Invalid from: %s", from))
 				break
 			}
 			writeOK()
@@ -3883,24 +3882,24 @@ func handleTestServerConnection(connection net.Conn, props *serverProps) {
 			to := strings.TrimPrefix(data, "RCPT TO:")
 			to = strings.TrimSpace(to)
 			if !strings.EqualFold(to, "<valid-to@domain.tld>") {
-				_ = writeLine(fmt.Sprintf("500 5.1.2 Invalid to: %s", to))
+				writeLine(fmt.Sprintf("500 5.1.2 Invalid to: %s", to))
 				break
 			}
 			writeOK()
 		case strings.HasPrefix(data, "AUTH XOAUTH2"):
 			auth := strings.TrimPrefix(data, "AUTH XOAUTH2 ")
 			if !strings.EqualFold(auth, "dXNlcj11c2VyAWF1dGg9QmVhcmVyIHRva2VuAQE=") {
-				_ = writeLine("535 5.7.8 Error: authentication failed")
+				writeLine("535 5.7.8 Error: authentication failed")
 				break
 			}
-			_ = writeLine("235 2.7.0 Authentication successful")
+			writeLine("235 2.7.0 Authentication successful")
 		case strings.HasPrefix(data, "AUTH PLAIN"):
 			auth := strings.TrimPrefix(data, "AUTH PLAIN ")
 			if !strings.EqualFold(auth, "AHRvbmlAdGVzdGVyLmNvbQBWM3J5UzNjcjN0Kw==") {
-				_ = writeLine("535 5.7.8 Error: authentication failed")
+				writeLine("535 5.7.8 Error: authentication failed")
 				break
 			}
-			_ = writeLine("235 2.7.0 Authentication successful")
+			writeLine("235 2.7.0 Authentication successful")
 		case strings.HasPrefix(data, "AUTH LOGIN"):
 			var username, password string
 			userResp := "VXNlcm5hbWU6"
@@ -3921,7 +3920,7 @@ func handleTestServerConnection(connection net.Conn, props *serverProps) {
 				userResp = ""
 				passResp = ""
 			}
-			_ = writeLine("334 " + userResp)
+			writeLine("334 " + userResp)
 
 			ddata, derr := reader.ReadString('\n')
 			if derr != nil {
@@ -3930,7 +3929,7 @@ func handleTestServerConnection(connection net.Conn, props *serverProps) {
 			}
 			ddata = strings.TrimSpace(ddata)
 			username = ddata
-			_ = writeLine("334 " + passResp)
+			writeLine("334 " + passResp)
 
 			ddata, derr = reader.ReadString('\n')
 			if derr != nil {
@@ -3942,29 +3941,29 @@ func handleTestServerConnection(connection net.Conn, props *serverProps) {
 
 			if !strings.EqualFold(username, "dG9uaUB0ZXN0ZXIuY29t") ||
 				!strings.EqualFold(password, "VjNyeVMzY3IzdCs=") {
-				_ = writeLine("535 5.7.8 Error: authentication failed")
+				writeLine("535 5.7.8 Error: authentication failed")
 				break
 			}
-			_ = writeLine("235 2.7.0 Authentication successful")
+			writeLine("235 2.7.0 Authentication successful")
 		case strings.EqualFold(data, "DATA"):
-			_ = writeLine("354 End data with <CR><LF>.<CR><LF>")
+			writeLine("354 End data with <CR><LF>.<CR><LF>")
 			for {
 				ddata, derr := reader.ReadString('\n')
 				if derr != nil {
-					fmt.Printf("failed to read DATA data from connection: %s\n", derr)
+					t.Logf("failed to read data from connection: %s", derr)
 					break
 				}
 				ddata = strings.TrimSpace(ddata)
 				if strings.EqualFold(ddata, "DATA write should fail") {
-					_ = writeLine("500 5.0.0 Error during DATA transmission")
+					writeLine("500 5.0.0 Error during DATA transmission")
 					break
 				}
 				if ddata == "." {
 					if strings.Contains(datastring, "DATA close should fail") {
-						_ = writeLine("500 5.0.0 Error during DATA closing")
+						writeLine("500 5.0.0 Error during DATA closing")
 						break
 					}
-					_ = writeLine("250 2.0.0 Ok: queued as 1234567890")
+					writeLine("250 2.0.0 Ok: queued as 1234567890")
 					break
 				}
 				datastring += ddata + "\n"
@@ -3974,34 +3973,34 @@ func handleTestServerConnection(connection net.Conn, props *serverProps) {
 			writeOK()
 		case strings.EqualFold(data, "rset"):
 			if props.FailOnReset {
-				_ = writeLine("500 5.1.2 Error: reset failed")
+				writeLine("500 5.1.2 Error: reset failed")
 				break
 			}
 			writeOK()
 		case strings.EqualFold(data, "quit"):
 			if props.FailOnQuit {
-				_ = writeLine("500 5.1.2 Error: quit failed")
+				writeLine("500 5.1.2 Error: quit failed")
 				break
 			}
-			_ = writeLine("221 2.0.0 Bye")
+			writeLine("221 2.0.0 Bye")
 			return
 		case strings.EqualFold(data, "starttls"):
 			if props.FailOnSTARTTLS {
-				_ = writeLine("500 5.1.2 Error: starttls failed")
+				writeLine("500 5.1.2 Error: starttls failed")
 				break
 			}
 			keypair, err := tls.X509KeyPair(localhostCert, localhostKey)
 			if err != nil {
-				_ = writeLine("500 5.1.2 Error: starttls failed - " + err.Error())
+				writeLine("500 5.1.2 Error: starttls failed - " + err.Error())
 				break
 			}
-			_ = writeLine("220 Ready to start TLS")
+			writeLine("220 Ready to start TLS")
 			tlsConfig := &tls.Config{Certificates: []tls.Certificate{keypair}}
 			connection = tls.Server(connection, tlsConfig)
 			props.IsTLS = true
-			handleTestServerConnection(connection, props)
+			handleTestServerConnection(connection, t, props)
 		default:
-			_ = writeLine("500 5.5.2 Error: bad syntax")
+			writeLine("500 5.5.2 Error: bad syntax")
 		}
 	}
 }
