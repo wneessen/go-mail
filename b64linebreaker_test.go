@@ -21,7 +21,7 @@ var (
 
 func TestBase64LineBreaker(t *testing.T) {
 	t.Run("write, copy and close", func(t *testing.T) {
-		logoWriter := &bytes.Buffer{}
+		logoWriter := bytes.NewBuffer(nil)
 		lineBreaker := &Base64LineBreaker{out: logoWriter}
 		t.Cleanup(func() {
 			if err := lineBreaker.Close(); err != nil {
@@ -43,7 +43,7 @@ func TestBase64LineBreaker(t *testing.T) {
 			}
 		})
 
-		logoWriter := &bytes.Buffer{}
+		logoWriter := bytes.NewBuffer(nil)
 		lineBreaker := &Base64LineBreaker{out: logoWriter}
 		t.Cleanup(func() {
 			if err := lineBreaker.Close(); err != nil {
@@ -237,9 +237,9 @@ func FuzzBase64LineBreaker(f *testing.F) {
 	}
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		var buffer bytes.Buffer
+		buffer := bytes.NewBuffer(nil)
 		lineBreaker := &Base64LineBreaker{
-			out: &buffer,
+			out: buffer,
 		}
 		base64Encoder := base64.NewEncoder(base64.StdEncoding, lineBreaker)
 
