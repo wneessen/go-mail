@@ -751,6 +751,7 @@ func (c *Client) SetTLSPolicy(policy TLSPolicy) {
 func (c *Client) SetTLSPortPolicy(policy TLSPolicy) {
 	if c.port == DefaultPort {
 		c.port = DefaultPortTLS
+		c.fallbackPort = 0
 
 		if policy == TLSOpportunistic {
 			c.fallbackPort = DefaultPort
