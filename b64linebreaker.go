@@ -13,8 +13,8 @@ import (
 // in encoding processes.
 var newlineBytes = []byte(SingleNewLine)
 
-// ErrNoOutWriter is the error message returned when no io.Writer is set for Base64LineBreaker.
-const ErrNoOutWriter = "no io.Writer set for Base64LineBreaker"
+// ErrNoOutWriter is the error returned when no io.Writer is set for Base64LineBreaker.
+var ErrNoOutWriter = errors.New("no io.Writer set for Base64LineBreaker")
 
 // Base64LineBreaker handles base64 encoding with the insertion of new lines after a certain number
 // of characters.
@@ -44,7 +44,7 @@ type Base64LineBreaker struct {
 //   - err: An error if one occurred during the write operation.
 func (l *Base64LineBreaker) Write(data []byte) (numBytes int, err error) {
 	if l.out == nil {
-		err = errors.New(ErrNoOutWriter)
+		err = ErrNoOutWriter
 		return
 	}
 	if l.used+len(data) < MaxBodyLength {
