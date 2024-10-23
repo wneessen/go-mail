@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -34,10 +35,29 @@ const (
 	TestServerAddr = "127.0.0.1"
 	// TestServerPortBase is the base port for the simple SMTP test server
 	TestServerPortBase = 2025
+	// TestPasswordValid is the password that the test server accepts as valid for SMTP auth
+	TestPasswordValid = "V3ryS3cr3t+"
+	// TestUserValid is the username that the test server accepts as valid for SMTP auth
+	TestUserValid = "toni@tester.com"
 )
 
 // PortAdder is an atomic counter used to increment port numbers for the test SMTP server instances.
 var PortAdder atomic.Int32
+
+// logLine represents a log entry with time, level, message, and direction details.
+type logLine struct {
+	Time      time.Time `json:"time"`
+	Level     string    `json:"level"`
+	Message   string    `json:"msg"`
+	Direction struct {
+		From string `json:"from"`
+		To   string `json:"to"`
+	} `json:"direction"`
+}
+
+type logData struct {
+	Lines []logLine `json:"lines"`
+}
 
 func TestNewClient(t *testing.T) {
 	t.Run("create new Client", func(t *testing.T) {
@@ -1428,192 +1448,210 @@ func TestClient_SetSMTPAuthCustom(t *testing.T) {
 	})
 }
 
+func TestClient_SetLogAuthData(t *testing.T) {
+	t.Run("SetLogAuthData true", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetLogAuthData(true)
+		if !client.logAuthData {
+			t.Errorf("failed to set logAuthData, want: true, got: %t", client.logAuthData)
+		}
+	})
+	t.Run("SetLogAuthData false", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetLogAuthData(false)
+		if client.logAuthData {
+			t.Errorf("failed to set logAuthData, want: false, got: %t", client.logAuthData)
+		}
+	})
+	t.Run("SetLogAuthData override WithLogAuthData", func(t *testing.T) {
+		client, err := NewClient(DefaultHost, WithLogAuthData())
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetLogAuthData(false)
+		if client.logAuthData {
+			t.Errorf("failed to set logAuthData, want: false, got: %t", client.logAuthData)
+		}
+	})
+}
+
+func TestClient_Close(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	PortAdder.Add(1)
+	serverPort := int(TestServerPortBase + PortAdder.Load())
+	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, false, serverPort); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 300)
+
+	t.Run("connect and close the Client", func(t *testing.T) {
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to the test server: %s", err)
+		}
+		if !client.smtpClient.HasConnection() {
+			t.Fatalf("client has no connection")
+		}
+		if err = client.Close(); err != nil {
+			t.Errorf("failed to close the client: %s", err)
+		}
+	})
+	t.Run("connect and double close the Client", func(t *testing.T) {
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to the test server: %s", err)
+		}
+		if !client.smtpClient.HasConnection() {
+			t.Fatalf("client has no connection")
+		}
+		if err = client.Close(); err != nil {
+			t.Errorf("failed to close the client: %s", err)
+		}
+		if err = client.Close(); err != nil {
+			t.Errorf("failed to close the client: %s", err)
+		}
+	})
+}
+
+func TestClient_DialWithContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	PortAdder.Add(1)
+	serverPort := int(TestServerPortBase + PortAdder.Load())
+	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, false, serverPort); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 300)
+
+	t.Run("connect and check connection", func(t *testing.T) {
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to the test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close the client: %s", err)
+			}
+		})
+		if !client.smtpClient.HasConnection() {
+			t.Fatalf("client has no connection")
+		}
+	})
+	t.Run("fail on base port use fallback", func(t *testing.T) {
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.port = 12345
+		client.fallbackPort = serverPort
+
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to the test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close the client: %s", err)
+			}
+		})
+		if !client.smtpClient.HasConnection() {
+			t.Fatalf("client has no connection")
+		}
+	})
+	t.Run("fail on base port and fallback", func(t *testing.T) {
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.port = 12345
+		client.fallbackPort = 12346
+
+		if err = client.DialWithContext(ctxDial); err == nil {
+			t.Fatalf("connection was supposed to fail, but didn't")
+		}
+		if client.smtpClient != nil {
+			t.Fatalf("client has connection")
+		}
+	})
+	t.Run("connect with full debug logging and auth logging", func(t *testing.T) {
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		logBuffer := bytes.NewBuffer(nil)
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS),
+			WithDebugLog(), WithLogAuthData(), WithLogger(log.NewJSON(logBuffer, log.LevelDebug)),
+			WithSMTPAuth(SMTPAuthPlain), WithUsername(TestUserValid), WithPassword(TestPasswordValid))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to the test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close the client: %s", err)
+			}
+		})
+
+		logs := parseJSONLog(t, logBuffer)
+		if len(logs.Lines) == 0 {
+			t.Errorf("failed to enable debug logging, but no logs were found")
+		}
+		authFound := false
+		for _, logline := range logs.Lines {
+			if strings.EqualFold(logline.Message, "AUTH PLAIN AHRvbmlAdGVzdGVyLmNvbQBWM3J5UzNjcjN0Kw==") &&
+				logline.Direction.From == "client" && logline.Direction.To == "server" {
+				authFound = true
+			}
+		}
+		if !authFound {
+			t.Errorf("logAuthData not working, no authentication info found in logs")
+		}
+	})
+}
+
 /*
 
 
-// TestWithDSN tests the WithDSN method for the Client object
-func TestWithDSN(t *testing.T) {
-	c, err := NewClient(DefaultHost, WithDSN())
-	if err != nil {
-		t.Errorf("failed to create new client: %s", err)
-		return
-	}
-	if !c.requestDSN {
-		t.Errorf("WithDSN failed. c.requestDSN expected to be: %t, got: %t", true, c.requestDSN)
-	}
-	if c.dsnReturnType != DSNMailReturnFull {
-		t.Errorf("WithDSN failed. c.dsnReturnType expected to be: %s, got: %s", DSNMailReturnFull,
-			c.dsnReturnType)
-	}
-	if c.dsnRcptNotifyType[0] != string(DSNRcptNotifyFailure) {
-		t.Errorf("WithDSN failed. c.dsnRcptNotifyType[0] expected to be: %s, got: %s", DSNRcptNotifyFailure,
-			c.dsnRcptNotifyType[0])
-	}
-	if c.dsnRcptNotifyType[1] != string(DSNRcptNotifySuccess) {
-		t.Errorf("WithDSN failed. c.dsnRcptNotifyType[1] expected to be: %s, got: %s", DSNRcptNotifySuccess,
-			c.dsnRcptNotifyType[1])
-	}
-}
-
-// TestWithDSNMailReturnType tests the WithDSNMailReturnType method for the Client object
-func TestWithDSNMailReturnType(t *testing.T) {
-	tests := []struct {
-		name  string
-		value DSNMailReturnOption
-		want  string
-		sf    bool
-	}{
-		{"WithDSNMailReturnType: FULL", DSNMailReturnFull, "FULL", false},
-		{"WithDSNMailReturnType: HDRS", DSNMailReturnHeadersOnly, "HDRS", false},
-		{"WithDSNMailReturnType: INVALID", "INVALID", "", true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, err := NewClient(DefaultHost, WithDSNMailReturnType(tt.value))
-			if err != nil && !tt.sf {
-				t.Errorf("failed to create new client: %s", err)
-				return
-			}
-			if string(c.dsnReturnType) != tt.want {
-				t.Errorf("WithDSNMailReturnType failed. Expected %s, got: %s", tt.want, string(c.dsnReturnType))
-			}
-		})
-	}
-}
-
-// TestWithDSNRcptNotifyType tests the WithDSNRcptNotifyType method for the Client object
-func TestWithDSNRcptNotifyType(t *testing.T) {
-	tests := []struct {
-		name  string
-		value DSNRcptNotifyOption
-		want  string
-		sf    bool
-	}{
-		{"WithDSNRcptNotifyType: NEVER", DSNRcptNotifyNever, "NEVER", false},
-		{"WithDSNRcptNotifyType: SUCCESS", DSNRcptNotifySuccess, "SUCCESS", false},
-		{"WithDSNRcptNotifyType: FAILURE", DSNRcptNotifyFailure, "FAILURE", false},
-		{"WithDSNRcptNotifyType: DELAY", DSNRcptNotifyDelay, "DELAY", false},
-		{"WithDSNRcptNotifyType: INVALID", "INVALID", "", true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, err := NewClient(DefaultHost, WithDSNRcptNotifyType(tt.value))
-			if err != nil && !tt.sf {
-				t.Errorf("failed to create new client: %s", err)
-				return
-			}
-			if len(c.dsnRcptNotifyType) <= 0 && !tt.sf {
-				t.Errorf("WithDSNRcptNotifyType failed. Expected at least one DSNRNType but got none")
-			}
-			if !tt.sf && c.dsnRcptNotifyType[0] != tt.want {
-				t.Errorf("WithDSNRcptNotifyType failed. Expected %s, got: %s", tt.want, c.dsnRcptNotifyType[0])
-			}
-		})
-	}
-}
-
-// TestWithoutNoop tests the WithoutNoop method for the Client object
-func TestWithoutNoop(t *testing.T) {
-	c, err := NewClient(DefaultHost, WithoutNoop())
-	if err != nil {
-		t.Errorf("failed to create new client: %s", err)
-		return
-	}
-	if !c.noNoop {
-		t.Errorf("WithoutNoop failed. c.noNoop expected to be: %t, got: %t", true, c.noNoop)
-	}
-
-	c, err = NewClient(DefaultHost)
-	if err != nil {
-		t.Errorf("failed to create new client: %s", err)
-		return
-	}
-	if c.noNoop {
-		t.Errorf("WithoutNoop failed. c.noNoop expected to be: %t, got: %t", false, c.noNoop)
-	}
-}
-
-func TestClient_SetLogAuthData(t *testing.T) {
-	c, err := NewClient(DefaultHost, WithLogAuthData())
-	if err != nil {
-		t.Errorf("failed to create new client: %s", err)
-		return
-	}
-	if !c.logAuthData {
-		t.Errorf("WithLogAuthData failed. c.logAuthData expected to be: %t, got: %t", true,
-			c.logAuthData)
-	}
-	c.SetLogAuthData(false)
-	if c.logAuthData {
-		t.Errorf("SetLogAuthData failed. c.logAuthData expected to be: %t, got: %t", false,
-			c.logAuthData)
-	}
-}
-
-// TestSetSMTPAuthCustom tests the SetSMTPAuthCustom method for the Client object
-func TestSetSMTPAuthCustom(t *testing.T) {
-	tests := []struct {
-		name  string
-		value smtp.Auth
-		want  string
-		sf    bool
-	}{
-		{"SMTPAuth: CRAM-MD5", smtp.CRAMMD5Auth("", ""), "CRAM-MD5", false},
-		{"SMTPAuth: LOGIN", smtp.LoginAuth("", "", "", false), "LOGIN", false},
-		{"SMTPAuth: PLAIN", smtp.PlainAuth("", "", "", "", false), "PLAIN", false},
-	}
-	si := smtp.ServerInfo{TLS: true}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, err := NewClient(DefaultHost)
-			if err != nil {
-				t.Errorf("failed to create new client: %s", err)
-				return
-			}
-			c.SetSMTPAuthCustom(tt.value)
-			if c.smtpAuth == nil {
-				t.Errorf("failed to set custom SMTP auth method. SMTP Auth method is empty")
-			}
-			if c.smtpAuthType != SMTPAuthCustom {
-				t.Errorf("failed to set custom SMTP auth method. SMTP Auth type is not custom: %s",
-					c.smtpAuthType)
-			}
-			p, _, err := c.smtpAuth.Start(&si)
-			if err != nil {
-				t.Errorf("SMTP Auth Start() method returned error: %s", err)
-			}
-			if p != tt.want {
-				t.Errorf("SMTP Auth Start() method is returned proto: %s, expected: %s", p, tt.want)
-			}
-		})
-	}
-}
-
-// TestClient_Close_double tests if a close on an already closed connection causes an error.
-func TestClient_Close_double(t *testing.T) {
-	c, err := getTestConnection(true)
-	if err != nil {
-		t.Skipf("failed to create test client: %s. Skipping tests", err)
-	}
-	ctx := context.Background()
-	if err = c.DialWithContext(ctx); err != nil {
-		t.Errorf("failed to dial with context: %s", err)
-		return
-	}
-	if c.smtpClient == nil {
-		t.Errorf("DialWithContext didn't fail but no SMTP client found.")
-		return
-	}
-	if !c.smtpClient.HasConnection() {
-		t.Errorf("DialWithContext didn't fail but no connection found.")
-	}
-	if err = c.Close(); err != nil {
-		t.Errorf("failed to close connection: %s", err)
-	}
-	if err = c.Close(); err != nil {
-		t.Errorf("failed 2nd close connection: %s", err)
-	}
-}
 
 // TestClient_DialWithContext tests the DialWithContext method for the Client object
 func TestClient_DialWithContext(t *testing.T) {
@@ -3562,6 +3600,35 @@ func (f faker) SetDeadline(time.Time) error      { return nil }
 func (f faker) SetReadDeadline(time.Time) error  { return nil }
 func (f faker) SetWriteDeadline(time.Time) error { return nil }
 */
+
+// parseJSONLog parses a JSON encoded log from the provided buffer and returns a slice of logLine structs.
+// In case of a decode error, it reports the error to the testing framework.
+func parseJSONLog(t *testing.T, buf *bytes.Buffer) logData {
+	t.Helper()
+
+	builder := strings.Builder{}
+	builder.WriteString(`{"lines":[`)
+	lines := strings.Split(buf.String(), "\n")
+	for i, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		builder.WriteString(line)
+		if i < len(lines)-2 {
+			builder.WriteString(`,`)
+		}
+	}
+	builder.WriteString("]}")
+
+	var logdata logData
+	readBuffer := bytes.NewBuffer(nil)
+	readBuffer.WriteString(builder.String())
+	if err := json.NewDecoder(readBuffer).Decode(&logdata); err != nil {
+		t.Errorf("failed to decode json log: %s", err)
+	}
+	return logdata
+}
 
 // simpleSMTPServer starts a simple TCP server that resonds to SMTP commands.
 // The provided featureSet represents in what the server responds to EHLO command
