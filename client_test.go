@@ -1100,7 +1100,7 @@ func TestClient_SetDebugLog(t *testing.T) {
 	serverPort := int(TestServerPortBase + PortAdder.Load())
 	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 	go func() {
-		if err := simpleSMTPServer(ctx, featureSet, false, serverPort); err != nil {
+		if err := simpleSMTPServer(ctx, &serverProps{FeatureSet: featureSet, ListenPort: serverPort}); err != nil {
 			t.Errorf("failed to start test server: %s", err)
 			return
 		}
@@ -1482,20 +1482,23 @@ func TestClient_SetLogAuthData(t *testing.T) {
 }
 
 func TestClient_Close(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	PortAdder.Add(1)
-	serverPort := int(TestServerPortBase + PortAdder.Load())
-	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
-	go func() {
-		if err := simpleSMTPServer(ctx, featureSet, false, serverPort); err != nil {
-			t.Errorf("failed to start test server: %s", err)
-			return
-		}
-	}()
-	time.Sleep(time.Millisecond * 300)
-
 	t.Run("connect and close the Client", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 300)
+
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
 
@@ -1514,6 +1517,22 @@ func TestClient_Close(t *testing.T) {
 		}
 	})
 	t.Run("connect and double close the Client", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 300)
+
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
 
@@ -1534,6 +1553,41 @@ func TestClient_Close(t *testing.T) {
 			t.Errorf("failed to close the client: %s", err)
 		}
 	})
+	t.Run("test server will let close fail", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, &serverProps{
+				FailOnQuit: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 300)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to the test server: %s", err)
+		}
+		if !client.smtpClient.HasConnection() {
+			t.Fatalf("client has no connection")
+		}
+		if err = client.Close(); err == nil {
+			t.Errorf("close was supposed to fail, but didn't")
+		}
+	})
 }
 
 func TestClient_DialWithContext(t *testing.T) {
@@ -1543,7 +1597,7 @@ func TestClient_DialWithContext(t *testing.T) {
 	serverPort := int(TestServerPortBase + PortAdder.Load())
 	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 	go func() {
-		if err := simpleSMTPServer(ctx, featureSet, false, serverPort); err != nil {
+		if err := simpleSMTPServer(ctx, &serverProps{FeatureSet: featureSet, ListenPort: serverPort}); err != nil {
 			t.Errorf("failed to start test server: %s", err)
 			return
 		}
@@ -3630,11 +3684,21 @@ func parseJSONLog(t *testing.T, buf *bytes.Buffer) logData {
 	return logdata
 }
 
+type serverProps struct {
+	FailOnReset bool
+	FailOnQuit  bool
+	FeatureSet  string
+	ListenPort  int
+}
+
 // simpleSMTPServer starts a simple TCP server that resonds to SMTP commands.
 // The provided featureSet represents in what the server responds to EHLO command
 // failReset controls if a RSET succeeds
-func simpleSMTPServer(ctx context.Context, featureSet string, failReset bool, port int) error {
-	listener, err := net.Listen(TestServerProto, fmt.Sprintf("%s:%d", TestServerAddr, port))
+func simpleSMTPServer(ctx context.Context, props *serverProps) error {
+	if props == nil {
+		return fmt.Errorf("no server properties provided")
+	}
+	listener, err := net.Listen(TestServerProto, fmt.Sprintf("%s:%d", TestServerAddr, props.ListenPort))
 	if err != nil {
 		return fmt.Errorf("unable to listen on %s://%s: %w", TestServerProto, TestServerAddr, err)
 	}
@@ -3659,12 +3723,12 @@ func simpleSMTPServer(ctx context.Context, featureSet string, failReset bool, po
 				}
 				return fmt.Errorf("unable to accept connection: %w", err)
 			}
-			handleTestServerConnection(connection, featureSet, failReset)
+			handleTestServerConnection(connection, props)
 		}
 	}
 }
 
-func handleTestServerConnection(connection net.Conn, featureSet string, failReset bool) {
+func handleTestServerConnection(connection net.Conn, props *serverProps) {
 	defer func() {
 		if err := connection.Close(); err != nil {
 			fmt.Printf("unable to close connection: %s\n", err)
@@ -3698,7 +3762,7 @@ func handleTestServerConnection(connection net.Conn, featureSet string, failRese
 		fmt.Printf("expected EHLO, got %q", data)
 		return
 	}
-	if err = writeLine("250-localhost.localdomain\r\n" + featureSet); err != nil {
+	if err = writeLine("250-localhost.localdomain\r\n" + props.FeatureSet); err != nil {
 		return
 	}
 
@@ -3748,19 +3812,19 @@ func handleTestServerConnection(connection net.Conn, featureSet string, failRese
 			var username, password string
 			userResp := "VXNlcm5hbWU6"
 			passResp := "UGFzc3dvcmQ6"
-			if strings.Contains(featureSet, "250-X-MOX-LOGIN") {
+			if strings.Contains(props.FeatureSet, "250-X-MOX-LOGIN") {
 				userResp = ""
 				passResp = "UGFzc3dvcmQ="
 			}
-			if strings.Contains(featureSet, "250-X-NULLBYTE-LOGIN") {
+			if strings.Contains(props.FeatureSet, "250-X-NULLBYTE-LOGIN") {
 				userResp = "VXNlciBuYW1lAA=="
 				passResp = "UGFzc3dvcmQA"
 			}
-			if strings.Contains(featureSet, "250-X-BOGUS-LOGIN") {
+			if strings.Contains(props.FeatureSet, "250-X-BOGUS-LOGIN") {
 				userResp = "Qm9ndXM="
 				passResp = "Qm9ndXM="
 			}
-			if strings.Contains(featureSet, "250-X-EMPTY-LOGIN") {
+			if strings.Contains(props.FeatureSet, "250-X-EMPTY-LOGIN") {
 				userResp = ""
 				passResp = ""
 			}
@@ -3816,12 +3880,16 @@ func handleTestServerConnection(connection net.Conn, featureSet string, failRese
 			strings.EqualFold(data, "vrfy"):
 			writeOK()
 		case strings.EqualFold(data, "rset"):
-			if failReset {
+			if props.FailOnReset {
 				_ = writeLine("500 5.1.2 Error: reset failed")
 				break
 			}
 			writeOK()
 		case strings.EqualFold(data, "quit"):
+			if props.FailOnQuit {
+				_ = writeLine("500 5.1.2 Error: quit failed")
+				break
+			}
 			_ = writeLine("221 2.0.0 Bye")
 		default:
 			_ = writeLine("500 5.5.2 Error: bad syntax")
