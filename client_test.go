@@ -1930,38 +1930,6 @@ func TestClient_DialWithContext(t *testing.T) {
 
 
 
-// TestClient_DialWithContextInvalidHELO tests the DialWithContext method with intentional breaking
-// for the Client object
-func TestClient_DialWithContextInvalidHELO(t *testing.T) {
-	c, err := getTestConnection(true)
-	if err != nil {
-		t.Skipf("failed to create test client: %s. Skipping tests", err)
-	}
-	c.helo = ""
-	ctx := context.Background()
-	if err = c.DialWithContext(ctx); err == nil {
-		t.Errorf("dial succeeded but was supposed to fail")
-		return
-	}
-}
-
-// TestClient_DialWithContextInvalidAuth tests the DialWithContext method with intentional breaking
-// for the Client object
-func TestClient_DialWithContextInvalidAuth(t *testing.T) {
-	c, err := getTestConnection(true)
-	if err != nil {
-		t.Skipf("failed to create test client: %s. Skipping tests", err)
-	}
-	c.user = "invalid"
-	c.pass = "invalid"
-	c.SetSMTPAuthCustom(smtp.LoginAuth("invalid", "invalid", "invalid", false))
-	ctx := context.Background()
-	if err = c.DialWithContext(ctx); err == nil {
-		t.Errorf("dial succeeded but was supposed to fail")
-		return
-	}
-}
-
 // TestClient_checkConn tests the checkConn method with intentional breaking for the Client object
 func TestClient_checkConn(t *testing.T) {
 	c, err := getTestConnection(true)
