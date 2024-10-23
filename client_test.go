@@ -39,6 +39,10 @@ const (
 	TestPasswordValid = "V3ryS3cr3t+"
 	// TestUserValid is the username that the test server accepts as valid for SMTP auth
 	TestUserValid = "toni@tester.com"
+	// TestSenderValid is a test sender email address considered valid for sending test emails.
+	TestSenderValid = "valid-from@domain.tld"
+	// TestRcptValid is a test recipient email address considered valid for sending test emails.
+	TestRcptValid = "valid-to@domain.tld"
 )
 
 // PortAdder is an atomic counter used to increment port numbers for the test SMTP server instances.
@@ -2025,6 +2029,44 @@ func TestClient_Reset(t *testing.T) {
 		})
 		if err = client.Reset(); err == nil {
 			t.Errorf("reset on disconnected client should fail")
+		}
+	})
+}
+
+func TestClient_DialAndSend(t *testing.T) {
+	t.Run("dial and send", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 300)
+
+		message := NewMsg()
+		if err := message.From(TestSenderValid); err != nil {
+			t.Errorf("failed to set sender address: %s", err)
+		}
+		if err := message.To(TestRcptValid); err != nil {
+			t.Errorf("failed to set recipient address: %s", err)
+		}
+		message.Subject("Testmail")
+		message.SetBodyString(TypeTextPlain, "Testmail")
+
+		client, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS), WithPort(serverPort))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialAndSend(message); err != nil {
+			t.Fatalf("failed to dial and send: %s", err)
 		}
 	})
 }
