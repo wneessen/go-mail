@@ -219,7 +219,7 @@ func (w *mockWriterNewline) Write(p []byte) (n int, err error) {
 
 func FuzzBase64LineBreaker(f *testing.F) {
 	seedData := [][]byte{
-		//[]byte(""),
+		[]byte(""),
 		[]byte("abc"),
 		[]byte("def"),
 		[]byte("Hello, World!"),
