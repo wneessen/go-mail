@@ -1379,112 +1379,32 @@ func TestClient_SetSMTPAuth(t *testing.T) {
 	})
 }
 
+func TestClient_SetSMTPAuthCustom(t *testing.T) {
+	t.Run("SetSMTPAuthCustom with PLAIN auth", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetSMTPAuthCustom(
+			smtp.PlainAuth("", "", "", "", false),
+		)
+		if client.smtpAuth == nil {
+			t.Errorf("failed to set custom SMTP auth, expected auth method but got nil")
+		}
+		if client.smtpAuthType != SMTPAuthCustom {
+			t.Errorf("failed to set custom SMTP auth, want auth type: %s, got: %s", SMTPAuthCustom,
+				client.smtpAuthType)
+		}
+		authType := reflect.TypeOf(client.smtpAuth).String()
+		if authType != "*smtp.plainAuth" {
+			t.Errorf("failed to set custom SMTP auth, expected auth method type: %s, got: %s",
+				"*smtp.plainAuth", authType)
+		}
+	})
+}
+
 /*
 
-
-// TestSetTLSConfig tests the SetTLSConfig() method for the Client object
-func TestSetTLSConfig(t *testing.T) {
-	tests := []struct {
-		name  string
-		value *tls.Config
-		sf    bool
-	}{
-		{"default config", &tls.Config{}, false},
-		{"nil config", nil, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, err := NewClient(DefaultHost)
-			if err != nil {
-				t.Errorf("failed to create new client: %s", err)
-				return
-			}
-			if err := c.SetTLSConfig(tt.value); err != nil && !tt.sf {
-				t.Errorf("failed to set TLSConfig: %s", err)
-				return
-			}
-		})
-	}
-}
-
-// TestSetUsername tests the SetUsername method for the Client object
-func TestSetUsername(t *testing.T) {
-	tests := []struct {
-		name  string
-		value string
-		want  string
-		sf    bool
-	}{
-		{"normal username", "testuser", "testuser", false},
-		{"empty username", "", "", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, err := NewClient(DefaultHost)
-			if err != nil {
-				t.Errorf("failed to create new client: %s", err)
-				return
-			}
-			c.SetUsername(tt.value)
-			if c.user != tt.want {
-				t.Errorf("failed to set username. Expected %s, got: %s", tt.want, c.user)
-			}
-		})
-	}
-}
-
-// TestSetPassword tests the SetPassword method for the Client object
-func TestSetPassword(t *testing.T) {
-	tests := []struct {
-		name  string
-		value string
-		want  string
-		sf    bool
-	}{
-		{"normal password", "testpass", "testpass", false},
-		{"empty password", "", "", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, err := NewClient(DefaultHost)
-			if err != nil {
-				t.Errorf("failed to create new client: %s", err)
-				return
-			}
-			c.SetPassword(tt.value)
-			if c.pass != tt.want {
-				t.Errorf("failed to set password. Expected %s, got: %s", tt.want, c.pass)
-			}
-		})
-	}
-}
-
-// TestSetSMTPAuth tests the SetSMTPAuth method for the Client object
-func TestSetSMTPAuth(t *testing.T) {
-	tests := []struct {
-		name  string
-		value SMTPAuthType
-		want  string
-		sf    bool
-	}{
-		{"SMTPAuth: LOGIN", SMTPAuthLogin, "LOGIN", false},
-		{"SMTPAuth: PLAIN", SMTPAuthPlain, "PLAIN", false},
-		{"SMTPAuth: CRAM-MD5", SMTPAuthCramMD5, "CRAM-MD5", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, err := NewClient(DefaultHost)
-			if err != nil {
-				t.Errorf("failed to create new client: %s", err)
-				return
-			}
-			c.SetSMTPAuth(tt.value)
-			if string(c.smtpAuthType) != tt.want {
-				t.Errorf("failed to set SMTP auth type. Expected %s, got: %s", tt.want, string(c.smtpAuthType))
-			}
-		})
-	}
-}
 
 // TestWithDSN tests the WithDSN method for the Client object
 func TestWithDSN(t *testing.T) {
