@@ -5,6 +5,8 @@
 package mail
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -12,6 +14,8 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -31,6 +35,9 @@ const (
 	// TestServerPortBase is the base port for the simple SMTP test server
 	TestServerPortBase = 2025
 )
+
+// PortAdder is an atomic counter used to increment port numbers for the test SMTP server instances.
+var PortAdder atomic.Int32
 
 func TestNewClient(t *testing.T) {
 	t.Run("create new Client", func(t *testing.T) {
@@ -717,98 +724,483 @@ func TestNewClient(t *testing.T) {
 	})
 }
 
+func TestClient_TLSPolicy(t *testing.T) {
+	t.Run("WithTLSPolicy fmt.Stringer interface", func(t *testing.T) {})
+	tests := []struct {
+		name  string
+		value TLSPolicy
+		want  string
+	}{
+		{"TLSMandatory", TLSMandatory, "TLSMandatory"},
+		{"TLSOpportunistic", TLSOpportunistic, "TLSOpportunistic"},
+		{"NoTLS", NoTLS, "NoTLS"},
+		{"Invalid", -1, "UnknownPolicy"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, err := NewClient(DefaultHost, WithTLSPolicy(tt.value))
+			if err != nil {
+				t.Fatalf("failed to create new client: %s", err)
+			}
+			got := client.TLSPolicy()
+			if !strings.EqualFold(got, tt.want) {
+				t.Errorf("failed to get expected TLS policy string. Want: %s, got: %s", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestClient_ServerAddr(t *testing.T) {
+	t.Run("ServerAddr of default client", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		got := client.ServerAddr()
+		expected := fmt.Sprintf("%s:%d", DefaultHost, DefaultPort)
+		if !strings.EqualFold(expected, got) {
+			t.Errorf("failed to get expected server address. Want: %s, got: %s", expected, got)
+		}
+	})
+	t.Run("ServerAddr of with custom port", func(t *testing.T) {
+		client, err := NewClient(DefaultHost, WithPort(587))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		got := client.ServerAddr()
+		expected := fmt.Sprintf("%s:%d", DefaultHost, 587)
+		if !strings.EqualFold(expected, got) {
+			t.Errorf("failed to get expected server address. Want: %s, got: %s", expected, got)
+		}
+	})
+	t.Run("ServerAddr of with port policy TLSMandatory", func(t *testing.T) {
+		client, err := NewClient(DefaultHost, WithTLSPortPolicy(TLSMandatory))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		got := client.ServerAddr()
+		expected := fmt.Sprintf("%s:%d", DefaultHost, 587)
+		if !strings.EqualFold(expected, got) {
+			t.Errorf("failed to get expected server address. Want: %s, got: %s", expected, got)
+		}
+	})
+	t.Run("ServerAddr of with port policy TLSOpportunistic", func(t *testing.T) {
+		client, err := NewClient(DefaultHost, WithTLSPortPolicy(TLSOpportunistic))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		got := client.ServerAddr()
+		expected := fmt.Sprintf("%s:%d", DefaultHost, 587)
+		if !strings.EqualFold(expected, got) {
+			t.Errorf("failed to get expected server address. Want: %s, got: %s", expected, got)
+		}
+	})
+	t.Run("ServerAddr of with port policy NoTLS", func(t *testing.T) {
+		client, err := NewClient(DefaultHost, WithTLSPortPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		got := client.ServerAddr()
+		expected := fmt.Sprintf("%s:%d", DefaultHost, 25)
+		if !strings.EqualFold(expected, got) {
+			t.Errorf("failed to get expected server address. Want: %s, got: %s", expected, got)
+		}
+	})
+	t.Run("ServerAddr of with SSL", func(t *testing.T) {
+		client, err := NewClient(DefaultHost, WithSSLPort(false))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		got := client.ServerAddr()
+		expected := fmt.Sprintf("%s:%d", DefaultHost, 465)
+		if !strings.EqualFold(expected, got) {
+			t.Errorf("failed to get expected server address. Want: %s, got: %s", expected, got)
+		}
+	})
+}
+
+func TestClient_SetTLSPolicy(t *testing.T) {
+	t.Run("SetTLSPolicy TLSMandatory", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetTLSPolicy(TLSMandatory)
+		if client.tlspolicy != TLSMandatory {
+			t.Errorf("failed to set expected TLS policy. Want: %s, got: %s",
+				TLSMandatory, client.tlspolicy)
+		}
+	})
+	t.Run("SetTLSPolicy TLSOpportunistic", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetTLSPolicy(TLSOpportunistic)
+		if client.tlspolicy != TLSOpportunistic {
+			t.Errorf("failed to set expected TLS policy. Want: %s, got: %s",
+				TLSOpportunistic, client.tlspolicy)
+		}
+	})
+	t.Run("SetTLSPolicy NoTLS", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetTLSPolicy(NoTLS)
+		if client.tlspolicy != NoTLS {
+			t.Errorf("failed to set expected TLS policy. Want: %s, got: %s",
+				NoTLS, client.tlspolicy)
+		}
+	})
+	t.Run("SetTLSPolicy to override WithTLSPolicy", func(t *testing.T) {
+		client, err := NewClient(DefaultHost, WithTLSPolicy(TLSOpportunistic))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetTLSPolicy(TLSMandatory)
+		if client.tlspolicy != TLSMandatory {
+			t.Errorf("failed to set expected TLS policy. Want: %s, got: %s",
+				TLSMandatory, client.tlspolicy)
+		}
+	})
+}
+
+func TestClient_SetTLSPortPolicy(t *testing.T) {
+	t.Run("SetTLSPortPolicy TLSMandatory", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetTLSPortPolicy(TLSMandatory)
+		if client.tlspolicy != TLSMandatory {
+			t.Errorf("failed to set expected TLS policy. Want policy: %s, got: %s",
+				TLSMandatory, client.tlspolicy)
+		}
+		if client.port != 587 {
+			t.Errorf("failed to set expected TLS policy. Want port: %d, got: %d", 587, client.port)
+		}
+		if client.fallbackPort != 0 {
+			t.Errorf("failed to set expected TLS policy. Want fallback port: %d, got: %d", 0,
+				client.fallbackPort)
+		}
+	})
+	t.Run("SetTLSPortPolicy TLSOpportunistic", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetTLSPortPolicy(TLSOpportunistic)
+		if client.tlspolicy != TLSOpportunistic {
+			t.Errorf("failed to set expected TLS policy. Want policy: %s, got: %s",
+				TLSOpportunistic, client.tlspolicy)
+		}
+		if client.port != 587 {
+			t.Errorf("failed to set expected TLS policy. Want port: %d, got: %d", 587, client.port)
+		}
+		if client.fallbackPort != 25 {
+			t.Errorf("failed to set expected TLS policy. Want fallback port: %d, got: %d", 25,
+				client.fallbackPort)
+		}
+	})
+	t.Run("SetTLSPortPolicy NoTLS", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetTLSPortPolicy(NoTLS)
+		if client.tlspolicy != NoTLS {
+			t.Errorf("failed to set expected TLS policy. Want policy: %s, got: %s",
+				NoTLS, client.tlspolicy)
+		}
+		if client.port != 25 {
+			t.Errorf("failed to set expected TLS policy. Want port: %d, got: %d", 25, client.port)
+		}
+		if client.fallbackPort != 0 {
+			t.Errorf("failed to set expected TLS policy. Want fallback port: %d, got: %d", 0,
+				client.fallbackPort)
+		}
+	})
+	t.Run("SetTLSPortPolicy to override WithTLSPortPolicy", func(t *testing.T) {
+		client, err := NewClient(DefaultHost, WithTLSPortPolicy(TLSOpportunistic), WithPort(25))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetTLSPortPolicy(TLSMandatory)
+		if client.tlspolicy != TLSMandatory {
+			t.Errorf("failed to set expected TLS policy. Want policy: %s, got: %s",
+				TLSMandatory, client.tlspolicy)
+		}
+		if client.port != 587 {
+			t.Errorf("failed to set expected TLS policy. Want port: %d, got: %d", 587, client.port)
+		}
+		if client.fallbackPort != 0 {
+			t.Errorf("failed to set expected TLS policy. Want fallback port: %d, got: %d", 0,
+				client.fallbackPort)
+		}
+	})
+}
+
+func TestClient_SetSSL(t *testing.T) {
+	t.Run("SetSSL true", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetSSL(true)
+		if !client.useSSL {
+			t.Errorf("failed to set expected useSSL: %t", true)
+		}
+	})
+	t.Run("SetSSL false", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetSSL(false)
+		if client.useSSL {
+			t.Errorf("failed to set expected useSSL: %t", false)
+		}
+	})
+	t.Run("SetSSL to override WithSSL", func(t *testing.T) {
+		client, err := NewClient(DefaultHost, WithSSL())
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetSSL(false)
+		if client.useSSL {
+			t.Errorf("failed to set expected useSSL: %t", false)
+		}
+	})
+}
+
+func TestClient_SetSSLPort(t *testing.T) {
+	t.Run("SetSSLPort true no fallback", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetSSLPort(true, false)
+		if !client.useSSL {
+			t.Errorf("failed to set expected useSSL: %t", true)
+		}
+		if client.port != 465 {
+			t.Errorf("failed to set expected port: %d, got: %d", 465, client.port)
+		}
+		if client.fallbackPort != 0 {
+			t.Errorf("failed to set expected fallback: %d, got: %d", 0, client.fallbackPort)
+		}
+	})
+	t.Run("SetSSLPort true with fallback", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetSSLPort(true, true)
+		if !client.useSSL {
+			t.Errorf("failed to set expected useSSL: %t", true)
+		}
+		if client.port != 465 {
+			t.Errorf("failed to set expected port: %d, got: %d", 465, client.port)
+		}
+		if client.fallbackPort != 25 {
+			t.Errorf("failed to set expected fallback: %d, got: %d", 25, client.fallbackPort)
+		}
+	})
+	t.Run("SetSSLPort false no fallback", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetSSLPort(false, false)
+		if client.useSSL {
+			t.Errorf("failed to set expected useSSL: %t", false)
+		}
+		if client.port != 25 {
+			t.Errorf("failed to set expected port: %d, got: %d", 25, client.port)
+		}
+		if client.fallbackPort != 0 {
+			t.Errorf("failed to set expected fallback: %d, got: %d", 0, client.fallbackPort)
+		}
+	})
+	t.Run("SetSSLPort false with fallback (makes no sense)", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetSSLPort(false, true)
+		if client.useSSL {
+			t.Errorf("failed to set expected useSSL: %t", false)
+		}
+		if client.port != 25 {
+			t.Errorf("failed to set expected port: %d, got: %d", 25, client.port)
+		}
+		if client.fallbackPort != 25 {
+			t.Errorf("failed to set expected fallback: %d, got: %d", 25, client.fallbackPort)
+		}
+	})
+	t.Run("SetSSLPort to override WithSSL", func(t *testing.T) {
+		client, err := NewClient(DefaultHost, WithSSL())
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetSSLPort(false, false)
+		if client.useSSL {
+			t.Errorf("failed to set expected useSSL: %t", false)
+		}
+		if client.port != 25 {
+			t.Errorf("failed to set expected port: %d, got: %d", 25, client.port)
+		}
+		if client.fallbackPort != 0 {
+			t.Errorf("failed to set expected fallback: %d, got: %d", 0, client.fallbackPort)
+		}
+	})
+	t.Run("SetSSLPort with custom port", func(t *testing.T) {
+		client, err := NewClient(DefaultHost, WithPort(123))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetSSLPort(false, false)
+		if client.useSSL {
+			t.Errorf("failed to set expected useSSL: %t", false)
+		}
+		if client.port != 123 {
+			t.Errorf("failed to set expected port: %d, got: %d", 123, client.port)
+		}
+		if client.fallbackPort != 0 {
+			t.Errorf("failed to set expected fallback: %d, got: %d", 0, client.fallbackPort)
+		}
+	})
+}
+
+func TestClient_SetDebugLog(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	PortAdder.Add(1)
+	serverPort := int(TestServerPortBase + PortAdder.Load())
+	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+	go func() {
+		if err := simpleSMTPServer(ctx, featureSet, false, serverPort); err != nil {
+			t.Errorf("failed to start test server: %s", err)
+			return
+		}
+	}()
+	time.Sleep(time.Millisecond * 300)
+
+	t.Run("SetDebugLog true", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetDebugLog(true)
+		if !client.useDebugLog {
+			t.Errorf("failed to set expected useDebugLog: %t", true)
+		}
+	})
+	t.Run("SetDebugLog false", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetDebugLog(false)
+		if client.useDebugLog {
+			t.Errorf("failed to set expected useDebugLog: %t", false)
+		}
+	})
+	t.Run("SetDebugLog true with active SMTP client", func(t *testing.T) {
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		buffer := &bytes.Buffer{}
+		client.SetLogger(log.New(buffer, log.LevelDebug))
+		client.SetDebugLog(true)
+
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client to test server: %s", err)
+			}
+		})
+
+		if !client.useDebugLog {
+			t.Errorf("failed to set expected useDebugLog: %t", true)
+		}
+		if !strings.Contains(buffer.String(), "DEBUG: C --> S: EHLO") {
+			t.Errorf("failed to enable debug log. Expected string: %s in log buffer but didn't find it. "+
+				"Buffer: %s", "DEBUG: C --> S: EHLO", buffer.String())
+		}
+	})
+	t.Run("SetDebugLog false to override WithDebugLog", func(t *testing.T) {
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS), WithDebugLog())
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		buffer := &bytes.Buffer{}
+		client.SetLogger(log.New(buffer, log.LevelDebug))
+		client.SetDebugLog(false)
+
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client to test server: %s", err)
+			}
+		})
+
+		if client.useDebugLog {
+			t.Errorf("failed to set expected useDebugLog: %t", false)
+		}
+		if buffer.Len() > 0 {
+			t.Errorf("failed to disable debug logger. Expected buffer to be empty but got: %d", buffer.Len())
+		}
+	})
+	t.Run("SetDebugLog true active SMTP client after dial", func(t *testing.T) {
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client to test server: %s", err)
+			}
+		})
+
+		buffer := &bytes.Buffer{}
+		client.SetLogger(log.New(buffer, log.LevelDebug))
+		client.SetDebugLog(true)
+		if err = client.smtpClient.Noop(); err != nil {
+			t.Errorf("failed to send NOOP command: %s", err)
+		}
+
+		if !client.useDebugLog {
+			t.Errorf("failed to set expected useDebugLog: %t", true)
+		}
+		if !strings.Contains(buffer.String(), "DEBUG: C --> S: NOOP") {
+			t.Errorf("failed to enable debug log. Expected string: %s in log buffer but didn't find it. "+
+				"Buffer: %s", "DEBUG: C --> S: NOOP", buffer.String())
+		}
+	})
+}
+
 /*
 
-// TestWithTLSPolicy tests the WithTLSPolicy() option for the NewClient() method
-func TestWithTLSPolicy(t *testing.T) {
-	tests := []struct {
-		name  string
-		value TLSPolicy
-		want  string
-		sf    bool
-	}{
-		{"Policy: TLSMandatory", TLSMandatory, TLSMandatory.String(), false},
-		{"Policy: TLSOpportunistic", TLSOpportunistic, TLSOpportunistic.String(), false},
-		{"Policy: NoTLS", NoTLS, NoTLS.String(), false},
-		{"Policy: Invalid", -1, "UnknownPolicy", true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, err := NewClient(DefaultHost, WithTLSPolicy(tt.value))
-			if err != nil && !tt.sf {
-				t.Errorf("failed to create new client: %s", err)
-				return
-			}
-			if c.tlspolicy.String() != tt.want {
-				t.Errorf("failed to set TLSPolicy. Want: %s, got: %s", tt.want, c.tlspolicy)
-			}
-		})
-	}
-}
-
-// TestWithTLSPortPolicy tests the WithTLSPortPolicy() option for the NewClient() method
-func TestWithTLSPortPolicy(t *testing.T) {
-	tests := []struct {
-		name     string
-		value    TLSPolicy
-		want     string
-		wantPort int
-		fbPort   int
-		sf       bool
-	}{
-		{"Policy: TLSMandatory", TLSMandatory, TLSMandatory.String(), 587, 0, false},
-		{"Policy: TLSOpportunistic", TLSOpportunistic, TLSOpportunistic.String(), 587, 25, false},
-		{"Policy: NoTLS", NoTLS, NoTLS.String(), 25, 0, false},
-		{"Policy: Invalid", -1, "UnknownPolicy", 587, 0, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, err := NewClient(DefaultHost, WithTLSPortPolicy(tt.value))
-			if err != nil && !tt.sf {
-				t.Errorf("failed to create new client: %s", err)
-				return
-			}
-			if c.tlspolicy.String() != tt.want {
-				t.Errorf("failed to set TLSPortPolicy. Want: %s, got: %s", tt.want, c.tlspolicy)
-			}
-			if c.port != tt.wantPort {
-				t.Errorf("failed to set TLSPortPolicy, wanted port: %d, got: %d", tt.wantPort, c.port)
-			}
-			if c.fallbackPort != tt.fbPort {
-				t.Errorf("failed to set TLSPortPolicy, wanted fallbakc port: %d, got: %d", tt.fbPort,
-					c.fallbackPort)
-			}
-		})
-	}
-}
-
-// TestSetTLSPolicy tests the SetTLSPolicy() method for the Client object
-func TestSetTLSPolicy(t *testing.T) {
-	tests := []struct {
-		name  string
-		value TLSPolicy
-		want  string
-		sf    bool
-	}{
-		{"Policy: TLSMandatory", TLSMandatory, TLSMandatory.String(), false},
-		{"Policy: TLSOpportunistic", TLSOpportunistic, TLSOpportunistic.String(), false},
-		{"Policy: NoTLS", NoTLS, NoTLS.String(), false},
-		{"Policy: Invalid", -1, "UnknownPolicy", true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS))
-			if err != nil {
-				t.Errorf("failed to create new client: %s", err)
-				return
-			}
-			c.SetTLSPolicy(tt.value)
-			if c.tlspolicy.String() != tt.want {
-				t.Errorf("failed to set TLSPolicy. Want: %s, got: %s", tt.want, c.tlspolicy)
-			}
-		})
-	}
-}
 
 // TestSetTLSConfig tests the SetTLSConfig() method for the Client object
 func TestSetTLSConfig(t *testing.T) {
@@ -830,66 +1222,6 @@ func TestSetTLSConfig(t *testing.T) {
 			if err := c.SetTLSConfig(tt.value); err != nil && !tt.sf {
 				t.Errorf("failed to set TLSConfig: %s", err)
 				return
-			}
-		})
-	}
-}
-
-// TestSetSSL tests the SetSSL() method for the Client object
-func TestSetSSL(t *testing.T) {
-	tests := []struct {
-		name  string
-		value bool
-	}{
-		{"SSL: on", true},
-		{"SSL: off", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, err := NewClient(DefaultHost)
-			if err != nil {
-				t.Errorf("failed to create new client: %s", err)
-				return
-			}
-			c.SetSSL(tt.value)
-			if c.useSSL != tt.value {
-				t.Errorf("failed to set SSL setting. Got: %t, want: %t", c.useSSL, tt.value)
-			}
-		})
-	}
-}
-
-// TestSetSSLPort tests the Client.SetSSLPort method
-func TestClient_SetSSLPort(t *testing.T) {
-	tests := []struct {
-		name   string
-		value  bool
-		fb     bool
-		port   int
-		fbPort int
-	}{
-		{"SSL: on, fb: off", true, false, 465, 0},
-		{"SSL: on, fb: on", true, true, 465, 25},
-		{"SSL: off, fb: off", false, false, 25, 0},
-		{"SSL: off, fb: on", false, true, 25, 25},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, err := NewClient(DefaultHost)
-			if err != nil {
-				t.Errorf("failed to create new client: %s", err)
-				return
-			}
-			c.SetSSLPort(tt.value, tt.fb)
-			if c.useSSL != tt.value {
-				t.Errorf("failed to set SSL setting. Got: %t, want: %t", c.useSSL, tt.value)
-			}
-			if c.port != tt.port {
-				t.Errorf("failed to set SSLPort, wanted port: %d, got: %d", c.port, tt.port)
-			}
-			if c.fallbackPort != tt.fbPort {
-				t.Errorf("failed to set SSLPort, wanted fallback port: %d, got: %d", c.fallbackPort,
-					tt.fbPort)
 			}
 		})
 	}
@@ -3104,6 +3436,7 @@ func (f faker) RemoteAddr() net.Addr             { return nil }
 func (f faker) SetDeadline(time.Time) error      { return nil }
 func (f faker) SetReadDeadline(time.Time) error  { return nil }
 func (f faker) SetWriteDeadline(time.Time) error { return nil }
+*/
 
 // simpleSMTPServer starts a simple TCP server that resonds to SMTP commands.
 // The provided featureSet represents in what the server responds to EHLO command
@@ -3303,6 +3636,3 @@ func handleTestServerConnection(connection net.Conn, featureSet string, failRese
 		}
 	}
 }
-
-
-*/
