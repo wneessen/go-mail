@@ -554,7 +554,7 @@ func (c *Client) Noop() error {
 
 // Quit sends the QUIT command and closes the connection to the server.
 func (c *Client) Quit() error {
-	// If we did already tried to send a EHLO/HELO but it failed, we still need to be able to send
+	// If we already tried to send a EHLO/HELO but it failed, we still need to be able to send
 	// a QUIT to close the connection.
 	// c.hello() will return the global helloErr of the Client, which will always be set if the HELO
 	// failed before. Therefore if we already sent a HELO and the error is not nil, we skip another
