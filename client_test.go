@@ -1135,7 +1135,7 @@ func TestClient_SetDebugLog(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create new client: %s", err)
 		}
-		buffer := &bytes.Buffer{}
+		buffer := bytes.NewBuffer(nil)
 		client.SetLogger(log.New(buffer, log.LevelDebug))
 		client.SetDebugLog(true)
 
@@ -1164,7 +1164,7 @@ func TestClient_SetDebugLog(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create new client: %s", err)
 		}
-		buffer := &bytes.Buffer{}
+		buffer := bytes.NewBuffer(nil)
 		client.SetLogger(log.New(buffer, log.LevelDebug))
 		client.SetDebugLog(false)
 
@@ -1202,7 +1202,7 @@ func TestClient_SetDebugLog(t *testing.T) {
 			}
 		})
 
-		buffer := &bytes.Buffer{}
+		buffer := bytes.NewBuffer(nil)
 		client.SetLogger(log.New(buffer, log.LevelDebug))
 		client.SetDebugLog(true)
 		if err = client.smtpClient.Noop(); err != nil {
