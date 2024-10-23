@@ -5,6 +5,7 @@
 package mail
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -95,7 +96,7 @@ func TestNewClient(t *testing.T) {
 			shouldfail bool
 			expectErr  *error
 		}{
-			{"nil option", nil, nil, true, nil},
+			{"nil option", nil, nil, false, nil},
 			{
 				"WithPort", WithPort(465),
 				func(c *Client) error {
@@ -307,6 +308,25 @@ func TestNewClient(t *testing.T) {
 							c.tlspolicy)
 					}
 					if c.port != 25 {
+						return fmt.Errorf("failed to set custom TLS policy. Want port: %d, got: %d", 25,
+							c.port)
+					}
+					if c.fallbackPort != 0 {
+						return fmt.Errorf("failed to set custom TLS policy. Want fallback port: %d, got: %d",
+							0, c.fallbackPort)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithTLSPortPolicy invalid", WithTLSPortPolicy(-1),
+				func(c *Client) error {
+					if c.tlspolicy.String() != "UnknownPolicy" {
+						return fmt.Errorf("failed to set custom TLS policy. Want: %s, got: %s", "UnknownPolicy",
+							c.tlspolicy)
+					}
+					if c.port != 587 {
 						return fmt.Errorf("failed to set custom TLS policy. Want port: %d, got: %d", 587,
 							c.port)
 					}
@@ -606,8 +626,39 @@ func TestNewClient(t *testing.T) {
 				false, nil,
 			},
 			{
+				"WithDialContextFunc with custom dialer",
+				WithDialContextFunc(
+					func(ctx context.Context, network, address string) (net.Conn, error) {
+						return nil, nil
+					},
+				),
+				func(c *Client) error {
+					if c.dialContextFunc == nil {
+						return errors.New("failed to set dial context func, got: nil")
+					}
+					ctxType := reflect.TypeOf(c.dialContextFunc).String()
+					if ctxType != "mail.DialContextFunc" {
+						return fmt.Errorf("failed to set dial context func, want: %s, got: %s",
+							"mail.DialContextFunc", ctxType)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
 				"WithDialContextFunc with nil", WithDialContextFunc(nil), nil,
 				true, &ErrDialContextFuncIsNil,
+			},
+			{
+				"WithLogAuthData", WithLogAuthData(),
+				func(c *Client) error {
+					if !c.logAuthData {
+						return fmt.Errorf("failed to enable auth data logging. Want logAuthData: %t, got: %t",
+							true, c.logAuthData)
+					}
+					return nil
+				},
+				false, nil,
 			},
 		}
 		for _, tt := range tests {
@@ -615,6 +666,9 @@ func TestNewClient(t *testing.T) {
 				client, err := NewClient(DefaultHost, tt.option)
 				if !tt.shouldfail && err != nil {
 					t.Fatalf("failed to create new client: %s", err)
+				}
+				if tt.shouldfail && err == nil {
+					t.Errorf("client creation was supposed to fail, but it didn't")
 				}
 				if tt.shouldfail && tt.expectErr != nil {
 					if !errors.Is(err, *tt.expectErr) {
@@ -664,116 +718,6 @@ func TestNewClient(t *testing.T) {
 }
 
 /*
-
-// TestNewClient tests the NewClient() method with its custom options
-func TestNewClientWithOptions(t *testing.T) {
-	host := "mail.example.com"
-	tests := []struct {
-		name       string
-		option     Option
-		shouldfail bool
-	}{
-		{"WithoutNoop()", WithoutNoop(), false},
-		{"WithDebugLog()", WithDebugLog(), false},
-		{"WithLogger()", WithLogger(log.New(os.Stderr, log.LevelDebug)), false},
-		{"WithLogger()", WithLogAuthData(), false},
-		{"WithDialContextFunc()", WithDialContextFunc(func(ctx context.Context, network, address string) (net.Conn, error) {
-			return nil, nil
-		}), false},
-
-		{
-			"WithDSNRcptNotifyType() NEVER combination",
-			WithDSNRcptNotifyType(DSNRcptNotifySuccess, DSNRcptNotifyNever), true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, err := NewClient(DefaultHost, tt.option, nil)
-			if err != nil && !tt.shouldfail {
-				t.Errorf("failed to create new client: %s", err)
-				return
-			}
-			_ = c
-		})
-	}
-}
-
-// TestWithHELO tests the WithHELO() option for the NewClient() method
-func TestWithHELO(t *testing.T) {
-	tests := []struct {
-		name  string
-		value string
-		want  string
-	}{
-		{"HELO test.de", "test.de", "test.de"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, err := NewClient(DefaultHost, WithHELO(tt.value))
-			if err != nil {
-				t.Errorf("failed to create new client: %s", err)
-				return
-			}
-			if c.helo != tt.want {
-				t.Errorf("failed to set custom HELO. Want: %s, got: %s", tt.want, c.helo)
-			}
-		})
-	}
-}
-
-// TestWithPort tests the WithPort() option for the NewClient() method
-func TestWithPort(t *testing.T) {
-	tests := []struct {
-		name  string
-		value int
-		want  int
-		sf    bool
-	}{
-		{"set port to 25", 25, 25, false},
-		{"set port to 465", 465, 465, false},
-		{"set port to 100000", 100000, 25, true},
-		{"set port to -10", -10, 25, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, err := NewClient(DefaultHost, WithPort(tt.value))
-			if err != nil && !tt.sf {
-				t.Errorf("failed to create new client: %s", err)
-				return
-			}
-			if c.port != tt.want {
-				t.Errorf("failed to set custom port. Want: %d, got: %d", tt.want, c.port)
-			}
-		})
-	}
-}
-
-// TestWithTimeout tests the WithTimeout() option for the NewClient() method
-func TestWithTimeout(t *testing.T) {
-	tests := []struct {
-		name  string
-		value time.Duration
-		want  time.Duration
-		sf    bool
-	}{
-		{"set timeout to 5s", time.Second * 5, time.Second * 5, false},
-		{"set timeout to 30s", time.Second * 30, time.Second * 30, false},
-		{"set timeout to 1m", time.Minute, time.Minute, false},
-		{"set timeout to 0", 0, DefaultTimeout, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, err := NewClient(DefaultHost, WithTimeout(tt.value))
-			if err != nil && !tt.sf {
-				t.Errorf("failed to create new client: %s", err)
-				return
-			}
-			if c.connTimeout != tt.want {
-				t.Errorf("failed to set custom timeout. Want: %d, got: %d", tt.want, c.connTimeout)
-			}
-		})
-	}
-}
 
 // TestWithTLSPolicy tests the WithTLSPolicy() option for the NewClient() method
 func TestWithTLSPolicy(t *testing.T) {
