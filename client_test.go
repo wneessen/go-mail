@@ -1380,25 +1380,50 @@ func TestClient_SetSMTPAuth(t *testing.T) {
 }
 
 func TestClient_SetSMTPAuthCustom(t *testing.T) {
-	t.Run("SetSMTPAuthCustom with PLAIN auth", func(t *testing.T) {
-		client, err := NewClient(DefaultHost)
-		if err != nil {
-			t.Fatalf("failed to create new client: %s", err)
+	t.Run("SetSMTPAuthCustom", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			authFunc smtp.Auth
+			want     string
+		}{
+			{"CRAM-MD5", smtp.CRAMMD5Auth("", ""), "*smtp.cramMD5Auth"},
+			{"LOGIN", smtp.LoginAuth("", "", "", false),
+				"*smtp.loginAuth"},
+			{"LOGIN-NOENC", smtp.LoginAuth("", "", "", true),
+				"*smtp.loginAuth"},
+			{"PLAIN", smtp.PlainAuth("", "", "", "", false),
+				"*smtp.plainAuth"},
+			{"PLAIN-NOENC", smtp.PlainAuth("", "", "", "", true),
+				"*smtp.plainAuth"},
+			{"SCRAM-SHA-1", smtp.ScramSHA1Auth("", ""), "*smtp.scramAuth"},
+			{"SCRAM-SHA-1-PLUS", smtp.ScramSHA1PlusAuth("", "", nil),
+				"*smtp.scramAuth"},
+			{"SCRAM-SHA-256", smtp.ScramSHA256Auth("", ""), "*smtp.scramAuth"},
+			{"SCRAM-SHA-256-PLUS", smtp.ScramSHA256PlusAuth("", "", nil),
+				"*smtp.scramAuth"},
+			{"XOAUTH2", smtp.XOAuth2Auth("", ""), "*smtp.xoauth2Auth"},
 		}
-		client.SetSMTPAuthCustom(
-			smtp.PlainAuth("", "", "", "", false),
-		)
-		if client.smtpAuth == nil {
-			t.Errorf("failed to set custom SMTP auth, expected auth method but got nil")
-		}
-		if client.smtpAuthType != SMTPAuthCustom {
-			t.Errorf("failed to set custom SMTP auth, want auth type: %s, got: %s", SMTPAuthCustom,
-				client.smtpAuthType)
-		}
-		authType := reflect.TypeOf(client.smtpAuth).String()
-		if authType != "*smtp.plainAuth" {
-			t.Errorf("failed to set custom SMTP auth, expected auth method type: %s, got: %s",
-				"*smtp.plainAuth", authType)
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				client, err := NewClient(DefaultHost)
+				if err != nil {
+					t.Fatalf("failed to create new client: %s", err)
+				}
+				client.SetSMTPAuthCustom(tt.authFunc)
+				if client.smtpAuth == nil {
+					t.Errorf("failed to set custom SMTP auth, expected auth method but got nil")
+				}
+				if client.smtpAuthType != SMTPAuthCustom {
+					t.Errorf("failed to set custom SMTP auth, want auth type: %s, got: %s", SMTPAuthCustom,
+						client.smtpAuthType)
+				}
+				authType := reflect.TypeOf(client.smtpAuth).String()
+				if authType != tt.want {
+					t.Errorf("failed to set custom SMTP auth, expected auth method type: %s, got: %s",
+						tt.want, authType)
+				}
+
+			})
 		}
 	})
 }
