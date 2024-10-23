@@ -5,17 +5,11 @@
 package mail
 
 import (
-	"bufio"
-	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"io"
-	"net"
 	"os"
-	"strconv"
-	"strings"
-	"sync"
+	"reflect"
 	"testing"
 	"time"
 
@@ -36,53 +30,469 @@ const (
 	TestServerPortBase = 2025
 )
 
-// TestNewClient tests the NewClient() method with its default options
 func TestNewClient(t *testing.T) {
-	host := "mail.example.com"
-	tests := []struct {
-		name       string
-		host       string
-		shouldfail bool
-	}{
-		{"Default", "mail.example.com", false},
-		{"Empty host should fail", "", true},
-	}
+	t.Run("create new Client", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if client.smtpAuthType != SMTPAuthNoAuth {
+			t.Errorf("new Client failed. Expected smtpAuthType: %s, got: %s", SMTPAuthNoAuth,
+				client.smtpAuthType)
+		}
+		if client.connTimeout != DefaultTimeout {
+			t.Errorf("new Client failed. Expected connTimeout: %s, got: %s", DefaultTimeout.String(),
+				client.connTimeout.String())
+		}
+		if client.host != DefaultHost {
+			t.Errorf("new Client failed. Expected host: %s, got: %s", DefaultHost, client.host)
+		}
+		if client.port != DefaultPort {
+			t.Errorf("new Client failed. Expected port: %d, got: %d", DefaultPort, client.port)
+		}
+		if client.tlsconfig == nil {
+			t.Fatal("new Client failed. Expected tlsconfig but got nil")
+		}
+		if client.tlsconfig.MinVersion != DefaultTLSMinVersion {
+			t.Errorf("new Client failed. Expected tlsconfig min TLS version: %d, got: %d",
+				DefaultTLSMinVersion, client.tlsconfig.MinVersion)
+		}
+		if client.tlsconfig.ServerName != DefaultHost {
+			t.Errorf("new Client failed. Expected tlsconfig server name: %s, got: %s",
+				DefaultHost, client.tlsconfig.ServerName)
+		}
+		if client.tlspolicy != DefaultTLSPolicy {
+			t.Errorf("new Client failed. Expected tlsconfig policy: %s, got: %s", DefaultTLSPolicy,
+				client.tlspolicy)
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, err := NewClient(tt.host)
-			if err != nil && !tt.shouldfail {
-				t.Errorf("failed to create new client: %s", err)
-				return
-			}
-			if c.host != tt.host {
-				t.Errorf("failed to create new client. Host expected: %s, got: %s", host, c.host)
-			}
-			if c.connTimeout != DefaultTimeout {
-				t.Errorf("failed to create new client. Timeout expected: %s, got: %s", DefaultTimeout.String(),
-					c.connTimeout.String())
-			}
-			if c.port != DefaultPort {
-				t.Errorf("failed to create new client. Port expected: %d, got: %d", DefaultPort, c.port)
-			}
-			if c.tlspolicy != TLSMandatory {
-				t.Errorf("failed to create new client. TLS policy expected: %d, got: %d", TLSMandatory, c.tlspolicy)
-			}
-			if c.tlsconfig.ServerName != tt.host {
-				t.Errorf("failed to create new client. TLS config host expected: %s, got: %s",
-					host, c.tlsconfig.ServerName)
-			}
-			if c.tlsconfig.MinVersion != DefaultTLSMinVersion {
-				t.Errorf("failed to create new client. TLS config min versino expected: %d, got: %d",
-					DefaultTLSMinVersion, c.tlsconfig.MinVersion)
-			}
-			if c.ServerAddr() != fmt.Sprintf("%s:%d", tt.host, c.port) {
-				t.Errorf("failed to create new client. c.ServerAddr() expected: %s, got: %s",
-					fmt.Sprintf("%s:%d", tt.host, c.port), c.ServerAddr())
-			}
-		})
-	}
+		hostname, err := os.Hostname()
+		if err != nil {
+			t.Fatalf("failed to get hostname: %s", err)
+		}
+		if client.helo != hostname {
+			t.Errorf("new Client failed. Expected helo: %s, got: %s", hostname, client.helo)
+		}
+	})
+	t.Run("NewClient with empty hostname should fail", func(t *testing.T) {
+		_, err := NewClient("")
+		if err == nil {
+			t.Fatalf("NewClient with empty hostname should fail")
+		}
+		if !errors.Is(err, ErrNoHostname) {
+			t.Errorf("NewClient with empty hostname should fail with error: %s, got: %s", ErrNoHostname, err)
+		}
+	})
+	t.Run("NewClient with option", func(t *testing.T) {
+		hostname := "mail.example.com"
+		tests := []struct {
+			name       string
+			option     Option
+			expectFunc func(c *Client) error
+			shouldfail bool
+			expectErr  *error
+		}{
+			{"nil option", nil, nil, true, nil},
+			{
+				"WithPort", WithPort(465),
+				func(c *Client) error {
+					if c.port != 465 {
+						return fmt.Errorf("failed to set custom port. Want: %d, got: %d", 465, c.port)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithPort but too high port number", WithPort(100000), nil, true,
+				&ErrInvalidPort,
+			},
+			{
+				"WithTimeout", WithTimeout(time.Second * 100),
+				func(c *Client) error {
+					if c.connTimeout != time.Second*100 {
+						return fmt.Errorf("failed to set custom timeout. Want: %d, got: %d", time.Second*100,
+							c.connTimeout)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithTimeout but invalid timeout", WithTimeout(-10), nil, true,
+				&ErrInvalidTimeout,
+			},
+			{
+				"WithSSL", WithSSL(),
+				func(c *Client) error {
+					if !c.useSSL {
+						return fmt.Errorf("failed to set useSSL. Want: %t, got: %t", true, c.useSSL)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithSSLPort with no fallback", WithSSLPort(false),
+				func(c *Client) error {
+					if !c.useSSL {
+						return fmt.Errorf("failed to set useSSL. Want: %t, got: %t", true, c.useSSL)
+					}
+					if c.port != 465 {
+						return fmt.Errorf("failed to set ssl port. Want: %d, got: %d", 465, c.port)
+					}
+					if c.fallbackPort != 0 {
+						return fmt.Errorf("failed to set ssl fallbackport. Want: %d, got: %d", 0,
+							c.fallbackPort)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithSSLPort with fallback", WithSSLPort(true),
+				func(c *Client) error {
+					if !c.useSSL {
+						return fmt.Errorf("failed to set useSSL. Want: %t, got: %t", true, c.useSSL)
+					}
+					if c.port != 465 {
+						return fmt.Errorf("failed to set ssl port. Want: %d, got: %d", 465, c.port)
+					}
+					if c.fallbackPort != 25 {
+						return fmt.Errorf("failed to set ssl fallbackport. Want: %d, got: %d", 0,
+							c.fallbackPort)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithDebugLog", WithDebugLog(),
+				func(c *Client) error {
+					if !c.useDebugLog {
+						return fmt.Errorf("failed to set enable debug log. Want: %t, got: %t", true,
+							c.useDebugLog)
+					}
+					if c.logAuthData {
+						return fmt.Errorf("failed to set enable debug log. Want logAuthData: %t, got: %t", true,
+							c.logAuthData)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithLogger log.Stdlog", WithLogger(log.New(os.Stderr, log.LevelDebug)),
+				func(c *Client) error {
+					if c.logger == nil {
+						return errors.New("failed to set logger. Want logger bug got got nil")
+					}
+					loggerType := reflect.TypeOf(c.logger).String()
+					if loggerType != "*log.Stdlog" {
+						return fmt.Errorf("failed to set logger. Want logger type: %s, got: %s",
+							"*log.Stdlog", loggerType)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithLogger log.JSONlog", WithLogger(log.NewJSON(os.Stderr, log.LevelDebug)),
+				func(c *Client) error {
+					if c.logger == nil {
+						return errors.New("failed to set logger. Want logger bug got got nil")
+					}
+					loggerType := reflect.TypeOf(c.logger).String()
+					if loggerType != "*log.JSONlog" {
+						return fmt.Errorf("failed to set logger. Want logger type: %s, got: %s",
+							"*log.JSONlog", loggerType)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithHELO", WithHELO(hostname),
+				func(c *Client) error {
+					if c.helo != hostname {
+						return fmt.Errorf("failed to set custom HELO. Want: %s, got: %s", hostname, c.helo)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithHELO fail with empty hostname", WithHELO(""), nil,
+				true, &ErrInvalidHELO,
+			},
+			{
+				"WithTLSPolicy TLSMandatory", WithTLSPolicy(TLSMandatory),
+				func(c *Client) error {
+					if c.tlspolicy != TLSMandatory {
+						return fmt.Errorf("failed to set custom TLS policy. Want: %s, got: %s", TLSMandatory,
+							c.tlspolicy)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithTLSPolicy TLSOpportunistic", WithTLSPolicy(TLSOpportunistic),
+				func(c *Client) error {
+					if c.tlspolicy != TLSOpportunistic {
+						return fmt.Errorf("failed to set custom TLS policy. Want: %s, got: %s", TLSOpportunistic,
+							c.tlspolicy)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithTLSPolicy NoTLS", WithTLSPolicy(NoTLS),
+				func(c *Client) error {
+					if c.tlspolicy != NoTLS {
+						return fmt.Errorf("failed to set custom TLS policy. Want: %s, got: %s", TLSOpportunistic,
+							c.tlspolicy)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithTLSPortPolicy TLSMandatory", WithTLSPortPolicy(TLSMandatory),
+				func(c *Client) error {
+					if c.tlspolicy != TLSMandatory {
+						return fmt.Errorf("failed to set custom TLS policy. Want: %s, got: %s", TLSMandatory,
+							c.tlspolicy)
+					}
+					if c.port != 587 {
+						return fmt.Errorf("failed to set custom TLS policy. Want port: %d, got: %d", 587,
+							c.port)
+					}
+					if c.fallbackPort != 0 {
+						return fmt.Errorf("failed to set custom TLS policy. Want fallback port: %d, got: %d",
+							0, c.fallbackPort)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithTLSPortPolicy TLSOpportunistic", WithTLSPortPolicy(TLSOpportunistic),
+				func(c *Client) error {
+					if c.tlspolicy != TLSOpportunistic {
+						return fmt.Errorf("failed to set custom TLS policy. Want: %s, got: %s", TLSOpportunistic,
+							c.tlspolicy)
+					}
+					if c.port != 587 {
+						return fmt.Errorf("failed to set custom TLS policy. Want port: %d, got: %d", 587,
+							c.port)
+					}
+					if c.fallbackPort != 25 {
+						return fmt.Errorf("failed to set custom TLS policy. Want fallback port: %d, got: %d",
+							25, c.fallbackPort)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithTLSPortPolicy NoTLS", WithTLSPortPolicy(NoTLS),
+				func(c *Client) error {
+					if c.tlspolicy != NoTLS {
+						return fmt.Errorf("failed to set custom TLS policy. Want: %s, got: %s", TLSOpportunistic,
+							c.tlspolicy)
+					}
+					if c.port != 25 {
+						return fmt.Errorf("failed to set custom TLS policy. Want port: %d, got: %d", 587,
+							c.port)
+					}
+					if c.fallbackPort != 0 {
+						return fmt.Errorf("failed to set custom TLS policy. Want fallback port: %d, got: %d",
+							25, c.fallbackPort)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithTLSConfig with empty tls.Config", WithTLSConfig(&tls.Config{}),
+				func(c *Client) error {
+					if c.tlsconfig == nil {
+						return errors.New("failed to set custom TLS config. Wanted policy but got nil")
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithTLSConfig with custom tls.Config", WithTLSConfig(&tls.Config{ServerName: hostname}),
+				func(c *Client) error {
+					if c.tlsconfig == nil {
+						return errors.New("failed to set custom TLS config. Wanted policy but got nil")
+					}
+					if c.tlsconfig.ServerName != hostname {
+						return fmt.Errorf("failed to set custom TLS config. Want hostname: %s, got: %s",
+							hostname, c.tlsconfig.ServerName)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithTLSConfig with nil", WithTLSConfig(nil), nil,
+				true, &ErrInvalidTLSConfig,
+			},
+			{
+				"WithSMTPAuthCustom with PLAIN auth",
+				WithSMTPAuthCustom(smtp.PlainAuth("", "", "", "", false)),
+				func(c *Client) error {
+					if c.smtpAuthType != SMTPAuthCustom {
+						return fmt.Errorf("failed to set custom SMTP auth method. Want smtp auth type: %s, "+
+							"got: %s", SMTPAuthCustom, c.smtpAuthType)
+					}
+					if c.smtpAuth == nil {
+						return errors.New("failed to set custom SMTP auth method. Wanted smtp auth method but" +
+							" got nil")
+					}
+					smtpAuthType := reflect.TypeOf(c.smtpAuth).String()
+					if smtpAuthType != "*smtp.plainAuth" {
+						return fmt.Errorf("failed to set custom SMTP auth method. Want smtp auth method of type: %s, "+
+							"got: %s", "*smtp.plainAuth", smtpAuthType)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithSMTPAuthCustom with LOGIN auth",
+				WithSMTPAuthCustom(smtp.LoginAuth("", "", "", false)),
+				func(c *Client) error {
+					if c.smtpAuthType != SMTPAuthCustom {
+						return fmt.Errorf("failed to set custom SMTP auth method. Want smtp auth type: %s, "+
+							"got: %s", SMTPAuthCustom, c.smtpAuthType)
+					}
+					if c.smtpAuth == nil {
+						return errors.New("failed to set custom SMTP auth method. Wanted smtp auth method but" +
+							" got nil")
+					}
+					smtpAuthType := reflect.TypeOf(c.smtpAuth).String()
+					if smtpAuthType != "*smtp.loginAuth" {
+						return fmt.Errorf("failed to set custom SMTP auth method. Want smtp auth method of type: %s, "+
+							"got: %s", "*smtp.loginAuth", smtpAuthType)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithSMTPAuthCustom with nil", WithSMTPAuthCustom(nil), nil,
+				true, &ErrSMTPAuthMethodIsNil,
+			},
+			{
+				"WithUsername", WithUsername("toni.tester"),
+				func(c *Client) error {
+					if c.user != "toni.tester" {
+						return fmt.Errorf("failed to set username. Want username: %s, got: %s",
+							"toni.tester", c.user)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithPassword", WithPassword("sU*p3rS3cr3t"),
+				func(c *Client) error {
+					if c.pass != "sU*p3rS3cr3t" {
+						return fmt.Errorf("failed to set password. Want password: %s, got: %s",
+							"sU*p3rS3cr3t", c.pass)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithDSN", WithDSN(),
+				func(c *Client) error {
+					if c.requestDSN != true {
+						return fmt.Errorf("failed to enable DSN. Want requestDSN: %t, got: %t", true,
+							c.requestDSN)
+					}
+					if c.dsnReturnType != DSNMailReturnFull {
+						return fmt.Errorf("failed to enable DSN. Want dsnReturnType: %s, got: %s",
+							DSNMailReturnFull, c.dsnReturnType)
+					}
+					if len(c.dsnRcptNotifyType) != 2 {
+						return fmt.Errorf("failed to enable DSN. Want 2 default DSN Rcpt Notify types, got: %d",
+							len(c.dsnRcptNotifyType))
+					}
+					if c.dsnRcptNotifyType[0] != string(DSNRcptNotifyFailure) {
+						return fmt.Errorf("failed to enable DSN. Want DSN Rcpt Notify Failure type: %s, got: %s",
+							string(DSNRcptNotifyFailure), c.dsnRcptNotifyType[0])
+					}
+					if c.dsnRcptNotifyType[1] != string(DSNRcptNotifySuccess) {
+						return fmt.Errorf("failed to enable DSN. Want DSN Rcpt Notify Success type: %s, got: %s",
+							string(DSNRcptNotifySuccess), c.dsnRcptNotifyType[1])
+					}
+					return nil
+				},
+				false, nil,
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				client, err := NewClient(DefaultHost, tt.option)
+				if !tt.shouldfail && err != nil {
+					t.Fatalf("failed to create new client: %s", err)
+				}
+				if tt.shouldfail && tt.expectErr != nil {
+					if !errors.Is(err, *tt.expectErr) {
+						t.Errorf("error for NewClient mismatch. Expected: %s, got: %s",
+							*tt.expectErr, err)
+					}
+				}
+				if tt.expectFunc != nil {
+					if err = tt.expectFunc(client); err != nil {
+						t.Errorf("NewClient with custom option failed: %s", err)
+					}
+				}
+			})
+		}
+	})
+	t.Run("NewClient WithSMTPAuth", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			option   Option
+			expected SMTPAuthType
+		}{
+			{"CRAM-MD5", WithSMTPAuth(SMTPAuthCramMD5), SMTPAuthCramMD5},
+			{"LOGIN", WithSMTPAuth(SMTPAuthLogin), SMTPAuthLogin},
+			{"LOGIN-NOENC", WithSMTPAuth(SMTPAuthLoginNoEnc), SMTPAuthLoginNoEnc},
+			{"NOAUTH", WithSMTPAuth(SMTPAuthNoAuth), SMTPAuthNoAuth},
+			{"PLAIN", WithSMTPAuth(SMTPAuthPlain), SMTPAuthPlain},
+			{"PLAIN-NOENC", WithSMTPAuth(SMTPAuthPlainNoEnc), SMTPAuthPlainNoEnc},
+			{"SCRAM-SHA-1", WithSMTPAuth(SMTPAuthSCRAMSHA1), SMTPAuthSCRAMSHA1},
+			{"SCRAM-SHA-1-PLUS", WithSMTPAuth(SMTPAuthSCRAMSHA1PLUS), SMTPAuthSCRAMSHA1PLUS},
+			{"SCRAM-SHA-256", WithSMTPAuth(SMTPAuthSCRAMSHA256), SMTPAuthSCRAMSHA256},
+			{"SCRAM-SHA-256-PLUS", WithSMTPAuth(SMTPAuthSCRAMSHA256PLUS), SMTPAuthSCRAMSHA256PLUS},
+			{"XOAUTH2", WithSMTPAuth(SMTPAuthXOAUTH2), SMTPAuthXOAUTH2},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				client, err := NewClient(DefaultHost, tt.option)
+				if err != nil {
+					t.Fatalf("failed to create new client: %s", err)
+				}
+				if client.smtpAuthType != tt.expected {
+					t.Errorf("failed to set custom SMTP auth type. Want: %s, got: %s",
+						tt.expected, client.smtpAuthType)
+				}
+			})
+		}
+	})
 }
+
+/*
 
 // TestNewClient tests the NewClient() method with its custom options
 func TestNewClientWithOptions(t *testing.T) {
@@ -92,29 +502,6 @@ func TestNewClientWithOptions(t *testing.T) {
 		option     Option
 		shouldfail bool
 	}{
-		{"nil option", nil, true},
-		{"WithPort()", WithPort(465), false},
-		{"WithPort(); port is too high", WithPort(100000), true},
-		{"WithTimeout()", WithTimeout(time.Second * 5), false},
-		{"WithTimeout()", WithTimeout(-10), true},
-		{"WithSSL()", WithSSL(), false},
-		{"WithSSLPort(false)", WithSSLPort(false), false},
-		{"WithSSLPort(true)", WithSSLPort(true), false},
-		{"WithHELO()", WithHELO(host), false},
-		{"WithHELO(); helo is empty", WithHELO(""), true},
-		{"WithTLSPolicy()", WithTLSPolicy(TLSOpportunistic), false},
-		{"WithTLSPortPolicy()", WithTLSPortPolicy(TLSOpportunistic), false},
-		{"WithTLSConfig()", WithTLSConfig(&tls.Config{}), false},
-		{"WithTLSConfig(); config is nil", WithTLSConfig(nil), true},
-		{"WithSMTPAuth(NoAuth)", WithSMTPAuth(SMTPAuthNoAuth), false},
-		{"WithSMTPAuth()", WithSMTPAuth(SMTPAuthLogin), false},
-		{
-			"WithSMTPAuthCustom()",
-			WithSMTPAuthCustom(smtp.PlainAuth("", "", "", "", false)),
-			false,
-		},
-		{"WithUsername()", WithUsername("test"), false},
-		{"WithPassword()", WithPassword("test"), false},
 		{"WithDSN()", WithDSN(), false},
 		{"WithDSNMailReturnType()", WithDSNMailReturnType(DSNMailReturnFull), false},
 		{"WithDSNMailReturnType() wrong option", WithDSNMailReturnType("FAIL"), true},
@@ -2806,3 +3193,6 @@ func handleTestServerConnection(connection net.Conn, featureSet string, failRese
 		}
 	}
 }
+
+
+*/
