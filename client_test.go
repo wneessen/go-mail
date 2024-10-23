@@ -1199,6 +1199,96 @@ func TestClient_SetDebugLog(t *testing.T) {
 	})
 }
 
+func TestClient_SetTLSConfig(t *testing.T) {
+	t.Run("SetTLSConfig with &tls.Config", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.SetTLSConfig(&tls.Config{}); err != nil {
+			t.Errorf("failed to set expected TLSConfig: %s", err)
+		}
+		if client.tlsconfig == nil {
+			t.Fatalf("failed to set expected TLSConfig. TLSConfig is nil")
+		}
+	})
+	t.Run("SetTLSConfig with InsecureSkipVerify", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.SetTLSConfig(&tls.Config{InsecureSkipVerify: true}); err != nil {
+			t.Errorf("failed to set expected TLSConfig: %s", err)
+		}
+		if client.tlsconfig == nil {
+			t.Fatalf("failed to set expected TLSConfig. TLSConfig is nil")
+		}
+		if !client.tlsconfig.InsecureSkipVerify {
+			t.Errorf("failed to set expected TLSConfig. Expected InsecureSkipVerify: %t, got: %t", true,
+				client.tlsconfig.InsecureSkipVerify)
+		}
+	})
+	t.Run("SetTLSConfig with nil should fail", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		err = client.SetTLSConfig(nil)
+		if err == nil {
+			t.Errorf("SetTLSConfig with nil should fail")
+		}
+		if !errors.Is(err, ErrInvalidTLSConfig) {
+			t.Errorf("SetTLSConfig was expected to fail with %s, got: %s", ErrInvalidTLSConfig, err)
+		}
+	})
+}
+
+func TestClient_SetUsername(t *testing.T) {
+	t.Run("SetUsername", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetUsername("toni.tester")
+		if client.user != "toni.tester" {
+			t.Errorf("failed to set expected username, want: %s, got: %s", "toni.tester", client.user)
+		}
+	})
+	t.Run("SetUsername to override WithUsername", func(t *testing.T) {
+		client, err := NewClient(DefaultHost, WithUsername("toni.tester"))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetUsername("tina.tester")
+		if client.user != "tina.tester" {
+			t.Errorf("failed to set expected username, want: %s, got: %s", "tina.tester", client.user)
+		}
+	})
+}
+
+func TestClient_SetPassword(t *testing.T) {
+	t.Run("SetPassword", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetPassword("sU*perS3crEt")
+		if client.pass != "sU*perS3crEt" {
+			t.Errorf("failed to set expected password, want: %s, got: %s", "sU*perS3crEt", client.pass)
+		}
+	})
+	t.Run("SetPassword to override WithPassword", func(t *testing.T) {
+		client, err := NewClient(DefaultHost, WithPassword("sU*perS3crEt"))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetPassword("Su%perS3crEt")
+		if client.pass != "Su%perS3crEt" {
+			t.Errorf("failed to set expected password, want: %s, got: %s", "Su%perS3crEt", client.pass)
+		}
+	})
+}
+
 /*
 
 
