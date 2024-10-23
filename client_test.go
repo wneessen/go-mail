@@ -1925,6 +1925,110 @@ func TestClient_DialWithContext(t *testing.T) {
 	})
 }
 
+func TestClient_Reset(t *testing.T) {
+	t.Run("reset client", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{FeatureSet: featureSet, ListenPort: serverPort}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 300)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS), WithPort(serverPort))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to the test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Fatalf("failed to close client: %s", err)
+			}
+		})
+		if err = client.Reset(); err != nil {
+			t.Errorf("failed to reset client: %s", err)
+		}
+	})
+	t.Run("reset should fail on disconnected client", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{FeatureSet: featureSet, ListenPort: serverPort}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 300)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS), WithPort(serverPort))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to the test server: %s", err)
+		}
+		if err = client.Close(); err != nil {
+			t.Fatalf("failed to close client: %s", err)
+		}
+		if err = client.Reset(); err == nil {
+			t.Errorf("reset on disconnected client should fail")
+		}
+	})
+	t.Run("reset with server failure", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnReset: true,
+				FeatureSet:  featureSet,
+				ListenPort:  serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 300)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS), WithPort(serverPort))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to the test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Fatalf("failed to close client: %s", err)
+			}
+		})
+		if err = client.Reset(); err == nil {
+			t.Errorf("reset on disconnected client should fail")
+		}
+	})
+}
+
 /*
 
 
