@@ -255,6 +255,9 @@ func FuzzBase64LineBreaker(f *testing.F) {
 		}
 
 		decode, err := base64.StdEncoding.DecodeString(buffer.String())
+		if err != nil {
+			t.Errorf("failed to decode base64 data: %s", err)
+		}
 		if !bytes.Equal(data, decode) {
 			t.Error("generated line breaker output differs from original data")
 		}
