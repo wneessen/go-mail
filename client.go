@@ -245,6 +245,9 @@ var (
 
 	// ErrSMTPAuthMethodIsNil indicates that the SMTP authentication method provided is nil
 	ErrSMTPAuthMethodIsNil = errors.New("SMTP auth method is nil")
+
+	// ErrDialContextFuncIsNil indicates that a required dial context function is not provided.
+	ErrDialContextFuncIsNil = errors.New("dial context function is nil")
 )
 
 // NewClient creates a new Client instance with the provided host and optional configuration Option functions.
@@ -677,6 +680,9 @@ func WithoutNoop() Option {
 //   - An Option function that sets the custom DialContextFunc for the Client.
 func WithDialContextFunc(dialCtxFunc DialContextFunc) Option {
 	return func(c *Client) error {
+		if dialCtxFunc == nil {
+			return ErrDialContextFuncIsNil
+		}
 		c.dialContextFunc = dialCtxFunc
 		return nil
 	}
