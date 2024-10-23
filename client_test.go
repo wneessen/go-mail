@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"reflect"
 	"testing"
@@ -85,6 +86,8 @@ func TestNewClient(t *testing.T) {
 	})
 	t.Run("NewClient with option", func(t *testing.T) {
 		hostname := "mail.example.com"
+		netDailer := net.Dialer{}
+		tlsDailer := tls.Dialer{NetDialer: &netDailer, Config: &tls.Config{}}
 		tests := []struct {
 			name       string
 			option     Option
@@ -438,6 +441,174 @@ func TestNewClient(t *testing.T) {
 				},
 				false, nil,
 			},
+			{
+				"WithDSNMailReturnType DSNMailReturnHeadersOnly",
+				WithDSNMailReturnType(DSNMailReturnHeadersOnly),
+				func(c *Client) error {
+					if c.requestDSN != true {
+						return fmt.Errorf("failed to enable DSN. Want requestDSN: %t, got: %t", true,
+							c.requestDSN)
+					}
+					if c.dsnReturnType != DSNMailReturnHeadersOnly {
+						return fmt.Errorf("failed to enable DSN. Want dsnReturnType: %s, got: %s",
+							DSNMailReturnHeadersOnly, c.dsnReturnType)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithDSNMailReturnType DSNMailReturnFull",
+				WithDSNMailReturnType(DSNMailReturnFull),
+				func(c *Client) error {
+					if c.requestDSN != true {
+						return fmt.Errorf("failed to enable DSN. Want requestDSN: %t, got: %t", true,
+							c.requestDSN)
+					}
+					if c.dsnReturnType != DSNMailReturnFull {
+						return fmt.Errorf("failed to enable DSN. Want dsnReturnType: %s, got: %s",
+							DSNMailReturnFull, c.dsnReturnType)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithDSNMailReturnType invalid", WithDSNMailReturnType("invalid"), nil,
+				true, &ErrInvalidDSNMailReturnOption,
+			},
+			{
+				"WithDSNRcptNotifyType DSNRcptNotifyNever",
+				WithDSNRcptNotifyType(DSNRcptNotifyNever),
+				func(c *Client) error {
+					if c.requestDSN != true {
+						return fmt.Errorf("failed to enable DSN. Want requestDSN: %t, got: %t", true,
+							c.requestDSN)
+					}
+					if len(c.dsnRcptNotifyType) != 1 {
+						return fmt.Errorf("failed to enable DSN. Want 1 DSN Rcpt Notify type, got: %d",
+							len(c.dsnRcptNotifyType))
+					}
+					if c.dsnRcptNotifyType[0] != string(DSNRcptNotifyNever) {
+						return fmt.Errorf("failed to enable DSN. Want DSN Rcpt Notify Never type: %s, got: %s",
+							string(DSNRcptNotifyNever), c.dsnRcptNotifyType[0])
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithDSNRcptNotifyType DSNRcptNotifySuccess, DSNRcptNotifyFailure",
+				WithDSNRcptNotifyType(DSNRcptNotifySuccess, DSNRcptNotifyFailure),
+				func(c *Client) error {
+					if c.requestDSN != true {
+						return fmt.Errorf("failed to enable DSN. Want requestDSN: %t, got: %t", true,
+							c.requestDSN)
+					}
+					if len(c.dsnRcptNotifyType) != 2 {
+						return fmt.Errorf("failed to enable DSN. Want 2 DSN Rcpt Notify type, got: %d",
+							len(c.dsnRcptNotifyType))
+					}
+					if c.dsnRcptNotifyType[0] != string(DSNRcptNotifySuccess) {
+						return fmt.Errorf("failed to enable DSN. Want DSN Rcpt Notify Success type: %s, got: %s",
+							string(DSNRcptNotifySuccess), c.dsnRcptNotifyType[0])
+					}
+					if c.dsnRcptNotifyType[1] != string(DSNRcptNotifyFailure) {
+						return fmt.Errorf("failed to enable DSN. Want DSN Rcpt Notify Failure type: %s, got: %s",
+							string(DSNRcptNotifyFailure), c.dsnRcptNotifyType[1])
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithDSNRcptNotifyType DSNRcptNotifyDelay",
+				WithDSNRcptNotifyType(DSNRcptNotifyDelay),
+				func(c *Client) error {
+					if c.requestDSN != true {
+						return fmt.Errorf("failed to enable DSN. Want requestDSN: %t, got: %t", true,
+							c.requestDSN)
+					}
+					if len(c.dsnRcptNotifyType) != 1 {
+						return fmt.Errorf("failed to enable DSN. Want 1 DSN Rcpt Notify type, got: %d",
+							len(c.dsnRcptNotifyType))
+					}
+					if c.dsnRcptNotifyType[0] != string(DSNRcptNotifyDelay) {
+						return fmt.Errorf("failed to enable DSN. Want DSN Rcpt Notify Delay type: %s, got: %s",
+							string(DSNRcptNotifyDelay), c.dsnRcptNotifyType[0])
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithDSNRcptNotifyType invalid", WithDSNRcptNotifyType("invalid"), nil,
+				true, &ErrInvalidDSNRcptNotifyOption,
+			},
+			{
+				"WithDSNRcptNotifyType mix valid and invalid",
+				WithDSNRcptNotifyType(DSNRcptNotifyDelay, "invalid"), nil,
+				true, &ErrInvalidDSNRcptNotifyOption,
+			},
+			{
+				"WithDSNRcptNotifyType mix NEVER with SUCCESS",
+				WithDSNRcptNotifyType(DSNRcptNotifyNever, DSNRcptNotifySuccess), nil,
+				true, &ErrInvalidDSNRcptNotifyCombination,
+			},
+			{
+				"WithDSNRcptNotifyType mix NEVER with FAIL",
+				WithDSNRcptNotifyType(DSNRcptNotifyNever, DSNRcptNotifyFailure), nil,
+				true, &ErrInvalidDSNRcptNotifyCombination,
+			},
+			{
+				"WithDSNRcptNotifyType mix NEVER with DELAY",
+				WithDSNRcptNotifyType(DSNRcptNotifyNever, DSNRcptNotifyDelay), nil,
+				true, &ErrInvalidDSNRcptNotifyCombination,
+			},
+			{
+				"WithoutNoop", WithoutNoop(),
+				func(c *Client) error {
+					if !c.noNoop {
+						return fmt.Errorf("failed to disable Noop. Want noNoop: %t, got: %t", false, c.noNoop)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithDialContextFunc with net.Dailer", WithDialContextFunc(netDailer.DialContext),
+				func(c *Client) error {
+					if c.dialContextFunc == nil {
+						return errors.New("failed to set dial context func, got: nil")
+					}
+					ctxType := reflect.TypeOf(c.dialContextFunc).String()
+					if ctxType != "mail.DialContextFunc" {
+						return fmt.Errorf("failed to set dial context func, want: %s, got: %s",
+							"mail.DialContextFunc", ctxType)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithDialContextFunc with tls.Dailer", WithDialContextFunc(tlsDailer.DialContext),
+				func(c *Client) error {
+					if c.dialContextFunc == nil {
+						return errors.New("failed to set dial context func, got: nil")
+					}
+					ctxType := reflect.TypeOf(c.dialContextFunc).String()
+					if ctxType != "mail.DialContextFunc" {
+						return fmt.Errorf("failed to set dial context func, want: %s, got: %s",
+							"mail.DialContextFunc", ctxType)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithDialContextFunc with nil", WithDialContextFunc(nil), nil,
+				true, &ErrDialContextFuncIsNil,
+			},
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
@@ -502,11 +673,6 @@ func TestNewClientWithOptions(t *testing.T) {
 		option     Option
 		shouldfail bool
 	}{
-		{"WithDSN()", WithDSN(), false},
-		{"WithDSNMailReturnType()", WithDSNMailReturnType(DSNMailReturnFull), false},
-		{"WithDSNMailReturnType() wrong option", WithDSNMailReturnType("FAIL"), true},
-		{"WithDSNRcptNotifyType()", WithDSNRcptNotifyType(DSNRcptNotifySuccess), false},
-		{"WithDSNRcptNotifyType() wrong option", WithDSNRcptNotifyType("FAIL"), true},
 		{"WithoutNoop()", WithoutNoop(), false},
 		{"WithDebugLog()", WithDebugLog(), false},
 		{"WithLogger()", WithLogger(log.New(os.Stderr, log.LevelDebug)), false},
