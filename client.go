@@ -242,6 +242,9 @@ var (
 	// provided as argument to the WithDSN Option.
 	ErrInvalidDSNRcptNotifyCombination = errors.New("DSN rcpt notify option NEVER cannot be " +
 		"combined with any of SUCCESS, FAILURE or DELAY")
+
+	// ErrSMTPAuthMethodIsNil indicates that the SMTP authentication method provided is nil
+	ErrSMTPAuthMethodIsNil = errors.New("SMTP auth method is nil")
 )
 
 // NewClient creates a new Client instance with the provided host and optional configuration Option functions.
@@ -510,6 +513,9 @@ func WithSMTPAuth(authtype SMTPAuthType) Option {
 //   - An Option function that sets the custom SMTP authentication for the Client.
 func WithSMTPAuthCustom(smtpAuth smtp.Auth) Option {
 	return func(c *Client) error {
+		if smtpAuth == nil {
+			return ErrSMTPAuthMethodIsNil
+		}
 		c.smtpAuth = smtpAuth
 		c.smtpAuthType = SMTPAuthCustom
 		return nil
