@@ -1289,6 +1289,96 @@ func TestClient_SetPassword(t *testing.T) {
 	})
 }
 
+func TestClient_SetSMTPAuth(t *testing.T) {
+	t.Run("SetSMTPAuth", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			auth     SMTPAuthType
+			expected SMTPAuthType
+		}{
+			{"CRAM-MD5", SMTPAuthCramMD5, SMTPAuthCramMD5},
+			{"LOGIN", SMTPAuthLogin, SMTPAuthLogin},
+			{"LOGIN-NOENC", SMTPAuthLoginNoEnc, SMTPAuthLoginNoEnc},
+			{"NOAUTH", SMTPAuthNoAuth, SMTPAuthNoAuth},
+			{"PLAIN", SMTPAuthPlain, SMTPAuthPlain},
+			{"PLAIN-NOENC", SMTPAuthPlainNoEnc, SMTPAuthPlainNoEnc},
+			{"SCRAM-SHA-1", SMTPAuthSCRAMSHA1, SMTPAuthSCRAMSHA1},
+			{"SCRAM-SHA-1-PLUS", SMTPAuthSCRAMSHA1PLUS, SMTPAuthSCRAMSHA1PLUS},
+			{"SCRAM-SHA-256", SMTPAuthSCRAMSHA256, SMTPAuthSCRAMSHA256},
+			{"SCRAM-SHA-256-PLUS", SMTPAuthSCRAMSHA256PLUS, SMTPAuthSCRAMSHA256PLUS},
+			{"XOAUTH2", SMTPAuthXOAUTH2, SMTPAuthXOAUTH2},
+		}
+
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				client.SetSMTPAuth(tt.auth)
+				if client.smtpAuthType != tt.expected {
+					t.Errorf("failed to set expected SMTPAuthType, want: %s, got: %s", tt.expected,
+						client.smtpAuthType)
+				}
+			})
+		}
+	})
+	t.Run("SetSMTPAuth to override WithSMTPAuth", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			auth     SMTPAuthType
+			expected SMTPAuthType
+		}{
+			{"CRAM-MD5", SMTPAuthCramMD5, SMTPAuthCramMD5},
+			{"LOGIN", SMTPAuthLogin, SMTPAuthLogin},
+			{"LOGIN-NOENC", SMTPAuthLoginNoEnc, SMTPAuthLoginNoEnc},
+			{"NOAUTH", SMTPAuthNoAuth, SMTPAuthNoAuth},
+			{"PLAIN", SMTPAuthPlain, SMTPAuthPlain},
+			{"PLAIN-NOENC", SMTPAuthPlainNoEnc, SMTPAuthPlainNoEnc},
+			{"SCRAM-SHA-1", SMTPAuthSCRAMSHA1, SMTPAuthSCRAMSHA1},
+			{"SCRAM-SHA-1-PLUS", SMTPAuthSCRAMSHA1PLUS, SMTPAuthSCRAMSHA1PLUS},
+			{"SCRAM-SHA-256", SMTPAuthSCRAMSHA256, SMTPAuthSCRAMSHA256},
+			{"SCRAM-SHA-256-PLUS", SMTPAuthSCRAMSHA256PLUS, SMTPAuthSCRAMSHA256PLUS},
+			{"XOAUTH2", SMTPAuthXOAUTH2, SMTPAuthXOAUTH2},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				client, err := NewClient(DefaultHost, WithSMTPAuth(SMTPAuthLogin))
+				if err != nil {
+					t.Fatalf("failed to create new client: %s", err)
+				}
+				if client.smtpAuthType != SMTPAuthLogin {
+					t.Fatalf("failed to create client with LOGIN auth, got: %s", client.smtpAuthType)
+				}
+				client.SetSMTPAuth(tt.auth)
+				if client.smtpAuthType != tt.expected {
+					t.Errorf("failed to set expected SMTPAuthType, want: %s, got: %s", tt.expected,
+						client.smtpAuthType)
+				}
+			})
+		}
+	})
+	t.Run("SetSMTPAuth override custom auth", func(t *testing.T) {
+		client, err := NewClient(DefaultHost,
+			WithSMTPAuthCustom(smtp.LoginAuth("", "", "", false)))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if client.smtpAuthType != SMTPAuthCustom {
+			t.Fatalf("failed to create client with Custom auth, got: %s", client.smtpAuthType)
+		}
+		client.SetSMTPAuth(SMTPAuthSCRAMSHA256)
+		if client.smtpAuthType != SMTPAuthSCRAMSHA256 {
+			t.Errorf("failed to set expected SMTPAuthType, want: %s, got: %s", SMTPAuthSCRAMSHA256,
+				client.smtpAuthType)
+		}
+		if client.smtpAuth != nil {
+			t.Errorf("failed to set expected SMTPAuth, want: nil, got: %s", client.smtpAuth)
+		}
+	})
+}
+
 /*
 
 
