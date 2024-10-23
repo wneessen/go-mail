@@ -1668,7 +1668,7 @@ func TestClient_DialWithContext(t *testing.T) {
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
 
-		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS), WithDebugLog())
 		if err != nil {
 			t.Fatalf("failed to create new client: %s", err)
 		}
@@ -3725,14 +3725,14 @@ func handleTestServerConnection(connection net.Conn, props *serverProps) {
 		case strings.HasPrefix(data, "EHLO"), strings.HasPrefix(data, "HELO"):
 			if len(strings.Split(data, " ")) != 2 {
 				_ = writeLine("501 Syntax: EHLO hostname")
-				return
+				break
 			}
 			if props.FailOnHelo {
 				_ = writeLine("500 5.5.2 Error: fail on HELO")
-				return
+				break
 			}
 			if err = writeLine("250-localhost.localdomain\r\n" + props.FeatureSet); err != nil {
-				return
+				break
 			}
 		case strings.HasPrefix(data, "MAIL FROM:"):
 			from := strings.TrimPrefix(data, "MAIL FROM:")
@@ -3849,6 +3849,7 @@ func handleTestServerConnection(connection net.Conn, props *serverProps) {
 				break
 			}
 			_ = writeLine("221 2.0.0 Bye")
+			return
 		default:
 			_ = writeLine("500 5.5.2 Error: bad syntax")
 		}
