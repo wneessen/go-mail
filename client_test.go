@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/mail"
 	"os"
 	"reflect"
 	"strings"
@@ -2229,9 +2230,9 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnData: true,
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
+				FailOnDataClose: true,
+				FeatureSet:      featureSet,
+				ListenPort:      serverPort,
 			}); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -2559,7 +2560,6 @@ func TestClient_Send(t *testing.T) {
 }
 
 func TestClient_sendSingleMsg(t *testing.T) {
-	message := testMessage(t)
 	t.Run("connect and send email", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -2577,6 +2577,8 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}()
 		time.Sleep(time.Millisecond * 30)
 
+		message := testMessage(t)
+
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
 
@@ -2591,6 +2593,426 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		})
 		if err = client.sendSingleMsg(message); err != nil {
 			t.Errorf("failed to send message: %s", err)
+		}
+	})
+	t.Run("server does not support 8BITMIME", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		message := testMessage(t)
+		message.SetEncoding(NoEncoding)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.sendSingleMsg(message); err == nil {
+			t.Errorf("client should have failed to send message")
+		}
+	})
+	t.Run("fail on invalid sender address", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		message := testMessage(t)
+		message.addrHeader["From"] = []*mail.Address{
+			{Name: "invalid", Address: "invalid"},
+		}
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.sendSingleMsg(message); err == nil {
+			t.Errorf("client should have failed to send message")
+		}
+		var sendErr *SendError
+		if !errors.As(err, &sendErr) {
+			t.Errorf("expected SendError, got %T", err)
+		}
+		if sendErr.Reason != ErrSMTPMailFrom {
+			t.Errorf("expected ErrSMTPMailFrom, got %s", sendErr.Reason)
+		}
+	})
+	t.Run("fail with no sender address", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		message := testMessage(t)
+		message.addrHeader["From"] = nil
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.sendSingleMsg(message); err == nil {
+			t.Errorf("client should have failed to send message")
+		}
+		var sendErr *SendError
+		if !errors.As(err, &sendErr) {
+			t.Errorf("expected SendError, got %T", err)
+		}
+		if sendErr.Reason != ErrGetSender {
+			t.Errorf("expected ErrGetSender, got %s", sendErr.Reason)
+		}
+	})
+	t.Run("fail with no recepient addresses", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		message := testMessage(t)
+		message.addrHeader["To"] = nil
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.sendSingleMsg(message); err == nil {
+			t.Errorf("client should have failed to send message")
+		}
+		var sendErr *SendError
+		if !errors.As(err, &sendErr) {
+			t.Errorf("expected SendError, got %T", err)
+		}
+		if sendErr.Reason != ErrGetRcpts {
+			t.Errorf("expected ErrGetRcpts, got %s", sendErr.Reason)
+		}
+	})
+	t.Run("connect and send email with DSN", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+				SupportDSN: true,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		message := testMessage(t)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS), WithDSN())
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.sendSingleMsg(message); err != nil {
+			t.Errorf("failed to send message: %s", err)
+		}
+	})
+	t.Run("connect and send email but fail on reset", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnReset: true,
+				FeatureSet:  featureSet,
+				ListenPort:  serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		message := testMessage(t)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.sendSingleMsg(message); err == nil {
+			t.Errorf("client should have failed to send message")
+		}
+		var sendErr *SendError
+		if !errors.As(err, &sendErr) {
+			t.Errorf("expected SendError, got %T", err)
+		}
+		if sendErr.Reason != ErrSMTPReset {
+			t.Errorf("expected ErrSMTPReset, got %s", sendErr.Reason)
+		}
+	})
+	t.Run("connect and send email but with mix of valid and invalid rcpts", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnReset: true,
+				FeatureSet:  featureSet,
+				ListenPort:  serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		message := testMessage(t)
+		message.addrHeader["To"] = append(message.addrHeader["To"], &mail.Address{Name: "invalid", Address: "invalid"})
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.sendSingleMsg(message); err == nil {
+			t.Errorf("client should have failed to send message")
+		}
+		var sendErr *SendError
+		if !errors.As(err, &sendErr) {
+			t.Errorf("expected SendError, got %T", err)
+		}
+		if sendErr.Reason != ErrSMTPRcptTo {
+			t.Errorf("expected ErrSMTPRcptTo, got %s", sendErr.Reason)
+		}
+	})
+	t.Run("connect and send email but fail on mail to and reset", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnMailFrom: true,
+				FailOnReset:    true,
+				FeatureSet:     featureSet,
+				ListenPort:     serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		message := testMessage(t)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.sendSingleMsg(message); err == nil {
+			t.Errorf("client should have failed to send message")
+		}
+		var sendErr *SendError
+		if !errors.As(err, &sendErr) {
+			t.Errorf("expected SendError, got %T", err)
+		}
+		if sendErr.Reason != ErrSMTPMailFrom {
+			t.Errorf("expected ErrSMTPMailFrom, got %s", sendErr.Reason)
+		}
+	})
+	t.Run("connect and send email but fail on data init", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnDataInit: true,
+				FeatureSet:     featureSet,
+				ListenPort:     serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		message := testMessage(t)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.sendSingleMsg(message); err == nil {
+			t.Errorf("client should have failed to send message")
+		}
+		var sendErr *SendError
+		if !errors.As(err, &sendErr) {
+			t.Errorf("expected SendError, got %T", err)
+		}
+		if sendErr.Reason != ErrSMTPData {
+			t.Errorf("expected ErrSMTPData, got %s", sendErr.Reason)
+		}
+	})
+	t.Run("connect and send email but fail on data close", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnDataClose: true,
+				FeatureSet:      featureSet,
+				ListenPort:      serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		message := testMessage(t)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.sendSingleMsg(message); err == nil {
+			t.Errorf("client should have failed to send message")
+		}
+		var sendErr *SendError
+		if !errors.As(err, &sendErr) {
+			t.Errorf("expected SendError, got %T", err)
+		}
+		if sendErr.Reason != ErrSMTPDataClose {
+			t.Errorf("expected ErrSMTPDataClose, got %s", sendErr.Reason)
 		}
 	})
 }
@@ -4125,16 +4547,19 @@ func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "
 
 // serverProps represents the configuration properties for the SMTP server.
 type serverProps struct {
-	FailOnAuth     bool
-	FailOnData     bool
-	FailOnHelo     bool
-	FailOnQuit     bool
-	FailOnReset    bool
-	FailOnSTARTTLS bool
-	FeatureSet     string
-	ListenPort     int
-	SSLListener    bool
-	IsTLS          bool
+	FailOnAuth      bool
+	FailOnDataInit  bool
+	FailOnDataClose bool
+	FailOnHelo      bool
+	FailOnMailFrom  bool
+	FailOnQuit      bool
+	FailOnReset     bool
+	FailOnSTARTTLS  bool
+	FeatureSet      string
+	ListenPort      int
+	SSLListener     bool
+	IsTLS           bool
+	SupportDSN      bool
 }
 
 // simpleSMTPServer starts a simple TCP server that resonds to SMTP commands.
@@ -4238,9 +4663,16 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 			writeLine("250-localhost.localdomain\r\n" + props.FeatureSet)
 			break
 		case strings.HasPrefix(data, "MAIL FROM:"):
+			if props.FailOnMailFrom {
+				writeLine("500 5.5.2 Error: fail on MAIL FROM")
+				break
+			}
 			from := strings.TrimPrefix(data, "MAIL FROM:")
 			from = strings.ReplaceAll(from, "BODY=8BITMIME", "")
 			from = strings.ReplaceAll(from, "SMTPUTF8", "")
+			if props.SupportDSN {
+				from = strings.ReplaceAll(from, "RET=FULL", "")
+			}
 			from = strings.TrimSpace(from)
 			if !strings.EqualFold(from, "<valid-from@domain.tld>") {
 				writeLine(fmt.Sprintf("503 5.1.2 Invalid from: %s", from))
@@ -4249,6 +4681,9 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 			writeOK()
 		case strings.HasPrefix(data, "RCPT TO:"):
 			to := strings.TrimPrefix(data, "RCPT TO:")
+			if props.SupportDSN {
+				to = strings.ReplaceAll(to, "NOTIFY=FAILURE,SUCCESS", "")
+			}
 			to = strings.TrimSpace(to)
 			if !strings.EqualFold(to, "<valid-to@domain.tld>") {
 				writeLine(fmt.Sprintf("500 5.1.2 Invalid to: %s", to))
@@ -4262,6 +4697,10 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 			}
 			writeLine("235 2.7.0 Authentication successful")
 		case strings.EqualFold(data, "DATA"):
+			if props.FailOnDataInit {
+				writeLine("503 5.5.1 Error: fail on DATA init")
+				break
+			}
 			writeLine("354 End data with <CR><LF>.<CR><LF>")
 			for {
 				ddata, derr := reader.ReadString('\n')
@@ -4271,7 +4710,7 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 				}
 				ddata = strings.TrimSpace(ddata)
 				if ddata == "." {
-					if props.FailOnData {
+					if props.FailOnDataClose {
 						writeLine("500 5.0.0 Error during DATA transmission")
 						break
 					}
