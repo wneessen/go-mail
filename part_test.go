@@ -102,6 +102,24 @@ func TestPart_WithPartContentDescription(t *testing.T) {
 	}
 }
 
+// TestPart_WithSMimeSinging tests the WithSMimeSinging method
+func TestPart_WithSMimeSinging(t *testing.T) {
+	m := NewMsg()
+	part := m.newPart(TypeTextPlain, WithSMimeSinging())
+	if part == nil {
+		t.Errorf("newPart() WithSMimeSinging() failed: no part returned")
+		return
+	}
+	if part.smime != true {
+		t.Errorf("newPart() WithSMimeSinging() failed: expected: %v, got: %v", true, part.smime)
+	}
+	part.smime = true
+	part.SetIsSMimeSigned(false)
+	if part.smime != false {
+		t.Errorf("newPart() SetIsSMimeSigned() failed: expected: %v, got: %v", false, part.smime)
+	}
+}
+
 // TestPartContentType tests Part.SetContentType
 func TestPart_SetContentType(t *testing.T) {
 	tests := []struct {
@@ -242,6 +260,33 @@ func TestPart_GetContentBroken(t *testing.T) {
 	_, err = pl[0].GetContent()
 	if err == nil {
 		t.Errorf("Part.GetContent was supposed to failed, but didn't")
+	}
+}
+
+// TestPart_IsSMimeSigned tests Part.IsSMimeSigned
+func TestPart_IsSMimeSigned(t *testing.T) {
+	tests := []struct {
+		name string
+		want bool
+	}{
+		{"smime:", true},
+		{"smime:", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := NewMsg()
+			m.SetBodyString(TypeTextPlain, "This is a body!")
+			pl, err := getPartList(m)
+			if err != nil {
+				t.Errorf("failed: %s", err)
+				return
+			}
+			pl[0].SetIsSMimeSigned(tt.want)
+			smime := pl[0].IsSMimeSigned()
+			if smime != tt.want {
+				t.Errorf("SetContentType failed. Got: %v, expected: %v", smime, tt.want)
+			}
+		})
 	}
 }
 

@@ -1907,6 +1907,39 @@ func TestMsg_hasAlt(t *testing.T) {
 	}
 }
 
+// TestMsg_hasAlt tests the hasAlt() method of the Msg with active S/MIME
+func TestMsg_hasAltWithSMime(t *testing.T) {
+	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
+	if err != nil {
+		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
+	}
+	m := NewMsg()
+	m.SetBodyString(TypeTextPlain, "Plain")
+	m.AddAlternativeString(TypeTextHTML, "<b>HTML</b>")
+	if err := m.SignWithSMimeRSA(privateKey, certificate, intermediateCertificate); err != nil {
+		t.Errorf("failed to init smime configuration")
+	}
+	if m.hasAlt() {
+		t.Errorf("mail has alternative parts and S/MIME is active, but hasAlt() returned true")
+	}
+}
+
+// TestMsg_hasSMime tests the hasSMime() method of the Msg
+func TestMsg_hasSMime(t *testing.T) {
+	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
+	if err != nil {
+		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
+	}
+	m := NewMsg()
+	if err := m.SignWithSMimeRSA(privateKey, certificate, intermediateCertificate); err != nil {
+		t.Errorf("failed to init smime configuration")
+	}
+	m.SetBodyString(TypeTextPlain, "Plain")
+	if !m.hasSMime() {
+		t.Errorf("mail has smime configured but hasSMime() returned true")
+	}
+}
+
 // TestMsg_hasRelated tests the hasRelated() method of the Msg
 func TestMsg_hasRelated(t *testing.T) {
 	m := NewMsg()
@@ -1971,6 +2004,70 @@ func TestMsg_WriteToSkipMiddleware(t *testing.T) {
 	}
 	if !strings.Contains(wbuf2.String(), "Subject: THIS IS @ TEST") {
 		t.Errorf("WriteToSkipMiddleware failed. Unable to find encoded and upperchase subject")
+	}
+}
+
+// TestMsg_WriteToWithSMIME tests the WriteTo() method of the Msg
+func TestMsg_WriteToWithSMIME(t *testing.T) {
+	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
+	if err != nil {
+		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
+	}
+
+	m := NewMsg()
+	m.Subject("This is a test")
+	m.SetBodyString(TypeTextPlain, "Plain")
+	if err := m.SignWithSMimeRSA(privateKey, certificate, intermediateCertificate); err != nil {
+		t.Errorf("failed to init smime configuration")
+	}
+
+	wbuf := bytes.Buffer{}
+	if _, err = m.WriteTo(&wbuf); err != nil {
+		t.Errorf("WriteTo() failed: %s", err)
+	}
+
+	result := wbuf.String()
+	boundary := result[strings.LastIndex(result, "--")-60 : strings.LastIndex(result, "--")]
+	if strings.Count(result, boundary) != 4 {
+		t.Errorf("WriteTo() failed. False number of boundaries found")
+	}
+
+	parts := strings.Split(result, fmt.Sprintf("--%s", boundary))
+	if len(parts) != 4 {
+		t.Errorf("WriteTo() failed. False number of parts found")
+	}
+
+	preamble := parts[0]
+	if !strings.Contains(preamble, "MIME-Version: 1.0") {
+		t.Errorf("WriteTo() failed. Unable to find MIME-Version")
+	}
+	if !strings.Contains(preamble, "Subject: This is a test") {
+		t.Errorf("WriteTo() failed. Unable to find subject")
+	}
+	if !strings.Contains(preamble, fmt.Sprintf("Content-Type: multipart/signed; protocol=\"application/pkcs7-signature\"; micalg=sha-256;\r\n boundary=%s", boundary)) {
+		t.Errorf("WriteTo() failed. Unable to find Content-Type")
+	}
+
+	signedData := parts[1]
+	if !strings.Contains(signedData, "Content-Transfer-Encoding: quoted-printable") {
+		t.Errorf("WriteTo() failed. Unable to find Content-Transfer-Encoding")
+	}
+	if !strings.Contains(signedData, "Content-Type: text/plain; charset=UTF-8") {
+		t.Errorf("WriteTo() failed. Unable to find Content-Type")
+	}
+	if !strings.Contains(signedData, "Plain") {
+		t.Errorf("WriteTo() failed. Unable to find Content")
+	}
+
+	signature := parts[2]
+	if !strings.Contains(signature, "Content-Transfer-Encoding: base64") {
+		t.Errorf("WriteTo() failed. Unable to find Content-Transfer-Encoding")
+	}
+	if !strings.Contains(signature, `application/pkcs7-signature; name="smime.p7s"`) {
+		t.Errorf("WriteTo() failed. Unable to find Content-Type")
+	}
+	if strings.Contains(signature, "Plain") {
+		t.Errorf("WriteTo() failed. Unable to find signature")
 	}
 }
 
@@ -3246,6 +3343,66 @@ func TestNewMsgWithNoDefaultUserAgent(t *testing.T) {
 	}
 }
 
+// TestSignWithSMime_ValidRSAKeyPair tests WithSMimeSinging with given rsa key pair
+func TestSignWithSMime_ValidRSAKeyPair(t *testing.T) {
+	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
+	if err != nil {
+		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
+	}
+	m := NewMsg()
+	if err := m.SignWithSMimeRSA(privateKey, certificate, intermediateCertificate); err != nil {
+		t.Errorf("failed to set sMime. Cause: %v", err)
+	}
+	if m.sMime.privateKey.rsa == nil {
+		t.Errorf("WithSMimeSinging() - no private key is given")
+	}
+	if m.sMime.certificate == nil {
+		t.Errorf("WithSMimeSinging() - no certificate is given")
+	}
+}
+
+// TestSignWithSMime_ValidRSAKeyPair tests WithSMimeSinging with given ecdsa key pair
+func TestSignWithSMime_ValidECDSAKeyPair(t *testing.T) {
+	privateKey, certificate, intermediateCertificate, err := getDummyECDSACryptoMaterial()
+	if err != nil {
+		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
+	}
+	m := NewMsg()
+	if err := m.SignWithSMimeECDSA(privateKey, certificate, intermediateCertificate); err != nil {
+		t.Errorf("failed to set sMime. Cause: %v", err)
+	}
+	if m.sMime.privateKey.ecdsa == nil {
+		t.Errorf("WithSMimeSinging() - no private key is given")
+	}
+	if m.sMime.certificate == nil {
+		t.Errorf("WithSMimeSinging() - no certificate is given")
+	}
+}
+
+// TestSignWithSMime_InvalidPrivateKey tests WithSMimeSinging with given invalid private key
+func TestSignWithSMime_InvalidPrivateKey(t *testing.T) {
+	m := NewMsg()
+
+	err := m.SignWithSMimeRSA(nil, nil, nil)
+	if !errors.Is(err, ErrInvalidPrivateKey) {
+		t.Errorf("failed to pre-check SignWithSMime method values correctly: %s", err)
+	}
+}
+
+// TestSignWithSMime_InvalidCertificate tests WithSMimeSinging with given invalid certificate
+func TestSignWithSMime_InvalidCertificate(t *testing.T) {
+	privateKey, _, _, err := getDummyRSACryptoMaterial()
+	if err != nil {
+		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
+	}
+	m := NewMsg()
+
+	err = m.SignWithSMimeRSA(privateKey, nil, nil)
+	if !errors.Is(err, ErrInvalidCertificate) {
+		t.Errorf("failed to pre-check SignWithSMime method values correctly: %s", err)
+	}
+}
+
 // Fuzzing tests
 func FuzzMsg_Subject(f *testing.F) {
 	f.Add("Testsubject")
@@ -3272,4 +3429,85 @@ func FuzzMsg_From(f *testing.F) {
 		}
 		m.Reset()
 	})
+}
+
+// TestMsg_createSignaturePart tests the Msg.createSignaturePart method
+func TestMsg_createSignaturePart(t *testing.T) {
+	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
+	if err != nil {
+		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
+	}
+	m := NewMsg()
+	if err := m.SignWithSMimeRSA(privateKey, certificate, intermediateCertificate); err != nil {
+		t.Errorf("failed to init smime configuration")
+	}
+	body := []byte("This is the body")
+	part, err := m.createSignaturePart(EncodingQP, TypeTextPlain, CharsetUTF7, body)
+	if err != nil {
+		t.Errorf("createSignaturePart() method failed.")
+	}
+
+	if part.GetEncoding() != EncodingB64 {
+		t.Errorf("createSignaturePart() method failed. Expected encoding: %s, got: %s", EncodingB64, part.GetEncoding())
+	}
+	if part.GetContentType() != typeSMimeSigned {
+		t.Errorf("createSignaturePart() method failed. Expected content type: %s, got: %s", typeSMimeSigned, part.GetContentType())
+	}
+	if part.GetCharset() != CharsetUTF8 {
+		t.Errorf("createSignaturePart() method failed. Expected charset: %s, got: %s", CharsetUTF8, part.GetCharset())
+	}
+	if content, err := part.GetContent(); err != nil || len(content) == len(body) {
+		t.Errorf("createSignaturePart() method failed. Expected content should not be equal: %s, got: %s", body, part.GetEncoding())
+	}
+}
+
+// TestMsg_signMessage tests the Msg.signMessage method
+func TestMsg_signMessage(t *testing.T) {
+	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
+	if err != nil {
+		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
+	}
+	body := []byte("This is the body")
+	m := NewMsg()
+	m.SetBodyString(TypeTextPlain, string(body))
+	if err := m.SignWithSMimeRSA(privateKey, certificate, intermediateCertificate); err != nil {
+		t.Errorf("failed to init smime configuration")
+	}
+	msg, err := m.signMessage(m)
+	if err != nil {
+		t.Errorf("createSignaturePart() method failed.")
+	}
+
+	parts := msg.GetParts()
+	if len(parts) != 2 {
+		t.Errorf("createSignaturePart() method failed. Expected 2 parts, got: %d", len(parts))
+	}
+
+	signedPart := parts[0]
+	if signedPart.GetEncoding() != EncodingQP {
+		t.Errorf("createSignaturePart() method failed. Expected encoding: %s, got: %s", EncodingB64, signedPart.GetEncoding())
+	}
+	if signedPart.GetContentType() != TypeTextPlain {
+		t.Errorf("createSignaturePart() method failed. Expected content type: %s, got: %s", typeSMimeSigned, signedPart.GetContentType())
+	}
+	if signedPart.GetCharset() != CharsetUTF8 {
+		t.Errorf("createSignaturePart() method failed. Expected charset: %s, got: %s", CharsetUTF8, signedPart.GetCharset())
+	}
+	if content, err := signedPart.GetContent(); err != nil || len(content) != len(body) {
+		t.Errorf("createSignaturePart() method failed. Expected content should be equal: %s, got: %s", body, content)
+	}
+
+	signaturePart := parts[1]
+	if signaturePart.GetEncoding() != EncodingB64 {
+		t.Errorf("createSignaturePart() method failed. Expected encoding: %s, got: %s", EncodingB64, signaturePart.GetEncoding())
+	}
+	if signaturePart.GetContentType() != typeSMimeSigned {
+		t.Errorf("createSignaturePart() method failed. Expected content type: %s, got: %s", typeSMimeSigned, signaturePart.GetContentType())
+	}
+	if signaturePart.GetCharset() != CharsetUTF8 {
+		t.Errorf("createSignaturePart() method failed. Expected charset: %s, got: %s", CharsetUTF8, signaturePart.GetCharset())
+	}
+	if content, err := signaturePart.GetContent(); err != nil || len(content) == len(body) {
+		t.Errorf("createSignaturePart() method failed. Expected content should not be equal: %s, got: %s", body, signaturePart.GetEncoding())
+	}
 }
