@@ -16,6 +16,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -2108,16 +2109,7 @@ func TestClient_Reset(t *testing.T) {
 }
 
 func TestClient_DialAndSendWithContext(t *testing.T) {
-	message := NewMsg()
-	if err := message.From(TestSenderValid); err != nil {
-		t.Errorf("failed to set sender address: %s", err)
-	}
-	if err := message.To(TestRcptValid); err != nil {
-		t.Errorf("failed to set recipient address: %s", err)
-	}
-	message.Subject("Testmail")
-	message.SetBodyString(TypeTextPlain, "Testmail")
-
+	message := testMessage(t)
 	t.Run("DialAndSend", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -2468,7 +2460,111 @@ func TestClient_auth(t *testing.T) {
 }
 
 func TestClient_Send(t *testing.T) {
-	t.Run("send email", func(t *testing.T) {})
+	message := testMessage(t)
+	t.Run("connect and send email", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 300)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.Send(message); err != nil {
+			t.Errorf("failed to send email: %s", err)
+		}
+	})
+	t.Run("send with no connection should fail", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err = client.Send(message); err == nil {
+			t.Errorf("client should have failed to send email with no connection")
+		}
+		var sendErr *SendError
+		if !errors.As(err, &sendErr) {
+			t.Fatalf("expected SendError, got %T", err)
+		}
+		if sendErr.Reason != ErrConnCheck {
+			t.Errorf("expected ErrConnCheck, got %s", sendErr.Reason)
+		}
+	})
+	t.Run("concurrent sending on a single client connection", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 300)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+
+		var messages []*Msg
+		for i := 0; i < 50; i++ {
+			curMessage := testMessage(t)
+			curMessage.SetMessageIDWithValue("this.is.a.message.id")
+			messages = append(messages, curMessage)
+		}
+
+		wg := sync.WaitGroup{}
+		for id, curMessage := range messages {
+			wg.Add(1)
+			go func(curMsg *Msg, curID int) {
+				defer wg.Done()
+				if goroutineErr := client.Send(curMsg); err != nil {
+					t.Errorf("failed to send message with ID %d: %s", curID, goroutineErr)
+				}
+			}(curMessage, id)
+		}
+		wg.Wait()
+	})
+}
+
+// TestClient_onlinetests will perform some additional tests on a actual live mail server. These tests are only
+// meant for the CI/CD pipeline and are usually skipped. They can be activated by setting PERFORM_ONLINE_TEST=true
+// in the ENV. The normal test suite should provide all the tests needed to cover the full functionality.
+func TestClient_onlinetests(t *testing.T) {
+	if os.Getenv("PERFORM_ONLINE_TEST") != "true" {
+		t.Skip(`"PERFORM_ONLINE_TEST" env variable is not set to "true". Skipping online tests.`)
+	}
 }
 
 /*
@@ -2484,129 +2580,6 @@ func TestClient_checkConn(t *testing.T) {
 	}
 	if err = c.checkConn(); err == nil {
 		t.Errorf("connCheck() should fail but succeeded")
-	}
-}
-
-
-// TestClient_DialWithContextOptionDialContextFunc tests the DialWithContext method plus
-// use dialContextFunc option for the Client object
-func TestClient_DialWithContextOptionDialContextFunc(t *testing.T) {
-	c, err := getTestConnection(true)
-	if err != nil {
-		t.Skipf("failed to create test client: %s. Skipping tests", err)
-	}
-
-	called := false
-	c.dialContextFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
-		called = true
-		return (&net.Dialer{}).DialContext(ctx, network, address)
-	}
-
-	ctx := context.Background()
-	if err := c.DialWithContext(ctx); err != nil {
-		t.Errorf("failed to dial with context: %s", err)
-		return
-	}
-
-	if called == false {
-		t.Errorf("dialContextFunc supposed to be called but not called")
-	}
-}
-
-// TestClient_DialSendClose tests the Dial(), Send() and Close() method of Client
-func TestClient_DialSendClose(t *testing.T) {
-	if os.Getenv("TEST_ALLOW_SEND") == "" {
-		t.Skipf("TEST_ALLOW_SEND is not set. Skipping mail sending test")
-	}
-	m := NewMsg()
-	_ = m.FromFormat("go-mail Test Mailer", os.Getenv("TEST_FROM"))
-	_ = m.To(TestRcpt)
-	m.Subject(fmt.Sprintf("This is a test mail from go-mail/v%s", VERSION))
-	m.SetBulk()
-	m.SetDate()
-	m.SetMessageID()
-	m.SetBodyString(TypeTextPlain, "This is a test mail from the go-mail library")
-
-	c, err := getTestConnection(true)
-	if err != nil {
-		t.Skipf("failed to create test client: %s. Skipping tests", err)
-	}
-
-	ctx, cfn := context.WithTimeout(context.Background(), time.Second*10)
-	defer cfn()
-	if err := c.DialWithContext(ctx); err != nil {
-		t.Errorf("Dial() failed: %s", err)
-	}
-	if err := c.Send(m); err != nil {
-		t.Errorf("Send() failed: %s", err)
-	}
-	if err := c.Close(); err != nil {
-		t.Errorf("Close() failed: %s", err)
-	}
-	if !m.IsDelivered() {
-		t.Errorf("message should be delivered but is indicated no to")
-	}
-}
-
-// TestClient_DialAndSendWithContext tests the DialAndSendWithContext() method of Client
-func TestClient_DialAndSendWithContext(t *testing.T) {
-	if os.Getenv("TEST_ALLOW_SEND") == "" {
-		t.Skipf("TEST_ALLOW_SEND is not set. Skipping mail sending test")
-	}
-	m := NewMsg()
-	_ = m.FromFormat("go-mail Test Mailer", os.Getenv("TEST_FROM"))
-	_ = m.To(TestRcpt)
-	m.Subject(fmt.Sprintf("This is a test mail from go-mail/v%s", VERSION))
-	m.SetBulk()
-	m.SetDate()
-	m.SetMessageID()
-	m.SetBodyString(TypeTextPlain, "This is a test mail from the go-mail library")
-
-	tests := []struct {
-		name string
-		to   time.Duration
-		sf   bool
-	}{
-		{"Timeout: 100s", time.Second * 100, false},
-		{"Timeout: 100ms", time.Millisecond * 100, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, err := getTestConnection(true)
-			if err != nil {
-				t.Skipf("failed to create test client: %s. Skipping tests", err)
-			}
-
-			ctx, cfn := context.WithTimeout(context.Background(), tt.to)
-			defer cfn()
-			if err := c.DialAndSendWithContext(ctx, m); err != nil && !tt.sf {
-				t.Errorf("DialAndSendWithContext() failed: %s", err)
-			}
-		})
-	}
-}
-
-// TestClient_DialAndSend tests the DialAndSend() method of Client
-func TestClient_DialAndSend(t *testing.T) {
-	if os.Getenv("TEST_ALLOW_SEND") == "" {
-		t.Skipf("TEST_ALLOW_SEND is not set. Skipping mail sending test")
-	}
-	m := NewMsg()
-	_ = m.FromFormat("go-mail Test Mailer", os.Getenv("TEST_FROM"))
-	_ = m.To(TestRcpt)
-	m.Subject(fmt.Sprintf("This is a test mail from go-mail/v%s", VERSION))
-	m.SetBulk()
-	m.SetDate()
-	m.SetMessageID()
-	m.SetBodyString(TypeTextPlain, "This is a test mail from the go-mail library")
-
-	c, err := getTestConnection(true)
-	if err != nil {
-		t.Skipf("failed to create test client: %s. Skipping tests", err)
-	}
-
-	if err := c.DialAndSend(m); err != nil {
-		t.Errorf("DialAndSend() failed: %s", err)
 	}
 }
 
@@ -2749,49 +2722,6 @@ func TestClient_DialSendCloseBrokenWithDSN(t *testing.T) {
 	}
 }
 
-// TestClient_Send_withBrokenRecipient tests the Send() method of Client with a broken and a working recipient
-func TestClient_Send_withBrokenRecipient(t *testing.T) {
-	if os.Getenv("TEST_ALLOW_SEND") == "" {
-		t.Skipf("TEST_ALLOW_SEND is not set. Skipping mail sending test")
-	}
-	var msgs []*Msg
-	rcpts := []string{"invalid@domain.tld", TestRcpt, "invalid@address.invalid"}
-	for _, rcpt := range rcpts {
-		m := NewMsg()
-		_ = m.FromFormat("go-mail Test Mailer", os.Getenv("TEST_FROM"))
-		_ = m.To(rcpt)
-		m.Subject(fmt.Sprintf("This is a test mail from go-mail/v%s", VERSION))
-		m.SetBulk()
-		m.SetDate()
-		m.SetMessageID()
-		m.SetBodyString(TypeTextPlain, "This is a test mail from the go-mail library")
-		msgs = append(msgs, m)
-	}
-
-	c, err := getTestConnection(true)
-	if err != nil {
-		t.Skipf("failed to create test client: %s. Skipping tests", err)
-	}
-
-	ctx, cfn := context.WithTimeout(context.Background(), DefaultTimeout)
-	defer cfn()
-	if err := c.DialWithContext(ctx); err != nil {
-		t.Errorf("failed to dial to sending server: %s", err)
-	}
-	if err := c.Send(msgs...); err != nil {
-		if !strings.Contains(err.Error(), "invalid@domain.tld") ||
-			!strings.Contains(err.Error(), "invalid@address.invalid") {
-			t.Errorf("sending mails to invalid addresses was supposed to fail but didn't")
-		}
-		if strings.Contains(err.Error(), TestRcpt) {
-			t.Errorf("sending mail to valid addresses failed: %s", err)
-		}
-	}
-	if err := c.Close(); err != nil {
-		t.Errorf("failed to close client connection: %s", err)
-	}
-}
-
 func TestClient_DialWithContext_switchAuth(t *testing.T) {
 	if os.Getenv("TEST_ALLOW_SEND") == "" {
 		t.Skipf("TEST_ALLOW_SEND is not set. Skipping mail sending test")
@@ -2864,44 +2794,6 @@ func TestClient_DialWithContext_switchAuth(t *testing.T) {
 	client.SetSMTPAuth("")
 	if err = client.DialWithContext(context.Background()); err == nil {
 		t.Errorf("expected error when dialing with empty auth mechanism, got nil")
-	}
-}
-
-// TestClient_auth tests the Dial(), Send() and Close() method of Client with broken settings
-func TestClient_auth(t *testing.T) {
-	tests := []struct {
-		name string
-		auth SMTPAuthType
-		sf   bool
-	}{
-		{"SMTP AUTH: PLAIN", SMTPAuthPlain, false},
-		{"SMTP AUTH: LOGIN", SMTPAuthLogin, false},
-		{"SMTP AUTH: CRAM-MD5", SMTPAuthCramMD5, true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, err := getTestConnection(false)
-			if err != nil {
-				t.Skipf("failed to create test client: %s. Skipping tests", err)
-			}
-
-			ctx, cfn := context.WithTimeout(context.Background(), time.Second*5)
-			defer cfn()
-			if err := c.DialWithContext(ctx); err != nil {
-				t.Errorf("auth() failed: could not Dial() => %s", err)
-				return
-			}
-			c.SetSMTPAuth(tt.auth)
-			c.SetUsername(os.Getenv("TEST_SMTPAUTH_USER"))
-			c.SetPassword(os.Getenv("TEST_SMTPAUTH_PASS"))
-			if err := c.auth(); err != nil && !tt.sf {
-				t.Errorf("auth() failed: %s", err)
-			}
-			if err := c.Close(); err != nil {
-				t.Errorf("auth() failed: could not Close() => %s", err)
-			}
-		})
 	}
 }
 
@@ -3127,80 +3019,6 @@ func TestClient_SendErrorMailFrom(t *testing.T) {
 	}
 }
 
-func TestClient_SendErrorMailFromReset(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	serverPort := TestServerPortBase + 3
-	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
-	go func() {
-		if err := simpleSMTPServer(ctx, featureSet, true, serverPort); err != nil {
-			t.Errorf("failed to start test server: %s", err)
-			return
-		}
-	}()
-	time.Sleep(time.Millisecond * 300)
-
-	message := NewMsg()
-	if err := message.From("invalid-from@domain.tld"); err != nil {
-		t.Errorf("failed to set FROM address: %s", err)
-		return
-	}
-	if err := message.To("valid-to@domain.tld"); err != nil {
-		t.Errorf("failed to set TO address: %s", err)
-		return
-	}
-	message.Subject("Test subject")
-	message.SetBodyString(TypeTextPlain, "Test body")
-	message.SetMessageIDWithValue("this.is.a.message.id")
-
-	client, err := NewClient(TestServerAddr, WithPort(serverPort),
-		WithTLSPortPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlain),
-		WithUsername("toni@tester.com"),
-		WithPassword("V3ryS3cr3t+"))
-	if err != nil {
-		t.Errorf("unable to create new client: %s", err)
-	}
-	if err = client.DialWithContext(context.Background()); err != nil {
-		t.Errorf("failed to dial to test server: %s", err)
-	}
-	if err = client.Send(message); err == nil {
-		t.Error("expected Send() to fail but didn't")
-	}
-
-	var sendErr *SendError
-	if !errors.As(err, &sendErr) {
-		t.Errorf("expected *SendError type as returned error, but got %T", sendErr)
-	}
-	if errors.As(err, &sendErr) {
-		if sendErr.IsTemp() {
-			t.Errorf("expected permanent error but IsTemp() returned true")
-		}
-		if sendErr.Reason != ErrSMTPMailFrom {
-			t.Errorf("expected ErrSMTPMailFrom error, but got %s", sendErr.Reason)
-		}
-		if !strings.EqualFold(sendErr.MessageID(), "<this.is.a.message.id>") {
-			t.Errorf("expected message ID: %q, but got %q", "<this.is.a.message.id>",
-				sendErr.MessageID())
-		}
-		if len(sendErr.errlist) != 2 {
-			t.Errorf("expected 2 errors, but got %d", len(sendErr.errlist))
-			return
-		}
-		if !strings.EqualFold(sendErr.errlist[0].Error(), "503 5.1.2 Invalid from: <invalid-from@domain.tld>") {
-			t.Errorf("expected error: %q, but got %q",
-				"503 5.1.2 Invalid from: <invalid-from@domain.tld>", sendErr.errlist[0].Error())
-		}
-		if !strings.EqualFold(sendErr.errlist[1].Error(), "500 5.1.2 Error: reset failed") {
-			t.Errorf("expected error: %q, but got %q",
-				"500 5.1.2 Error: reset failed", sendErr.errlist[1].Error())
-		}
-	}
-
-	if err = client.Close(); err != nil {
-		t.Errorf("failed to close server connection: %s", err)
-	}
-}
 
 func TestClient_SendErrorToReset(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -4248,6 +4066,21 @@ func parseJSONLog(t *testing.T, buf *bytes.Buffer) logData {
 		t.Errorf("failed to decode json log: %s", err)
 	}
 	return logdata
+}
+
+// testMessage configures and returns a new email message for testing, initializing it with valid sender and recipient.
+func testMessage(t *testing.T) *Msg {
+	t.Helper()
+	message := NewMsg()
+	if err := message.From(TestSenderValid); err != nil {
+		t.Errorf("failed to set sender address: %s", err)
+	}
+	if err := message.To(TestRcptValid); err != nil {
+		t.Errorf("failed to set recipient address: %s", err)
+	}
+	message.Subject("Testmail")
+	message.SetBodyString(TypeTextPlain, "Testmail")
+	return message
 }
 
 // testingKey replaces the substring "TESTING KEY" with "PRIVATE KEY" in the given string s.
