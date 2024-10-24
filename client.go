@@ -1094,10 +1094,6 @@ func (c *Client) DialAndSendWithContext(ctx context.Context, messages ...*Msg) e
 //   - An error if the connection check fails, if no supported authentication method is found,
 //     or if the authentication process fails.
 func (c *Client) auth() error {
-	if err := c.checkConn(); err != nil {
-		return fmt.Errorf("failed to authenticate: %w", err)
-	}
-
 	if c.smtpAuth == nil && c.smtpAuthType != SMTPAuthNoAuth {
 		hasSMTPAuth, smtpAuthType := c.smtpClient.Extension("AUTH")
 		if !hasSMTPAuth {
