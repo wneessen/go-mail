@@ -6,17 +6,22 @@ package mail
 
 import (
 	"bytes"
-	"fmt"
-	"os"
 	"strings"
 	"testing"
-	"time"
 )
 
 const (
 	// RFC 5322 example mail
 	// See: https://datatracker.ietf.org/doc/html/rfc5322#appendix-A.1.1
 	exampleMailRFC5322A11 = `From: John Doe <jdoe@machine.example>
+To: Mary Smith <mary@example.net>
+Subject: Saying Hello
+Date: Fri, 21 Nov 1997 09:55:06 -0600
+Message-ID: <1234@local.machine.example>
+
+This is a message just to say hello.
+So, "Hello".`
+	exampleMailRFC5322A11InvalidFrom = `From: §§§§§§§§§
 To: Mary Smith <mary@example.net>
 Subject: Saying Hello
 Date: Fri, 21 Nov 1997 09:55:06 -0600
@@ -614,6 +619,108 @@ VGhpcyBpcyBhIHRlc3QgaW4gQmFzZTY0
 --------------26A45336F6C6196BD8BBA2A2--`
 )
 
+func TestEMLToMsgFromReader(t *testing.T) {
+	t.Run("EMLToMsgFromReader via EMLToMsgFromString, check subject and encoding", func(t *testing.T) {
+		tests := []struct {
+			name         string
+			emlString    string
+			wantEncoding Encoding
+			wantSubject  string
+		}{
+			{
+				"RFC5322 A1.1 example mail", exampleMailRFC5322A11, EncodingUSASCII,
+				"Saying Hello"},
+			{
+				"Plain text no encoding (7bit)", exampleMailPlain7Bit, EncodingUSASCII,
+				"Example mail // plain text without encoding",
+			},
+			{
+				"Plain text no encoding", exampleMailPlainNoEnc, NoEncoding,
+				"Example mail // plain text without encoding",
+			},
+			{
+				"Plain text quoted-printable", exampleMailPlainQP, EncodingQP,
+				"Example mail // plain text quoted-printable",
+			},
+			{
+				"Plain text base64", exampleMailPlainB64, EncodingB64,
+				"Example mail // plain text base64",
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				parsed, err := EMLToMsgFromString(tt.emlString)
+				if err != nil {
+					t.Fatalf("failed to parse EML string: %s", err)
+				}
+				if parsed.Encoding() != tt.wantEncoding.String() {
+					t.Errorf("failed to parse EML string: want encoding %s, got %s", tt.wantEncoding,
+						parsed.Encoding())
+				}
+				gotSubject, ok := parsed.genHeader[HeaderSubject]
+				if !ok {
+					t.Fatalf("failed to parse EML string. No subject header found")
+				}
+				if len(gotSubject) != 1 {
+					t.Fatalf("failed to parse EML string, more than one subject header found")
+				}
+				if !strings.EqualFold(gotSubject[0], tt.wantSubject) {
+					t.Errorf("failed to parse EML string: want subject %s, got %s", tt.wantSubject,
+						gotSubject[0])
+				}
+			})
+		}
+	})
+	t.Run("EMLToMsgFromReader fails on reader", func(t *testing.T) {
+		emlReader := bytes.NewBufferString("invalid")
+		if _, err := EMLToMsgFromReader(emlReader); err == nil {
+			t.Errorf("EML parsing with invalid EML string should fail")
+		}
+	})
+	t.Run("EMLToMsgFromReader fails on parseEML", func(t *testing.T) {
+		emlReader := bytes.NewBufferString(exampleMailRFC5322A11InvalidFrom)
+		if _, err := EMLToMsgFromReader(emlReader); err == nil {
+			t.Errorf("EML parsing with invalid EML string should fail")
+		}
+	})
+}
+
+func TestEMLToMsgFromFile(t *testing.T) {
+	t.Run("EMLToMsgFromFile succeeds", func(t *testing.T) {
+		parsed, err := EMLToMsgFromFile("testdata/RFC5322-A1-1.eml")
+		if err != nil {
+			t.Fatalf("EMLToMsgFromFile failed: %s ", err)
+		}
+		if parsed.Encoding() != EncodingUSASCII.String() {
+			t.Errorf("EMLToMsgFromFile failed: want encoding %s, got %s", EncodingUSASCII,
+				parsed.Encoding())
+		}
+		gotSubject, ok := parsed.genHeader[HeaderSubject]
+		if !ok {
+			t.Fatalf("failed to parse EML string. No subject header found")
+		}
+		if len(gotSubject) != 1 {
+			t.Fatalf("failed to parse EML string, more than one subject header found")
+		}
+		if !strings.EqualFold(gotSubject[0], "Saying Hello") {
+			t.Errorf("failed to parse EML string: want subject %s, got %s", "Saying Hello",
+				gotSubject[0])
+		}
+
+	})
+	t.Run("EMLToMsgFromFile fails on file not found", func(t *testing.T) {
+		if _, err := EMLToMsgFromFile("testdata/not-existing.eml"); err == nil {
+			t.Errorf("EMLToMsgFromFile with invalid file should fail")
+		}
+	})
+	t.Run("EMLToMsgFromFile fails on parseEML", func(t *testing.T) {
+		if _, err := EMLToMsgFromFile("testdata/RFC5322-A1-1-invalid-from.eml"); err == nil {
+			t.Errorf("EMLToMsgFromFile with invalid EML message should fail")
+		}
+	})
+}
+
+/*
 func TestEMLToMsgFromString(t *testing.T) {
 	tests := []struct {
 		name string
@@ -621,26 +728,6 @@ func TestEMLToMsgFromString(t *testing.T) {
 		enc  string
 		sub  string
 	}{
-		{
-			"RFC5322 A1.1", exampleMailRFC5322A11, "7bit",
-			"Saying Hello",
-		},
-		{
-			"Plain text no encoding (7bit)", exampleMailPlain7Bit, "7bit",
-			"Example mail // plain text without encoding",
-		},
-		{
-			"Plain text no encoding", exampleMailPlainNoEnc, "8bit",
-			"Example mail // plain text without encoding",
-		},
-		{
-			"Plain text quoted-printable", exampleMailPlainQP, "quoted-printable",
-			"Example mail // plain text quoted-printable",
-		},
-		{
-			"Plain text base64", exampleMailPlainB64, "base64",
-			"Example mail // plain text base64",
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1009,3 +1096,6 @@ func stringToTempFile(data, name string) (string, string, error) {
 	}
 	return tempDir, filePath, nil
 }
+
+
+*/
