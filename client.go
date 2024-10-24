@@ -1360,9 +1360,6 @@ func (c *Client) setDefaultHelo() error {
 //   - An error if there is no active connection, if STARTTLS is required but not supported,
 //     or if there are issues during the TLS handshake; otherwise, returns nil.
 func (c *Client) tls() error {
-	if !c.smtpClient.HasConnection() {
-		return ErrNoActiveConnection
-	}
 	if !c.useSSL && c.tlspolicy != NoTLS {
 		hasStartTLS := false
 		extension, _ := c.smtpClient.Extension("STARTTLS")
