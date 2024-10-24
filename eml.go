@@ -93,7 +93,7 @@ func EMLToMsgFromFile(filePath string) (*Msg, error) {
 		return msg, fmt.Errorf("failed to parse EML file: %w", err)
 	}
 
-	if err := parseEML(parsedMsg, bodybuf, msg); err != nil {
+	if err = parseEML(parsedMsg, bodybuf, msg); err != nil {
 		return msg, fmt.Errorf("failed to parse EML contents: %w", err)
 	}
 
