@@ -1276,12 +1276,6 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 			affectedMsg: message,
 		}
 	}
-	if err = c.checkConn(); err != nil {
-		return &SendError{
-			Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err),
-			affectedMsg: message,
-		}
-	}
 	return nil
 }
 
