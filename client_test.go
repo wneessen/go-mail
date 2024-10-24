@@ -1144,7 +1144,7 @@ func TestClient_SetDebugLog(t *testing.T) {
 			return
 		}
 	}()
-	time.Sleep(time.Millisecond * 300)
+	time.Sleep(time.Millisecond * 30)
 
 	t.Run("SetDebugLog true", func(t *testing.T) {
 		client, err := NewClient(DefaultHost)
@@ -1536,7 +1536,7 @@ func TestClient_Close(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
@@ -1570,7 +1570,7 @@ func TestClient_Close(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
@@ -1608,7 +1608,7 @@ func TestClient_Close(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
@@ -1641,7 +1641,7 @@ func TestClient_DialWithContext(t *testing.T) {
 			return
 		}
 	}()
-	time.Sleep(time.Millisecond * 300)
+	time.Sleep(time.Millisecond * 30)
 
 	t.Run("connect and check connection", func(t *testing.T) {
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
@@ -1798,7 +1798,7 @@ func TestClient_DialWithContext(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
@@ -1833,7 +1833,7 @@ func TestClient_DialWithContext(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
@@ -1862,7 +1862,7 @@ func TestClient_DialWithContext(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
 
@@ -1892,7 +1892,7 @@ func TestClient_DialWithContext(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
 
@@ -1923,7 +1923,7 @@ func TestClient_DialWithContext(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
 
@@ -1953,7 +1953,7 @@ func TestClient_DialWithContext(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
 
@@ -1984,7 +1984,7 @@ func TestClient_DialWithContext(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
 
@@ -2017,7 +2017,7 @@ func TestClient_Reset(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
@@ -2050,7 +2050,7 @@ func TestClient_Reset(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
@@ -2085,7 +2085,7 @@ func TestClient_Reset(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
@@ -2125,7 +2125,7 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 
 		client, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS), WithPort(serverPort))
 		if err != nil {
@@ -2150,7 +2150,7 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
@@ -2179,7 +2179,7 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
@@ -2208,7 +2208,7 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
@@ -2237,7 +2237,7 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
@@ -2286,7 +2286,7 @@ func TestClient_auth(t *testing.T) {
 					return
 				}
 			}()
-			time.Sleep(time.Millisecond * 300)
+			time.Sleep(time.Millisecond * 30)
 
 			ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 			t.Cleanup(cancelDial)
@@ -2321,7 +2321,7 @@ func TestClient_auth(t *testing.T) {
 					return
 				}
 			}()
-			time.Sleep(time.Millisecond * 300)
+			time.Sleep(time.Millisecond * 30)
 
 			ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 			t.Cleanup(cancelDial)
@@ -2351,7 +2351,7 @@ func TestClient_auth(t *testing.T) {
 					return
 				}
 			}()
-			time.Sleep(time.Millisecond * 300)
+			time.Sleep(time.Millisecond * 30)
 
 			ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 			t.Cleanup(cancelDial)
@@ -2382,7 +2382,7 @@ func TestClient_auth(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
@@ -2412,7 +2412,7 @@ func TestClient_auth(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
@@ -2442,7 +2442,7 @@ func TestClient_auth(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
@@ -2476,7 +2476,7 @@ func TestClient_Send(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
@@ -2522,7 +2522,7 @@ func TestClient_Send(t *testing.T) {
 				return
 			}
 		}()
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 30)
 
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
@@ -2555,6 +2555,43 @@ func TestClient_Send(t *testing.T) {
 			}(curMessage, id)
 		}
 		wg.Wait()
+	})
+}
+
+func TestClient_sendSingleMsg(t *testing.T) {
+	message := testMessage(t)
+	t.Run("connect and send email", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.sendSingleMsg(message); err != nil {
+			t.Errorf("failed to send message: %s", err)
+		}
 	})
 }
 
