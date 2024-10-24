@@ -1821,10 +1821,27 @@ func TestClient_DialWithContext(t *testing.T) {
 		}
 	})
 	t.Run("connect with failing auth", func(t *testing.T) {
+		ctxAuth, cancelAuth := context.WithCancel(context.Background())
+		defer cancelAuth()
+		PortAdder.Add(1)
+		authServerPort := int(TestServerPortBase + PortAdder.Load())
+		authFeatureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250-STARTTLS\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctxAuth, t, &serverProps{
+				FailOnAuth: true,
+				FeatureSet: authFeatureSet,
+				ListenPort: authServerPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 300)
+
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
 
-		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS),
+		client, err := NewClient(DefaultHost, WithPort(authServerPort), WithTLSPolicy(NoTLS),
 			WithSMTPAuth(SMTPAuthPlain), WithUsername("invalid"), WithPassword("invalid"))
 		if err != nil {
 			t.Fatalf("failed to create new client: %s", err)
@@ -1861,6 +1878,67 @@ func TestClient_DialWithContext(t *testing.T) {
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
 			t.Fatalf("failed to connect to the test server: %s", err)
+		}
+	})
+	t.Run("connect with STARTTLS Opportunisticly", func(t *testing.T) {
+		ctxTLS, cancelTLS := context.WithCancel(context.Background())
+		defer cancelTLS()
+		PortAdder.Add(1)
+		tlsServerPort := int(TestServerPortBase + PortAdder.Load())
+		tlsFeatureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250-STARTTLS\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctxTLS, t, &serverProps{
+				FeatureSet: tlsFeatureSet,
+				ListenPort: tlsServerPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 300)
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		tlsConfig := &tls.Config{InsecureSkipVerify: true}
+		client, err := NewClient(DefaultHost, WithPort(tlsServerPort), WithTLSPolicy(TLSOpportunistic),
+			WithTLSConfig(tlsConfig), WithSMTPAuth(SMTPAuthPlain), WithUsername(TestUserValid),
+			WithPassword(TestPasswordValid))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to the test server: %s", err)
+		}
+	})
+	t.Run("connect with STARTTLS but fail", func(t *testing.T) {
+		ctxTLS, cancelTLS := context.WithCancel(context.Background())
+		defer cancelTLS()
+		PortAdder.Add(1)
+		tlsServerPort := int(TestServerPortBase + PortAdder.Load())
+		tlsFeatureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250-STARTTLS\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctxTLS, t, &serverProps{
+				FailOnSTARTTLS: true,
+				FeatureSet:     tlsFeatureSet,
+				ListenPort:     tlsServerPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 300)
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		tlsConfig := &tls.Config{InsecureSkipVerify: true}
+		client, err := NewClient(DefaultHost, WithPort(tlsServerPort), WithTLSPolicy(TLSMandatory),
+			WithTLSConfig(tlsConfig), WithSMTPAuth(SMTPAuthPlain), WithUsername(TestUserValid),
+			WithPassword(TestPasswordValid))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err == nil {
+			t.Fatalf("connection was supposed to fail, but didn't")
 		}
 	})
 	t.Run("want STARTTLS, but server does not support it", func(t *testing.T) {
@@ -2186,6 +2264,123 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 	})
 }
 
+func TestClient_auth(t *testing.T) {
+	tests := []struct {
+		name     string
+		authType SMTPAuthType
+	}{
+		{"CRAM-MD5", SMTPAuthCramMD5},
+		{"LOGIN", SMTPAuthLogin},
+		{"LOGIN-NOENC", SMTPAuthLoginNoEnc},
+		{"PLAIN", SMTPAuthPlain},
+		{"PLAIN-NOENC", SMTPAuthPlainNoEnc},
+		{"SCRAM-SHA-1", SMTPAuthSCRAMSHA1},
+		{"SCRAM-SHA-1-PLUS", SMTPAuthSCRAMSHA1PLUS},
+		{"SCRAM-SHA-256", SMTPAuthSCRAMSHA256},
+		{"SCRAM-SHA-256-PLUS", SMTPAuthSCRAMSHA256PLUS},
+		{"XOAUTH2", SMTPAuthXOAUTH2},
+	}
+
+	tlsConfig := tls.Config{InsecureSkipVerify: true}
+	for _, tt := range tests {
+		t.Run(tt.name+" should succeed", func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			PortAdder.Add(1)
+			serverPort := int(TestServerPortBase + PortAdder.Load())
+			featureSet := "250-AUTH " + tt.name + "\r\n250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+			go func() {
+				if err := simpleSMTPServer(ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				}); err != nil {
+					t.Errorf("failed to start test server: %s", err)
+					return
+				}
+			}()
+			time.Sleep(time.Millisecond * 300)
+
+			ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+			t.Cleanup(cancelDial)
+
+			client, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS), WithPort(serverPort),
+				WithTLSPolicy(TLSMandatory), WithSMTPAuth(tt.authType), WithTLSConfig(&tlsConfig),
+				WithUsername("test"), WithPassword("password"))
+			if err != nil {
+				t.Fatalf("failed to create new client: %s", err)
+			}
+			if err = client.DialWithContext(ctxDial); err != nil {
+				t.Fatalf("failed to connect to test service: %s", err)
+			}
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client connection: %s", err)
+			}
+
+		})
+		t.Run(tt.name+" should fail", func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			PortAdder.Add(1)
+			serverPort := int(TestServerPortBase + PortAdder.Load())
+			featureSet := "250-AUTH " + tt.name + "\r\n250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+			go func() {
+				if err := simpleSMTPServer(ctx, t, &serverProps{
+					FailOnAuth: true,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				}); err != nil {
+					t.Errorf("failed to start test server: %s", err)
+					return
+				}
+			}()
+			time.Sleep(time.Millisecond * 300)
+
+			ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+			t.Cleanup(cancelDial)
+
+			client, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS), WithPort(serverPort),
+				WithTLSPolicy(TLSMandatory), WithSMTPAuth(tt.authType), WithTLSConfig(&tlsConfig),
+				WithUsername("test"), WithPassword("password"))
+			if err != nil {
+				t.Fatalf("failed to create new client: %s", err)
+			}
+			if err = client.DialWithContext(ctxDial); err == nil {
+				t.Fatalf("client should have failed to connect")
+			}
+		})
+		t.Run(tt.name+" should fail as unspported", func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			PortAdder.Add(1)
+			serverPort := int(TestServerPortBase + PortAdder.Load())
+			featureSet := "250-AUTH UNKNOWN\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
+			go func() {
+				if err := simpleSMTPServer(ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				}); err != nil {
+					t.Errorf("failed to start test server: %s", err)
+					return
+				}
+			}()
+			time.Sleep(time.Millisecond * 300)
+
+			ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+			t.Cleanup(cancelDial)
+
+			client, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS), WithPort(serverPort),
+				WithTLSPolicy(TLSMandatory), WithSMTPAuth(tt.authType), WithTLSConfig(&tlsConfig),
+				WithUsername("test"), WithPassword("password"))
+			if err != nil {
+				t.Fatalf("failed to create new client: %s", err)
+			}
+			if err = client.DialWithContext(ctxDial); err == nil {
+				t.Fatalf("client should have failed to connect")
+			}
+		})
+	}
+}
+
 /*
 
 
@@ -2202,55 +2397,6 @@ func TestClient_checkConn(t *testing.T) {
 	}
 }
 
-// TestClient_DiealWithContextOptions tests the DialWithContext method plus different options
-// for the Client object
-func TestClient_DialWithContextOptions(t *testing.T) {
-	tests := []struct {
-		name    string
-		wantssl bool
-		wanttls TLSPolicy
-		sf      bool
-	}{
-		{"Want SSL (should fail)", true, NoTLS, true},
-		{"Want Mandatory TLS", false, TLSMandatory, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, err := getTestConnection(true)
-			if err != nil {
-				t.Skipf("failed to create test client: %s. Skipping tests", err)
-			}
-			if tt.wantssl {
-				c.SetSSL(true)
-			}
-			if tt.wanttls != NoTLS {
-				c.SetTLSPolicy(tt.wanttls)
-			}
-
-			ctx := context.Background()
-			if err = c.DialWithContext(ctx); err != nil && !tt.sf {
-				t.Errorf("failed to dial with context: %s", err)
-				return
-			}
-			if !tt.sf {
-				if c.smtpClient == nil && !tt.sf {
-					t.Errorf("DialWithContext didn't fail but no SMTP client found.")
-					return
-				}
-				if !c.smtpClient.HasConnection() && !tt.sf {
-					t.Errorf("DialWithContext didn't fail but no connection found.")
-					return
-				}
-				if err = c.Reset(); err != nil {
-					t.Errorf("failed to reset connection: %s", err)
-				}
-				if err = c.Close(); err != nil {
-					t.Errorf("failed to close connection: %s", err)
-				}
-			}
-		})
-	}
-}
 
 // TestClient_DialWithContextOptionDialContextFunc tests the DialWithContext method plus
 // use dialContextFunc option for the Client object
@@ -4019,6 +4165,7 @@ func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "
 
 // serverProps represents the configuration properties for the SMTP server.
 type serverProps struct {
+	FailOnAuth     bool
 	FailOnData     bool
 	FailOnHelo     bool
 	FailOnQuit     bool
@@ -4083,11 +4230,13 @@ func simpleSMTPServer(ctx context.Context, t *testing.T, props *serverProps) err
 
 func handleTestServerConnection(connection net.Conn, t *testing.T, props *serverProps) {
 	t.Helper()
-	t.Cleanup(func() {
-		if err := connection.Close(); err != nil {
-			t.Logf("failed to close connection: %s", err)
-		}
-	})
+	if !props.IsTLS {
+		t.Cleanup(func() {
+			if err := connection.Close(); err != nil {
+				t.Logf("failed to close connection: %s", err)
+			}
+		})
+	}
 
 	reader := bufio.NewReader(connection)
 	writer := bufio.NewWriter(connection)
@@ -4097,9 +4246,7 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 		if err != nil {
 			t.Logf("failed to write line: %s", err)
 		}
-		if err = writer.Flush(); err != nil {
-			t.Logf("failed to flush line: %s", err)
-		}
+		_ = writer.Flush()
 	}
 	writeOK := func() {
 		writeLine("250 2.0.0 OK")
@@ -4148,61 +4295,8 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 				break
 			}
 			writeOK()
-		case strings.HasPrefix(data, "AUTH XOAUTH2"):
-			auth := strings.TrimPrefix(data, "AUTH XOAUTH2 ")
-			if !strings.EqualFold(auth, "dXNlcj11c2VyAWF1dGg9QmVhcmVyIHRva2VuAQE=") {
-				writeLine("535 5.7.8 Error: authentication failed")
-				break
-			}
-			writeLine("235 2.7.0 Authentication successful")
-		case strings.HasPrefix(data, "AUTH PLAIN"):
-			auth := strings.TrimPrefix(data, "AUTH PLAIN ")
-			if !strings.EqualFold(auth, "AHRvbmlAdGVzdGVyLmNvbQBWM3J5UzNjcjN0Kw==") {
-				writeLine("535 5.7.8 Error: authentication failed")
-				break
-			}
-			writeLine("235 2.7.0 Authentication successful")
-		case strings.HasPrefix(data, "AUTH LOGIN"):
-			var username, password string
-			userResp := "VXNlcm5hbWU6"
-			passResp := "UGFzc3dvcmQ6"
-			if strings.Contains(props.FeatureSet, "250-X-MOX-LOGIN") {
-				userResp = ""
-				passResp = "UGFzc3dvcmQ="
-			}
-			if strings.Contains(props.FeatureSet, "250-X-NULLBYTE-LOGIN") {
-				userResp = "VXNlciBuYW1lAA=="
-				passResp = "UGFzc3dvcmQA"
-			}
-			if strings.Contains(props.FeatureSet, "250-X-BOGUS-LOGIN") {
-				userResp = "Qm9ndXM="
-				passResp = "Qm9ndXM="
-			}
-			if strings.Contains(props.FeatureSet, "250-X-EMPTY-LOGIN") {
-				userResp = ""
-				passResp = ""
-			}
-			writeLine("334 " + userResp)
-
-			ddata, derr := reader.ReadString('\n')
-			if derr != nil {
-				fmt.Printf("failed to read username data from connection: %s\n", derr)
-				break
-			}
-			ddata = strings.TrimSpace(ddata)
-			username = ddata
-			writeLine("334 " + passResp)
-
-			ddata, derr = reader.ReadString('\n')
-			if derr != nil {
-				fmt.Printf("failed to read password data from connection: %s\n", derr)
-				break
-			}
-			ddata = strings.TrimSpace(ddata)
-			password = ddata
-
-			if !strings.EqualFold(username, "dG9uaUB0ZXN0ZXIuY29t") ||
-				!strings.EqualFold(password, "VjNyeVMzY3IzdCs=") {
+		case strings.HasPrefix(data, "AUTH"):
+			if props.FailOnAuth {
 				writeLine("535 5.7.8 Error: authentication failed")
 				break
 			}
