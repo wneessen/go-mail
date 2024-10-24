@@ -1298,6 +1298,9 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 //   - An error if there is no active connection, if the NOOP command fails, or if extending
 //     the deadline fails; otherwise, returns nil.
 func (c *Client) checkConn() error {
+	if c.smtpClient == nil {
+		return ErrNoActiveConnection
+	}
 	if !c.smtpClient.HasConnection() {
 		return ErrNoActiveConnection
 	}
