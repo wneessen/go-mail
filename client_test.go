@@ -2502,7 +2502,7 @@ func TestClient_Send(t *testing.T) {
 		}
 		var sendErr *SendError
 		if !errors.As(err, &sendErr) {
-			t.Fatalf("expected SendError, got %T", err)
+			t.Fatalf("expected SendError, got %s", err)
 		}
 		if sendErr.Reason != ErrConnCheck {
 			t.Errorf("expected ErrConnCheck, got %s", sendErr.Reason)
@@ -2670,7 +2670,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 		var sendErr *SendError
 		if !errors.As(err, &sendErr) {
-			t.Errorf("expected SendError, got %T", err)
+			t.Errorf("expected SendError, got %s", err)
 		}
 		if sendErr.Reason != ErrSMTPMailFrom {
 			t.Errorf("expected ErrSMTPMailFrom, got %s", sendErr.Reason)
@@ -2713,7 +2713,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 		var sendErr *SendError
 		if !errors.As(err, &sendErr) {
-			t.Errorf("expected SendError, got %T", err)
+			t.Errorf("expected SendError, got %s", err)
 		}
 		if sendErr.Reason != ErrGetSender {
 			t.Errorf("expected ErrGetSender, got %s", sendErr.Reason)
@@ -2756,7 +2756,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 		var sendErr *SendError
 		if !errors.As(err, &sendErr) {
-			t.Errorf("expected SendError, got %T", err)
+			t.Errorf("expected SendError, got %s", err)
 		}
 		if sendErr.Reason != ErrGetRcpts {
 			t.Errorf("expected ErrGetRcpts, got %s", sendErr.Reason)
@@ -2835,7 +2835,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 		var sendErr *SendError
 		if !errors.As(err, &sendErr) {
-			t.Errorf("expected SendError, got %T", err)
+			t.Errorf("expected SendError, got %s", err)
 		}
 		if sendErr.Reason != ErrSMTPReset {
 			t.Errorf("expected ErrSMTPReset, got %s", sendErr.Reason)
@@ -2879,7 +2879,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 		var sendErr *SendError
 		if !errors.As(err, &sendErr) {
-			t.Errorf("expected SendError, got %T", err)
+			t.Errorf("expected SendError, got %s", err)
 		}
 		if sendErr.Reason != ErrSMTPRcptTo {
 			t.Errorf("expected ErrSMTPRcptTo, got %s", sendErr.Reason)
@@ -2923,7 +2923,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 		var sendErr *SendError
 		if !errors.As(err, &sendErr) {
-			t.Errorf("expected SendError, got %T", err)
+			t.Errorf("expected SendError, got %s", err)
 		}
 		if sendErr.Reason != ErrSMTPMailFrom {
 			t.Errorf("expected ErrSMTPMailFrom, got %s", sendErr.Reason)
@@ -2966,7 +2966,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 		var sendErr *SendError
 		if !errors.As(err, &sendErr) {
-			t.Errorf("expected SendError, got %T", err)
+			t.Errorf("expected SendError, got %s", err)
 		}
 		if sendErr.Reason != ErrSMTPData {
 			t.Errorf("expected ErrSMTPData, got %s", sendErr.Reason)
@@ -3009,10 +3009,92 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 		var sendErr *SendError
 		if !errors.As(err, &sendErr) {
-			t.Errorf("expected SendError, got %T", err)
+			t.Errorf("expected SendError, got %s", err)
 		}
 		if sendErr.Reason != ErrSMTPDataClose {
 			t.Errorf("expected ErrSMTPDataClose, got %s", sendErr.Reason)
+		}
+	})
+}
+
+func TestClient_checkConn(t *testing.T) {
+	t.Run("connection is alive", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.checkConn(); err != nil {
+			t.Errorf("failed to check connection: %s", err)
+		}
+	})
+	t.Run("connection should fail on noop", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnNoop: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.checkConn(); err == nil {
+			t.Errorf("client should have failed on connection check")
+		}
+		if !errors.Is(err, ErrNoActiveConnection) {
+			t.Errorf("expected ErrNoActiveConnection, got %s", err)
+		}
+	})
+	t.Run("connection should fail on no connection", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err = client.checkConn(); err == nil {
+			t.Errorf("client should have failed on connection check")
+		}
+		if !errors.Is(err, ErrNoActiveConnection) {
+			t.Errorf("expected ErrNoActiveConnection, got %s", err)
 		}
 	})
 }
@@ -4552,6 +4634,7 @@ type serverProps struct {
 	FailOnDataClose bool
 	FailOnHelo      bool
 	FailOnMailFrom  bool
+	FailOnNoop      bool
 	FailOnQuit      bool
 	FailOnReset     bool
 	FailOnSTARTTLS  bool
@@ -4719,8 +4802,13 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 				}
 				datastring += ddata + "\n"
 			}
-		case strings.EqualFold(data, "noop"),
-			strings.EqualFold(data, "vrfy"):
+		case strings.EqualFold(data, "noop"):
+			if props.FailOnNoop {
+				writeLine("500 5.0.0 Error: fail on NOOP")
+				break
+			}
+			writeOK()
+		case strings.EqualFold(data, "vrfy"):
 			writeOK()
 		case strings.EqualFold(data, "rset"):
 			if props.FailOnReset {
