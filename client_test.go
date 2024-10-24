@@ -35,10 +35,6 @@ const (
 	TestServerAddr = "127.0.0.1"
 	// TestServerPortBase is the base port for the simple SMTP test server
 	TestServerPortBase = 12025
-	// TestPasswordValid is the password that the test server accepts as valid for SMTP auth
-	TestPasswordValid = "V3ryS3cr3t+"
-	// TestUserValid is the username that the test server accepts as valid for SMTP auth
-	TestUserValid = "toni@tester.com"
 	// TestSenderValid is a test sender email address considered valid for sending test emails.
 	TestSenderValid = "valid-from@domain.tld"
 	// TestRcptValid is a test recipient email address considered valid for sending test emails.
@@ -1756,7 +1752,7 @@ func TestClient_DialWithContext(t *testing.T) {
 		logBuffer := bytes.NewBuffer(nil)
 		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS),
 			WithDebugLog(), WithLogAuthData(), WithLogger(log.NewJSON(logBuffer, log.LevelDebug)),
-			WithSMTPAuth(SMTPAuthPlain), WithUsername(TestUserValid), WithPassword(TestPasswordValid))
+			WithSMTPAuth(SMTPAuthPlain), WithUsername("test"), WithPassword("password"))
 		if err != nil {
 			t.Fatalf("failed to create new client: %s", err)
 		}
@@ -1776,7 +1772,7 @@ func TestClient_DialWithContext(t *testing.T) {
 		}
 		authFound := false
 		for _, logline := range logs.Lines {
-			if strings.EqualFold(logline.Message, "AUTH PLAIN AHRvbmlAdGVzdGVyLmNvbQBWM3J5UzNjcjN0Kw==") &&
+			if strings.EqualFold(logline.Message, "AUTH PLAIN AHRlc3QAcGFzc3dvcmQ=") &&
 				logline.Direction.From == "client" && logline.Direction.To == "server" {
 				authFound = true
 			}
@@ -1871,8 +1867,8 @@ func TestClient_DialWithContext(t *testing.T) {
 
 		tlsConfig := &tls.Config{InsecureSkipVerify: true}
 		client, err := NewClient(DefaultHost, WithPort(tlsServerPort), WithTLSPolicy(TLSMandatory),
-			WithTLSConfig(tlsConfig), WithSMTPAuth(SMTPAuthPlain), WithUsername(TestUserValid),
-			WithPassword(TestPasswordValid))
+			WithTLSConfig(tlsConfig), WithSMTPAuth(SMTPAuthPlain), WithUsername("test"),
+			WithPassword("password"))
 		if err != nil {
 			t.Fatalf("failed to create new client: %s", err)
 		}
@@ -1901,8 +1897,8 @@ func TestClient_DialWithContext(t *testing.T) {
 
 		tlsConfig := &tls.Config{InsecureSkipVerify: true}
 		client, err := NewClient(DefaultHost, WithPort(tlsServerPort), WithTLSPolicy(TLSOpportunistic),
-			WithTLSConfig(tlsConfig), WithSMTPAuth(SMTPAuthPlain), WithUsername(TestUserValid),
-			WithPassword(TestPasswordValid))
+			WithTLSConfig(tlsConfig), WithSMTPAuth(SMTPAuthPlain), WithUsername("test"),
+			WithPassword("password"))
 		if err != nil {
 			t.Fatalf("failed to create new client: %s", err)
 		}
@@ -1932,8 +1928,8 @@ func TestClient_DialWithContext(t *testing.T) {
 
 		tlsConfig := &tls.Config{InsecureSkipVerify: true}
 		client, err := NewClient(DefaultHost, WithPort(tlsServerPort), WithTLSPolicy(TLSMandatory),
-			WithTLSConfig(tlsConfig), WithSMTPAuth(SMTPAuthPlain), WithUsername(TestUserValid),
-			WithPassword(TestPasswordValid))
+			WithTLSConfig(tlsConfig), WithSMTPAuth(SMTPAuthPlain), WithUsername("test"),
+			WithPassword("password"))
 		if err != nil {
 			t.Fatalf("failed to create new client: %s", err)
 		}
@@ -1962,8 +1958,8 @@ func TestClient_DialWithContext(t *testing.T) {
 
 		tlsConfig := &tls.Config{InsecureSkipVerify: true}
 		client, err := NewClient(DefaultHost, WithPort(tlsServerPort), WithTLSPolicy(TLSMandatory),
-			WithTLSConfig(tlsConfig), WithSMTPAuth(SMTPAuthPlain), WithUsername(TestUserValid),
-			WithPassword(TestPasswordValid))
+			WithTLSConfig(tlsConfig), WithSMTPAuth(SMTPAuthPlain), WithUsername("test"),
+			WithPassword("password"))
 		if err != nil {
 			t.Fatalf("failed to create new client: %s", err)
 		}
@@ -1993,8 +1989,8 @@ func TestClient_DialWithContext(t *testing.T) {
 
 		tlsConfig := &tls.Config{InsecureSkipVerify: true}
 		client, err := NewClient(DefaultHost, WithPort(sslServerPort), WithSSL(),
-			WithTLSConfig(tlsConfig), WithSMTPAuth(SMTPAuthPlain), WithUsername(TestUserValid),
-			WithPassword(TestPasswordValid))
+			WithTLSConfig(tlsConfig), WithSMTPAuth(SMTPAuthPlain), WithUsername("test"),
+			WithPassword("password"))
 		if err != nil {
 			t.Fatalf("failed to create new client: %s", err)
 		}
@@ -2303,7 +2299,7 @@ func TestClient_auth(t *testing.T) {
 			ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 			t.Cleanup(cancelDial)
 
-			client, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS), WithPort(serverPort),
+			client, err := NewClient(DefaultHost, WithPort(serverPort),
 				WithTLSPolicy(TLSMandatory), WithSMTPAuth(tt.authType), WithTLSConfig(&tlsConfig),
 				WithUsername("test"), WithPassword("password"))
 			if err != nil {
@@ -2338,7 +2334,7 @@ func TestClient_auth(t *testing.T) {
 			ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 			t.Cleanup(cancelDial)
 
-			client, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS), WithPort(serverPort),
+			client, err := NewClient(DefaultHost, WithPort(serverPort),
 				WithTLSPolicy(TLSMandatory), WithSMTPAuth(tt.authType), WithTLSConfig(&tlsConfig),
 				WithUsername("test"), WithPassword("password"))
 			if err != nil {
@@ -2368,7 +2364,7 @@ func TestClient_auth(t *testing.T) {
 			ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 			t.Cleanup(cancelDial)
 
-			client, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS), WithPort(serverPort),
+			client, err := NewClient(DefaultHost, WithPort(serverPort),
 				WithTLSPolicy(TLSMandatory), WithSMTPAuth(tt.authType), WithTLSConfig(&tlsConfig),
 				WithUsername("test"), WithPassword("password"))
 			if err != nil {
@@ -2379,6 +2375,100 @@ func TestClient_auth(t *testing.T) {
 			}
 		})
 	}
+	t.Run("auth is not supported at all", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 300)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort),
+			WithTLSPolicy(TLSMandatory), WithSMTPAuth(SMTPAuthPlain), WithTLSConfig(&tlsConfig),
+			WithUsername("test"), WithPassword("password"))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err == nil {
+			t.Fatalf("client should have failed to connect")
+		}
+	})
+	t.Run("SCRAM-X-PLUS on non TLS connection should fail", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH SCRAM-SHA-256-PLUS\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 300)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS), WithPort(serverPort),
+			WithSMTPAuth(SMTPAuthSCRAMSHA256PLUS), WithTLSConfig(&tlsConfig),
+			WithUsername("test"), WithPassword("password"))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err == nil {
+			t.Fatalf("client should have failed to connect")
+		}
+	})
+	t.Run("unknown auth type should fail", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH UNKNOWN\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 300)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort),
+			WithTLSPolicy(TLSMandatory), WithSMTPAuth("UNKNOWN"), WithTLSConfig(&tlsConfig),
+			WithUsername("test"), WithPassword("password"))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err == nil {
+			t.Fatalf("client should have failed to connect")
+		}
+	})
+}
+
+func TestClient_Send(t *testing.T) {
+	t.Run("send email", func(t *testing.T) {})
 }
 
 /*
