@@ -60,7 +60,7 @@ func EMLToMsgFromReader(reader io.Reader) (*Msg, error) {
 		return msg, fmt.Errorf("failed to parse EML from reader: %w", err)
 	}
 
-	if err := parseEML(parsedMsg, bodybuf, msg); err != nil {
+	if err = parseEML(parsedMsg, bodybuf, msg); err != nil {
 		return msg, fmt.Errorf("failed to parse EML contents: %w", err)
 	}
 
