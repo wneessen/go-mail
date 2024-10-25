@@ -554,20 +554,9 @@ func (c *Client) Noop() error {
 
 // Quit sends the QUIT command and closes the connection to the server.
 func (c *Client) Quit() error {
-	// If we already tried to send a EHLO/HELO but it failed, we still need to be able to send
-	// a QUIT to close the connection.
-	// c.hello() will return the global helloErr of the Client, which will always be set if the HELO
-	// failed before. Therefore if we already sent a HELO and the error is not nil, we skip another
-	// EHLO/HELO try
-	c.mutex.RLock()
-	didHello := c.didHello
-	helloErr := c.helloError
-	c.mutex.RUnlock()
-	if !didHello || helloErr == nil {
-		if err := c.hello(); err != nil {
-			return err
-		}
-	}
+	// See https://github.com/golang/go/issues/70011
+	_ = c.hello() // ignore error; we're quitting anyhow
+
 	_, _, err := c.cmd(221, "QUIT")
 	if err != nil {
 		return err
