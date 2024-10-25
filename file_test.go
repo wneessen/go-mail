@@ -155,39 +155,34 @@ func TestFile(t *testing.T) {
 			})
 		}
 	})
+	t.Run("WithFileContentType", func(t *testing.T) {
+		tests := []struct {
+			name        string
+			contentType ContentType
+		}{
+			{"File content-type: text/plain", TypeTextPlain},
+			{"File content-type: html/html", TypeTextHTML},
+			{"File content-type: application/octet-stream", TypeAppOctetStream},
+			{"File content-type: application/pgp-encrypted", TypePGPEncrypted},
+			{"File content-type: application/pgp-signature", TypePGPSignature},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				message := NewMsg()
+				message.AttachFile("file.go", WithFileContentType(tt.contentType))
+				attachments := message.GetAttachments()
+				if len(attachments) <= 0 {
+					t.Fatalf("failed to retrieve attachments list")
+				}
+				firstAttachment := attachments[0]
+				if firstAttachment == nil {
+					t.Fatalf("failed to retrieve first attachment, got nil")
+				}
+				if firstAttachment.ContentType != tt.contentType {
+					t.Errorf("WithFileContentType() failed. Expected: %s, got: %s", tt.contentType,
+						firstAttachment.ContentType)
+				}
+			})
+		}
+	})
 }
-
-/*
-
-
-// TestFile_WithFileContentType tests the WithFileContentType option
-func TestFile_WithFileContentType(t *testing.T) {
-	tests := []struct {
-		name string
-		ct   ContentType
-		want string
-	}{
-		{"File content-type: text/plain", TypeTextPlain, "text/plain"},
-		{"File content-type: html/html", TypeTextHTML, "text/html"},
-		{"File content-type: application/octet-stream", TypeAppOctetStream, "application/octet-stream"},
-		{"File content-type: application/pgp-encrypted", TypePGPEncrypted, "application/pgp-encrypted"},
-		{"File content-type: application/pgp-signature", TypePGPSignature, "application/pgp-signature"},
-	}
-	for _, tt := range tests {
-		m := NewMsg()
-		t.Run(tt.name, func(t *testing.T) {
-			m.AttachFile("file.go", WithFileContentType(tt.ct))
-			al := m.GetAttachments()
-			if len(al) <= 0 {
-				t.Errorf("AttachFile() failed. Attachment list is empty")
-			}
-			a := al[0]
-			if a.ContentType != ContentType(tt.want) {
-				t.Errorf("WithFileContentType() failed. Expected: %s, got: %s", tt.want, a.ContentType)
-			}
-		})
-	}
-}
-
-
-*/
