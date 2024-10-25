@@ -1319,15 +1319,15 @@ func TestMsg_To(t *testing.T) {
 			t.Errorf("failed to set To, addrHeader name is %s, want: empty", addresses[0].Name)
 		}
 		if addresses[1].Address != "tina.tester@example.com" {
-			t.Errorf("failed to set To, addrHeader value is %s, want: %s", addresses[0].Address,
+			t.Errorf("failed to set To, addrHeader value is %s, want: %s", addresses[1].Address,
 				"tina.tester@example.com")
 		}
 		if addresses[1].String() != "<tina.tester@example.com>" {
-			t.Errorf("failed to set To, addrHeader value is %s, want: %s", addresses[0].String(),
+			t.Errorf("failed to set To, addrHeader value is %s, want: %s", addresses[1].String(),
 				"<tina.tester@example.com>")
 		}
 		if addresses[1].Name != "" {
-			t.Errorf("failed to set To, addrHeader name is %s, want: empty", addresses[0].Name)
+			t.Errorf("failed to set To, addrHeader name is %s, want: empty", addresses[1].Name)
 		}
 	})
 	t.Run("To with invalid address", func(t *testing.T) {
@@ -1363,6 +1363,69 @@ func TestMsg_To(t *testing.T) {
 					t.Errorf("To on address %s should fail, but succeeded", tt.value)
 				}
 			})
+		}
+	})
+}
+
+func TestMsg_AddTo(t *testing.T) {
+	t.Run("AddTo with valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.To("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set To: %s", err)
+		}
+		if err := message.AddTo("tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set additional To: %s", err)
+		}
+		addresses, ok := message.addrHeader[HeaderTo]
+		if !ok {
+			t.Fatalf("failed to set To, addrHeader field is not set")
+		}
+		if len(addresses) != 2 {
+			t.Fatalf("failed to set additional To, addrHeader value count is: %d, want: 1", len(addresses))
+		}
+		if addresses[0].Address != "toni.tester@example.com" {
+			t.Errorf("failed to set To, addrHeader value is %s, want: %s", addresses[0].Address,
+				"toni.tester@example.com")
+		}
+		if addresses[0].String() != "<toni.tester@example.com>" {
+			t.Errorf("failed to set To, addrHeader value is %s, want: %s", addresses[0].String(),
+				"<toni.tester@example.com>")
+		}
+		if addresses[0].Name != "" {
+			t.Errorf("failed to set To, addrHeader name is %s, want: empty", addresses[0].Name)
+		}
+		if addresses[1].Address != "tina.tester@example.com" {
+			t.Errorf("failed to set additional To, addrHeader value is %s, want: %s", addresses[1].Address,
+				"tina.tester@example.com")
+		}
+		if addresses[1].String() != "<tina.tester@example.com>" {
+			t.Errorf("failed to set additional To, addrHeader value is %s, want: %s", addresses[1].String(),
+				"<tina.tester@example.com>")
+		}
+		if addresses[1].Name != "" {
+			t.Errorf("failed to set additional To, addrHeader name is %s, want: empty", addresses[1].Name)
+		}
+	})
+	t.Run("AddTo with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.To("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set To: %s", err)
+		}
+		if err := message.AddTo("invalid"); err == nil {
+			t.Errorf("AddTo should fail with invalid address")
+		}
+		addresses, ok := message.addrHeader[HeaderTo]
+		if !ok {
+			t.Fatalf("failed to set To, addrHeader field is not set")
+		}
+		if len(addresses) != 1 {
+			t.Fatalf("failed to set To, addrHeader value count is: %d, want: 1", len(addresses))
 		}
 	})
 }
@@ -1417,82 +1480,6 @@ func TestMsg_To(t *testing.T) {
 		}
 	}
 
-// TestMsg_SetGenHeader tests Msg.SetGenHeader
-
-	func TestMsg_SetGenHeader(t *testing.T) {
-		tests := []struct {
-			name   string
-			header Header
-			values []string
-		}{
-			{"set subject", HeaderSubject, []string{"This is Subject"}},
-			{"set content-language", HeaderContentLang, []string{"en", "de", "fr", "es"}},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				m := NewMsg()
-				m.SetGenHeader(tt.header, tt.values...)
-				if m.genHeader[tt.header] == nil {
-					t.Errorf("SetGenHeader() failed. Tried to set header %s, but it is empty", tt.header)
-					return
-				}
-				for _, v := range tt.values {
-					found := false
-					for _, hv := range m.genHeader[tt.header] {
-						if hv == v {
-							found = true
-						}
-					}
-					if !found {
-						t.Errorf("SetGenHeader() failed. Value %s not found in header field", v)
-					}
-				}
-			})
-		}
-	}
-
-// TestMsg_SetGenHeaderPreformatted tests Msg.SetGenHeaderPreformatted
-
-	func TestMsg_SetGenHeaderPreformatted(t *testing.T) {
-		tests := []struct {
-			name   string
-			header Header
-			value  string
-		}{
-			{"set subject", HeaderSubject, "This is Subject"},
-			{"set content-language", HeaderContentLang, fmt.Sprintf("%s, %s, %s, %s",
-				"en", "de", "fr", "es")},
-			{"set subject with newline", HeaderSubject, "This is Subject\r\n with 2nd line"},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				m := &Msg{}
-				m.SetGenHeaderPreformatted(tt.header, tt.value)
-				m = NewMsg()
-				m.SetGenHeaderPreformatted(tt.header, tt.value)
-				if m.preformHeader[tt.header] == "" {
-					t.Errorf("SetGenHeaderPreformatted() failed. Tried to set header %s, but it is empty", tt.header)
-				}
-				if m.preformHeader[tt.header] != tt.value {
-					t.Errorf("SetGenHeaderPreformatted() failed. Expected: %q, got: %q", tt.value,
-						m.preformHeader[tt.header])
-				}
-				buf := bytes.Buffer{}
-				_, err := m.WriteTo(&buf)
-				if err != nil {
-					t.Errorf("failed to write message to memory: %s", err)
-					return
-				}
-				if !strings.Contains(buf.String(), fmt.Sprintf("%s: %s%s", tt.header, tt.value, SingleNewLine)) {
-					t.Errorf("SetGenHeaderPreformatted() failed. Unable to find correctly formated header in " +
-						"mail message output")
-				}
-			})
-		}
-	}
-
 // TestMsg_AddTo tests the Msg.AddTo method
 
 	func TestMsg_AddTo(t *testing.T) {
@@ -1516,124 +1503,6 @@ func TestMsg_To(t *testing.T) {
 		}
 		if !atf {
 			t.Errorf("AddTo() failed. Address %q not found in TO address slice.", na)
-		}
-	}
-
-// TestMsg_From tests the Msg.From and Msg.GetSender methods
-
-	func TestMsg_From(t *testing.T) {
-		a := "toni@example.com"
-		n := "Toni Tester"
-		na := fmt.Sprintf(`"%s" <%s>`, n, a)
-		m := NewMsg()
-
-		_, err := m.GetSender(false)
-		if err == nil {
-			t.Errorf("GetSender(false) without a set From address succeeded but was expected to fail")
-			return
-		}
-
-		if err := m.From(na); err != nil {
-			t.Errorf("failed to set FROM addresses: %s", err)
-			return
-		}
-		gs, err := m.GetSender(false)
-		if err != nil {
-			t.Errorf("GetSender(false) failed: %s", err)
-			return
-		}
-		if gs != a {
-			t.Errorf("From() failed. Expected: %s, got: %s", a, gs)
-			return
-		}
-
-		gs, err = m.GetSender(true)
-		if err != nil {
-			t.Errorf("GetSender(true) failed: %s", err)
-			return
-		}
-		if gs != na {
-			t.Errorf("From() failed. Expected: %s, got: %s", na, gs)
-			return
-		}
-	}
-
-// TestMsg_EnvelopeFrom tests the Msg.EnvelopeFrom and Msg.GetSender methods
-
-	func TestMsg_EnvelopeFrom(t *testing.T) {
-		e := "envelope@example.com"
-		a := "toni@example.com"
-		n := "Toni Tester"
-		na := fmt.Sprintf(`"%s" <%s>`, n, a)
-		ne := fmt.Sprintf(`<%s>`, e)
-		m := NewMsg()
-
-		_, err := m.GetSender(false)
-		if err == nil {
-			t.Errorf("GetSender(false) without a set envelope From address succeeded but was expected to fail")
-			return
-		}
-
-		if err := m.EnvelopeFrom(e); err != nil {
-			t.Errorf("failed to set envelope FROM addresses: %s", err)
-			return
-		}
-		gs, err := m.GetSender(false)
-		if err != nil {
-			t.Errorf("GetSender(false) failed: %s", err)
-			return
-		}
-		if gs != e {
-			t.Errorf("From() failed. Expected: %s, got: %s", e, gs)
-			return
-		}
-
-		if err := m.From(na); err != nil {
-			t.Errorf("failed to set FROM addresses: %s", err)
-			return
-		}
-		gs, err = m.GetSender(false)
-		if err != nil {
-			t.Errorf("GetSender(false) failed: %s", err)
-			return
-		}
-		if gs != e {
-			t.Errorf("From() failed. Expected: %s, got: %s", e, gs)
-			return
-		}
-
-		gs, err = m.GetSender(true)
-		if err != nil {
-			t.Errorf("GetSender(true) failed: %s", err)
-			return
-		}
-		if gs != ne {
-			t.Errorf("From() failed. Expected: %s, got: %s", ne, gs)
-			return
-		}
-		m.Reset()
-
-		if err := m.From(na); err != nil {
-			t.Errorf("failed to set FROM addresses: %s", err)
-			return
-		}
-		gs, err = m.GetSender(false)
-		if err != nil {
-			t.Errorf("GetSender(true) failed: %s", err)
-			return
-		}
-		if gs != a {
-			t.Errorf("From() failed. Expected: %s, got: %s", a, gs)
-			return
-		}
-		gs, err = m.GetSender(true)
-		if err != nil {
-			t.Errorf("GetSender(true) failed: %s", err)
-			return
-		}
-		if gs != na {
-			t.Errorf("From() failed. Expected: %s, got: %s", na, gs)
-			return
 		}
 	}
 
