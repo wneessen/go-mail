@@ -1494,6 +1494,10 @@ func TestMsg_AddToFormat(t *testing.T) {
 	})
 }
 
+func TestMsg_ToIgnoreInvalid(t *testing.T) {
+
+}
+
 /*
 // TestNewMsgWithMiddleware tests WithMiddleware
 
