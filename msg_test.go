@@ -456,6 +456,309 @@ func TestMsg_SetHeader(t *testing.T) {
 	})
 }
 
+func TestMsg_SetGenHeader(t *testing.T) {
+	t.Run("SetGenHeader on new message", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		for _, tt := range genHeaderTests {
+			t.Run(tt.name, func(t *testing.T) {
+				message.SetGenHeader(tt.header, "test", "foo", "bar")
+				values, ok := message.genHeader[tt.header]
+				if !ok {
+					t.Fatalf("failed to set header, genHeader field for %s is not set", tt.header)
+				}
+				if len(values) != 3 {
+					t.Fatalf("failed to set header, genHeader value count for %s is %d, want: 3",
+						tt.header, len(values))
+				}
+				if values[0] != "test" {
+					t.Errorf("failed to set header, genHeader value for %s is %s, want: %s", tt.header,
+						values[0], "test")
+				}
+				if values[1] != "foo" {
+					t.Errorf("failed to set header, genHeader value for %s is %s, want: %s", tt.header,
+						values[1], "foo")
+				}
+				if values[2] != "bar" {
+					t.Errorf("failed to set header, genHeader value for %s is %s, want: %s", tt.header,
+						values[1], "bar")
+				}
+			})
+		}
+	})
+	t.Run("SetGenHeader with empty genHeaderMap", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.genHeader = nil
+		message.SetGenHeader(HeaderSubject, "test", "foo", "bar")
+		values, ok := message.genHeader[HeaderSubject]
+		if !ok {
+			t.Fatalf("failed to set header, genHeader field for %s is not set", HeaderSubject)
+		}
+		if len(values) != 3 {
+			t.Fatalf("failed to set header, genHeader value count for %s is %d, want: 3",
+				HeaderSubject, len(values))
+		}
+		if values[0] != "test" {
+			t.Errorf("failed to set header, genHeader value for %s is %s, want: %s", HeaderSubject,
+				values[0], "test")
+		}
+		if values[1] != "foo" {
+			t.Errorf("failed to set header, genHeader value for %s is %s, want: %s", HeaderSubject,
+				values[1], "foo")
+		}
+		if values[2] != "bar" {
+			t.Errorf("failed to set header, genHeader value for %s is %s, want: %s", HeaderSubject,
+				values[1], "bar")
+		}
+	})
+}
+
+func TestMsg_SetHeaderPreformatted(t *testing.T) {
+	t.Run("SetHeaderPreformatted on new message", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		for _, tt := range genHeaderTests {
+			t.Run(tt.name, func(t *testing.T) {
+				message.SetHeaderPreformatted(tt.header, "test")
+				value, ok := message.preformHeader[tt.header]
+				if !ok {
+					t.Fatalf("failed to set header, genHeader field for %s is not set", tt.header)
+				}
+				if value != "test" {
+					t.Errorf("failed to set header, genHeader value for %s is %s, want: %s", tt.header,
+						value, "test")
+				}
+			})
+		}
+	})
+}
+
+func TestMsg_SetGenHeaderPreformatted(t *testing.T) {
+	t.Run("SetGenHeaderPreformatted on new message", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		for _, tt := range genHeaderTests {
+			t.Run(tt.name, func(t *testing.T) {
+				message.SetGenHeaderPreformatted(tt.header, "test")
+				value, ok := message.preformHeader[tt.header]
+				if !ok {
+					t.Fatalf("failed to set header, genHeader field for %s is not set", tt.header)
+				}
+				if value != "test" {
+					t.Errorf("failed to set header, genHeader value for %s is %s, want: %s", tt.header,
+						value, "test")
+				}
+			})
+		}
+	})
+	t.Run("SetGenHeaderPreformatted with empty preformHeader map", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.preformHeader = nil
+		message.SetGenHeaderPreformatted(HeaderSubject, "test")
+		value, ok := message.preformHeader[HeaderSubject]
+		if !ok {
+			t.Fatalf("failed to set header, genHeader field for %s is not set", HeaderSubject)
+		}
+		if value != "test" {
+			t.Errorf("failed to set header, genHeader value for %s is %s, want: %s", HeaderSubject,
+				value, "test")
+		}
+	})
+}
+
+func TestMsg_SetAddrHeader(t *testing.T) {
+	t.Run("SetAddrHeader with valid address without <>", func(t *testing.T) {
+		for _, tt := range addrHeaderTests {
+			t.Run(tt.name, func(t *testing.T) {
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				if err := message.SetAddrHeader(tt.header, "toni.tester@example.com"); err != nil {
+					t.Fatalf("failed to set address header, err: %s", err)
+				}
+				addresses, ok := message.addrHeader[tt.header]
+				if !ok {
+					t.Fatalf("failed to set address header, addrHeader field for %s is not set", tt.header)
+				}
+				if len(addresses) != 1 {
+					t.Fatalf("failed to set address header, addrHeader value count for %s is %d, want: 1",
+						tt.header, len(addresses))
+				}
+				if addresses[0].Address != "toni.tester@example.com" {
+					t.Errorf("failed to set address header, addrHeader value for %s is %s, want: %s", tt.header,
+						addresses[0].Address, "toni.tester@example.com")
+				}
+				if addresses[0].String() != "<toni.tester@example.com>" {
+					t.Errorf("failed to set address header, addrHeader value for %s is %s, want: %s", tt.header,
+						addresses[0].String(), "<toni.tester@example.com>")
+				}
+				if addresses[0].Name != "" {
+					t.Errorf("failed to set address header, addrHeader name for %s expected to be emtpy, "+
+						"got: %s", tt.header, addresses[0].Name)
+				}
+			})
+		}
+	})
+	t.Run("SetAddrHeader with valid address with <>", func(t *testing.T) {
+		for _, tt := range addrHeaderTests {
+			t.Run(tt.name, func(t *testing.T) {
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				if err := message.SetAddrHeader(tt.header, "<toni.tester@example.com>"); err != nil {
+					t.Fatalf("failed to set address header, err: %s", err)
+				}
+				addresses, ok := message.addrHeader[tt.header]
+				if !ok {
+					t.Fatalf("failed to set address header, addrHeader field for %s is not set", tt.header)
+				}
+				if len(addresses) != 1 {
+					t.Fatalf("failed to set address header, addrHeader value count for %s is %d, want: 1",
+						tt.header, len(addresses))
+				}
+				if addresses[0].Address != "toni.tester@example.com" {
+					t.Errorf("failed to set address header, addrHeader value for %s is %s, want: %s", tt.header,
+						addresses[0].Address, "toni.tester@example.com")
+				}
+				if addresses[0].String() != "<toni.tester@example.com>" {
+					t.Errorf("failed to set address header, addrHeader value for %s is %s, want: %s", tt.header,
+						addresses[0].String(), "<toni.tester@example.com>")
+				}
+				if addresses[0].Name != "" {
+					t.Errorf("failed to set address header, addrHeader name for %s expected to be emtpy, "+
+						"got: %s", tt.header, addresses[0].Name)
+				}
+			})
+		}
+	})
+	t.Run("SetAddrHeader with valid address with multiple addresses", func(t *testing.T) {
+		for _, tt := range addrHeaderTests {
+			t.Run(tt.name, func(t *testing.T) {
+				// From must only have one address
+				if tt.header == HeaderFrom {
+					return
+				}
+
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				if err := message.SetAddrHeader(tt.header, "toni.tester@example.com",
+					"tina.tester@example.com"); err != nil {
+					t.Fatalf("failed to set address header, err: %s", err)
+				}
+				addresses, ok := message.addrHeader[tt.header]
+				if !ok {
+					t.Fatalf("failed to set address header, addrHeader field for %s is not set", tt.header)
+				}
+				if len(addresses) != 2 {
+					t.Fatalf("failed to set address header, addrHeader value count for %s is %d, want: 2",
+						tt.header, len(addresses))
+				}
+				if addresses[0].Address != "toni.tester@example.com" {
+					t.Errorf("failed to set address header, addrHeader value for %s is %s, want: %s", tt.header,
+						addresses[0].Address, "toni.tester@example.com")
+				}
+				if addresses[0].String() != "<toni.tester@example.com>" {
+					t.Errorf("failed to set address header, addrHeader value for %s is %s, want: %s", tt.header,
+						addresses[0].String(), "<toni.tester@example.com>")
+				}
+				if addresses[0].Name != "" {
+					t.Errorf("failed to set address header, addrHeader name for %s expected to be emtpy, "+
+						"got: %s", tt.header, addresses[0].Name)
+				}
+				if addresses[1].Address != "tina.tester@example.com" {
+					t.Errorf("failed to set address header, addrHeader value for %s is %s, want: %s", tt.header,
+						addresses[1].Address, "tina.tester@example.com")
+				}
+				if addresses[1].String() != "<tina.tester@example.com>" {
+					t.Errorf("failed to set address header, addrHeader value for %s is %s, want: %s", tt.header,
+						addresses[1].String(), "<tina.tester@example.com>")
+				}
+				if addresses[1].Name != "" {
+					t.Errorf("failed to set address header, addrHeader name for %s expected to be emtpy, "+
+						"got: %s", tt.header, addresses[1].Name)
+				}
+			})
+		}
+	})
+	t.Run("SetAddrHeader with multiple from addresses should only return the first one", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.SetAddrHeader(HeaderFrom, "toni.tester@example.com",
+			"tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set address header, err: %s", err)
+		}
+		addresses, ok := message.addrHeader[HeaderFrom]
+		if !ok {
+			t.Fatalf("failed to set address header, addrHeader field for %s is not set", HeaderFrom)
+		}
+		if len(addresses) != 1 {
+			t.Fatalf("failed to set address header, addrHeader value count for From is: %d, want: 1",
+				len(addresses))
+		}
+		if addresses[0].Address != "toni.tester@example.com" {
+			t.Errorf("failed to set address header, addrHeader value for %s is %s, want: %s", HeaderFrom,
+				addresses[0].Address, "toni.tester@example.com")
+		}
+		if addresses[0].String() != "<toni.tester@example.com>" {
+			t.Errorf("failed to set address header, addrHeader value for %s is %s, want: %s", HeaderFrom,
+				addresses[0].String(), "<toni.tester@example.com>")
+		}
+		if addresses[0].Name != "" {
+			t.Errorf("failed to set address header, addrHeader name for %s expected to be emtpy, "+
+				"got: %s", HeaderFrom, addresses[0].Name)
+		}
+	})
+	t.Run("SetAddrHeader with addrHeader map is nil", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.addrHeader = nil
+		if err := message.SetAddrHeader(HeaderFrom, "toni.tester@example.com",
+			"tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set address header, err: %s", err)
+		}
+		addresses, ok := message.addrHeader[HeaderFrom]
+		if !ok {
+			t.Fatalf("failed to set address header, addrHeader field for %s is not set", HeaderFrom)
+		}
+		if len(addresses) != 1 {
+			t.Fatalf("failed to set address header, addrHeader value count for From is: %d, want: 1",
+				len(addresses))
+		}
+		if addresses[0].Address != "toni.tester@example.com" {
+			t.Errorf("failed to set address header, addrHeader value for %s is %s, want: %s", HeaderFrom,
+				addresses[0].Address, "toni.tester@example.com")
+		}
+		if addresses[0].String() != "<toni.tester@example.com>" {
+			t.Errorf("failed to set address header, addrHeader value for %s is %s, want: %s", HeaderFrom,
+				addresses[0].String(), "<toni.tester@example.com>")
+		}
+		if addresses[0].Name != "" {
+			t.Errorf("failed to set address header, addrHeader name for %s expected to be emtpy, "+
+				"got: %s", HeaderFrom, addresses[0].Name)
+		}
+	})
+}
+
 /*
 // TestNewMsgWithMiddleware tests WithMiddleware
 
