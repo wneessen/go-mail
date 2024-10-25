@@ -1495,7 +1495,81 @@ func TestMsg_AddToFormat(t *testing.T) {
 }
 
 func TestMsg_ToIgnoreInvalid(t *testing.T) {
-
+	t.Run("ToIgnoreInvalid with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.ToIgnoreInvalid("toni.tester@example.com")
+		addresses, ok := message.addrHeader[HeaderTo]
+		if !ok {
+			t.Fatalf("failed to set ToIgnoreInvalid, addrHeader field is not set")
+		}
+		if len(addresses) != 1 {
+			t.Fatalf("failed to set ToIgnoreInvalid, addrHeader value count is: %d, want: 1", len(addresses))
+		}
+		if addresses[0].Address != "toni.tester@example.com" {
+			t.Errorf("failed to set ToIgnoreInvalid, addrHeader value is %s, want: %s", addresses[0].Address,
+				"toni.tester@example.com")
+		}
+		if addresses[0].String() != "<toni.tester@example.com>" {
+			t.Errorf("failed to set ToIgnoreInvalid, addrHeader value is %s, want: %s", addresses[0].String(),
+				"<toni.tester@example.com>")
+		}
+		if addresses[0].Name != "" {
+			t.Errorf("failed to set ToIgnoreInvalid, addrHeader name is %s, want: empty", addresses[0].Name)
+		}
+	})
+	t.Run("ToIgnoreInvalid with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.ToIgnoreInvalid("invalid")
+		addresses, ok := message.addrHeader[HeaderTo]
+		if !ok {
+			t.Fatalf("failed to set ToIgnoreInvalid, addrHeader field is not set")
+		}
+		if len(addresses) != 0 {
+			t.Fatalf("failed to set ToIgnoreInvalid, addrHeader value count is: %d, want: 0", len(addresses))
+		}
+	})
+	t.Run("ToIgnoreInvalid with valid and invalid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.ToIgnoreInvalid("toni.tester@example.com", "invalid", "tina.tester@example.com")
+		addresses, ok := message.addrHeader[HeaderTo]
+		if !ok {
+			t.Fatalf("failed to set ToIgnoreInvalid, addrHeader field is not set")
+		}
+		if len(addresses) != 2 {
+			t.Fatalf("failed to set ToIgnoreInvalid, addrHeader value count is: %d, want: 2", len(addresses))
+		}
+		if addresses[0].Address != "toni.tester@example.com" {
+			t.Errorf("failed to set ToIgnoreInvalid, addrHeader value is %s, want: %s", addresses[0].Address,
+				"toni.tester@example.com")
+		}
+		if addresses[0].String() != "<toni.tester@example.com>" {
+			t.Errorf("failed to set ToIgnoreInvalid, addrHeader value is %s, want: %s", addresses[0].String(),
+				"<toni.tester@example.com>")
+		}
+		if addresses[0].Name != "" {
+			t.Errorf("failed to set ToIgnoreInvalid, addrHeader name is %s, want: empty", addresses[0].Name)
+		}
+		if addresses[1].Address != "tina.tester@example.com" {
+			t.Errorf("failed to set ToIgnoreInvalid, addrHeader value is %s, want: %s", addresses[1].Address,
+				"tina.tester@example.com")
+		}
+		if addresses[1].String() != "<tina.tester@example.com>" {
+			t.Errorf("failed to set ToIgnoreInvalid, addrHeader value is %s, want: %s", addresses[1].String(),
+				"<tina.tester@example.com>")
+		}
+		if addresses[1].Name != "" {
+			t.Errorf("failed to set ToIgnoreInvalid, addrHeader name is %s, want: empty", addresses[1].Name)
+		}
+	})
 }
 
 /*
