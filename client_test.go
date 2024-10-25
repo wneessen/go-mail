@@ -1796,7 +1796,7 @@ func TestClient_DialWithContext(t *testing.T) {
 		}
 	})
 	t.Run("connect should fail on HELO", func(t *testing.T) {
-		ctxFail, cancelFail := context.WithCancel(context.Background())
+		ctxFail, cancelFail := context.WithCancel(ctx)
 		defer cancelFail()
 		PortAdder.Add(1)
 		failServerPort := int(TestServerPortBase + PortAdder.Load())
@@ -1831,7 +1831,7 @@ func TestClient_DialWithContext(t *testing.T) {
 		}
 	})
 	t.Run("connect with failing auth", func(t *testing.T) {
-		ctxAuth, cancelAuth := context.WithCancel(context.Background())
+		ctxAuth, cancelAuth := context.WithCancel(ctx)
 		defer cancelAuth()
 		PortAdder.Add(1)
 		authServerPort := int(TestServerPortBase + PortAdder.Load())
@@ -1861,7 +1861,7 @@ func TestClient_DialWithContext(t *testing.T) {
 		}
 	})
 	t.Run("connect with STARTTLS", func(t *testing.T) {
-		ctxTLS, cancelTLS := context.WithCancel(context.Background())
+		ctxTLS, cancelTLS := context.WithCancel(ctx)
 		defer cancelTLS()
 		PortAdder.Add(1)
 		tlsServerPort := int(TestServerPortBase + PortAdder.Load())
@@ -1891,7 +1891,7 @@ func TestClient_DialWithContext(t *testing.T) {
 		}
 	})
 	t.Run("connect with STARTTLS Opportunisticly", func(t *testing.T) {
-		ctxTLS, cancelTLS := context.WithCancel(context.Background())
+		ctxTLS, cancelTLS := context.WithCancel(ctx)
 		defer cancelTLS()
 		PortAdder.Add(1)
 		tlsServerPort := int(TestServerPortBase + PortAdder.Load())
@@ -1921,7 +1921,7 @@ func TestClient_DialWithContext(t *testing.T) {
 		}
 	})
 	t.Run("connect with STARTTLS but fail", func(t *testing.T) {
-		ctxTLS, cancelTLS := context.WithCancel(context.Background())
+		ctxTLS, cancelTLS := context.WithCancel(ctx)
 		defer cancelTLS()
 		PortAdder.Add(1)
 		tlsServerPort := int(TestServerPortBase + PortAdder.Load())
@@ -1952,7 +1952,7 @@ func TestClient_DialWithContext(t *testing.T) {
 		}
 	})
 	t.Run("want STARTTLS, but server does not support it", func(t *testing.T) {
-		ctxTLS, cancelTLS := context.WithCancel(context.Background())
+		ctxTLS, cancelTLS := context.WithCancel(ctx)
 		defer cancelTLS()
 		PortAdder.Add(1)
 		tlsServerPort := int(TestServerPortBase + PortAdder.Load())
@@ -1982,7 +1982,7 @@ func TestClient_DialWithContext(t *testing.T) {
 		}
 	})
 	t.Run("connect with SSL", func(t *testing.T) {
-		ctxSSL, cancelSSL := context.WithCancel(context.Background())
+		ctxSSL, cancelSSL := context.WithCancel(ctx)
 		defer cancelSSL()
 		PortAdder.Add(1)
 		sslServerPort := int(TestServerPortBase + PortAdder.Load())
@@ -2494,6 +2494,9 @@ func TestClient_Send(t *testing.T) {
 		t.Cleanup(cancelDial)
 
 		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
 		if err = client.DialWithContext(ctxDial); err != nil {
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
@@ -2508,6 +2511,9 @@ func TestClient_Send(t *testing.T) {
 	})
 	t.Run("send with no connection should fail", func(t *testing.T) {
 		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
 		if err = client.Send(message); err == nil {
 			t.Errorf("client should have failed to send email with no connection")
 		}
@@ -2540,6 +2546,9 @@ func TestClient_Send(t *testing.T) {
 		t.Cleanup(cancelDial)
 
 		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
 		if err = client.DialWithContext(ctxDial); err != nil {
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
@@ -2594,6 +2603,9 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		t.Cleanup(cancelDial)
 
 		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
 		if err = client.DialWithContext(ctxDial); err != nil {
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
@@ -2630,6 +2642,9 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		t.Cleanup(cancelDial)
 
 		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
 		if err = client.DialWithContext(ctxDial); err != nil {
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
@@ -2668,6 +2683,9 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		t.Cleanup(cancelDial)
 
 		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
 		if err = client.DialWithContext(ctxDial); err != nil {
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
@@ -2711,6 +2729,9 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		t.Cleanup(cancelDial)
 
 		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
 		if err = client.DialWithContext(ctxDial); err != nil {
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
@@ -2754,6 +2775,9 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		t.Cleanup(cancelDial)
 
 		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
 		if err = client.DialWithContext(ctxDial); err != nil {
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
@@ -2797,6 +2821,9 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		t.Cleanup(cancelDial)
 
 		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS), WithDSN())
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
 		if err = client.DialWithContext(ctxDial); err != nil {
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
@@ -2833,6 +2860,9 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		t.Cleanup(cancelDial)
 
 		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
 		if err = client.DialWithContext(ctxDial); err != nil {
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
@@ -2877,6 +2907,9 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		t.Cleanup(cancelDial)
 
 		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
 		if err = client.DialWithContext(ctxDial); err != nil {
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
@@ -2921,6 +2954,9 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		t.Cleanup(cancelDial)
 
 		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
 		if err = client.DialWithContext(ctxDial); err != nil {
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
@@ -2964,6 +3000,9 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		t.Cleanup(cancelDial)
 
 		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
 		if err = client.DialWithContext(ctxDial); err != nil {
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
@@ -3007,6 +3046,9 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		t.Cleanup(cancelDial)
 
 		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
 		if err = client.DialWithContext(ctxDial); err != nil {
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
@@ -3050,6 +3092,9 @@ func TestClient_checkConn(t *testing.T) {
 		t.Cleanup(cancelDial)
 
 		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
 		if err = client.DialWithContext(ctxDial); err != nil {
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
@@ -3084,6 +3129,9 @@ func TestClient_checkConn(t *testing.T) {
 		t.Cleanup(cancelDial)
 
 		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
 		if err = client.DialWithContext(ctxDial); err != nil {
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
@@ -3101,6 +3149,9 @@ func TestClient_checkConn(t *testing.T) {
 	})
 	t.Run("connection should fail on no connection", func(t *testing.T) {
 		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
 		if err = client.checkConn(); err == nil {
 			t.Errorf("client should have failed on connection check")
 		}
@@ -3429,11 +3480,14 @@ func simpleSMTPServer(ctx context.Context, t *testing.T, props *serverProps) err
 	if props.SSLListener {
 		keypair, err := tls.X509KeyPair(localhostCert, localhostKey)
 		if err != nil {
-			return fmt.Errorf("failed to read TLS keypair: %s", err)
+			return fmt.Errorf("failed to read TLS keypair: %w", err)
 		}
 		tlsConfig := &tls.Config{Certificates: []tls.Certificate{keypair}}
 		listener, err = tls.Listen(TestServerProto, fmt.Sprintf("%s:%d", TestServerAddr, props.ListenPort),
 			tlsConfig)
+		if err != nil {
+			t.Fatalf("failed to create TLS listener: %s", err)
+		}
 	} else {
 		listener, err = net.Listen(TestServerProto, fmt.Sprintf("%s:%d", TestServerAddr, props.ListenPort))
 	}
@@ -3514,7 +3568,6 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 				break
 			}
 			writeLine("250-localhost.localdomain\r\n" + props.FeatureSet)
-			break
 		case strings.HasPrefix(data, "MAIL FROM:"):
 			if props.FailOnMailFrom {
 				writeLine("500 5.5.2 Error: fail on MAIL FROM")
