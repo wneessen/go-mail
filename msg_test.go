@@ -18,71 +18,71 @@ var (
 		value Charset
 		want  Charset
 	}{
-		{"charset is UTF-7", CharsetUTF7, "UTF-7"},
-		{"charset is UTF-8", CharsetUTF8, "UTF-8"},
-		{"charset is US-ASCII", CharsetASCII, "US-ASCII"},
-		{"charset is ISO-8859-1", CharsetISO88591, "ISO-8859-1"},
-		{"charset is ISO-8859-2", CharsetISO88592, "ISO-8859-2"},
-		{"charset is ISO-8859-3", CharsetISO88593, "ISO-8859-3"},
-		{"charset is ISO-8859-4", CharsetISO88594, "ISO-8859-4"},
-		{"charset is ISO-8859-5", CharsetISO88595, "ISO-8859-5"},
-		{"charset is ISO-8859-6", CharsetISO88596, "ISO-8859-6"},
-		{"charset is ISO-8859-7", CharsetISO88597, "ISO-8859-7"},
-		{"charset is ISO-8859-9", CharsetISO88599, "ISO-8859-9"},
-		{"charset is ISO-8859-13", CharsetISO885913, "ISO-8859-13"},
-		{"charset is ISO-8859-14", CharsetISO885914, "ISO-8859-14"},
-		{"charset is ISO-8859-15", CharsetISO885915, "ISO-8859-15"},
-		{"charset is ISO-8859-16", CharsetISO885916, "ISO-8859-16"},
-		{"charset is ISO-2022-JP", CharsetISO2022JP, "ISO-2022-JP"},
-		{"charset is ISO-2022-KR", CharsetISO2022KR, "ISO-2022-KR"},
-		{"charset is windows-1250", CharsetWindows1250, "windows-1250"},
-		{"charset is windows-1251", CharsetWindows1251, "windows-1251"},
-		{"charset is windows-1252", CharsetWindows1252, "windows-1252"},
-		{"charset is windows-1255", CharsetWindows1255, "windows-1255"},
-		{"charset is windows-1256", CharsetWindows1256, "windows-1256"},
-		{"charset is KOI8-R", CharsetKOI8R, "KOI8-R"},
-		{"charset is KOI8-U", CharsetKOI8U, "KOI8-U"},
-		{"charset is Big5", CharsetBig5, "Big5"},
-		{"charset is GB18030", CharsetGB18030, "GB18030"},
-		{"charset is GB2312", CharsetGB2312, "GB2312"},
-		{"charset is TIS-620", CharsetTIS620, "TIS-620"},
-		{"charset is EUC-KR", CharsetEUCKR, "EUC-KR"},
-		{"charset is Shift_JIS", CharsetShiftJIS, "Shift_JIS"},
-		{"charset is GBK", CharsetGBK, "GBK"},
-		{"charset is Unknown", CharsetUnknown, "Unknown"},
+		{"UTF-7", CharsetUTF7, "UTF-7"},
+		{"UTF-8", CharsetUTF8, "UTF-8"},
+		{"US-ASCII", CharsetASCII, "US-ASCII"},
+		{"ISO-8859-1", CharsetISO88591, "ISO-8859-1"},
+		{"ISO-8859-2", CharsetISO88592, "ISO-8859-2"},
+		{"ISO-8859-3", CharsetISO88593, "ISO-8859-3"},
+		{"ISO-8859-4", CharsetISO88594, "ISO-8859-4"},
+		{"ISO-8859-5", CharsetISO88595, "ISO-8859-5"},
+		{"ISO-8859-6", CharsetISO88596, "ISO-8859-6"},
+		{"ISO-8859-7", CharsetISO88597, "ISO-8859-7"},
+		{"ISO-8859-9", CharsetISO88599, "ISO-8859-9"},
+		{"ISO-8859-13", CharsetISO885913, "ISO-8859-13"},
+		{"ISO-8859-14", CharsetISO885914, "ISO-8859-14"},
+		{"ISO-8859-15", CharsetISO885915, "ISO-8859-15"},
+		{"ISO-8859-16", CharsetISO885916, "ISO-8859-16"},
+		{"ISO-2022-JP", CharsetISO2022JP, "ISO-2022-JP"},
+		{"ISO-2022-KR", CharsetISO2022KR, "ISO-2022-KR"},
+		{"windows-1250", CharsetWindows1250, "windows-1250"},
+		{"windows-1251", CharsetWindows1251, "windows-1251"},
+		{"windows-1252", CharsetWindows1252, "windows-1252"},
+		{"windows-1255", CharsetWindows1255, "windows-1255"},
+		{"windows-1256", CharsetWindows1256, "windows-1256"},
+		{"KOI8-R", CharsetKOI8R, "KOI8-R"},
+		{"KOI8-U", CharsetKOI8U, "KOI8-U"},
+		{"Big5", CharsetBig5, "Big5"},
+		{"GB18030", CharsetGB18030, "GB18030"},
+		{"GB2312", CharsetGB2312, "GB2312"},
+		{"TIS-620", CharsetTIS620, "TIS-620"},
+		{"EUC-KR", CharsetEUCKR, "EUC-KR"},
+		{"Shift_JIS", CharsetShiftJIS, "Shift_JIS"},
+		{"GBK", CharsetGBK, "GBK"},
+		{"Unknown", CharsetUnknown, "Unknown"},
 	}
 	encodingTests = []struct {
 		name  string
 		value Encoding
 		want  Encoding
 	}{
-		{"encoding is Quoted-Printable", EncodingQP, "quoted-printable"},
-		{"encoding is Base64", EncodingB64, "base64"},
-		{"encoding is Unencoded 8-Bit", NoEncoding, "8bit"},
-		{"encoding is US-ASCII 7-Bit", EncodingUSASCII, "7bit"},
+		{"Quoted-Printable", EncodingQP, "quoted-printable"},
+		{"Base64", EncodingB64, "base64"},
+		{"Unencoded (8-Bit)", NoEncoding, "8bit"},
+		{"US-ASCII (7-Bit)", EncodingUSASCII, "7bit"},
 	}
 	pgpTests = []struct {
 		name  string
 		value PGPType
 	}{
-		{"Not a PGP encoded message", NoPGP},
-		{"PGP encrypted message", PGPEncrypt},
-		{"PGP signed message", PGPSignature},
+		{"No PGP encoding", NoPGP},
+		{"PGP encrypted", PGPEncrypt},
+		{"PGP signed", PGPSignature},
 	}
 	boundaryTests = []struct {
 		name  string
 		value string
 	}{
-		{"boundary: test123", "test123"},
-		{"boundary is empty", ""},
+		{"test123", "test123"},
+		{"empty string", ""},
 	}
 	mimeTests = []struct {
 		name  string
 		value MIMEVersion
 		want  MIMEVersion
 	}{
-		{"MIME version: 1.0", MIME10, "1.0"},
-		{"MIME version: 1.1", MIMEVersion("1.1"), "1.1"},
+		{"1.0", MIME10, "1.0"},
+		{"1.1 (not a valid version at this time)", MIMEVersion("1.1"), "1.1"},
 	}
 )
 
@@ -385,6 +385,23 @@ func TestMsg_SetPGPType(t *testing.T) {
 		message.SetPGPType(PGPEncrypt)
 		if message.pgptype != PGPEncrypt {
 			t.Errorf("failed to set pgp type. Expected: %d, got: %d", PGPEncrypt, message.pgptype)
+		}
+	})
+}
+
+func TestMsg_Encoding(t *testing.T) {
+	t.Run("Encoding returns expected string", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		for _, tt := range encodingTests {
+			t.Run(tt.name, func(t *testing.T) {
+				message.SetEncoding(tt.value)
+				if message.Encoding() != tt.want.String() {
+					t.Errorf("failed to get encoding. Expected: %s, got: %s", tt.want.String(), message.Encoding())
+				}
+			})
 		}
 	})
 }
