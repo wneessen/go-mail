@@ -465,6 +465,7 @@ func TestMsg_SetHeader(t *testing.T) {
 		}
 		for _, tt := range genHeaderTests {
 			t.Run(tt.name, func(t *testing.T) {
+				//goland:noinspection GoDeprecation
 				message.SetHeader(tt.header, "test", "foo", "bar")
 				values, ok := message.genHeader[tt.header]
 				if !ok {
@@ -561,6 +562,7 @@ func TestMsg_SetHeaderPreformatted(t *testing.T) {
 		}
 		for _, tt := range genHeaderTests {
 			t.Run(tt.name, func(t *testing.T) {
+				//goland:noinspection GoDeprecation
 				message.SetHeaderPreformatted(tt.header, "test")
 				value, ok := message.preformHeader[tt.header]
 				if !ok {
