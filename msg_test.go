@@ -230,7 +230,6 @@ func TestNewMsg(t *testing.T) {
 			t.Errorf("NewMsg(WithNoDefaultUserAgent()) failed. Expected noDefaultUserAgent to be true, got: %t",
 				message.noDefaultUserAgent)
 		}
-
 	})
 }
 
@@ -400,6 +399,57 @@ func TestMsg_Encoding(t *testing.T) {
 				message.SetEncoding(tt.value)
 				if message.Encoding() != tt.want.String() {
 					t.Errorf("failed to get encoding. Expected: %s, got: %s", tt.want.String(), message.Encoding())
+				}
+			})
+		}
+	})
+}
+
+func TestMsg_Charset(t *testing.T) {
+	t.Run("Charset returns expected string", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		for _, tt := range charsetTests {
+			t.Run(tt.name, func(t *testing.T) {
+				message.SetCharset(tt.value)
+				if message.Charset() != tt.want.String() {
+					t.Errorf("failed to get charset. Expected: %s, got: %s", tt.want.String(), message.Charset())
+				}
+			})
+		}
+	})
+}
+
+func TestMsg_SetHeader(t *testing.T) {
+	t.Run("SetHeader on new message", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		for _, tt := range genHeaderTests {
+			t.Run(tt.name, func(t *testing.T) {
+				message.SetHeader(tt.header, "test", "foo", "bar")
+				values, ok := message.genHeader[tt.header]
+				if !ok {
+					t.Fatalf("failed to set header, genHeader field for %s is not set", tt.header)
+				}
+				if len(values) != 3 {
+					t.Fatalf("failed to set header, genHeader value count for %s is %d, want: 3",
+						tt.header, len(values))
+				}
+				if values[0] != "test" {
+					t.Errorf("failed to set header, genHeader value for %s is %s, want: %s", tt.header,
+						values[0], "test")
+				}
+				if values[1] != "foo" {
+					t.Errorf("failed to set header, genHeader value for %s is %s, want: %s", tt.header,
+						values[1], "foo")
+				}
+				if values[2] != "bar" {
+					t.Errorf("failed to set header, genHeader value for %s is %s, want: %s", tt.header,
+						values[1], "bar")
 				}
 			})
 		}
