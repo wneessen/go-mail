@@ -84,6 +84,41 @@ var (
 		{"1.0", MIME10, "1.0"},
 		{"1.1 (not a valid version at this time)", MIMEVersion("1.1"), "1.1"},
 	}
+	// Inspired by https://www.youtube.com/watch?v=xxX81WmXjPg&t=623s, yet, some assumptions in that video are
+	// incorrect for RFC5321/RFC5322 but rely on deprecated information from RFC822. The tests have been
+	// adjusted accordingly.
+	rfc5322Test = []struct {
+		value string
+		valid bool
+	}{
+		{"hi@domain.tld", true},
+		{"hi@", false},
+		{`hi+there@domain.tld`, true},
+		{"hi.there@domain.tld", true},
+		{"hi.@domain.tld", false},            // Point at the end of localpart is not allowed
+		{"hi..there@domain.tld", false},      // Double point is not allowed
+		{`!#$%&'(-/=?'@domain.tld`, false},   // Invalid characters
+		{"hi*there@domain.tld", true},        // * is allowed in localpart
+		{`#$%!^/&@domain.tld`, true},         // Allowed localpart characters
+		{"h(a)i@domain.tld", false},          // Not allowed to use parenthesis
+		{"(hi)there@domain.tld", false},      // The (hi) at the start is a comment which is allowed in RFC822 but not in RFC5322 anymore
+		{"hithere@domain.tld(tld)", true},    // The (tld) at the end is also a comment
+		{"hi@there@domain.tld", false},       // Can't have two @ signs
+		{`"hi@there"@domain.tld`, true},      // Quoted @-signs are allowed
+		{`"hi there"@domain.tld`, true},      // Quoted whitespaces are allowed
+		{`" "@domain.tld`, true},             // Still valid, since quoted
+		{`"<\"@\".!#%$@domain.tld"`, false},  // Quoting with illegal characters is not allowed
+		{`<\"@\\".!#%$@domain.tld`, false},   // Still a bunch of random illegal characters
+		{`hi"@"there@domain.tld`, false},     // Quotes must be dot-seperated
+		{`"<\"@\\".!.#%$@domain.tld`, false}, // Quote is escaped and dot-seperated which would be RFC822 compliant, but not RFC5322 compliant
+		{`hi\ there@domain.tld`, false},      // Spaces must be quoted
+		{`cow@[dead::beef]`, true},           // IPv6 is fine
+		{"hello@tld", true},                  // TLD is enough
+		{`你好@域名.顶级域名`, true},                 // We speak RFC6532
+		{"1@23456789", true},                 // Hypothetically valid, if somebody registers that TLD
+		{"1@[23456789]", false},              // While 23456789 is decimal for 1.101.236.21 it is not RFC5322 compliant
+		{"1@[1.101.236.21]", true},           // IPv4 is fine
+	}
 )
 
 //go:embed README.md
@@ -1109,6 +1144,71 @@ func TestMsg_EnvelopeFromFormat(t *testing.T) {
 		}
 		if err := message.EnvelopeFromFormat("", ""); err == nil {
 			t.Fatalf("EnvelopeFromFormat should fail with invalid address")
+		}
+	})
+}
+
+func TestMsg_From(t *testing.T) {
+	t.Run("From with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.From("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set envelope from: %s", err)
+		}
+		addresses, ok := message.addrHeader[HeaderFrom]
+		if !ok {
+			t.Fatalf("failed to set envelope from, addrHeader field is not set")
+		}
+		if len(addresses) != 1 {
+			t.Errorf("failed to set envelope from, addrHeader value count is: %d, want: 1", len(addresses))
+		}
+		if addresses[0].Address != "toni.tester@example.com" {
+			t.Errorf("failed to set envelope from, addrHeader value is %s, want: %s", addresses[0].Address,
+				"toni.tester@example.com")
+		}
+		if addresses[0].String() != "<toni.tester@example.com>" {
+			t.Errorf("failed to set envelope from, addrHeader value is %s, want: %s", addresses[0].String(),
+				"<toni.tester@example.com>")
+		}
+		if addresses[0].Name != "" {
+			t.Errorf("failed to set envelope from, addrHeader name is %s, want: empty", addresses[0].Name)
+		}
+	})
+	t.Run("From with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.From("invalid"); err == nil {
+			t.Fatalf("From should fail with invalid address")
+		}
+	})
+	t.Run("From with empty string should fail", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.From(""); err == nil {
+			t.Fatalf("From should fail with invalid address")
+		}
+	})
+	t.Run("From with different RFC5321 addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		for _, tt := range rfc5322Test {
+			t.Run(tt.value, func(t *testing.T) {
+				err := message.From(tt.value)
+				if err != nil && tt.valid {
+					t.Errorf("From on address %s should succeed, but failed with: %s", tt.value, err)
+				}
+				if err == nil && !tt.valid {
+					t.Errorf("From on address %s should fail, but succeeded", tt.value)
+				}
+			})
 		}
 	})
 }
