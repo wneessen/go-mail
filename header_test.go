@@ -54,8 +54,7 @@ func TestImportance_Stringer(t *testing.T) {
 	})
 }
 
-// TestAddrHeader_String tests the string method of the AddrHeader object
-func TestAddrHeader_String(t *testing.T) {
+func TestAddrHeader_Stringer(t *testing.T) {
 	tests := []struct {
 		name string
 		ah   AddrHeader
@@ -76,13 +75,13 @@ func TestAddrHeader_String(t *testing.T) {
 	}
 }
 
-// TestHeader_String tests the string method of the Header object
-func TestHeader_String(t *testing.T) {
+func TestHeader_Stringer(t *testing.T) {
 	tests := []struct {
 		name string
 		h    Header
 		want string
 	}{
+		{"Header: Content-Description", HeaderContentDescription, "Content-Description"},
 		{"Header: Content-Disposition", HeaderContentDisposition, "Content-Disposition"},
 		{"Header: Content-ID", HeaderContentID, "Content-ID"},
 		{"Header: Content-Language", HeaderContentLang, "Content-Language"},
@@ -90,6 +89,8 @@ func TestHeader_String(t *testing.T) {
 		{"Header: Content-Transfer-Encoding", HeaderContentTransferEnc, "Content-Transfer-Encoding"},
 		{"Header: Content-Type", HeaderContentType, "Content-Type"},
 		{"Header: Date", HeaderDate, "Date"},
+		{"Header: Disposition-Notification-To", HeaderDispositionNotificationTo,
+			"Disposition-Notification-To"},
 		{"Header: Importance", HeaderImportance, "Importance"},
 		{"Header: In-Reply-To", HeaderInReplyTo, "In-Reply-To"},
 		{"Header: List-Unsubscribe", HeaderListUnsubscribe, "List-Unsubscribe"},
@@ -99,10 +100,11 @@ func TestHeader_String(t *testing.T) {
 		{"Header: Organization", HeaderOrganization, "Organization"},
 		{"Header: Precedence", HeaderPrecedence, "Precedence"},
 		{"Header: Priority", HeaderPriority, "Priority"},
-		{"Header: HeaderReferences", HeaderReferences, "References"},
+		{"Header: References", HeaderReferences, "References"},
 		{"Header: Reply-To", HeaderReplyTo, "Reply-To"},
 		{"Header: Subject", HeaderSubject, "Subject"},
 		{"Header: User-Agent", HeaderUserAgent, "User-Agent"},
+		{"Header: X-Auto-Response-Suppress", HeaderXAutoResponseSuppress, "X-Auto-Response-Suppress"},
 		{"Header: X-Mailer", HeaderXMailer, "X-Mailer"},
 		{"Header: X-MSMail-Priority", HeaderXMSMailPriority, "X-MSMail-Priority"},
 		{"Header: X-Priority", HeaderXPriority, "X-Priority"},
