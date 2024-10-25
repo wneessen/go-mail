@@ -753,7 +753,16 @@ func (m *Msg) ToIgnoreInvalid(rcpts ...string) {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) ToFromString(rcpts string) error {
-	return m.To(strings.Split(rcpts, ",")...)
+	src := strings.Split(rcpts, ",")
+	var dst []string
+	for _, address := range src {
+		address = strings.TrimSpace(address)
+		if address == "" {
+			continue
+		}
+		dst = append(dst, address)
+	}
+	return m.To(dst...)
 }
 
 // Cc sets one or more "CC" (carbon copy) addresses in the mail body for the Msg.
