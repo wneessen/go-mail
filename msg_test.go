@@ -645,6 +645,40 @@ func TestMsg_SetAddrHeader(t *testing.T) {
 			})
 		}
 	})
+	t.Run("SetAddrHeader with valid address and name", func(t *testing.T) {
+		for _, tt := range addrHeaderTests {
+			t.Run(tt.name, func(t *testing.T) {
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				if err := message.SetAddrHeader(tt.header, fmt.Sprintf("%q <%s>", "Toni Tester",
+					"toni.tester@example.com")); err != nil {
+					t.Fatalf("failed to set address header, err: %s", err)
+				}
+				addresses, ok := message.addrHeader[tt.header]
+				if !ok {
+					t.Fatalf("failed to set address header, addrHeader field for %s is not set", tt.header)
+				}
+				if len(addresses) != 1 {
+					t.Fatalf("failed to set address header, addrHeader value count for %s is %d, want: 1",
+						tt.header, len(addresses))
+				}
+				if addresses[0].Address != "toni.tester@example.com" {
+					t.Errorf("failed to set address header, addrHeader value for %s is %s, want: %s", tt.header,
+						addresses[0].Address, "toni.tester@example.com")
+				}
+				if addresses[0].String() != `"Toni Tester" <toni.tester@example.com>` {
+					t.Errorf("failed to set address header, addrHeader value for %s is %s, want: %s", tt.header,
+						addresses[0].String(), `"Toni Tester" <toni.tester@example.com>`)
+				}
+				if addresses[0].Name != "Toni Tester" {
+					t.Errorf("failed to set address header, addrHeader name for %s expected to be %s, "+
+						"got: %s", tt.header, "Toni Tester", addresses[0].Name)
+				}
+			})
+		}
+	})
 	t.Run("SetAddrHeader with multiple addresses", func(t *testing.T) {
 		for _, tt := range addrHeaderTests {
 			t.Run(tt.name, func(t *testing.T) {
@@ -978,6 +1012,103 @@ func TestMsg_SetAddrHeaderIgnoreInvalid(t *testing.T) {
 						len(addresses))
 				}
 			})
+		}
+	})
+}
+
+func TestMsg_EnvelopeFrom(t *testing.T) {
+	t.Run("EnvelopeFrom with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.EnvelopeFrom("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set envelope from: %s", err)
+		}
+		addresses, ok := message.addrHeader[HeaderEnvelopeFrom]
+		if !ok {
+			t.Fatalf("failed to set envelope from, addrHeader field is not set")
+		}
+		if len(addresses) != 1 {
+			t.Errorf("failed to set envelope from, addrHeader value count is: %d, want: 1", len(addresses))
+		}
+		if addresses[0].Address != "toni.tester@example.com" {
+			t.Errorf("failed to set envelope from, addrHeader value is %s, want: %s", addresses[0].Address,
+				"toni.tester@example.com")
+		}
+		if addresses[0].String() != "<toni.tester@example.com>" {
+			t.Errorf("failed to set envelope from, addrHeader value is %s, want: %s", addresses[0].String(),
+				"<toni.tester@example.com>")
+		}
+		if addresses[0].Name != "" {
+			t.Errorf("failed to set envelope from, addrHeader name is %s, want: empty", addresses[0].Name)
+		}
+	})
+	t.Run("EnvelopeFrom with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.EnvelopeFrom("invalid"); err == nil {
+			t.Fatalf("EnvelopeFrom should fail with invalid address")
+		}
+	})
+	t.Run("EnvelopeFrom with empty string should fail", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.EnvelopeFrom(""); err == nil {
+			t.Fatalf("EnvelopeFrom should fail with invalid address")
+		}
+	})
+}
+
+func TestMsg_EnvelopeFromFormat(t *testing.T) {
+	t.Run("EnvelopeFromFormat with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.EnvelopeFromFormat("Toni Tester", "toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set envelope from: %s", err)
+		}
+		addresses, ok := message.addrHeader[HeaderEnvelopeFrom]
+		if !ok {
+			t.Fatalf("failed to set envelope from, addrHeader field is not set")
+		}
+		if len(addresses) != 1 {
+			t.Errorf("failed to set envelope from, addrHeader value count is: %d, want: 1", len(addresses))
+		}
+		if addresses[0].Address != "toni.tester@example.com" {
+			t.Errorf("failed to set envelope from, addrHeader value is %s, want: %s", addresses[0].Address,
+				"toni.tester@example.com")
+		}
+		if addresses[0].String() != `"Toni Tester" <toni.tester@example.com>` {
+			t.Errorf("failed to set envelope from, addrHeader value is %s, want: %s", addresses[0].String(),
+				"<toni.tester@example.com>")
+		}
+		if addresses[0].Name != "Toni Tester" {
+			t.Errorf("failed to set envelope from, addrHeader name is %s, want: %s", addresses[0].Name,
+				"Toni Tester")
+		}
+	})
+	t.Run("EnvelopeFromFormat with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.EnvelopeFromFormat("Toni Tester", "invalid"); err == nil {
+			t.Fatalf("EnvelopeFromFormat should fail with invalid address")
+		}
+	})
+	t.Run("EnvelopeFromFormat with empty string should fail", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.EnvelopeFromFormat("", ""); err == nil {
+			t.Fatalf("EnvelopeFromFormat should fail with invalid address")
 		}
 	})
 }
