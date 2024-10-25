@@ -45,14 +45,14 @@ var (
 		{"Header: X-Priority", HeaderXPriority, "X-Priority"},
 	}
 	addrHeaderTests = []struct {
-		name string
-		ah   AddrHeader
-		want string
+		name   string
+		header AddrHeader
+		want   string
 	}{
-		{"Address header: From", HeaderFrom, "From"},
-		{"Address header: To", HeaderTo, "To"},
-		{"Address header: Cc", HeaderCc, "Cc"},
-		{"Address header: Bcc", HeaderBcc, "Bcc"},
+		{"From", HeaderFrom, "From"},
+		{"To", HeaderTo, "To"},
+		{"Cc", HeaderCc, "Cc"},
+		{"Bcc", HeaderBcc, "Bcc"},
 	}
 )
 
@@ -64,12 +64,12 @@ func TestImportance_Stringer(t *testing.T) {
 		xprio   string
 		want    string
 	}{
-		{"Importance: Non-Urgent", ImportanceNonUrgent, "0", "5", "non-urgent"},
-		{"Importance: Low", ImportanceLow, "0", "5", "low"},
-		{"Importance: Normal", ImportanceNormal, "", "", ""},
-		{"Importance: High", ImportanceHigh, "1", "1", "high"},
-		{"Importance: Urgent", ImportanceUrgent, "1", "1", "urgent"},
-		{"Importance: Unknown", 9, "", "", ""},
+		{"Non-Urgent", ImportanceNonUrgent, "0", "5", "non-urgent"},
+		{"Low", ImportanceLow, "0", "5", "low"},
+		{"Normal", ImportanceNormal, "", "", ""},
+		{"High", ImportanceHigh, "1", "1", "high"},
+		{"Urgent", ImportanceUrgent, "1", "1", "urgent"},
+		{"Unknown", 9, "", "", ""},
 	}
 	t.Run("String", func(t *testing.T) {
 		for _, tt := range tests {
@@ -105,9 +105,9 @@ func TestImportance_Stringer(t *testing.T) {
 func TestAddrHeader_Stringer(t *testing.T) {
 	for _, tt := range addrHeaderTests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.ah.String() != tt.want {
+			if tt.header.String() != tt.want {
 				t.Errorf("wrong string for AddrHeader returned. Expected: %s, got: %s",
-					tt.want, tt.ah.String())
+					tt.want, tt.header.String())
 			}
 		})
 	}
