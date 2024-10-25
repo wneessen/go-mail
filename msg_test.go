@@ -1430,6 +1430,70 @@ func TestMsg_AddTo(t *testing.T) {
 	})
 }
 
+func TestMsg_AddToFormat(t *testing.T) {
+	t.Run("AddToFormat with valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.To("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set To: %s", err)
+		}
+		if err := message.AddToFormat("Tina Tester", "tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set additional To: %s", err)
+		}
+		addresses, ok := message.addrHeader[HeaderTo]
+		if !ok {
+			t.Fatalf("failed to set To, addrHeader field is not set")
+		}
+		if len(addresses) != 2 {
+			t.Fatalf("failed to set additional To, addrHeader value count is: %d, want: 1", len(addresses))
+		}
+		if addresses[0].Address != "toni.tester@example.com" {
+			t.Errorf("failed to set To, addrHeader value is %s, want: %s", addresses[0].Address,
+				"toni.tester@example.com")
+		}
+		if addresses[0].String() != "<toni.tester@example.com>" {
+			t.Errorf("failed to set To, addrHeader value is %s, want: %s", addresses[0].String(),
+				"<toni.tester@example.com>")
+		}
+		if addresses[0].Name != "" {
+			t.Errorf("failed to set To, addrHeader name is %s, want: empty", addresses[0].Name)
+		}
+		if addresses[1].Address != "tina.tester@example.com" {
+			t.Errorf("failed to set additional To, addrHeader value is %s, want: %s", addresses[1].Address,
+				"tina.tester@example.com")
+		}
+		if addresses[1].String() != `"Tina Tester" <tina.tester@example.com>` {
+			t.Errorf("failed to set additional To, addrHeader value is %s, want: %s", addresses[1].String(),
+				"<tina.tester@example.com>")
+		}
+		if addresses[1].Name != "Tina Tester" {
+			t.Errorf("failed to set additional To, addrHeader name is %s, want: %s", addresses[1].Name,
+				"Tina Tester")
+		}
+	})
+	t.Run("AddToFormat with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.To("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set To: %s", err)
+		}
+		if err := message.AddToFormat("Invalid", "invalid"); err == nil {
+			t.Errorf("AddToFormat should fail with invalid address")
+		}
+		addresses, ok := message.addrHeader[HeaderTo]
+		if !ok {
+			t.Fatalf("failed to set To, addrHeader field is not set")
+		}
+		if len(addresses) != 1 {
+			t.Fatalf("failed to set To, addrHeader value count is: %d, want: 1", len(addresses))
+		}
+	})
+}
+
 /*
 // TestNewMsgWithMiddleware tests WithMiddleware
 
