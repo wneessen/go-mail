@@ -5,7 +5,6 @@
 package mail
 
 import (
-	"embed"
 	"fmt"
 	"reflect"
 	"strings"
@@ -121,8 +120,10 @@ var (
 	}
 )
 
+/*
 //go:embed README.md
 var efs embed.FS
+*/
 
 func TestNewMsg(t *testing.T) {
 	t.Run("create new message", func(t *testing.T) {
@@ -1379,35 +1380,10 @@ func TestMsg_AddTo(t *testing.T) {
 		if err := message.AddTo("tina.tester@example.com"); err != nil {
 			t.Fatalf("failed to set additional To: %s", err)
 		}
-		addresses, ok := message.addrHeader[HeaderTo]
-		if !ok {
-			t.Fatalf("failed to set To, addrHeader field is not set")
-		}
-		if len(addresses) != 2 {
-			t.Fatalf("failed to set additional To, addrHeader value count is: %d, want: 1", len(addresses))
-		}
-		if addresses[0].Address != "toni.tester@example.com" {
-			t.Errorf("failed to set To, addrHeader value is %s, want: %s", addresses[0].Address,
-				"toni.tester@example.com")
-		}
-		if addresses[0].String() != "<toni.tester@example.com>" {
-			t.Errorf("failed to set To, addrHeader value is %s, want: %s", addresses[0].String(),
-				"<toni.tester@example.com>")
-		}
-		if addresses[0].Name != "" {
-			t.Errorf("failed to set To, addrHeader name is %s, want: empty", addresses[0].Name)
-		}
-		if addresses[1].Address != "tina.tester@example.com" {
-			t.Errorf("failed to set additional To, addrHeader value is %s, want: %s", addresses[1].Address,
-				"tina.tester@example.com")
-		}
-		if addresses[1].String() != "<tina.tester@example.com>" {
-			t.Errorf("failed to set additional To, addrHeader value is %s, want: %s", addresses[1].String(),
-				"<tina.tester@example.com>")
-		}
-		if addresses[1].Name != "" {
-			t.Errorf("failed to set additional To, addrHeader name is %s, want: empty", addresses[1].Name)
-		}
+		checkAddrHeader(t, message, HeaderTo, "AddTo", 0, 2,
+			"toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderTo, "AddTo", 1, 2,
+			"tina.tester@example.com", "")
 	})
 	t.Run("AddTo with invalid address", func(t *testing.T) {
 		message := NewMsg()
@@ -1420,13 +1396,8 @@ func TestMsg_AddTo(t *testing.T) {
 		if err := message.AddTo("invalid"); err == nil {
 			t.Errorf("AddTo should fail with invalid address")
 		}
-		addresses, ok := message.addrHeader[HeaderTo]
-		if !ok {
-			t.Fatalf("failed to set To, addrHeader field is not set")
-		}
-		if len(addresses) != 1 {
-			t.Fatalf("failed to set To, addrHeader value count is: %d, want: 1", len(addresses))
-		}
+		checkAddrHeader(t, message, HeaderTo, "AddTo", 0, 1,
+			"toni.tester@example.com", "")
 	})
 }
 
@@ -1442,36 +1413,10 @@ func TestMsg_AddToFormat(t *testing.T) {
 		if err := message.AddToFormat("Tina Tester", "tina.tester@example.com"); err != nil {
 			t.Fatalf("failed to set additional To: %s", err)
 		}
-		addresses, ok := message.addrHeader[HeaderTo]
-		if !ok {
-			t.Fatalf("failed to set To, addrHeader field is not set")
-		}
-		if len(addresses) != 2 {
-			t.Fatalf("failed to set additional To, addrHeader value count is: %d, want: 1", len(addresses))
-		}
-		if addresses[0].Address != "toni.tester@example.com" {
-			t.Errorf("failed to set To, addrHeader value is %s, want: %s", addresses[0].Address,
-				"toni.tester@example.com")
-		}
-		if addresses[0].String() != "<toni.tester@example.com>" {
-			t.Errorf("failed to set To, addrHeader value is %s, want: %s", addresses[0].String(),
-				"<toni.tester@example.com>")
-		}
-		if addresses[0].Name != "" {
-			t.Errorf("failed to set To, addrHeader name is %s, want: empty", addresses[0].Name)
-		}
-		if addresses[1].Address != "tina.tester@example.com" {
-			t.Errorf("failed to set additional To, addrHeader value is %s, want: %s", addresses[1].Address,
-				"tina.tester@example.com")
-		}
-		if addresses[1].String() != `"Tina Tester" <tina.tester@example.com>` {
-			t.Errorf("failed to set additional To, addrHeader value is %s, want: %s", addresses[1].String(),
-				"<tina.tester@example.com>")
-		}
-		if addresses[1].Name != "Tina Tester" {
-			t.Errorf("failed to set additional To, addrHeader name is %s, want: %s", addresses[1].Name,
-				"Tina Tester")
-		}
+		checkAddrHeader(t, message, HeaderTo, "AddToFormat", 0, 2,
+			"toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderTo, "AddToFormat", 1, 2,
+			"tina.tester@example.com", "Tina Tester")
 	})
 	t.Run("AddToFormat with invalid address", func(t *testing.T) {
 		message := NewMsg()
@@ -1484,13 +1429,8 @@ func TestMsg_AddToFormat(t *testing.T) {
 		if err := message.AddToFormat("Invalid", "invalid"); err == nil {
 			t.Errorf("AddToFormat should fail with invalid address")
 		}
-		addresses, ok := message.addrHeader[HeaderTo]
-		if !ok {
-			t.Fatalf("failed to set To, addrHeader field is not set")
-		}
-		if len(addresses) != 1 {
-			t.Fatalf("failed to set To, addrHeader value count is: %d, want: 1", len(addresses))
-		}
+		checkAddrHeader(t, message, HeaderTo, "AddToFormat", 0, 1,
+			"toni.tester@example.com", "")
 	})
 }
 
@@ -1501,24 +1441,8 @@ func TestMsg_ToIgnoreInvalid(t *testing.T) {
 			t.Fatal("message is nil")
 		}
 		message.ToIgnoreInvalid("toni.tester@example.com")
-		addresses, ok := message.addrHeader[HeaderTo]
-		if !ok {
-			t.Fatalf("failed to set ToIgnoreInvalid, addrHeader field is not set")
-		}
-		if len(addresses) != 1 {
-			t.Fatalf("failed to set ToIgnoreInvalid, addrHeader value count is: %d, want: 1", len(addresses))
-		}
-		if addresses[0].Address != "toni.tester@example.com" {
-			t.Errorf("failed to set ToIgnoreInvalid, addrHeader value is %s, want: %s", addresses[0].Address,
-				"toni.tester@example.com")
-		}
-		if addresses[0].String() != "<toni.tester@example.com>" {
-			t.Errorf("failed to set ToIgnoreInvalid, addrHeader value is %s, want: %s", addresses[0].String(),
-				"<toni.tester@example.com>")
-		}
-		if addresses[0].Name != "" {
-			t.Errorf("failed to set ToIgnoreInvalid, addrHeader name is %s, want: empty", addresses[0].Name)
-		}
+		checkAddrHeader(t, message, HeaderTo, "ToIgnoreInvalid", 0, 1,
+			"toni.tester@example.com", "")
 	})
 	t.Run("ToIgnoreInvalid with invalid address", func(t *testing.T) {
 		message := NewMsg()
@@ -1540,36 +1464,66 @@ func TestMsg_ToIgnoreInvalid(t *testing.T) {
 			t.Fatal("message is nil")
 		}
 		message.ToIgnoreInvalid("toni.tester@example.com", "invalid", "tina.tester@example.com")
-		addresses, ok := message.addrHeader[HeaderTo]
-		if !ok {
-			t.Fatalf("failed to set ToIgnoreInvalid, addrHeader field is not set")
-		}
-		if len(addresses) != 2 {
-			t.Fatalf("failed to set ToIgnoreInvalid, addrHeader value count is: %d, want: 2", len(addresses))
-		}
-		if addresses[0].Address != "toni.tester@example.com" {
-			t.Errorf("failed to set ToIgnoreInvalid, addrHeader value is %s, want: %s", addresses[0].Address,
-				"toni.tester@example.com")
-		}
-		if addresses[0].String() != "<toni.tester@example.com>" {
-			t.Errorf("failed to set ToIgnoreInvalid, addrHeader value is %s, want: %s", addresses[0].String(),
-				"<toni.tester@example.com>")
-		}
-		if addresses[0].Name != "" {
-			t.Errorf("failed to set ToIgnoreInvalid, addrHeader name is %s, want: empty", addresses[0].Name)
-		}
-		if addresses[1].Address != "tina.tester@example.com" {
-			t.Errorf("failed to set ToIgnoreInvalid, addrHeader value is %s, want: %s", addresses[1].Address,
-				"tina.tester@example.com")
-		}
-		if addresses[1].String() != "<tina.tester@example.com>" {
-			t.Errorf("failed to set ToIgnoreInvalid, addrHeader value is %s, want: %s", addresses[1].String(),
-				"<tina.tester@example.com>")
-		}
-		if addresses[1].Name != "" {
-			t.Errorf("failed to set ToIgnoreInvalid, addrHeader name is %s, want: empty", addresses[1].Name)
-		}
+		checkAddrHeader(t, message, HeaderTo, "ToIgnoreInvalid", 0, 2,
+			"toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderTo, "ToIgnoreInvalid", 1, 2,
+			"tina.tester@example.com", "")
 	})
+}
+
+func TestMsg_ToFromString(t *testing.T) {
+	t.Run("ToFromString with valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.ToFromString(`toni.tester@example.com,<tina.tester@example.com>`); err != nil {
+			t.Fatalf("failed to set ToFromString: %s", err)
+		}
+		checkAddrHeader(t, message, HeaderTo, "ToFromString", 0, 2,
+			"toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderTo, "ToFromString", 1, 2,
+			"tina.tester@example.com", "")
+	})
+	t.Run("ToFromString with valid addresses and empty fields", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.ToFromString(`toni.tester@example.com ,,<tina.tester@example.com>`); err != nil {
+			t.Fatalf("failed to set ToFromString: %s", err)
+		}
+		checkAddrHeader(t, message, HeaderTo, "ToFromString", 0, 2,
+			"toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderTo, "ToFromString", 1, 2,
+			"tina.tester@example.com", "")
+	})
+}
+
+// checkAddrHeader validates a single email address in the AddrHeader of a message.
+func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, field, wantFields int,
+	wantMail, wantName string) {
+	t.Helper()
+	addresses, ok := message.addrHeader[header]
+	if !ok {
+		t.Fatalf("failed to set %s, addrHeader field is not set", fn)
+	}
+	if len(addresses) != wantFields {
+		t.Fatalf("failed to set %s, addrHeader value count is: %d, want: %d", fn, len(addresses), field)
+	}
+	if addresses[field].Address != wantMail {
+		t.Errorf("failed to set %s, addrHeader value is %s, want: %s", fn, addresses[field].Address, wantMail)
+	}
+	wantString := fmt.Sprintf(`<%s>`, wantMail)
+	if wantName != "" {
+		wantString = fmt.Sprintf(`%q <%s>`, wantName, wantMail)
+	}
+	if addresses[field].String() != wantString {
+		t.Errorf("failed to set %s, addrHeader value is %s, want: %s", fn, addresses[field].String(), wantString)
+	}
+	if addresses[field].Name != wantName {
+		t.Errorf("failed to set %s, addrHeader name is %s, want: %s", fn, addresses[field].Name, wantName)
+	}
 }
 
 /*
