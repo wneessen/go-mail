@@ -1448,20 +1448,32 @@ func TestClient_SetSMTPAuthCustom(t *testing.T) {
 			want     string
 		}{
 			{"CRAM-MD5", smtp.CRAMMD5Auth("", ""), "*smtp.cramMD5Auth"},
-			{"LOGIN", smtp.LoginAuth("", "", "", false),
-				"*smtp.loginAuth"},
-			{"LOGIN-NOENC", smtp.LoginAuth("", "", "", true),
-				"*smtp.loginAuth"},
-			{"PLAIN", smtp.PlainAuth("", "", "", "", false),
-				"*smtp.plainAuth"},
-			{"PLAIN-NOENC", smtp.PlainAuth("", "", "", "", true),
-				"*smtp.plainAuth"},
+			{
+				"LOGIN", smtp.LoginAuth("", "", "", false),
+				"*smtp.loginAuth",
+			},
+			{
+				"LOGIN-NOENC", smtp.LoginAuth("", "", "", true),
+				"*smtp.loginAuth",
+			},
+			{
+				"PLAIN", smtp.PlainAuth("", "", "", "", false),
+				"*smtp.plainAuth",
+			},
+			{
+				"PLAIN-NOENC", smtp.PlainAuth("", "", "", "", true),
+				"*smtp.plainAuth",
+			},
 			{"SCRAM-SHA-1", smtp.ScramSHA1Auth("", ""), "*smtp.scramAuth"},
-			{"SCRAM-SHA-1-PLUS", smtp.ScramSHA1PlusAuth("", "", nil),
-				"*smtp.scramAuth"},
+			{
+				"SCRAM-SHA-1-PLUS", smtp.ScramSHA1PlusAuth("", "", nil),
+				"*smtp.scramAuth",
+			},
 			{"SCRAM-SHA-256", smtp.ScramSHA256Auth("", ""), "*smtp.scramAuth"},
-			{"SCRAM-SHA-256-PLUS", smtp.ScramSHA256PlusAuth("", "", nil),
-				"*smtp.scramAuth"},
+			{
+				"SCRAM-SHA-256-PLUS", smtp.ScramSHA256PlusAuth("", "", nil),
+				"*smtp.scramAuth",
+			},
 			{"XOAUTH2", smtp.XOAuth2Auth("", ""), "*smtp.xoauth2Auth"},
 		}
 		for _, tt := range tests {
@@ -1483,7 +1495,6 @@ func TestClient_SetSMTPAuthCustom(t *testing.T) {
 					t.Errorf("failed to set custom SMTP auth, expected auth method type: %s, got: %s",
 						tt.want, authType)
 				}
-
 			})
 		}
 	})
@@ -2305,7 +2316,6 @@ func TestClient_auth(t *testing.T) {
 			if err := client.Close(); err != nil {
 				t.Errorf("failed to close client connection: %s", err)
 			}
-
 		})
 		t.Run(tt.name+" should fail", func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
