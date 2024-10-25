@@ -583,6 +583,9 @@ func (m *Msg) SetAddrHeader(header AddrHeader, values ...string) error {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
 func (m *Msg) SetAddrHeaderIgnoreInvalid(header AddrHeader, values ...string) {
+	if m.addrHeader == nil {
+		m.addrHeader = make(map[AddrHeader][]*mail.Address)
+	}
 	var addresses []*mail.Address
 	for _, addrVal := range values {
 		address, err := mail.ParseAddress(m.encodeString(addrVal))
@@ -591,7 +594,14 @@ func (m *Msg) SetAddrHeaderIgnoreInvalid(header AddrHeader, values ...string) {
 		}
 		addresses = append(addresses, address)
 	}
-	m.addrHeader[header] = addresses
+	switch header {
+	case HeaderFrom:
+		if len(addresses) > 0 {
+			m.addrHeader[header] = []*mail.Address{addresses[0]}
+		}
+	default:
+		m.addrHeader[header] = addresses
+	}
 }
 
 // EnvelopeFrom sets the envelope from address for the Msg.
