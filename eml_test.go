@@ -901,7 +901,8 @@ func TestEMLToMsgFromReader(t *testing.T) {
 		}{
 			{
 				"RFC5322 A1.1 example mail", exampleMailRFC5322A11, EncodingUSASCII,
-				"Saying Hello"},
+				"Saying Hello",
+			},
 			{
 				"Plain text no encoding (7bit)", exampleMailPlain7Bit, EncodingUSASCII,
 				"Example mail // plain text without encoding",
@@ -1158,7 +1159,6 @@ func TestEMLToMsgFromFile(t *testing.T) {
 			t.Errorf("failed to parse EML string: want subject %s, got %s", "Saying Hello",
 				gotSubject[0])
 		}
-
 	})
 	t.Run("EMLToMsgFromFile fails on file not found", func(t *testing.T) {
 		if _, err := EMLToMsgFromFile("testdata/not-existing.eml"); err == nil {
