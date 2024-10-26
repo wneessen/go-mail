@@ -2193,6 +2193,197 @@ func TestMsg_GetSender(t *testing.T) {
 	})
 }
 
+func TestMsg_GetRecipients(t *testing.T) {
+	t.Run("GetRecipients with only to", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.To("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set to address: %s", err)
+		}
+		rcpts, err := message.GetRecipients()
+		if err != nil {
+			t.Errorf("failed to get recipients: %s", err)
+		}
+		if len(rcpts) != 1 {
+			t.Fatalf("GetRecipients: expected 1 recipient, got: %d", len(rcpts))
+		}
+		if !strings.EqualFold(rcpts[0], "toni.tester@example.com") {
+			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+				"toni.tester@example.com", rcpts[0])
+		}
+	})
+	t.Run("GetRecipients with only cc", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Cc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set cc address: %s", err)
+		}
+		rcpts, err := message.GetRecipients()
+		if err != nil {
+			t.Errorf("failed to get recipients: %s", err)
+		}
+		if len(rcpts) != 1 {
+			t.Fatalf("GetRecipients: expected 1 recipient, got: %d", len(rcpts))
+		}
+		if !strings.EqualFold(rcpts[0], "toni.tester@example.com") {
+			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+				"toni.tester@example.com", rcpts[0])
+		}
+	})
+	t.Run("GetRecipients with only bcc", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Bcc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set bcc address: %s", err)
+		}
+		rcpts, err := message.GetRecipients()
+		if err != nil {
+			t.Errorf("failed to get recipients: %s", err)
+		}
+		if len(rcpts) != 1 {
+			t.Fatalf("GetRecipients: expected 1 recipient, got: %d", len(rcpts))
+		}
+		if !strings.EqualFold(rcpts[0], "toni.tester@example.com") {
+			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+				"toni.tester@example.com", rcpts[0])
+		}
+	})
+	t.Run("GetRecipients with to and cc", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.To("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set to address: %s", err)
+		}
+		if err := message.Cc("tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set cc address: %s", err)
+		}
+		rcpts, err := message.GetRecipients()
+		if err != nil {
+			t.Errorf("failed to get recipients: %s", err)
+		}
+		if len(rcpts) != 2 {
+			t.Fatalf("GetRecipients: expected 2 recipient, got: %d", len(rcpts))
+		}
+		if !strings.EqualFold(rcpts[0], "toni.tester@example.com") {
+			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+				"toni.tester@example.com", rcpts[0])
+		}
+		if !strings.EqualFold(rcpts[1], "tina.tester@example.com") {
+			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+				"tina.tester@example.com", rcpts[1])
+		}
+	})
+	t.Run("GetRecipients with to and bcc", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.To("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set to address: %s", err)
+		}
+		if err := message.Bcc("tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set bcc address: %s", err)
+		}
+		rcpts, err := message.GetRecipients()
+		if err != nil {
+			t.Errorf("failed to get recipients: %s", err)
+		}
+		if len(rcpts) != 2 {
+			t.Fatalf("GetRecipients: expected 2 recipient, got: %d", len(rcpts))
+		}
+		if !strings.EqualFold(rcpts[0], "toni.tester@example.com") {
+			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+				"toni.tester@example.com", rcpts[0])
+		}
+		if !strings.EqualFold(rcpts[1], "tina.tester@example.com") {
+			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+				"tina.tester@example.com", rcpts[1])
+		}
+	})
+	t.Run("GetRecipients with cc and bcc", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Cc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set cc address: %s", err)
+		}
+		if err := message.Bcc("tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set bcc address: %s", err)
+		}
+		rcpts, err := message.GetRecipients()
+		if err != nil {
+			t.Errorf("failed to get recipients: %s", err)
+		}
+		if len(rcpts) != 2 {
+			t.Fatalf("GetRecipients: expected 2 recipient, got: %d", len(rcpts))
+		}
+		if !strings.EqualFold(rcpts[0], "toni.tester@example.com") {
+			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+				"toni.tester@example.com", rcpts[0])
+		}
+		if !strings.EqualFold(rcpts[1], "tina.tester@example.com") {
+			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+				"tina.tester@example.com", rcpts[1])
+		}
+	})
+	t.Run("GetRecipients with to, cc and bcc", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.To("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set to address: %s", err)
+		}
+		if err := message.Cc("tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set cc address: %s", err)
+		}
+		if err := message.Bcc("tom.tester@example.com"); err != nil {
+			t.Fatalf("failed to set bcc address: %s", err)
+		}
+		rcpts, err := message.GetRecipients()
+		if err != nil {
+			t.Errorf("failed to get recipients: %s", err)
+		}
+		if len(rcpts) != 3 {
+			t.Fatalf("GetRecipients: expected 3 recipient, got: %d", len(rcpts))
+		}
+		if !strings.EqualFold(rcpts[0], "toni.tester@example.com") {
+			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+				"toni.tester@example.com", rcpts[0])
+		}
+		if !strings.EqualFold(rcpts[1], "tina.tester@example.com") {
+			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+				"tina.tester@example.com", rcpts[1])
+		}
+		if !strings.EqualFold(rcpts[2], "tom.tester@example.com") {
+			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+				"tina.tester@example.com", rcpts[2])
+		}
+	})
+	t.Run("GetRecipients with no recipients", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		_, err := message.GetRecipients()
+		if err == nil {
+			t.Errorf("GetRecipients: expected error, got nil")
+		}
+		if !errors.Is(err, ErrNoRcptAddresses) {
+			t.Errorf("GetRecipients: expected ErrNoRcptAddresses, got: %s", err)
+		}
+	})
+}
+
 // checkAddrHeader verifies the correctness of an AddrHeader in a Msg based on the provided criteria.
 // It checks whether the AddrHeader contains the correct address, name, and number of fields.
 func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, field, wantFields int,
