@@ -1601,6 +1601,67 @@ func TestMsg_Subject(t *testing.T) {
 	}
 }
 
+func TestMsg_SetMessageID(t *testing.T) {
+	t.Run("SetMessageID randomness", func(t *testing.T) {
+		var mids []string
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		for i := 0; i < 50_000; i++ {
+			message.SetMessageID()
+			mid := message.GetMessageID()
+			mids = append(mids, mid)
+		}
+		c := make(map[string]int)
+		for i := range mids {
+			c[mids[i]]++
+		}
+		for k, v := range c {
+			if v > 1 {
+				t.Errorf("MessageID randomness not given. MessageID %q was generated %d times", k, v)
+			}
+		}
+	})
+}
+func TestMsg_GetMessageID(t *testing.T) {
+	t.Run("GetMessageID with normal IDs", func(t *testing.T) {
+		tests := []struct {
+			msgid string
+			want  string
+		}{
+			{"this.is.a.test", "<this.is.a.test>"},
+			{"12345.6789@domain.com", "<12345.6789@domain.com>"},
+			{"abcd1234@sub.domain.com", "<abcd1234@sub.domain.com>"},
+			{"uniqeID-123@domain.co.tld", "<uniqeID-123@domain.co.tld>"},
+			{"2024_10_26192300@domain.tld", "<2024_10_26192300@domain.tld>"},
+		}
+		for _, tt := range tests {
+			t.Run(tt.msgid, func(t *testing.T) {
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				message.SetMessageIDWithValue(tt.msgid)
+				msgid := message.GetMessageID()
+				if !strings.EqualFold(tt.want, msgid) {
+					t.Errorf("GetMessageID() failed. Want: %s, got: %s", tt.want, msgid)
+				}
+			})
+		}
+	})
+	t.Run("GetMessageID no messageID set should return an empty string", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		msgid := message.GetMessageID()
+		if msgid != "" {
+			t.Errorf("GetMessageID() failed. Want: empty string, got: %s", msgid)
+		}
+	})
+}
+
 // checkAddrHeader verifies the correctness of an AddrHeader in a Msg based on the provided criteria.
 // It checks whether the AddrHeader contains the correct address, name, and number of fields.
 func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, field, wantFields int,
