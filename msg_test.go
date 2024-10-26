@@ -1540,6 +1540,28 @@ func TestMsg_ReplyTo(t *testing.T) {
 	})
 }
 
+func TestMsg_ReplyToFormat(t *testing.T) {
+	t.Run("ReplyToFormat with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.ReplyToFormat("Tina Tester", "tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set ReplyTo: %s", err)
+		}
+		checkGenHeader(t, message, HeaderReplyTo, "ReplyToFormat", 0, 1, `"Tina Tester" <tina.tester@example.com>`)
+	})
+	t.Run("ReplyToFormat with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.ReplyToFormat("Invalid", "invalid"); err == nil {
+			t.Errorf("ReplyToFormat should fail with invalid address")
+		}
+	})
+}
+
 // checkAddrHeader verifies the correctness of an AddrHeader in a Msg based on the provided criteria.
 // It checks whether the AddrHeader contains the correct address, name, and number of fields.
 func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, field, wantFields int,
