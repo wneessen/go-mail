@@ -31,6 +31,7 @@ jobs:
                 go: ['1.23']
         env:
             PERFORM_ONLINE_TEST: ${{ vars.PERFORM_ONLINE_TEST }}
+            TEST_SENDMAIL: ${{ vars.TEST_SENDMAIL }}
             TEST_HOST: ${{ secrets.TEST_HOST }}
             TEST_USER: ${{ secrets.TEST_USER }}
             TEST_PASS: ${{ secrets.TEST_PASS }}
@@ -48,8 +49,9 @@ jobs:
                   check-latest: true
             - name: Install sendmail
               run: |
-                sudo apt-get -y install sendmail; which sendmail
+                apt-get -y update >/dev/null && apt-get -y upgrade >/dev/null && apt-get -y install ssmtp >/dev/null && which sendmail
             - name: Run go test
+              if: success()
               run: |
                 go test -race -shuffle=on --coverprofile=coverage.coverprofile --covermode=atomic ./...
             - name: Upload coverage to Codecov
@@ -176,9 +178,6 @@ jobs:
               with:
                   go-version: ${{ matrix.go }}
                   check-latest: true
-            - name: Install sendmail
-              run: |
-                sudo apt-get -y install sendmail; which sendmail
             - name: Run go test
               run: |
                 go test -shuffle=on -race --coverprofile=./cov.out ./...

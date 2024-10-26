@@ -16,8 +16,8 @@ import (
 
 // TestMsg_WriteToSendmailWithContext tests the WriteToSendmailWithContext() method of the Msg
 func TestMsg_WriteToSendmailWithContext(t *testing.T) {
-	if os.Getenv("TEST_SKIP_SENDMAIL") != "" {
-		t.Skipf("TEST_SKIP_SENDMAIL variable is set. Skipping sendmail test")
+	if os.Getenv("TEST_SENDMAIL") != "true" {
+		t.Skipf("TEST_SENDMAIL variable is not set. Skipping sendmail test")
 	}
 	tests := []struct {
 		name string
@@ -45,8 +45,8 @@ func TestMsg_WriteToSendmailWithContext(t *testing.T) {
 
 // TestMsg_WriteToSendmail will test the output to the local sendmail command
 func TestMsg_WriteToSendmail(t *testing.T) {
-	if os.Getenv("TEST_SKIP_SENDMAIL") != "" {
-		t.Skipf("TEST_SKIP_SENDMAIL variable is set. Skipping sendmail test")
+	if os.Getenv("TEST_SENDMAIL") != "true" {
+		t.Skipf("TEST_SENDMAIL variable is not set. Skipping sendmail test")
 	}
 	_, err := os.Stat(SendmailPath)
 	if err != nil {
