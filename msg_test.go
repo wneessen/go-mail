@@ -2642,6 +2642,432 @@ func TestMsg_GetAddrHeaderString(t *testing.T) {
 	})
 }
 
+func TestMsg_GetFrom(t *testing.T) {
+	t.Run("GetFrom with address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.From("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set from address: %s", err)
+		}
+		addresses := message.GetFrom()
+		if len(addresses) != 1 {
+			t.Fatalf("GetFrom: expected 1 address, got: %d", len(addresses))
+		}
+		if addresses[0] == nil {
+			t.Fatalf("GetFrom: expected address, got nil")
+		}
+		if addresses[0].String() != "<toni.tester@example.com>" {
+			t.Errorf("GetFrom: expected address not returned. Want: %s, got: %s",
+				"<toni.tester@example.com>", addresses[0].String())
+		}
+	})
+	t.Run("GetFrom with no address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		addresses := message.GetFrom()
+		if len(addresses) != 0 {
+			t.Errorf("GetFrom: expected 0 address, got: %d", len(addresses))
+		}
+	})
+}
+
+func TestMsg_GetFromString(t *testing.T) {
+	t.Run("GetFromString with address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.From("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set from address: %s", err)
+		}
+		addresses := message.GetFromString()
+		if len(addresses) != 1 {
+			t.Fatalf("GetFromString: expected 1 address, got: %d", len(addresses))
+		}
+		if addresses[0] == "" {
+			t.Fatalf("GetFromString: expected address, got nil")
+		}
+		if addresses[0] != "<toni.tester@example.com>" {
+			t.Errorf("GetFromString: expected address not returned. Want: %s, got: %s",
+				"<toni.tester@example.com>", addresses[0])
+		}
+	})
+	t.Run("GetFromString with no address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		addresses := message.GetFromString()
+		if len(addresses) != 0 {
+			t.Errorf("GetFrom: expected 0 address, got: %d", len(addresses))
+		}
+	})
+}
+
+func TestMsg_GetTo(t *testing.T) {
+	t.Run("GetTo with address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.To("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set from address: %s", err)
+		}
+		addresses := message.GetTo()
+		if len(addresses) != 1 {
+			t.Fatalf("GetTo: expected 1 address, got: %d", len(addresses))
+		}
+		if addresses[0] == nil {
+			t.Fatalf("GetTo: expected address, got nil")
+		}
+		if addresses[0].String() != "<toni.tester@example.com>" {
+			t.Errorf("GetTo: expected address not returned. Want: %s, got: %s",
+				"<toni.tester@example.com>", addresses[0].String())
+		}
+	})
+	t.Run("GetTo with multiple address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.To("toni.tester@example.com", "tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set from address: %s", err)
+		}
+		addresses := message.GetTo()
+		if len(addresses) != 2 {
+			t.Fatalf("GetTo: expected 2 address, got: %d", len(addresses))
+		}
+		if addresses[0] == nil {
+			t.Fatalf("GetTo: expected address, got nil")
+		}
+		if addresses[0].String() != "<toni.tester@example.com>" {
+			t.Errorf("GetTo: expected address not returned. Want: %s, got: %s",
+				"<toni.tester@example.com>", addresses[0].String())
+		}
+		if addresses[1] == nil {
+			t.Fatalf("GetTo: expected address, got nil")
+		}
+		if addresses[1].String() != "<tina.tester@example.com>" {
+			t.Errorf("GetTo: expected address not returned. Want: %s, got: %s",
+				"<tina.tester@example.com>", addresses[1].String())
+		}
+	})
+	t.Run("GetTo with no address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		addresses := message.GetTo()
+		if len(addresses) != 0 {
+			t.Errorf("GetTo: expected 0 address, got: %d", len(addresses))
+		}
+	})
+}
+
+func TestMsg_GetToString(t *testing.T) {
+	t.Run("GetToString with address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.To("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set from address: %s", err)
+		}
+		addresses := message.GetToString()
+		if len(addresses) != 1 {
+			t.Fatalf("GetToString: expected 1 address, got: %d", len(addresses))
+		}
+		if addresses[0] == "" {
+			t.Fatalf("GetToString: expected address, got nil")
+		}
+		if addresses[0] != "<toni.tester@example.com>" {
+			t.Errorf("GetToString: expected address not returned. Want: %s, got: %s",
+				"<toni.tester@example.com>", addresses[0])
+		}
+	})
+	t.Run("GetToString with multiple address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.To("toni.tester@example.com", "tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set from address: %s", err)
+		}
+		addresses := message.GetToString()
+		if len(addresses) != 2 {
+			t.Fatalf("GetToString: expected 2 address, got: %d", len(addresses))
+		}
+		if addresses[0] == "" {
+			t.Fatalf("GetToString: expected address, got nil")
+		}
+		if addresses[0] != "<toni.tester@example.com>" {
+			t.Errorf("GetToString: expected address not returned. Want: %s, got: %s",
+				"<toni.tester@example.com>", addresses[0])
+		}
+		if addresses[1] == "" {
+			t.Fatalf("GetToString: expected address, got nil")
+		}
+		if addresses[1] != "<tina.tester@example.com>" {
+			t.Errorf("GetToString: expected address not returned. Want: %s, got: %s",
+				"<tina.tester@example.com>", addresses[1])
+		}
+	})
+	t.Run("GetToString with no address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		addresses := message.GetToString()
+		if len(addresses) != 0 {
+			t.Errorf("GetTo: expected 0 address, got: %d", len(addresses))
+		}
+	})
+}
+
+func TestMsg_GetCc(t *testing.T) {
+	t.Run("GetCc with address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Cc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set from address: %s", err)
+		}
+		addresses := message.GetCc()
+		if len(addresses) != 1 {
+			t.Fatalf("GetCc: expected 1 address, got: %d", len(addresses))
+		}
+		if addresses[0] == nil {
+			t.Fatalf("GetCc: expected address, got nil")
+		}
+		if addresses[0].String() != "<toni.tester@example.com>" {
+			t.Errorf("GetCc: expected address not returned. Want: %s, got: %s",
+				"<toni.tester@example.com>", addresses[0].String())
+		}
+	})
+	t.Run("GetCc with multiple address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Cc("toni.tester@example.com", "tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set from address: %s", err)
+		}
+		addresses := message.GetCc()
+		if len(addresses) != 2 {
+			t.Fatalf("GetCc: expected 2 address, got: %d", len(addresses))
+		}
+		if addresses[0] == nil {
+			t.Fatalf("GetCc: expected address, got nil")
+		}
+		if addresses[0].String() != "<toni.tester@example.com>" {
+			t.Errorf("GetCc: expected address not returned. Want: %s, got: %s",
+				"<toni.tester@example.com>", addresses[0].String())
+		}
+		if addresses[1] == nil {
+			t.Fatalf("GetCc: expected address, got nil")
+		}
+		if addresses[1].String() != "<tina.tester@example.com>" {
+			t.Errorf("GetCc: expected address not returned. Want: %s, got: %s",
+				"<tina.tester@example.com>", addresses[1].String())
+		}
+	})
+	t.Run("GetCc with no address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		addresses := message.GetCc()
+		if len(addresses) != 0 {
+			t.Errorf("GetCc: expected 0 address, got: %d", len(addresses))
+		}
+	})
+}
+
+func TestMsg_GetCcString(t *testing.T) {
+	t.Run("GetCcString with address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Cc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set from address: %s", err)
+		}
+		addresses := message.GetCcString()
+		if len(addresses) != 1 {
+			t.Fatalf("GetCcString: expected 1 address, got: %d", len(addresses))
+		}
+		if addresses[0] == "" {
+			t.Fatalf("GetCcString: expected address, got nil")
+		}
+		if addresses[0] != "<toni.tester@example.com>" {
+			t.Errorf("GetCcString: expected address not returned. Want: %s, got: %s",
+				"<toni.tester@example.com>", addresses[0])
+		}
+	})
+	t.Run("GetCcString with multiple address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Cc("toni.tester@example.com", "tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set from address: %s", err)
+		}
+		addresses := message.GetCcString()
+		if len(addresses) != 2 {
+			t.Fatalf("GetCcString: expected 2 address, got: %d", len(addresses))
+		}
+		if addresses[0] == "" {
+			t.Fatalf("GetCcString: expected address, got nil")
+		}
+		if addresses[0] != "<toni.tester@example.com>" {
+			t.Errorf("GetCcString: expected address not returned. Want: %s, got: %s",
+				"<toni.tester@example.com>", addresses[0])
+		}
+		if addresses[1] == "" {
+			t.Fatalf("GetCcString: expected address, got nil")
+		}
+		if addresses[1] != "<tina.tester@example.com>" {
+			t.Errorf("GetCcString: expected address not returned. Want: %s, got: %s",
+				"<tina.tester@example.com>", addresses[1])
+		}
+	})
+	t.Run("GetCcString with no address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		addresses := message.GetCcString()
+		if len(addresses) != 0 {
+			t.Errorf("GetTo: expected 0 address, got: %d", len(addresses))
+		}
+	})
+}
+
+func TestMsg_GetBcc(t *testing.T) {
+	t.Run("GetBcc with address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Bcc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set from address: %s", err)
+		}
+		addresses := message.GetBcc()
+		if len(addresses) != 1 {
+			t.Fatalf("GetBcc: expected 1 address, got: %d", len(addresses))
+		}
+		if addresses[0] == nil {
+			t.Fatalf("GetBcc: expected address, got nil")
+		}
+		if addresses[0].String() != "<toni.tester@example.com>" {
+			t.Errorf("GetBcc: expected address not returned. Want: %s, got: %s",
+				"<toni.tester@example.com>", addresses[0].String())
+		}
+	})
+	t.Run("GetBcc with multiple address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Bcc("toni.tester@example.com", "tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set from address: %s", err)
+		}
+		addresses := message.GetBcc()
+		if len(addresses) != 2 {
+			t.Fatalf("GetBcc: expected 2 address, got: %d", len(addresses))
+		}
+		if addresses[0] == nil {
+			t.Fatalf("GetBcc: expected address, got nil")
+		}
+		if addresses[0].String() != "<toni.tester@example.com>" {
+			t.Errorf("GetBcc: expected address not returned. Want: %s, got: %s",
+				"<toni.tester@example.com>", addresses[0].String())
+		}
+		if addresses[1] == nil {
+			t.Fatalf("GetBcc: expected address, got nil")
+		}
+		if addresses[1].String() != "<tina.tester@example.com>" {
+			t.Errorf("GetBcc: expected address not returned. Want: %s, got: %s",
+				"<tina.tester@example.com>", addresses[1].String())
+		}
+	})
+	t.Run("GetBcc with no address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		addresses := message.GetBcc()
+		if len(addresses) != 0 {
+			t.Errorf("GetBcc: expected 0 address, got: %d", len(addresses))
+		}
+	})
+}
+
+func TestMsg_GetBccString(t *testing.T) {
+	t.Run("GetBccString with address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Bcc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set from address: %s", err)
+		}
+		addresses := message.GetBccString()
+		if len(addresses) != 1 {
+			t.Fatalf("GetBccString: expected 1 address, got: %d", len(addresses))
+		}
+		if addresses[0] == "" {
+			t.Fatalf("GetBccString: expected address, got nil")
+		}
+		if addresses[0] != "<toni.tester@example.com>" {
+			t.Errorf("GetBccString: expected address not returned. Want: %s, got: %s",
+				"<toni.tester@example.com>", addresses[0])
+		}
+	})
+	t.Run("GetBccString with multiple address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Bcc("toni.tester@example.com", "tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set from address: %s", err)
+		}
+		addresses := message.GetBccString()
+		if len(addresses) != 2 {
+			t.Fatalf("GetBccString: expected 2 address, got: %d", len(addresses))
+		}
+		if addresses[0] == "" {
+			t.Fatalf("GetBccString: expected address, got nil")
+		}
+		if addresses[0] != "<toni.tester@example.com>" {
+			t.Errorf("GetBccString: expected address not returned. Want: %s, got: %s",
+				"<toni.tester@example.com>", addresses[0])
+		}
+		if addresses[1] == "" {
+			t.Fatalf("GetBccString: expected address, got nil")
+		}
+		if addresses[1] != "<tina.tester@example.com>" {
+			t.Errorf("GetBccString: expected address not returned. Want: %s, got: %s",
+				"<tina.tester@example.com>", addresses[1])
+		}
+	})
+	t.Run("GetBccString with no address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		addresses := message.GetBccString()
+		if len(addresses) != 0 {
+			t.Errorf("GetTo: expected 0 address, got: %d", len(addresses))
+		}
+	})
+}
+
 // checkAddrHeader verifies the correctness of an AddrHeader in a Msg based on the provided criteria.
 // It checks whether the AddrHeader contains the correct address, name, and number of fields.
 func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, field, wantFields int,
@@ -2734,276 +3160,6 @@ func checkGenHeader(t *testing.T, message *Msg, header Header, fn string, field,
 					t.Errorf("applyMiddlewares() method failed. Expected: %s, got: %s", tt.want, s[0])
 				}
 			})
-		}
-	}
-
-
-
-	func TestMsg_GetRecipients(t *testing.T) {
-		a := []string{"to@example.com", "cc@example.com", "bcc@example.com"}
-		m := NewMsg()
-
-		_, err := m.GetRecipients()
-		if err == nil {
-			t.Errorf("GetRecipients() succeeded but was expected to fail")
-			return
-		}
-
-		if err := m.AddTo(a[0]); err != nil {
-			t.Errorf("AddTo() failed: %s", err)
-			return
-		}
-		if err := m.AddCc(a[1]); err != nil {
-			t.Errorf("AddCc() failed: %s", err)
-			return
-		}
-		if err := m.AddBcc(a[2]); err != nil {
-			t.Errorf("AddBcc() failed: %s", err)
-			return
-		}
-
-		al, err := m.GetRecipients()
-		if err != nil {
-			t.Errorf("GetRecipients() failed: %s", err)
-			return
-		}
-
-		tf, cf, bf := false, false, false
-		for _, r := range al {
-			if r == a[0] {
-				tf = true
-			}
-			if r == a[1] {
-				cf = true
-			}
-			if r == a[2] {
-				bf = true
-			}
-		}
-		if !tf {
-			t.Errorf("GetRecipients() failed. Expected to address %s but was not found", a[0])
-			return
-		}
-		if !cf {
-			t.Errorf("GetRecipients() failed. Expected cc address %s but was not found", a[1])
-			return
-		}
-		if !bf {
-			t.Errorf("GetRecipients() failed. Expected bcc address %s but was not found", a[2])
-			return
-		}
-	}
-
-// TestMsg_SetImportance tests the Msg.SetImportance method
-
-	func TestMsg_SetImportance(t *testing.T) {
-		tests := []struct {
-			name   string
-			imp    Importance
-			wantns string
-			xprio  string
-			want   string
-			sf     bool
-		}{
-			{"Importance: Non-Urgent", ImportanceNonUrgent, "0", "5", "non-urgent", false},
-			{"Importance: Low", ImportanceLow, "0", "5", "low", false},
-			{"Importance: Normal", ImportanceNormal, "", "", "", true},
-			{"Importance: High", ImportanceHigh, "1", "1", "high", false},
-			{"Importance: Urgent", ImportanceUrgent, "1", "1", "urgent", false},
-			{"Importance: Unknown", 9, "", "", "", true},
-		}
-		m := NewMsg()
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				m.SetImportance(tt.imp)
-				hi, ok := m.genHeader[HeaderImportance]
-				if (!ok || len(hi) <= 0) && !tt.sf {
-					t.Errorf("SetImportance() method failed. Generic header for Importance is empty")
-				}
-				hp, ok := m.genHeader[HeaderPriority]
-				if (!ok || len(hp) <= 0) && !tt.sf {
-					t.Errorf("SetImportance() method failed. Generic header for Priority is empty")
-				}
-				hx, ok := m.genHeader[HeaderXPriority]
-				if (!ok || len(hx) <= 0) && !tt.sf {
-					t.Errorf("SetImportance() method failed. Generic header for X-Priority is empty")
-				}
-				hm, ok := m.genHeader[HeaderXMSMailPriority]
-				if (!ok || len(hm) <= 0) && !tt.sf {
-					t.Errorf("SetImportance() method failed. Generic header for X-MS-XPriority is empty")
-				}
-				if !tt.sf {
-					if hi[0] != tt.want {
-						t.Errorf("SetImportance() method failed. Expected Imporance: %s, got: %s", tt.want, hi[0])
-					}
-					if hp[0] != tt.wantns {
-						t.Errorf("SetImportance() method failed. Expected Priority: %s, got: %s", tt.want, hp[0])
-					}
-					if hx[0] != tt.xprio {
-						t.Errorf("SetImportance() method failed. Expected X-Priority: %s, got: %s", tt.want, hx[0])
-					}
-					if hm[0] != tt.wantns {
-						t.Errorf("SetImportance() method failed. Expected X-MS-Priority: %s, got: %s", tt.wantns, hm[0])
-					}
-				}
-				m.genHeader = nil
-				m.genHeader = make(map[Header][]string)
-			})
-		}
-	}
-
-// TestMsg_SetOrganization tests the Msg.SetOrganization method
-
-	func TestMsg_SetOrganization(t *testing.T) {
-		tests := []struct {
-			name string
-			org  string
-		}{
-			{"Org: testcorp", "testcorp"},
-		}
-		m := NewMsg()
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				m.SetOrganization(tt.org)
-				o, ok := m.genHeader[HeaderOrganization]
-				if !ok || len(o) <= 0 {
-					t.Errorf("SetOrganization() method failed. Generic header for Organization is empty")
-					return
-				}
-				if o[0] != tt.org {
-					t.Errorf("SetOrganization() method failed. Expected: %s, got: %s", tt.org, o[0])
-				}
-			})
-		}
-	}
-
-// TestMsg_SetUserAgent tests the Msg.SetUserAgent method
-
-	func TestMsg_SetUserAgent(t *testing.T) {
-		tests := []struct {
-			name string
-			ua   string
-		}{
-			{"UA: Testmail 1.0", "Testmailer 1.0"},
-		}
-		m := NewMsg()
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				m.SetUserAgent(tt.ua)
-				xm, ok := m.genHeader[HeaderXMailer]
-				if !ok || len(xm) <= 0 {
-					t.Errorf("SetUserAgent() method failed. Generic header for X-Mailer is empty")
-					return
-				}
-				ua, ok := m.genHeader[HeaderUserAgent]
-				if !ok || len(ua) <= 0 {
-					t.Errorf("SetUserAgent() method failed. Generic header for UserAgent is empty")
-					return
-				}
-				if xm[0] != tt.ua {
-					t.Errorf("SetUserAgent() method failed. Expected X-Mailer: %s, got: %s", tt.ua, xm[0])
-				}
-				if ua[0] != tt.ua {
-					t.Errorf("SetUserAgent() method failed. Expected User-Agent: %s, got: %s", tt.ua, ua[0])
-				}
-			})
-		}
-	}
-
-// TestMsg_RequestMDN tests the different RequestMDN* related methods of Msg
-
-	func TestMsg_RequestMDN(t *testing.T) {
-		n := "Toni Tester"
-		n2 := "Melanie Tester"
-		v := "toni.tester@example.com"
-		v2 := "melanie.tester@example.com"
-		iv := "testertest.tld"
-		vl := []string{v, v2}
-		m := NewMsg()
-
-		// Single valid address
-		if err := m.RequestMDNTo(v); err != nil {
-			t.Errorf("RequestMDNTo with a single valid address failed: %s", err)
-		}
-		if val := m.genHeader[HeaderDispositionNotificationTo]; len(val) > 1 {
-			if val[0] != fmt.Sprintf("<%s>", v) {
-				t.Errorf("RequestMDNTo with a single valid address failed. Expected: %s, got: %s", v,
-					val[0])
-			}
-		}
-		m.Reset()
-
-		// Multiples valid addresses
-		if err := m.RequestMDNTo(vl...); err != nil {
-			t.Errorf("RequestMDNTo with a multiple valid address failed: %s", err)
-		}
-		if val := m.genHeader[HeaderDispositionNotificationTo]; len(val) > 0 {
-			if val[0] != fmt.Sprintf("<%s>", v) {
-				t.Errorf("RequestMDNTo with a multiple valid addresses failed. Expected 0: %s, got 0: %s", v,
-					val[0])
-			}
-		}
-		if val := m.genHeader[HeaderDispositionNotificationTo]; len(val) > 1 {
-			if val[1] != fmt.Sprintf("<%s>", v2) {
-				t.Errorf("RequestMDNTo with a multiple valid addresses failed. Expected 1: %s, got 1: %s", v2,
-					val[1])
-			}
-		}
-		m.Reset()
-
-		// Invalid address
-		if err := m.RequestMDNTo(iv); err == nil {
-			t.Errorf("RequestMDNTo with an invalid address was supposed to failed, but didn't")
-		}
-		m.Reset()
-
-		// Single valid addresses + AddTo
-		if err := m.RequestMDNTo(v); err != nil {
-			t.Errorf("RequestMDNTo with a single valid address failed: %s", err)
-		}
-		if err := m.RequestMDNAddTo(v2); err != nil {
-			t.Errorf("RequestMDNAddTo with a valid address failed: %s", err)
-		}
-		if val := m.genHeader[HeaderDispositionNotificationTo]; len(val) > 1 {
-			if val[1] != fmt.Sprintf("<%s>", v2) {
-				t.Errorf("RequestMDNTo with a multiple valid addresses failed. Expected 1: %s, got 1: %s", v2,
-					val[1])
-			}
-		}
-		m.Reset()
-
-		// Single valid address formated + AddToFromat
-		if err := m.RequestMDNToFormat(n, v); err != nil {
-			t.Errorf("RequestMDNToFormat with a single valid address failed: %s", err)
-		}
-		if val := m.genHeader[HeaderDispositionNotificationTo]; len(val) > 0 {
-			if val[0] != fmt.Sprintf(`"%s" <%s>`, n, v) {
-				t.Errorf(`RequestMDNToFormat with a single valid address failed. Expected: "%s" <%s>, got: %s`, n, v,
-					val[0])
-			}
-		}
-		if err := m.RequestMDNAddToFormat(n2, v2); err != nil {
-			t.Errorf("RequestMDNAddToFormat with a valid address failed: %s", err)
-		}
-		if val := m.genHeader[HeaderDispositionNotificationTo]; len(val) > 1 {
-			if val[1] != fmt.Sprintf(`"%s" <%s>`, n2, v2) {
-				t.Errorf(`RequestMDNAddToFormat with a single valid address failed. Expected: "%s" <%s>, got: %s`, n2, v2,
-					val[1])
-			}
-		}
-		m.Reset()
-
-		// Invalid formated address
-		if err := m.RequestMDNToFormat(n, iv); err == nil {
-			t.Errorf("RequestMDNToFormat with an invalid address was supposed to failed, but didn't")
-		}
-
-		// Invalid address AddTo + AddToFormat
-		if err := m.RequestMDNAddTo(iv); err == nil {
-			t.Errorf("RequestMDNAddTo with an invalid address was supposed to failed, but didn't")
-		}
-		if err := m.RequestMDNAddToFormat(n, iv); err == nil {
-			t.Errorf("RequestMDNAddToFormat with an invalid address was supposed to failed, but didn't")
 		}
 	}
 
