@@ -3527,6 +3527,9 @@ func parseJSONLog(t *testing.T, buf *bytes.Buffer) logData {
 func testMessage(t *testing.T) *Msg {
 	t.Helper()
 	message := NewMsg()
+	if message == nil {
+		t.Fatal("failed to create new message")
+	}
 	if err := message.From(TestSenderValid); err != nil {
 		t.Errorf("failed to set sender address: %s", err)
 	}
