@@ -5,7 +5,10 @@
 package mail
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"net"
 	"reflect"
 	"strings"
 	"testing"
@@ -1740,6 +1743,178 @@ func TestMsg_SetDateWithValue(t *testing.T) {
 	})
 }
 
+func TestMsg_SetImportance(t *testing.T) {
+	tests := []struct {
+		name       string
+		importance Importance
+	}{
+		{"Non-Urgent", ImportanceNonUrgent},
+		{"Low", ImportanceLow},
+		{"Normal", ImportanceNormal},
+		{"High", ImportanceHigh},
+		{"Urgent", ImportanceUrgent},
+		{"Unknown", 9},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			message := NewMsg()
+			if message == nil {
+				t.Fatal("message is nil")
+			}
+			message.SetImportance(tt.importance)
+			if tt.importance == ImportanceNormal {
+				t.Skip("ImportanceNormal is does currently not set any values")
+			}
+			checkGenHeader(t, message, HeaderImportance, "SetImportance", 0, 1, tt.importance.String())
+			checkGenHeader(t, message, HeaderPriority, "SetImportance", 0, 1, tt.importance.NumString())
+			checkGenHeader(t, message, HeaderXPriority, "SetImportance", 0, 1, tt.importance.XPrioString())
+			checkGenHeader(t, message, HeaderXMSMailPriority, "SetImportance", 0, 1, tt.importance.NumString())
+		})
+	}
+}
+
+func TestMsg_SetOrganization(t *testing.T) {
+	message := NewMsg()
+	if message == nil {
+		t.Fatal("message is nil")
+	}
+	message.SetOrganization("ACME Inc.")
+	checkGenHeader(t, message, HeaderOrganization, "SetOrganization", 0, 1, "ACME Inc.")
+}
+
+func TestMsg_SetUserAgent(t *testing.T) {
+	t.Run("SetUserAgent with value", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.SetUserAgent("go-mail test suite")
+		checkGenHeader(t, message, HeaderUserAgent, "SetUserAgent", 0, 1, "go-mail test suite")
+		checkGenHeader(t, message, HeaderXMailer, "SetUserAgent", 0, 1, "go-mail test suite")
+	})
+	t.Run("Message without SetUserAgent should provide default agent", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		want := fmt.Sprintf("go-mail v%s // https://github.com/wneessen/go-mail", VERSION)
+		message.checkUserAgent()
+		checkGenHeader(t, message, HeaderUserAgent, "SetUserAgent", 0, 1, want)
+		checkGenHeader(t, message, HeaderXMailer, "SetUserAgent", 0, 1, want)
+	})
+}
+
+func TestMsg_IsDelivered(t *testing.T) {
+	t.Run("IsDelivered on unsent message", func(t *testing.T) {
+		message := testMessage(t)
+		if message.IsDelivered() {
+			t.Error("IsDelivered on unsent message should return false")
+		}
+	})
+	t.Run("IsDelivered on sent message", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+
+		message := testMessage(t)
+		if err = client.DialAndSend(message); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+
+		if !message.IsDelivered() {
+			t.Error("IsDelivered on sent message should return true")
+		}
+	})
+	t.Run("IsDelivered on failed message delivery (DATA close)", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnDataClose: true,
+				FeatureSet:      featureSet,
+				ListenPort:      serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+
+		message := testMessage(t)
+		if err = client.DialAndSend(message); err == nil {
+			t.Error("message delivery was supposed to fail on data close")
+		}
+		if message.IsDelivered() {
+			t.Error("IsDelivered on failed message delivery should return false")
+		}
+	})
+	t.Run("IsDelivered on failed message delivery (final RESET)", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnReset: true,
+				FeatureSet:  featureSet,
+				ListenPort:  serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+
+		message := testMessage(t)
+		if err = client.DialAndSend(message); err == nil {
+			t.Error("message delivery was supposed to fail on data close")
+		}
+		if !message.IsDelivered() {
+			t.Error("IsDelivered on sent message should return true")
+		}
+	})
+}
+
 // checkAddrHeader verifies the correctness of an AddrHeader in a Msg based on the provided criteria.
 // It checks whether the AddrHeader contains the correct address, name, and number of fields.
 func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, field, wantFields int,
@@ -1835,112 +2010,6 @@ func checkGenHeader(t *testing.T, message *Msg, header Header, fn string, field,
 		}
 	}
 
-// TestMsg_SetDate tests the Msg.SetDate and Msg.SetDateWithValue method
-
-	func TestMsg_SetDate(t *testing.T) {
-		m := NewMsg()
-		m.SetDate()
-		if m.genHeader[HeaderDate] == nil {
-			t.Errorf("SetDate() failed. Date header is nil")
-			return
-		}
-		d, ok := m.genHeader[HeaderDate]
-		if !ok {
-			t.Errorf("failed to get date header")
-			return
-		}
-		_, err := time.Parse(time.RFC1123Z, d[0])
-		if err != nil {
-			t.Errorf("failed to parse time in date header: %s", err)
-		}
-		m.genHeader = nil
-		m.genHeader = make(map[Header][]string)
-
-		now := time.Now()
-		m.SetDateWithValue(now)
-		if m.genHeader[HeaderDate] == nil {
-			t.Errorf("SetDateWithValue() failed. Date header is nil")
-			return
-		}
-		d, ok = m.genHeader[HeaderDate]
-		if !ok {
-			t.Errorf("failed to get date header")
-			return
-		}
-		pt, err := time.Parse(time.RFC1123Z, d[0])
-		if err != nil {
-			t.Errorf("failed to parse time in date header: %s", err)
-		}
-		if pt.Unix() != now.Unix() {
-			t.Errorf("SetDateWithValue() failed. Expected time: %d, got: %d", now.Unix(),
-				pt.Unix())
-		}
-	}
-
-// TestMsg_SetMessageIDWIthValue tests the Msg.SetMessageIDWithValue and Msg.SetMessageID methods
-
-	func TestMsg_SetMessageIDWithValue(t *testing.T) {
-		m := NewMsg()
-		m.SetMessageID()
-		if m.genHeader[HeaderMessageID] == nil {
-			t.Errorf("SetMessageID() failed. MessageID header is nil")
-			return
-		}
-		if m.genHeader[HeaderMessageID][0] == "" {
-			t.Errorf("SetMessageID() failed. Expected value, got: empty")
-			return
-		}
-		if _, ok := m.genHeader[HeaderMessageID]; ok {
-			m.genHeader[HeaderMessageID] = nil
-		}
-		v := "This.is.a.message.id"
-		vf := "<This.is.a.message.id>"
-		m.SetMessageIDWithValue(v)
-		if m.genHeader[HeaderMessageID] == nil {
-			t.Errorf("SetMessageIDWithValue() failed. MessageID header is nil")
-			return
-		}
-		if m.genHeader[HeaderMessageID][0] != vf {
-			t.Errorf("SetMessageIDWithValue() failed. Expected: %s, got: %s", vf, m.genHeader[HeaderMessageID][0])
-			return
-		}
-	}
-
-// TestMsg_SetMessageIDRandomness tests the randomness of Msg.SetMessageID methods
-
-	func TestMsg_SetMessageIDRandomness(t *testing.T) {
-		var mids []string
-		m := NewMsg()
-		for i := 0; i < 50_000; i++ {
-			m.SetMessageID()
-			mid := m.GetMessageID()
-			mids = append(mids, mid)
-		}
-		c := make(map[string]int)
-		for i := range mids {
-			c[mids[i]]++
-		}
-		for k, v := range c {
-			if v > 1 {
-				t.Errorf("MessageID randomness not given. MessageID %q was generated %d times", k, v)
-			}
-		}
-	}
-
-	func TestMsg_GetMessageID(t *testing.T) {
-		expected := "this.is.a.message.id"
-		msg := NewMsg()
-		msg.SetMessageIDWithValue(expected)
-		val := msg.GetMessageID()
-		if !strings.EqualFold(val, fmt.Sprintf("<%s>", expected)) {
-			t.Errorf("GetMessageID() failed. Expected: %s, got: %s", fmt.Sprintf("<%s>", expected), val)
-		}
-		msg.genHeader[HeaderMessageID] = nil
-		val = msg.GetMessageID()
-		if val != "" {
-			t.Errorf("GetMessageID() failed. Expected empty string, got: %s", val)
-		}
-	}
 
 
 	func TestMsg_GetRecipients(t *testing.T) {
