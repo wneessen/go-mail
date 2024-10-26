@@ -1314,6 +1314,184 @@ func TestMsg_CcFromString(t *testing.T) {
 	})
 }
 
+func TestMsg_Bcc(t *testing.T) {
+	t.Run("Bcc with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Bcc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set Bcc: %s", err)
+		}
+		checkAddrHeader(t, message, HeaderBcc, "Bcc", 0, 1, "toni.tester@example.com", "")
+	})
+	t.Run("Bcc with multiple valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Bcc("toni.tester@example.com", "tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set Bcc: %s", err)
+		}
+		checkAddrHeader(t, message, HeaderBcc, "Bcc", 0, 2, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderBcc, "Bcc", 1, 2, "tina.tester@example.com", "")
+	})
+	t.Run("Bcc with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Bcc("invalid"); err == nil {
+			t.Fatalf("Bcc should fail with invalid address")
+		}
+	})
+	t.Run("Bcc with empty string should fail", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Bcc(""); err == nil {
+			t.Fatalf("Bcc should fail with invalid address")
+		}
+	})
+	t.Run("Bcc with different RFC5322 addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		for _, tt := range rfc5322Test {
+			t.Run(tt.value, func(t *testing.T) {
+				err := message.Bcc(tt.value)
+				if err != nil && tt.valid {
+					t.Errorf("Bcc on address %s should succeed, but failed with: %s", tt.value, err)
+				}
+				if err == nil && !tt.valid {
+					t.Errorf("Bcc on address %s should fail, but succeeded", tt.value)
+				}
+			})
+		}
+	})
+}
+
+func TestMsg_AddBcc(t *testing.T) {
+	t.Run("AddBcc with valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Bcc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set Bcc: %s", err)
+		}
+		if err := message.AddBcc("tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set additional Bcc: %s", err)
+		}
+		checkAddrHeader(t, message, HeaderBcc, "AddBcc", 0, 2, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderBcc, "AddBcc", 1, 2, "tina.tester@example.com", "")
+	})
+	t.Run("AddBcc with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Bcc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set Bcc: %s", err)
+		}
+		if err := message.AddBcc("invalid"); err == nil {
+			t.Errorf("AddBcc should fail with invalid address")
+		}
+		checkAddrHeader(t, message, HeaderBcc, "AddBcc", 0, 1, "toni.tester@example.com", "")
+	})
+}
+
+func TestMsg_AddBccFormat(t *testing.T) {
+	t.Run("AddBccFormat with valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Bcc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set Bcc: %s", err)
+		}
+		if err := message.AddBccFormat("Tina Tester", "tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set additional Bcc: %s", err)
+		}
+		checkAddrHeader(t, message, HeaderBcc, "AddBccFormat", 0, 2, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderBcc, "AddBccFormat", 1, 2, "tina.tester@example.com", "Tina Tester")
+	})
+	t.Run("AddBccFormat with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Bcc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set Bcc: %s", err)
+		}
+		if err := message.AddBccFormat("Invalid", "invalid"); err == nil {
+			t.Errorf("AddBccFormat should fail with invalid address")
+		}
+		checkAddrHeader(t, message, HeaderBcc, "AddBccFormat", 0, 1, "toni.tester@example.com", "")
+	})
+}
+
+func TestMsg_BccIgnoreInvalid(t *testing.T) {
+	t.Run("BccIgnoreInvalid with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.BccIgnoreInvalid("toni.tester@example.com")
+		checkAddrHeader(t, message, HeaderBcc, "BccIgnoreInvalid", 0, 1, "toni.tester@example.com", "")
+	})
+	t.Run("BccIgnoreInvalid with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.BccIgnoreInvalid("invalid")
+		addresses, ok := message.addrHeader[HeaderBcc]
+		if !ok {
+			t.Fatalf("failed to set BccIgnoreInvalid, addrHeader field is not set")
+		}
+		if len(addresses) != 0 {
+			t.Fatalf("failed to set BccIgnoreInvalid, addrHeader value count is: %d, want: 0", len(addresses))
+		}
+	})
+	t.Run("BccIgnoreInvalid with valid and invalid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.BccIgnoreInvalid("toni.tester@example.com", "invalid", "tina.tester@example.com")
+		checkAddrHeader(t, message, HeaderBcc, "BccIgnoreInvalid", 0, 2, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderBcc, "BccIgnoreInvalid", 1, 2, "tina.tester@example.com", "")
+	})
+}
+
+func TestMsg_BccFromString(t *testing.T) {
+	t.Run("BccFromString with valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.BccFromString(`toni.tester@example.com,<tina.tester@example.com>`); err != nil {
+			t.Fatalf("failed to set BccFromString: %s", err)
+		}
+		checkAddrHeader(t, message, HeaderBcc, "BccFromString", 0, 2, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderBcc, "BccFromString", 1, 2, "tina.tester@example.com", "")
+	})
+	t.Run("BccFromString with valid addresses and empty fields", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.BccFromString(`toni.tester@example.com ,,<tina.tester@example.com>`); err != nil {
+			t.Fatalf("failed to set BccFromString: %s", err)
+		}
+		checkAddrHeader(t, message, HeaderBcc, "BccFromString", 0, 2, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderBcc, "BccFromString", 1, 2, "tina.tester@example.com", "")
+	})
+}
+
 // checkAddrHeader validates a single email address in the AddrHeader of a message.
 func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, field, wantFields int,
 	wantMail, wantName string,
