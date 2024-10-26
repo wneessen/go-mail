@@ -49,7 +49,7 @@ jobs:
                   check-latest: true
             - name: Install sendmail
               run: |
-                apt-get -y update >/dev/null && apt-get -y upgrade >/dev/null && apt-get -y install ssmtp >/dev/null && which sendmail
+                sudo apt-get -y update >/dev/null && sudo apt-get -y upgrade >/dev/null && sudo apt-get -y install ssmtp >/dev/null && which sendmail
             - name: Run go test
               if: success()
               run: |
