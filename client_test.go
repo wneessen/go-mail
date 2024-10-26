@@ -29,7 +29,7 @@ import (
 
 const (
 	// DefaultHost is used as default hostname for the Client
-	DefaultHost = "localhost"
+	DefaultHost = "127.0.0.1"
 	// TestRcpt is a trash mail address to send test mails to
 	TestRcpt = "couttifaddebro-1473@yopmail.com"
 	// TestServerProto is the protocol used for the simple SMTP test server
