@@ -7,19 +7,9 @@ on:
   push:
     branches:
       - main
-    paths:
-      - '**.go'
-      - 'go.*'
-      - '.github/workflows/ci.yml'
-      - 'codecov.yml'
   pull_request:
     branches:
       - main
-    paths:
-      - '**.go'
-      - 'go.*'
-      - '.github/workflows/codecov.yml'
-      - 'codecov.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref_name }}
