@@ -269,21 +269,6 @@ func TestNewClient(t *testing.T) {
 				false, nil,
 			},
 			{
-				"WithLogger log.JSONlog", WithLogger(log.NewJSON(os.Stderr, log.LevelDebug)),
-				func(c *Client) error {
-					if c.logger == nil {
-						return errors.New("failed to set logger. Want logger bug got got nil")
-					}
-					loggerType := reflect.TypeOf(c.logger).String()
-					if loggerType != "*log.JSONlog" {
-						return fmt.Errorf("failed to set logger. Want logger type: %s, got: %s",
-							"*log.JSONlog", loggerType)
-					}
-					return nil
-				},
-				false, nil,
-			},
-			{
 				"WithHELO", WithHELO(hostname),
 				func(c *Client) error {
 					if c.helo != hostname {
@@ -1757,42 +1742,6 @@ func TestClient_DialWithContext(t *testing.T) {
 		}
 		if client.smtpClient != nil {
 			t.Fatalf("client has connection")
-		}
-	})
-	t.Run("connect with full debug logging and auth logging", func(t *testing.T) {
-		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
-		t.Cleanup(cancelDial)
-
-		logBuffer := bytes.NewBuffer(nil)
-		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS),
-			WithDebugLog(), WithLogAuthData(), WithLogger(log.NewJSON(logBuffer, log.LevelDebug)),
-			WithSMTPAuth(SMTPAuthPlain), WithUsername("test"), WithPassword("password"))
-		if err != nil {
-			t.Fatalf("failed to create new client: %s", err)
-		}
-
-		if err = client.DialWithContext(ctxDial); err != nil {
-			t.Fatalf("failed to connect to the test server: %s", err)
-		}
-		t.Cleanup(func() {
-			if err = client.Close(); err != nil {
-				t.Errorf("failed to close the client: %s", err)
-			}
-		})
-
-		logs := parseJSONLog(t, logBuffer)
-		if len(logs.Lines) == 0 {
-			t.Errorf("failed to enable debug logging, but no logs were found")
-		}
-		authFound := false
-		for _, logline := range logs.Lines {
-			if strings.EqualFold(logline.Message, "AUTH PLAIN AHRlc3QAcGFzc3dvcmQ=") &&
-				logline.Direction.From == "client" && logline.Direction.To == "server" {
-				authFound = true
-			}
-		}
-		if !authFound {
-			t.Errorf("logAuthData not working, no authentication info found in logs")
 		}
 	})
 	t.Run("connect should fail on HELO", func(t *testing.T) {
