@@ -1087,8 +1087,7 @@ func (m *Msg) SetBulk() {
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.3
 //   - https://datatracker.ietf.org/doc/html/rfc1123
 func (m *Msg) SetDate() {
-	now := time.Now().Format(time.RFC1123Z)
-	m.SetGenHeader(HeaderDate, now)
+	m.SetDateWithValue(time.Now())
 }
 
 // SetDateWithValue sets the "Date" header for the Msg using the provided time value in a valid RFC 1123 format.
