@@ -942,7 +942,16 @@ func (m *Msg) BccIgnoreInvalid(rcpts ...string) {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) BccFromString(rcpts string) error {
-	return m.Bcc(strings.Split(rcpts, ",")...)
+	src := strings.Split(rcpts, ",")
+	var dst []string
+	for _, address := range src {
+		address = strings.TrimSpace(address)
+		if address == "" {
+			continue
+		}
+		dst = append(dst, address)
+	}
+	return m.Bcc(dst...)
 }
 
 // ReplyTo sets the "Reply-To" address for the Msg, specifying where replies should be sent.
