@@ -1261,14 +1261,13 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 			affectedMsg: message,
 		}
 	}
-	message.isDelivered = true
-
 	if err = writer.Close(); err != nil {
 		return &SendError{
 			Reason: ErrSMTPDataClose, errlist: []error{err}, isTemp: isTempError(err),
 			affectedMsg: message,
 		}
 	}
+	message.isDelivered = true
 
 	if err = c.Reset(); err != nil {
 		return &SendError{
