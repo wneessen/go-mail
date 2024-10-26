@@ -1492,7 +1492,56 @@ func TestMsg_BccFromString(t *testing.T) {
 	})
 }
 
-// checkAddrHeader validates a single email address in the AddrHeader of a message.
+func TestMsg_ReplyTo(t *testing.T) {
+	t.Run("ReplyTo with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.ReplyTo("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set ReplyTo: %s", err)
+		}
+		checkGenHeader(t, message, HeaderReplyTo, "ReplyTo", 0, 1, "<toni.tester@example.com>")
+	})
+	t.Run("ReplyTo with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.ReplyTo("invalid"); err == nil {
+			t.Fatalf("ReplyTo should fail with invalid address")
+		}
+	})
+	t.Run("ReplyTo with empty string should fail", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.ReplyTo(""); err == nil {
+			t.Fatalf("ReplyTo should fail with invalid address")
+		}
+	})
+	t.Run("ReplyTo with different RFC5322 addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		for _, tt := range rfc5322Test {
+			t.Run(tt.value, func(t *testing.T) {
+				err := message.ReplyTo(tt.value)
+				if err != nil && tt.valid {
+					t.Errorf("ReplyTo on address %s should succeed, but failed with: %s", tt.value, err)
+				}
+				if err == nil && !tt.valid {
+					t.Errorf("ReplyTo on address %s should fail, but succeeded", tt.value)
+				}
+			})
+		}
+	})
+}
+
+// checkAddrHeader verifies the correctness of an AddrHeader in a Msg based on the provided criteria.
+// It checks whether the AddrHeader contains the correct address, name, and number of fields.
 func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, field, wantFields int,
 	wantMail, wantName string,
 ) {
@@ -1516,6 +1565,23 @@ func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, f
 	}
 	if addresses[field].Name != wantName {
 		t.Errorf("failed to set %s, addrHeader name is %s, want: %s", fn, addresses[field].Name, wantName)
+	}
+}
+
+// checkGenHeader validates the generated header in an email message, verifying its presence and expected values.
+func checkGenHeader(t *testing.T, message *Msg, header Header, fn string, field, wantFields int,
+	wantVal string,
+) {
+	t.Helper()
+	values, ok := message.genHeader[header]
+	if !ok {
+		t.Fatalf("failed to set %s, genHeader field is not set", fn)
+	}
+	if len(values) != wantFields {
+		t.Fatalf("failed to set %s, genHeader value count is: %d, want: %d", fn, len(values), field)
+	}
+	if values[field] != wantVal {
+		t.Errorf("failed to set %s, genHeader value is %s, want: %s", fn, values[field], wantVal)
 	}
 }
 
