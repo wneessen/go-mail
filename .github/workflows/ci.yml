@@ -72,6 +72,8 @@ jobs:
               with:
                   go-version: ${{ matrix.go }}
                   check-latest: true
+            - name: Checkout Code
+              uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
             - name: golangci-lint
               uses: golangci/golangci-lint-action@971e284b6050e8a5849b72094c50ab08da042db8 # v6.1.1
               with:
