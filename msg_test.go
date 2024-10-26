@@ -1984,6 +1984,212 @@ func TestMsg_RequestMDNTo(t *testing.T) {
 		}
 	})
 }
+func TestMsg_RequestMDNToFormat(t *testing.T) {
+	t.Run("RequestMDNToFormat with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.RequestMDNToFormat("Toni Tester", "toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set RequestMDNToFormat: %s", err)
+		}
+		checkGenHeader(t, message, HeaderDispositionNotificationTo, "RequestMDNToFormat", 0, 1,
+			`"Toni Tester" <toni.tester@example.com>`)
+	})
+	t.Run("RequestMDNToFormat with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.RequestMDNToFormat("invalid", "invalid"); err == nil {
+			t.Fatalf("RequestMDNToFormat should fail with invalid address")
+		}
+	})
+}
+func TestMsg_RequestMDNAddTo(t *testing.T) {
+	t.Run("RequestMDNAddTo with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.RequestMDNTo("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set RequestMDNTo: %s", err)
+		}
+		if err := message.RequestMDNAddTo("tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set RequestMDNAddTo: %s", err)
+		}
+		checkGenHeader(t, message, HeaderDispositionNotificationTo, "RequestMDNAddTo", 0, 2,
+			`<toni.tester@example.com>`)
+		checkGenHeader(t, message, HeaderDispositionNotificationTo, "RequestMDNAddTo", 1, 2,
+			`<tina.tester@example.com>`)
+	})
+	t.Run("RequestMDNAddTo with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.RequestMDNTo("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set RequestMDNTo: %s", err)
+		}
+		if err := message.RequestMDNAddTo("invalid"); err == nil {
+			t.Errorf("RequestMDNAddTo should fail with invalid address")
+		}
+		checkGenHeader(t, message, HeaderDispositionNotificationTo, "RequestMDNAddTo", 0, 1,
+			`<toni.tester@example.com>`)
+	})
+}
+
+func TestMsg_RequestMDNAddToFormat(t *testing.T) {
+	t.Run("RequestMDNAddToFormat with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.RequestMDNTo("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set RequestMDNTo: %s", err)
+		}
+		if err := message.RequestMDNAddToFormat("Tina Tester", "tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set RequestMDNAddToFormat: %s", err)
+		}
+		checkGenHeader(t, message, HeaderDispositionNotificationTo, "RequestMDNAddToFormat", 0, 2,
+			`<toni.tester@example.com>`)
+		checkGenHeader(t, message, HeaderDispositionNotificationTo, "RequestMDNAddToFormat", 1, 2,
+			`"Tina Tester" <tina.tester@example.com>`)
+	})
+	t.Run("RequestMDNAddToFormat with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.RequestMDNTo("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set RequestMDNTo: %s", err)
+		}
+		if err := message.RequestMDNAddToFormat("invalid", "invalid"); err == nil {
+			t.Errorf("RequestMDNAddToFormat should fail with invalid address")
+		}
+		checkGenHeader(t, message, HeaderDispositionNotificationTo, "RequestMDNAddToFormat", 0, 1,
+			`<toni.tester@example.com>`)
+	})
+}
+
+func TestMsg_GetSender(t *testing.T) {
+	t.Run("GetSender with envelope from only (no full address)", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.EnvelopeFrom("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set envelope from address: %s", err)
+		}
+		sender, err := message.GetSender(false)
+		if err != nil {
+			t.Errorf("failed to get sender: %s", err)
+		}
+		if !strings.EqualFold(sender, "toni.tester@example.com") {
+			t.Errorf("GetSender: expected sender not returned. Want: %s, got: %s", "toni.tester@example.com", sender)
+		}
+	})
+	t.Run("GetSender with envelope from only (full address)", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.EnvelopeFrom("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set envelope from address: %s", err)
+		}
+		sender, err := message.GetSender(true)
+		if err != nil {
+			t.Errorf("failed to get sender: %s", err)
+		}
+		if !strings.EqualFold(sender, "<toni.tester@example.com>") {
+			t.Errorf("GetSender: expected sender not returned. Want: %s, got: %s", "<toni.tester@example.com>", sender)
+		}
+	})
+	t.Run("GetSender with from only (no full address)", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.From("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set from address: %s", err)
+		}
+		sender, err := message.GetSender(false)
+		if err != nil {
+			t.Errorf("failed to get sender: %s", err)
+		}
+		if !strings.EqualFold(sender, "toni.tester@example.com") {
+			t.Errorf("GetSender: expected sender not returned. Want: %s, got: %s", "toni.tester@example.com", sender)
+		}
+	})
+	t.Run("GetSender with from only (full address)", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.From("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set from address: %s", err)
+		}
+		sender, err := message.GetSender(true)
+		if err != nil {
+			t.Errorf("failed to get sender: %s", err)
+		}
+		if !strings.EqualFold(sender, "<toni.tester@example.com>") {
+			t.Errorf("GetSender: expected sender not returned. Want: %s, got: %s", "<toni.tester@example.com>", sender)
+		}
+	})
+	t.Run("GetSender with envelope from and from (no full address)", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.EnvelopeFrom("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set envelope from address: %s", err)
+		}
+		if err := message.From("tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set from address: %s", err)
+		}
+		sender, err := message.GetSender(false)
+		if err != nil {
+			t.Errorf("failed to get sender: %s", err)
+		}
+		if !strings.EqualFold(sender, "toni.tester@example.com") {
+			t.Errorf("GetSender: expected sender not returned. Want: %s, got: %s", "toni.tester@example.com", sender)
+		}
+	})
+	t.Run("GetSender with envelope from and from (full address)", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.EnvelopeFrom("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set envelope from address: %s", err)
+		}
+		if err := message.From("tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set from address: %s", err)
+		}
+		sender, err := message.GetSender(true)
+		if err != nil {
+			t.Errorf("failed to get sender: %s", err)
+		}
+		if !strings.EqualFold(sender, "<toni.tester@example.com>") {
+			t.Errorf("GetSender: expected sender not returned. Want: %s, got: %s", "<toni.tester@example.com>", sender)
+		}
+	})
+	t.Run("GetSender with no envelope from or from", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		_, err := message.GetSender(false)
+		if err == nil {
+			t.Errorf("GetSender with no envelope from or from should return error")
+		}
+		if !errors.Is(err, ErrNoFromAddress) {
+			t.Errorf("GetSender with no envelope from or from should return error. Want: %s, got: %s",
+				ErrNoFromAddress, err)
+		}
+	})
+}
 
 // checkAddrHeader verifies the correctness of an AddrHeader in a Msg based on the provided criteria.
 // It checks whether the AddrHeader contains the correct address, name, and number of fields.
