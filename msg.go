@@ -847,7 +847,16 @@ func (m *Msg) CcIgnoreInvalid(rcpts ...string) {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) CcFromString(rcpts string) error {
-	return m.Cc(strings.Split(rcpts, ",")...)
+	src := strings.Split(rcpts, ",")
+	var dst []string
+	for _, address := range src {
+		address = strings.TrimSpace(address)
+		if address == "" {
+			continue
+		}
+		dst = append(dst, address)
+	}
+	return m.Cc(dst...)
 }
 
 // Bcc sets one or more "BCC" (blind carbon copy) addresses in the mail body for the Msg.
