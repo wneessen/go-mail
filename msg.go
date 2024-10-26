@@ -1237,11 +1237,11 @@ func (m *Msg) RequestMDNAddTo(rcpt string) error {
 		return fmt.Errorf(errParseMailAddr, rcpt, err)
 	}
 	var addresses []string
-	addresses = append(addresses, m.genHeader[HeaderDispositionNotificationTo]...)
-	addresses = append(addresses, address.String())
-	if _, ok := m.genHeader[HeaderDispositionNotificationTo]; ok {
-		m.genHeader[HeaderDispositionNotificationTo] = addresses
+	if current, ok := m.genHeader[HeaderDispositionNotificationTo]; ok {
+		addresses = current
 	}
+	addresses = append(addresses, address.String())
+	m.genHeader[HeaderDispositionNotificationTo] = addresses
 	return nil
 }
 
