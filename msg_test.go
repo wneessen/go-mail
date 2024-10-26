@@ -1136,6 +1136,184 @@ func TestMsg_ToFromString(t *testing.T) {
 	})
 }
 
+func TestMsg_Cc(t *testing.T) {
+	t.Run("Cc with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Cc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set Cc: %s", err)
+		}
+		checkAddrHeader(t, message, HeaderCc, "Cc", 0, 1, "toni.tester@example.com", "")
+	})
+	t.Run("Cc with multiple valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Cc("toni.tester@example.com", "tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set Cc: %s", err)
+		}
+		checkAddrHeader(t, message, HeaderCc, "Cc", 0, 2, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderCc, "Cc", 1, 2, "tina.tester@example.com", "")
+	})
+	t.Run("Cc with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Cc("invalid"); err == nil {
+			t.Fatalf("Cc should fail with invalid address")
+		}
+	})
+	t.Run("Cc with empty string should fail", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Cc(""); err == nil {
+			t.Fatalf("Cc should fail with invalid address")
+		}
+	})
+	t.Run("Cc with different RFC5322 addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		for _, tt := range rfc5322Test {
+			t.Run(tt.value, func(t *testing.T) {
+				err := message.Cc(tt.value)
+				if err != nil && tt.valid {
+					t.Errorf("Cc on address %s should succeed, but failed with: %s", tt.value, err)
+				}
+				if err == nil && !tt.valid {
+					t.Errorf("Cc on address %s should fail, but succeeded", tt.value)
+				}
+			})
+		}
+	})
+}
+
+func TestMsg_AddCc(t *testing.T) {
+	t.Run("AddCc with valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Cc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set Cc: %s", err)
+		}
+		if err := message.AddCc("tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set additional Cc: %s", err)
+		}
+		checkAddrHeader(t, message, HeaderCc, "AddCc", 0, 2, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderCc, "AddCc", 1, 2, "tina.tester@example.com", "")
+	})
+	t.Run("AddCc with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Cc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set Cc: %s", err)
+		}
+		if err := message.AddCc("invalid"); err == nil {
+			t.Errorf("AddCc should fail with invalid address")
+		}
+		checkAddrHeader(t, message, HeaderCc, "AddCc", 0, 1, "toni.tester@example.com", "")
+	})
+}
+
+func TestMsg_AddCcFormat(t *testing.T) {
+	t.Run("AddCcFormat with valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Cc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set Cc: %s", err)
+		}
+		if err := message.AddCcFormat("Tina Tester", "tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set additional Cc: %s", err)
+		}
+		checkAddrHeader(t, message, HeaderCc, "AddCcFormat", 0, 2, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderCc, "AddCcFormat", 1, 2, "tina.tester@example.com", "Tina Tester")
+	})
+	t.Run("AddCcFormat with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Cc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set Cc: %s", err)
+		}
+		if err := message.AddCcFormat("Invalid", "invalid"); err == nil {
+			t.Errorf("AddCcFormat should fail with invalid address")
+		}
+		checkAddrHeader(t, message, HeaderCc, "AddCcFormat", 0, 1, "toni.tester@example.com", "")
+	})
+}
+
+func TestMsg_CcIgnoreInvalid(t *testing.T) {
+	t.Run("CcIgnoreInvalid with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.CcIgnoreInvalid("toni.tester@example.com")
+		checkAddrHeader(t, message, HeaderCc, "CcIgnoreInvalid", 0, 1, "toni.tester@example.com", "")
+	})
+	t.Run("CcIgnoreInvalid with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.CcIgnoreInvalid("invalid")
+		addresses, ok := message.addrHeader[HeaderCc]
+		if !ok {
+			t.Fatalf("failed to set CcIgnoreInvalid, addrHeader field is not set")
+		}
+		if len(addresses) != 0 {
+			t.Fatalf("failed to set CcIgnoreInvalid, addrHeader value count is: %d, want: 0", len(addresses))
+		}
+	})
+	t.Run("CcIgnoreInvalid with valid and invalid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.CcIgnoreInvalid("toni.tester@example.com", "invalid", "tina.tester@example.com")
+		checkAddrHeader(t, message, HeaderCc, "CcIgnoreInvalid", 0, 2, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderCc, "CcIgnoreInvalid", 1, 2, "tina.tester@example.com", "")
+	})
+}
+
+func TestMsg_CcFromString(t *testing.T) {
+	t.Run("CcFromString with valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.CcFromString(`toni.tester@example.com,<tina.tester@example.com>`); err != nil {
+			t.Fatalf("failed to set CcFromString: %s", err)
+		}
+		checkAddrHeader(t, message, HeaderCc, "CcFromString", 0, 2, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderCc, "CcFromString", 1, 2, "tina.tester@example.com", "")
+	})
+	t.Run("CcFromString with valid addresses and empty fields", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.CcFromString(`toni.tester@example.com ,,<tina.tester@example.com>`); err != nil {
+			t.Fatalf("failed to set CcFromString: %s", err)
+		}
+		checkAddrHeader(t, message, HeaderCc, "CcFromString", 0, 2, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderCc, "CcFromString", 1, 2, "tina.tester@example.com", "")
+	})
+}
+
 // checkAddrHeader validates a single email address in the AddrHeader of a message.
 func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, field, wantFields int,
 	wantMail, wantName string,
