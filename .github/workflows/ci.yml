@@ -19,7 +19,7 @@ jobs:
         name: Test with Codecov coverage (${{ matrix.os }} / ${{ matrix.go }})
         runs-on: ${{ matrix.os }}
         concurrency:
-            group: ci-codecov
+            group: ci-codecov-${{ matrix.os }}-${{ matrix.go }}
             cancel-in-progress: true
         strategy:
             matrix:
@@ -57,7 +57,7 @@ jobs:
         name: golangci-lint (${{ matrix.go }})
         runs-on: ubuntu-latest
         concurrency:
-            group: ci-lint
+            group: ci-lint-${{ matrix.go }}
             cancel-in-progress: true
         strategy:
             matrix:
@@ -110,7 +110,7 @@ jobs:
         name: Test (${{ matrix.os }} / ${{ matrix.go }})
         runs-on: ${{ matrix.os }}
         concurrency:
-            group: ci-test
+            group: ci-test-${{ matrix.os }}-${{ matrix.go }}
             cancel-in-progress: true
         strategy:
             matrix:
@@ -149,7 +149,7 @@ jobs:
         name: Test with SonarQube review (${{ matrix.os }} / ${{ matrix.go }})
         runs-on: ${{ matrix.os }}
         concurrency:
-            group: ci-codecov
+            group: ci-codecov-${{ matrix.go }}
             cancel-in-progress: true
         strategy:
             matrix:
