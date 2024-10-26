@@ -1562,6 +1562,43 @@ func TestMsg_ReplyToFormat(t *testing.T) {
 	})
 }
 
+func TestMsg_Subject(t *testing.T) {
+	tests := []struct {
+		name    string
+		subject string
+		want    string
+	}{
+		{"Normal latin characters", "Hello world!", "Hello world!"},
+		{"Empty string", "", ""},
+		{
+			"Japanese characters", `これはテスト対象です。`,
+			`=?UTF-8?q?=E3=81=93=E3=82=8C=E3=81=AF=E3=83=86=E3=82=B9=E3=83=88=E5=AF=BE?= ` +
+				`=?UTF-8?q?=E8=B1=A1=E3=81=A7=E3=81=99=E3=80=82?=`,
+		},
+		{
+			"Simplified chinese characters", `这是一个测试主题`,
+			`=?UTF-8?q?=E8=BF=99=E6=98=AF=E4=B8=80=E4=B8=AA=E6=B5=8B=E8=AF=95=E4=B8=BB?= ` +
+				`=?UTF-8?q?=E9=A2=98?=`,
+		},
+		{
+			"Cyrillic characters", `Это испытуемый`,
+			`=?UTF-8?q?=D0=AD=D1=82=D0=BE_=D0=B8=D1=81=D0=BF=D1=8B=D1=82=D1=83=D0=B5?= ` +
+				`=?UTF-8?q?=D0=BC=D1=8B=D0=B9?=`,
+		},
+		{"Emoji characters", `New Offer 🚀`, `=?UTF-8?q?New_Offer_=F0=9F=9A=80?=`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			message := NewMsg()
+			if message == nil {
+				t.Fatal("message is nil")
+			}
+			message.Subject(tt.subject)
+			checkGenHeader(t, message, HeaderSubject, "Subject", 0, 1, tt.want)
+		})
+	}
+}
+
 // checkAddrHeader verifies the correctness of an AddrHeader in a Msg based on the provided criteria.
 // It checks whether the AddrHeader contains the correct address, name, and number of fields.
 func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, field, wantFields int,
