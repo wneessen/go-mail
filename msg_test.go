@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 var (
@@ -1662,6 +1663,80 @@ func TestMsg_GetMessageID(t *testing.T) {
 	})
 }
 
+func TestMsg_SetMessageIDWithValue(t *testing.T) {
+	// We have already covered SetMessageIDWithValue in SetMessageID and GetMessageID
+	t.Skip("SetMessageIDWithValue is fully covered by TestMsg_GetMessageID")
+}
+
+func TestMsg_SetBulk(t *testing.T) {
+	message := NewMsg()
+	if message == nil {
+		t.Fatal("message is nil")
+	}
+	message.SetBulk()
+	checkGenHeader(t, message, HeaderPrecedence, "SetBulk", 0, 1, "bulk")
+	checkGenHeader(t, message, HeaderXAutoResponseSuppress, "Bulk", 0, 1, "All")
+}
+
+func TestMsg_SetDate(t *testing.T) {
+	t.Run("SetDate and compare date down to the minute", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+
+		message.SetDate()
+		values, ok := message.genHeader[HeaderDate]
+		if !ok {
+			t.Fatal("failed to set SetDate, genHeader field is not set")
+		}
+		if len(values) != 1 {
+			t.Fatalf("failed to set SetDate, genHeader value count is: %d, want: %d", len(values), 1)
+		}
+		date := values[0]
+		parsed, err := time.Parse(time.RFC1123Z, date)
+		if err != nil {
+			t.Fatalf("SetDate failed, failed to parse retrieved date: %s, error: %s", date, err)
+		}
+		now := time.Now()
+		nowNoSec := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), 0, 0, now.Location())
+		parsedNoSec := time.Date(parsed.Year(), parsed.Month(), parsed.Day(), parsed.Hour(), parsed.Minute(),
+			0, 0, parsed.Location())
+		if !nowNoSec.Equal(parsedNoSec) {
+			t.Errorf("SetDate failed, retrieved date mismatch, got: %s, want: %s", parsedNoSec.String(),
+				nowNoSec.String())
+		}
+	})
+}
+
+func TestMsg_SetDateWithValue(t *testing.T) {
+	t.Run("SetDateWithValue and compare date down to the second", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+
+		now := time.Now()
+		message.SetDateWithValue(now)
+		values, ok := message.genHeader[HeaderDate]
+		if !ok {
+			t.Fatal("failed to set SetDate, genHeader field is not set")
+		}
+		if len(values) != 1 {
+			t.Fatalf("failed to set SetDate, genHeader value count is: %d, want: %d", len(values), 1)
+		}
+		date := values[0]
+		parsed, err := time.Parse(time.RFC1123Z, date)
+		if err != nil {
+			t.Fatalf("SetDate failed, failed to parse retrieved date: %s, error: %s", date, err)
+		}
+		if !strings.EqualFold(parsed.Format(time.RFC1123Z), now.Format(time.RFC1123Z)) {
+			t.Errorf("SetDate failed, retrieved date mismatch, got: %s, want: %s", now.Format(time.RFC1123Z),
+				parsed.Format(time.RFC1123Z))
+		}
+	})
+}
+
 // checkAddrHeader verifies the correctness of an AddrHeader in a Msg based on the provided criteria.
 // It checks whether the AddrHeader contains the correct address, name, and number of fields.
 func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, field, wantFields int,
@@ -1754,29 +1829,6 @@ func checkGenHeader(t *testing.T, message *Msg, header Header, fn string, field,
 					t.Errorf("applyMiddlewares() method failed. Expected: %s, got: %s", tt.want, s[0])
 				}
 			})
-		}
-	}
-
-// TestMsg_SetBulk tests the Msg.SetBulk method
-
-	func TestMsg_SetBulk(t *testing.T) {
-		m := NewMsg()
-		m.SetBulk()
-		if m.genHeader[HeaderPrecedence] == nil {
-			t.Errorf("SetBulk() failed. Precedence header is nil")
-			return
-		}
-		if m.genHeader[HeaderPrecedence][0] != "bulk" {
-			t.Errorf("SetBulk() failed. Expected Precedence header: %q, got: %q", "bulk",
-				m.genHeader[HeaderPrecedence][0])
-		}
-		if m.genHeader[HeaderXAutoResponseSuppress] == nil {
-			t.Errorf("SetBulk() failed. X-Auto-Response-Suppress header is nil")
-			return
-		}
-		if m.genHeader[HeaderXAutoResponseSuppress][0] != "All" {
-			t.Errorf("SetBulk() failed. Expected X-Auto-Response-Suppress header: %q, got: %q", "All",
-				m.genHeader[HeaderXAutoResponseSuppress][0])
 		}
 	}
 
