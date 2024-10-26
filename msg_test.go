@@ -2444,6 +2444,59 @@ func TestMsg_GetAddrHeader(t *testing.T) {
 			})
 		}
 	})
+	t.Run("GetAddrHeader with multiple valid address (to, cc, bcc)", func(t *testing.T) {
+		var fn func(...string) error
+		var addfn func(string) error
+		for _, tt := range addrHeaderTests {
+			message := NewMsg()
+			if message == nil {
+				t.Fatal("message is nil")
+			}
+
+			switch tt.header {
+			case HeaderFrom:
+				continue
+			case HeaderTo:
+				fn = message.To
+				addfn = message.AddTo
+			case HeaderCc:
+				fn = message.Cc
+				addfn = message.AddCc
+			case HeaderBcc:
+				fn = message.Bcc
+				addfn = message.AddBcc
+			default:
+				t.Logf("header %s not supported", tt.header)
+				continue
+			}
+			t.Run(tt.name, func(t *testing.T) {
+				if err := fn("toni.tester@example.com"); err != nil {
+					t.Fatalf("failed to set header: %s", err)
+				}
+				if err := addfn("tina.tester@example.com"); err != nil {
+					t.Fatalf("failed to set additional header value: %s", err)
+				}
+				addrheader := message.GetAddrHeader(tt.header)
+				if len(addrheader) != 2 {
+					t.Errorf("GetAddrHeader: expected 1 address, got: %d", len(addrheader))
+				}
+				if addrheader[0] == nil {
+					t.Fatalf("GetAddrHeader: expected address, got nil")
+				}
+				if addrheader[0].String() != "<toni.tester@example.com>" {
+					t.Errorf("GetAddrHeader: expected address not returned. Want: %s, got: %s",
+						"<toni.tester@example.com>", addrheader[0].String())
+				}
+				if addrheader[1] == nil {
+					t.Fatalf("GetAddrHeader: expected address, got nil")
+				}
+				if addrheader[1].String() != "<tina.tester@example.com>" {
+					t.Errorf("GetAddrHeader: expected address not returned. Want: %s, got: %s",
+						"<tina.tester@example.com>", addrheader[1].String())
+				}
+			})
+		}
+	})
 	t.Run("GetAddrHeader with no addresses", func(t *testing.T) {
 		message := NewMsg()
 		if message == nil {
