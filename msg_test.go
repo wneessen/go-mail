@@ -1984,6 +1984,7 @@ func TestMsg_RequestMDNTo(t *testing.T) {
 		}
 	})
 }
+
 func TestMsg_RequestMDNToFormat(t *testing.T) {
 	t.Run("RequestMDNToFormat with valid address", func(t *testing.T) {
 		message := NewMsg()
@@ -2006,6 +2007,7 @@ func TestMsg_RequestMDNToFormat(t *testing.T) {
 		}
 	})
 }
+
 func TestMsg_RequestMDNAddTo(t *testing.T) {
 	t.Run("RequestMDNAddTo with valid address", func(t *testing.T) {
 		message := NewMsg()
