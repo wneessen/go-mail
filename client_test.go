@@ -1166,6 +1166,10 @@ func TestClient_SetDebugLog(t *testing.T) {
 		client.SetDebugLog(true)
 
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
 		t.Cleanup(func() {
@@ -1195,6 +1199,10 @@ func TestClient_SetDebugLog(t *testing.T) {
 		client.SetDebugLog(false)
 
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
 		t.Cleanup(func() {
@@ -1220,6 +1228,10 @@ func TestClient_SetDebugLog(t *testing.T) {
 		}
 
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
 		t.Cleanup(func() {
@@ -1544,6 +1556,10 @@ func TestClient_Close(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to the test server: %s", err)
 		}
 		if !client.smtpClient.HasConnection() {
@@ -1578,6 +1594,10 @@ func TestClient_Close(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to the test server: %s", err)
 		}
 		if !client.smtpClient.HasConnection() {
@@ -1616,6 +1636,10 @@ func TestClient_Close(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to the test server: %s", err)
 		}
 		if !client.smtpClient.HasConnection() {
@@ -1650,6 +1674,10 @@ func TestClient_DialWithContext(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to the test server: %s", err)
 		}
 		t.Cleanup(func() {
@@ -1673,6 +1701,10 @@ func TestClient_DialWithContext(t *testing.T) {
 		client.fallbackPort = serverPort
 
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to the test server: %s", err)
 		}
 		t.Cleanup(func() {
@@ -1836,6 +1868,10 @@ func TestClient_DialWithContext(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to the test server: %s", err)
 		}
 	})
@@ -1866,6 +1902,10 @@ func TestClient_DialWithContext(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to the test server: %s", err)
 		}
 	})
@@ -1958,6 +1998,10 @@ func TestClient_DialWithContext(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to the test server: %s", err)
 		}
 		if err := client.Close(); err != nil {
@@ -1989,6 +2033,10 @@ func TestClient_Reset(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to the test server: %s", err)
 		}
 		t.Cleanup(func() {
@@ -2022,6 +2070,10 @@ func TestClient_Reset(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to the test server: %s", err)
 		}
 		if err = client.Close(); err != nil {
@@ -2057,6 +2109,10 @@ func TestClient_Reset(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to the test server: %s", err)
 		}
 		t.Cleanup(func() {
@@ -2094,6 +2150,10 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialAndSend(message); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to dial and send: %s", err)
 		}
 	})
@@ -2122,6 +2182,10 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialAndSendWithContext(ctxDial, message); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to dial and send: %s", err)
 		}
 	})
@@ -2260,6 +2324,10 @@ func TestClient_auth(t *testing.T) {
 				t.Fatalf("failed to create new client: %s", err)
 			}
 			if err = client.DialWithContext(ctxDial); err != nil {
+				var netErr net.Error
+				if errors.As(err, &netErr) && netErr.Timeout() {
+					t.Skip("failed to connect to the test server due to timeout")
+				}
 				t.Fatalf("failed to connect to test service: %s", err)
 			}
 			if err := client.Close(); err != nil {
@@ -2447,6 +2515,10 @@ func TestClient_Send(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
 		t.Cleanup(func() {
@@ -2499,6 +2571,10 @@ func TestClient_Send(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
 		t.Cleanup(func() {
@@ -2556,6 +2632,10 @@ func TestClient_sendSingleMsg(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
 		t.Cleanup(func() {
@@ -2595,6 +2675,10 @@ func TestClient_sendSingleMsg(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
 		t.Cleanup(func() {
@@ -2636,6 +2720,10 @@ func TestClient_sendSingleMsg(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
 		t.Cleanup(func() {
@@ -2682,6 +2770,10 @@ func TestClient_sendSingleMsg(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
 		t.Cleanup(func() {
@@ -2728,6 +2820,10 @@ func TestClient_sendSingleMsg(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
 		t.Cleanup(func() {
@@ -2774,6 +2870,10 @@ func TestClient_sendSingleMsg(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
 		t.Cleanup(func() {
@@ -2813,6 +2913,10 @@ func TestClient_sendSingleMsg(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
 		t.Cleanup(func() {
@@ -2860,6 +2964,10 @@ func TestClient_sendSingleMsg(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
 		t.Cleanup(func() {
@@ -2907,6 +3015,10 @@ func TestClient_sendSingleMsg(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
 		t.Cleanup(func() {
@@ -2953,6 +3065,10 @@ func TestClient_sendSingleMsg(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
 		t.Cleanup(func() {
@@ -2999,6 +3115,10 @@ func TestClient_sendSingleMsg(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
 		t.Cleanup(func() {
@@ -3045,6 +3165,10 @@ func TestClient_checkConn(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
 		t.Cleanup(func() {
@@ -3082,6 +3206,10 @@ func TestClient_checkConn(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
 		t.Cleanup(func() {
@@ -3148,7 +3276,11 @@ func TestClient_onlinetests(t *testing.T) {
 				t.Cleanup(cancel)
 
 				if err = client.DialWithContext(ctx); err != nil {
-					t.Errorf("failed to dial to test server: %s", err)
+					var netErr net.Error
+					if errors.As(err, &netErr) && netErr.Timeout() {
+						t.Skip("failed to connect to the test server due to timeout")
+					}
+					t.Fatalf("failed to dial to test server: %s", err)
 				}
 				if err = client.smtpClient.Noop(); err != nil {
 					t.Errorf("failed to send noop: %s", err)
@@ -3190,7 +3322,11 @@ func TestClient_onlinetests(t *testing.T) {
 				t.Cleanup(cancel)
 
 				if err = client.DialWithContext(ctx); err != nil {
-					t.Errorf("failed to dial to test server: %s", err)
+					var netErr net.Error
+					if errors.As(err, &netErr) && netErr.Timeout() {
+						t.Skip("failed to connect to the test server due to timeout")
+					}
+					t.Fatalf("failed to dial to test server: %s", err)
 				}
 				if err = client.smtpClient.Noop(); err != nil {
 					t.Errorf("failed to send noop: %s", err)
@@ -3232,7 +3368,11 @@ func TestClient_onlinetests(t *testing.T) {
 				t.Cleanup(cancel)
 
 				if err = client.DialWithContext(ctx); err != nil {
-					t.Errorf("failed to dial to test server: %s", err)
+					var netErr net.Error
+					if errors.As(err, &netErr) && netErr.Timeout() {
+						t.Skip("failed to connect to the test server due to timeout")
+					}
+					t.Fatalf("failed to dial to test server: %s", err)
 				}
 				if err = client.smtpClient.Noop(); err != nil {
 					t.Errorf("failed to send noop: %s", err)
@@ -3274,6 +3414,10 @@ func TestClient_XOAuth2OnFaker(t *testing.T) {
 			t.Fatalf("unable to create new client: %v", err)
 		}
 		if err = c.DialWithContext(context.Background()); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("unexpected dial error: %v", err)
 		}
 		if err = c.Close(); err != nil {

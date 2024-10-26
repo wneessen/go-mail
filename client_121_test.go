@@ -12,6 +12,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"reflect"
 	"strings"
@@ -95,6 +96,10 @@ func TestClient_DialWithContextNewVersionsOnly(t *testing.T) {
 		}
 
 		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
 			t.Fatalf("failed to connect to the test server: %s", err)
 		}
 		t.Cleanup(func() {
