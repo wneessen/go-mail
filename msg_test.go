@@ -1915,6 +1915,76 @@ func TestMsg_IsDelivered(t *testing.T) {
 	})
 }
 
+func TestMsg_RequestMDNTo(t *testing.T) {
+	t.Run("RequestMDNTo with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.RequestMDNTo("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set RequestMDNTo: %s", err)
+		}
+		checkGenHeader(t, message, HeaderDispositionNotificationTo, "RequestMDNTo", 0, 1, "<toni.tester@example.com>")
+	})
+	t.Run("RequestMDNTo with valid address and nil-genHeader", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.genHeader = nil
+		if err := message.RequestMDNTo("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set RequestMDNTo: %s", err)
+		}
+		checkGenHeader(t, message, HeaderDispositionNotificationTo, "RequestMDNTo", 0, 1, "<toni.tester@example.com>")
+	})
+	t.Run("RequestMDNTo with multiple valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.RequestMDNTo("toni.tester@example.com", "tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set RequestMDNTo: %s", err)
+		}
+		checkGenHeader(t, message, HeaderDispositionNotificationTo, "RequestMDNTo", 0, 2, "<toni.tester@example.com>")
+		checkGenHeader(t, message, HeaderDispositionNotificationTo, "RequestMDNTo", 1, 2, "<tina.tester@example.com>")
+	})
+	t.Run("RequestMDNTo with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.RequestMDNTo("invalid"); err == nil {
+			t.Fatalf("RequestMDNTo should fail with invalid address")
+		}
+	})
+	t.Run("RequestMDNTo with empty string should fail", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.RequestMDNTo(""); err == nil {
+			t.Fatalf("RequestMDNTo should fail with invalid address")
+		}
+	})
+	t.Run("RequestMDNTo with different RFC5322 addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		for _, tt := range rfc5322Test {
+			t.Run(tt.value, func(t *testing.T) {
+				err := message.RequestMDNTo(tt.value)
+				if err != nil && tt.valid {
+					t.Errorf("RequestMDNTo on address %s should succeed, but failed with: %s", tt.value, err)
+				}
+				if err == nil && !tt.valid {
+					t.Errorf("RequestMDNTo on address %s should fail, but succeeded", tt.value)
+				}
+			})
+		}
+	})
+}
+
 // checkAddrHeader verifies the correctness of an AddrHeader in a Msg based on the provided criteria.
 // It checks whether the AddrHeader contains the correct address, name, and number of fields.
 func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, field, wantFields int,

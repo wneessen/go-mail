@@ -1187,6 +1187,9 @@ func (m *Msg) IsDelivered() bool {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc8098
 func (m *Msg) RequestMDNTo(rcpts ...string) error {
+	if m.genHeader == nil {
+		m.genHeader = make(map[Header][]string)
+	}
 	var addresses []string
 	for _, addrVal := range rcpts {
 		address, err := mail.ParseAddress(addrVal)
@@ -1195,9 +1198,7 @@ func (m *Msg) RequestMDNTo(rcpts ...string) error {
 		}
 		addresses = append(addresses, address.String())
 	}
-	if _, ok := m.genHeader[HeaderDispositionNotificationTo]; ok {
-		m.genHeader[HeaderDispositionNotificationTo] = addresses
-	}
+	m.genHeader[HeaderDispositionNotificationTo] = addresses
 	return nil
 }
 
