@@ -1571,8 +1571,10 @@ func TestMsg_Subject(t *testing.T) {
 	}{
 		{"Normal latin characters", "Hello world!", "Hello world!"},
 		{"Empty string", "", ""},
-		{"European umlaut characters", "Héllô wörld! äöüß",
-			"=?UTF-8?q?H=C3=A9ll=C3=B4_w=C3=B6rld!_=C3=A4=C3=B6=C3=BC=C3=9F?="},
+		{
+			"European umlaut characters", "Héllô wörld! äöüß",
+			"=?UTF-8?q?H=C3=A9ll=C3=B4_w=C3=B6rld!_=C3=A4=C3=B6=C3=BC=C3=9F?=",
+		},
 		{
 			"Japanese characters", `これはテスト対象です。`,
 			`=?UTF-8?q?=E3=81=93=E3=82=8C=E3=81=AF=E3=83=86=E3=82=B9=E3=83=88=E5=AF=BE?= ` +
@@ -1625,6 +1627,7 @@ func TestMsg_SetMessageID(t *testing.T) {
 		}
 	})
 }
+
 func TestMsg_GetMessageID(t *testing.T) {
 	t.Run("GetMessageID with normal IDs", func(t *testing.T) {
 		tests := []struct {
