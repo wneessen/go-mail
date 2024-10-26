@@ -55,6 +55,7 @@ jobs:
                   token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
     lint:
         name: golangci-lint (${{ matrix.go }})
+        runs-on: ubuntu-latest
         concurrency:
             group: ci-lint
             cancel-in-progress: true
@@ -92,6 +93,7 @@ jobs:
               uses: actions/dependency-review-action@a6993e2c61fd5dc440b409aa1d6904921c5e1894 # v4.3.5
     govulncheck:
         name: Go vulnerabilities check
+        runs-on: ubuntu-latest
         concurrency:
             group: ci-govulncheck
             cancel-in-progress: true
