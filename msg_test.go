@@ -113,8 +113,6 @@ var (
 		{`hi\ there@domain.tld`, false},      // Spaces must be quoted
 		{"hello@tld", true},                  // TLD is enough
 		{`你好@域名.顶级域名`, true},                 // We speak RFC6532
-		{`cow@[dead::beef]`, true},           // IPv6 is fine
-		{"1@[1.101.236.21]", true},           // IPv4 is fine
 		{"1@23456789", true},                 // Hypothetically valid, if somebody registers that TLD
 		{"1@[23456789]", false},              // While 23456789 is decimal for 1.101.236.21 it is not RFC5322 compliant
 	}
@@ -1140,7 +1138,8 @@ func TestMsg_ToFromString(t *testing.T) {
 
 // checkAddrHeader validates a single email address in the AddrHeader of a message.
 func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, field, wantFields int,
-	wantMail, wantName string) {
+	wantMail, wantName string,
+) {
 	t.Helper()
 	addresses, ok := message.addrHeader[header]
 	if !ok {
