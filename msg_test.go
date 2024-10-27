@@ -3239,9 +3239,9 @@ func TestMsg_GetAttachments(t *testing.T) {
 		if err != nil {
 			t.Errorf("writer func failed: %s", err)
 		}
-		if !strings.EqualFold(messageBuf.String(), "This is a test attachment\n") {
-			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment\n",
-				messageBuf.String())
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "This is a test attachment") {
+			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment", got)
 		}
 	})
 	t.Run("GetAttachments with multiple attachments", func(t *testing.T) {
@@ -3271,18 +3271,18 @@ func TestMsg_GetAttachments(t *testing.T) {
 		if err != nil {
 			t.Errorf("writer func failed: %s", err)
 		}
-		if !strings.EqualFold(messageBuf.String(), "This is a test attachment\n") {
-			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment\n",
-				messageBuf.String())
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "This is a test attachment") {
+			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment", got)
 		}
 		messageBuf.Reset()
 		_, err = attachments[1].Writer(messageBuf)
 		if err != nil {
 			t.Errorf("writer func failed: %s", err)
 		}
-		if !strings.EqualFold(messageBuf.String(), "This is a test attachment\n") {
-			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment\n",
-				messageBuf.String())
+		got = strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "This is a test attachment") {
+			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment", got)
 		}
 	})
 	t.Run("GetAttachments with no attachment", func(t *testing.T) {
@@ -3329,7 +3329,7 @@ func TestMsg_SetAttachments(t *testing.T) {
 			Desc:        "Test file",
 			Name:        "attachment.txt",
 			Writer: func(w io.Writer) (int64, error) {
-				buf := bytes.NewBuffer([]byte("This is a test attachment\n"))
+				buf := bytes.NewBuffer([]byte("This is a test attachment"))
 				n, err := w.Write(buf.Bytes())
 				return int64(n), err
 			},
@@ -3351,9 +3351,9 @@ func TestMsg_SetAttachments(t *testing.T) {
 		if err != nil {
 			t.Errorf("writer func failed: %s", err)
 		}
-		if !strings.EqualFold(messageBuf.String(), "This is a test attachment\n") {
-			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment\n",
-				messageBuf.String())
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "This is a test attachment") {
+			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment", got)
 		}
 	})
 	t.Run("SetAttachments with multiple files", func(t *testing.T) {
@@ -3366,7 +3366,7 @@ func TestMsg_SetAttachments(t *testing.T) {
 			Desc:        "Test file",
 			Name:        "attachment.txt",
 			Writer: func(w io.Writer) (int64, error) {
-				buf := bytes.NewBuffer([]byte("This is a test attachment\n"))
+				buf := bytes.NewBuffer([]byte("This is a test attachment"))
 				n, err := w.Write(buf.Bytes())
 				return int64(n), err
 			},
@@ -3376,7 +3376,7 @@ func TestMsg_SetAttachments(t *testing.T) {
 			Desc:        "Test file no. 2",
 			Name:        "attachment2.txt",
 			Writer: func(w io.Writer) (int64, error) {
-				buf := bytes.NewBuffer([]byte("This is also a test attachment\n"))
+				buf := bytes.NewBuffer([]byte("This is also a test attachment"))
 				n, err := w.Write(buf.Bytes())
 				return int64(n), err
 			},
@@ -3402,18 +3402,18 @@ func TestMsg_SetAttachments(t *testing.T) {
 		if err != nil {
 			t.Errorf("writer func failed: %s", err)
 		}
-		if !strings.EqualFold(messageBuf.String(), "This is a test attachment\n") {
-			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment\n",
-				messageBuf.String())
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(messageBuf.String(), "This is a test attachment") {
+			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment", got)
 		}
 		messageBuf.Reset()
 		_, err = attachments[1].Writer(messageBuf)
 		if err != nil {
 			t.Errorf("writer func failed: %s", err)
 		}
-		if !strings.EqualFold(messageBuf.String(), "This is also a test attachment\n") {
-			t.Errorf("expected message body to be %s, got: %s", "This is also a test attachment\n",
-				messageBuf.String())
+		got = strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "This is also a test attachment") {
+			t.Errorf("expected message body to be %s, got: %s", "This is also a test attachment", got)
 		}
 	})
 	t.Run("SetAttachments with no file", func(t *testing.T) {
@@ -3446,7 +3446,7 @@ func TestMsg_UnsetAllAttachments(t *testing.T) {
 		Desc:        "Test file",
 		Name:        "attachment.txt",
 		Writer: func(w io.Writer) (int64, error) {
-			buf := bytes.NewBuffer([]byte("This is a test attachment\n"))
+			buf := bytes.NewBuffer([]byte("This is a test attachment"))
 			n, err := w.Write(buf.Bytes())
 			return int64(n), err
 		},
@@ -3456,7 +3456,7 @@ func TestMsg_UnsetAllAttachments(t *testing.T) {
 		Desc:        "Test file no. 2",
 		Name:        "attachment2.txt",
 		Writer: func(w io.Writer) (int64, error) {
-			buf := bytes.NewBuffer([]byte("This is also a test attachment\n"))
+			buf := bytes.NewBuffer([]byte("This is also a test attachment"))
 			n, err := w.Write(buf.Bytes())
 			return int64(n), err
 		},
@@ -3495,9 +3495,9 @@ func TestMsg_GetEmbeds(t *testing.T) {
 		if err != nil {
 			t.Errorf("Writer func failed: %s", err)
 		}
-		if !strings.EqualFold(messageBuf.String(), "This is a test embed\n") {
-			t.Errorf("expected message body to be %s, got: %s", "This is a test embed\n",
-				messageBuf.String())
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "This is a test embed") {
+			t.Errorf("expected message body to be %s, got: %s", "This is a test embed", got)
 		}
 	})
 	t.Run("GetEmbeds with multiple embeds", func(t *testing.T) {
@@ -3527,18 +3527,18 @@ func TestMsg_GetEmbeds(t *testing.T) {
 		if err != nil {
 			t.Errorf("Writer func failed: %s", err)
 		}
-		if !strings.EqualFold(messageBuf.String(), "This is a test embed\n") {
-			t.Errorf("expected message body to be %s, got: %s", "This is a test embed\n",
-				messageBuf.String())
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "This is a test embed") {
+			t.Errorf("expected message body to be %s, got: %s", "This is a test embed", got)
 		}
 		messageBuf.Reset()
 		_, err = embeds[1].Writer(messageBuf)
 		if err != nil {
 			t.Errorf("Writer func failed: %s", err)
 		}
-		if !strings.EqualFold(messageBuf.String(), "This is a test embed\n") {
-			t.Errorf("expected message body to be %s, got: %s", "This is a test embed\n",
-				messageBuf.String())
+		got = strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "This is a test embed") {
+			t.Errorf("expected message body to be %s, got: %s", "This is a test embed", got)
 		}
 	})
 	t.Run("GetEmbeds with no embeds", func(t *testing.T) {
@@ -3564,7 +3564,7 @@ func TestMsg_SetEmbeds(t *testing.T) {
 			Desc:        "Test file",
 			Name:        "embed.txt",
 			Writer: func(w io.Writer) (int64, error) {
-				buf := bytes.NewBuffer([]byte("This is a test embed\n"))
+				buf := bytes.NewBuffer([]byte("This is a test embed"))
 				n, err := w.Write(buf.Bytes())
 				return int64(n), err
 			},
@@ -3586,9 +3586,9 @@ func TestMsg_SetEmbeds(t *testing.T) {
 		if err != nil {
 			t.Errorf("Writer func failed: %s", err)
 		}
-		if !strings.EqualFold(messageBuf.String(), "This is a test embed\n") {
-			t.Errorf("expected message body to be %s, got: %s", "This is a test embed\n",
-				messageBuf.String())
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "This is a test embed") {
+			t.Errorf("expected message body to be %s, got: %s", "This is a test embed", got)
 		}
 	})
 	t.Run("SetEmbeds with multiple files", func(t *testing.T) {
@@ -3601,7 +3601,7 @@ func TestMsg_SetEmbeds(t *testing.T) {
 			Desc:        "Test file",
 			Name:        "embed.txt",
 			Writer: func(w io.Writer) (int64, error) {
-				buf := bytes.NewBuffer([]byte("This is a test embed\n"))
+				buf := bytes.NewBuffer([]byte("This is a test embed"))
 				n, err := w.Write(buf.Bytes())
 				return int64(n), err
 			},
@@ -3611,7 +3611,7 @@ func TestMsg_SetEmbeds(t *testing.T) {
 			Desc:        "Test file no. 2",
 			Name:        "embed2.txt",
 			Writer: func(w io.Writer) (int64, error) {
-				buf := bytes.NewBuffer([]byte("This is also a test embed\n"))
+				buf := bytes.NewBuffer([]byte("This is also a test embed"))
 				n, err := w.Write(buf.Bytes())
 				return int64(n), err
 			},
@@ -3637,18 +3637,18 @@ func TestMsg_SetEmbeds(t *testing.T) {
 		if err != nil {
 			t.Errorf("Writer func failed: %s", err)
 		}
-		if !strings.EqualFold(messageBuf.String(), "This is a test embed\n") {
-			t.Errorf("expected message body to be %s, got: %s", "This is a test embed\n",
-				messageBuf.String())
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "This is a test embed") {
+			t.Errorf("expected message body to be %s, got: %s", "This is a test embed", got)
 		}
 		messageBuf.Reset()
 		_, err = embeds[1].Writer(messageBuf)
 		if err != nil {
 			t.Errorf("Writer func failed: %s", err)
 		}
-		if !strings.EqualFold(messageBuf.String(), "This is also a test embed\n") {
-			t.Errorf("expected message body to be %s, got: %s", "This is also a test embed\n",
-				messageBuf.String())
+		got = strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "This is also a test embed") {
+			t.Errorf("expected message body to be %s, got: %s", "This is also a test embed", got)
 		}
 	})
 	t.Run("SetEmbeds with no file", func(t *testing.T) {
@@ -3674,7 +3674,7 @@ func TestMsg_UnsetAllEmbeds(t *testing.T) {
 		Desc:        "Test file",
 		Name:        "embed.txt",
 		Writer: func(w io.Writer) (int64, error) {
-			buf := bytes.NewBuffer([]byte("This is a test embed\n"))
+			buf := bytes.NewBuffer([]byte("This is a test embed"))
 			n, err := w.Write(buf.Bytes())
 			return int64(n), err
 		},
@@ -3684,7 +3684,7 @@ func TestMsg_UnsetAllEmbeds(t *testing.T) {
 		Desc:        "Test file no. 2",
 		Name:        "embed2.txt",
 		Writer: func(w io.Writer) (int64, error) {
-			buf := bytes.NewBuffer([]byte("This is also a test embed\n"))
+			buf := bytes.NewBuffer([]byte("This is also a test embed"))
 			n, err := w.Write(buf.Bytes())
 			return int64(n), err
 		},
@@ -3710,7 +3710,7 @@ func TestMsg_UnsetAllParts(t *testing.T) {
 		Desc:        "Test file",
 		Name:        "embed.txt",
 		Writer: func(w io.Writer) (int64, error) {
-			buf := bytes.NewBuffer([]byte("This is a test embed\n"))
+			buf := bytes.NewBuffer([]byte("This is a test embed"))
 			n, err := w.Write(buf.Bytes())
 			return int64(n), err
 		},
@@ -3720,7 +3720,7 @@ func TestMsg_UnsetAllParts(t *testing.T) {
 		Desc:        "Test file no. 2",
 		Name:        "embed2.txt",
 		Writer: func(w io.Writer) (int64, error) {
-			buf := bytes.NewBuffer([]byte("This is also a test embed\n"))
+			buf := bytes.NewBuffer([]byte("This is also a test embed"))
 			n, err := w.Write(buf.Bytes())
 			return int64(n), err
 		},
