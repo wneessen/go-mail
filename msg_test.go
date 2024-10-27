@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	ht "html/template"
 	"io"
 	"net"
 	"reflect"
@@ -3841,6 +3842,137 @@ func TestMsg_SetBodyWriter(t *testing.T) {
 					t.Errorf("expected message body to be %s, got: %s", "test", messageBuf.String())
 				}
 			})
+		}
+	})
+	t.Run("SetBodyWriter WithPartEncoding", func(t *testing.T) {
+		for _, tt := range encodingTests {
+			t.Run(tt.name, func(t *testing.T) {
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				message.SetBodyWriter(TypeTextPlain, writerFunc, WithPartEncoding(tt.value))
+				parts := message.GetParts()
+				if len(parts) != 1 {
+					t.Fatalf("expected 1 part, got: %d", len(parts))
+				}
+				if parts[0] == nil {
+					t.Fatal("expected part to be not nil")
+				}
+				if parts[0].contentType != TypeTextPlain {
+					t.Errorf("expected contentType to be %s, got: %s", TypeTextPlain,
+						parts[0].contentType)
+				}
+				if parts[0].encoding != tt.value {
+					t.Errorf("expected encoding to be %s, got: %s", tt.value, parts[0].encoding)
+				}
+				messageBuf := bytes.NewBuffer(nil)
+				_, err := parts[0].writeFunc(messageBuf)
+				if err != nil {
+					t.Errorf("writeFunc failed: %s", err)
+				}
+				if !strings.EqualFold(messageBuf.String(), "test") {
+					t.Errorf("expected message body to be %s, got: %s", "test", messageBuf.String())
+				}
+			})
+		}
+	})
+	t.Run("SetBodyWriter WithPartContentDescription", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.SetBodyWriter(TypeTextPlain, writerFunc, WithPartContentDescription("description"))
+		parts := message.GetParts()
+		if len(parts) != 1 {
+			t.Fatalf("expected 1 part, got: %d", len(parts))
+		}
+		if parts[0] == nil {
+			t.Fatal("expected part to be not nil")
+		}
+		if parts[0].contentType != TypeTextPlain {
+			t.Errorf("expected contentType to be %s, got: %s", TypeTextPlain,
+				parts[0].contentType)
+		}
+		if parts[0].description != "description" {
+			t.Errorf("expected description to be %s, got: %s", "description", parts[0].description)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err := parts[0].writeFunc(messageBuf)
+		if err != nil {
+			t.Errorf("writeFunc failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "test") {
+			t.Errorf("expected message body to be %s, got: %s", "test", messageBuf.String())
+		}
+	})
+}
+
+func TestMsg_SetBodyHTMLTemplate(t *testing.T) {
+	tplString := `<p>{{.teststring}}</p>`
+	invalidTplString := `<p>{{call $.invalid .teststring}}</p>`
+	data := map[string]interface{}{"teststring": "this is a test"}
+	htmlTpl, err := ht.New("htmltpl").Parse(tplString)
+	if err != nil {
+		t.Fatalf("failed to parse HTML template: %s", err)
+	}
+	invalidTpl, err := ht.New("htmltpl").Parse(invalidTplString)
+	if err != nil {
+		t.Fatalf("failed to parse invalid HTML template: %s", err)
+	}
+	t.Run("SetBodyHTMLTemplate default", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err = message.SetBodyHTMLTemplate(htmlTpl, data); err != nil {
+			t.Fatalf("failed to set body HTML template: %s", err)
+		}
+		parts := message.GetParts()
+		if len(parts) != 1 {
+			t.Fatalf("expected 1 part, got: %d", len(parts))
+		}
+		if parts[0] == nil {
+			t.Fatal("expected part to be not nil")
+		}
+		if parts[0].contentType != TypeTextHTML {
+			t.Errorf("expected contentType to be %s, got: %s", TypeTextHTML, parts[0].contentType)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err = parts[0].writeFunc(messageBuf)
+		if err != nil {
+			t.Errorf("writeFunc failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "<p>this is a test</p>") {
+			t.Errorf("expected message body to be %s, got: %s", "<p>this is a test</p>", messageBuf.String())
+		}
+	})
+	t.Run("SetBodyHTMLTemplate with nil tpl", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		err = message.SetBodyHTMLTemplate(nil, nil)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.EqualFold(err.Error(), errTplPointerNil) {
+			t.Errorf("expected error to be %s, got: %s", errTplPointerNil, err.Error())
+		}
+	})
+	t.Run("SetBodyHTMLTemplate with invalid tpl", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		err = message.SetBodyHTMLTemplate(invalidTpl, data)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		expectErr := `failed to execute template: template: htmltpl:1:5: executing "htmltpl" at <call $.invalid ` +
+			`.teststring>: error calling call: call of nil`
+		if !strings.EqualFold(err.Error(), expectErr) {
+			t.Errorf("expected error to be %s, got: %s", expectErr, err.Error())
 		}
 	})
 }
