@@ -1786,11 +1786,11 @@ func (m *Msg) AddAlternativeHTMLTemplate(tpl *ht.Template, data interface{}, opt
 	if tpl == nil {
 		return errors.New(errTplPointerNil)
 	}
-	buffer := bytes.Buffer{}
-	if err := tpl.Execute(&buffer, data); err != nil {
+	buffer := bytes.NewBuffer(nil)
+	if err := tpl.Execute(buffer, data); err != nil {
 		return fmt.Errorf(errTplExecuteFailed, err)
 	}
-	writeFunc := writeFuncFromBuffer(&buffer)
+	writeFunc := writeFuncFromBuffer(buffer)
 	m.AddAlternativeWriter(TypeTextHTML, writeFunc, opts...)
 	return nil
 }
@@ -1816,11 +1816,11 @@ func (m *Msg) AddAlternativeTextTemplate(tpl *tt.Template, data interface{}, opt
 	if tpl == nil {
 		return errors.New(errTplPointerNil)
 	}
-	buffer := bytes.Buffer{}
-	if err := tpl.Execute(&buffer, data); err != nil {
+	buffer := bytes.NewBuffer(nil)
+	if err := tpl.Execute(buffer, data); err != nil {
 		return fmt.Errorf(errTplExecuteFailed, err)
 	}
-	writeFunc := writeFuncFromBuffer(&buffer)
+	writeFunc := writeFuncFromBuffer(buffer)
 	m.AddAlternativeWriter(TypeTextPlain, writeFunc, opts...)
 	return nil
 }
