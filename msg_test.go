@@ -3207,6 +3207,77 @@ func TestMsg_GetParts(t *testing.T) {
 	})
 }
 
+func TestMsg_GetAttachments(t *testing.T) {
+	t.Run("GetAttachments with single attachment", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.AttachFile("testdata/attachment.txt")
+		attachments := message.GetAttachments()
+		if len(attachments) != 1 {
+			t.Fatalf("GetAttachments: expected 1 attachment, got: %d", len(attachments))
+		}
+		if attachments[0] == nil {
+			t.Fatalf("GetAttachments: expected attachment, got nil")
+		}
+		if attachments[0].Name != "attachment.txt" {
+			t.Errorf("GetAttachments: expected attachment name to be %s, got: %s", "attachment.txt",
+				attachments[0].Name)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err := attachments[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("GetAttachments: Writer func failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "This is a test attachment\n") {
+			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is a test attachment\n",
+				messageBuf.String())
+		}
+	})
+	t.Run("GetAttachments with multiple attachments", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.AttachFile("testdata/attachment.txt")
+		message.AttachFile("testdata/attachment.txt", WithFileName("attachment2.txt"))
+		attachments := message.GetAttachments()
+		if len(attachments) != 2 {
+			t.Fatalf("GetAttachments: expected 2 attachment, got: %d", len(attachments))
+		}
+		if attachments[0] == nil || attachments[1] == nil {
+			t.Fatalf("GetAttachments: expected attachment, got nil")
+		}
+		if attachments[0].Name != "attachment.txt" {
+			t.Errorf("GetAttachments: expected attachment name to be %s, got: %s", "attachment.txt",
+				attachments[0].Name)
+		}
+		if attachments[1].Name != "attachment2.txt" {
+			t.Errorf("GetAttachments: expected attachment name to be %s, got: %s", "attachment2.txt",
+				attachments[1].Name)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err := attachments[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("GetAttachments: Writer func failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "This is a test attachment\n") {
+			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is a test attachment\n",
+				messageBuf.String())
+		}
+		messageBuf.Reset()
+		_, err = attachments[1].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("GetAttachments: Writer func failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "This is a test attachment\n") {
+			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is a test attachment\n",
+				messageBuf.String())
+		}
+	})
+}
+
 // checkAddrHeader verifies the correctness of an AddrHeader in a Msg based on the provided criteria.
 // It checks whether the AddrHeader contains the correct address, name, and number of fields.
 func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, field, wantFields int,
