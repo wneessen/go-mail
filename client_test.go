@@ -2581,7 +2581,7 @@ func TestClient_Send(t *testing.T) {
 			if err := client.Close(); err != nil {
 				var netErr net.Error
 				if errors.As(err, &netErr) && netErr.Timeout() {
-					t.Skip("failed to connect to the test server due to timeout")
+					t.Skip("failed to close the test server connection due to timeout")
 				}
 				t.Errorf("failed to close client: %s", err)
 			}
