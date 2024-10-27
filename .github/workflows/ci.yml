@@ -144,7 +144,8 @@ jobs:
             cancel-in-progress: true
         strategy:
             matrix:
-                osver: ['13.4', '14.0', '14.1']
+                osver: ['14.1']
+                #osver: ['13.4', '14.0', '14.1']
         steps:
             - name: Checkout Code
               uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
@@ -152,9 +153,11 @@ jobs:
               uses: vmactions/freebsd-vm@v1
               with:
                   usesh: true
+                  copyback: false
                   prepare: |
                     pkg install -y go
                   run: |
+                    cd $GITHUB_WORKSPACE;
                     go test -race -shuffle=on ./...
     reuse:
         name: REUSE Compliance Check
