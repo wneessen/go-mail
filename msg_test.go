@@ -3431,6 +3431,7 @@ func TestMsg_SetAttachments(t *testing.T) {
 
 func TestMsg_SetAttachements(t *testing.T) {
 	message := NewMsg()
+	//goland:noinspection GoDeprecation
 	message.SetAttachements(nil)
 	t.Skip("SetAttachements is deprecated and fully tested by SetAttachments already")
 }
@@ -3842,7 +3843,6 @@ func TestMsg_SetBodyWriter(t *testing.T) {
 			})
 		}
 	})
-
 }
 
 // checkAddrHeader verifies the correctness of an AddrHeader in a Msg based on the provided criteria.
