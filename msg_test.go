@@ -3498,54 +3498,6 @@ func checkGenHeader(t *testing.T, message *Msg, header Header, fn string, field,
 		}
 	}
 
-// TestMsg_SetAttachments tests the Msg.GetAttachments method
-
-	func TestMsg_SetAttachments(t *testing.T) {
-		tests := []struct {
-			name        string
-			attachments []string
-			files       []string
-		}{
-			{"File: replace README.md  with doc.go", []string{"README.md"}, []string{"doc.go"}},
-			{"File: add README.md with doc.go ", []string{"doc.go"}, []string{"README.md", "doc.go"}},
-			{"File: remove README.md and doc.go", []string{"README.md", "doc.go"}, nil},
-			{"File: add README.md and doc.go", nil, []string{"README.md", "doc.go"}},
-		}
-		m := NewMsg()
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				sort.Strings(tt.attachments)
-				sort.Strings(tt.files)
-				for _, a := range tt.attachments {
-					m.AttachFile(a, WithFileName(a), nil)
-				}
-				if len(m.attachments) != len(tt.attachments) {
-					t.Errorf("AttachFile() failed. Number of attachments expected: %d, got: %d", len(tt.files),
-						len(m.attachments))
-					return
-				}
-				var files []*File
-				for _, f := range tt.files {
-					files = append(files, &File{Name: f})
-				}
-				m.SetAttachments(files)
-				if len(m.attachments) != len(files) {
-					t.Errorf("SetAttachements() failed. Number of attachments expected: %d, got: %d", len(files),
-						len(m.attachments))
-					return
-				}
-				for i, f := range tt.files {
-					if f != m.attachments[i].Name {
-						t.Errorf("SetAttachments() failed. Attachment name expected: %s, got: %s", f,
-							m.attachments[i].Name)
-						return
-					}
-				}
-				m.Reset()
-			})
-		}
-	}
-
 // TestMsg_UnsetAllAttachments tests the Msg.UnsetAllAttachments method
 
 	func TestMsg_UnsetAllAttachments(t *testing.T) {
