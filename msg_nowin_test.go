@@ -27,7 +27,7 @@ func TestMsg_AttachFile_unixOnly(t *testing.T) {
 				t.Errorf("failed to remove temp file: %s", err)
 			}
 		})
-		if err = os.Chmod(tempfile.Name(), 0000); err != nil {
+		if err = os.Chmod(tempfile.Name(), 0o000); err != nil {
 			t.Fatalf("failed to chmod temp file to 0000: %s", err)
 		}
 		message := NewMsg()
