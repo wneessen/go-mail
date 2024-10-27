@@ -121,19 +121,109 @@ func TestPrepareMessage(t *testing.T) {
 	contentType := TypeTextPlain
 	charset := CharsetUTF8
 	body := []byte("This is the body!")
-	result := sMime.prepareMessage(encoding, contentType, charset, body)
+	result, err := sMime.prepareMessage(encoding, contentType, charset, body)
+	if err != nil {
+		t.Errorf("Error preparing message: %s", err)
+	}
 
-	if !strings.Contains(result, encoding.String()) {
-		t.Errorf("createMessage() did not return the correct encoding")
+	if !strings.Contains(*result, encoding.String()) {
+		t.Errorf("prepareMessage() did not return the correct encoding")
 	}
-	if !strings.Contains(result, contentType.String()) {
-		t.Errorf("createMessage() did not return the correct contentType")
+	if !strings.Contains(*result, contentType.String()) {
+		t.Errorf("prepareMessage() did not return the correct contentType")
 	}
-	if !strings.Contains(result, string(body)) {
-		t.Errorf("createMessage() did not return the correct body")
+	if !strings.Contains(*result, string(body)) {
+		t.Errorf("prepareMessage() did not return the correct body")
 	}
-	if result != fmt.Sprintf("Content-Transfer-Encoding: %s\r\nContent-Type: %s; charset=%s\r\n\r\n%s", encoding, contentType, charset, string(body)) {
-		t.Errorf("createMessage() did not sucessfully create the message")
+	if *result != fmt.Sprintf("Content-Transfer-Encoding: %s\r\nContent-Type: %s; charset=%s\r\n\r\n%s", encoding, contentType, charset, string(body)) {
+		t.Errorf("prepareMessage() did not sucessfully create the message")
+	}
+}
+
+// TestPrepareMessage_QuotedPrintable tests the prepareMessage method with quoted printable encoding
+func TestPrepareMessage_QuotedPrintable(t *testing.T) {
+	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
+	if err != nil {
+		t.Errorf("Error getting dummy crypto material: %s", err)
+	}
+
+	sMime, err := newSMimeWithRSA(privateKey, certificate, intermediateCertificate)
+	if err != nil {
+		t.Errorf("Error creating new SMime from keyPair: %s", err)
+	}
+
+	body := "This is the body with special chars like äöü ÄÖÜ ß!"
+	quotedPrintableBody := "This is the body with special chars like =C3=A4=C3=B6=C3=BC =C3=84=C3=96=C3=\r\n=9C =C3=9F!"
+	encoding := EncodingQP
+	contentType := TypeTextPlain
+	charset := CharsetUTF8
+	result, err := sMime.prepareMessage(encoding, contentType, charset, []byte(body))
+	if err != nil {
+		t.Errorf("Error preparing message: %s", err)
+	}
+
+	if !strings.Contains(*result, encoding.String()) {
+		t.Errorf("prepareMessage() did not return the correct encoding")
+	}
+	if !strings.Contains(*result, contentType.String()) {
+		t.Errorf("prepareMessage() did not return the correct contentType")
+	}
+	if !strings.Contains(*result, quotedPrintableBody) {
+		t.Errorf("prepareMessage() did not return the correct body")
+	}
+	if *result != fmt.Sprintf("Content-Transfer-Encoding: %s\r\nContent-Type: %s; charset=%s\r\n\r\n%s", encoding, contentType, charset, quotedPrintableBody) {
+		t.Errorf("prepareMessage() did not sucessfully create the message")
+	}
+}
+
+// TestEncodeMessage tests the TestEncodeMessage method without any encoding
+func TestEncodeMessage(t *testing.T) {
+	body := "This is the body with special chars like äöü ÄÖÜ ß!"
+	encoding := EncodingUSASCII
+
+	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
+	if err != nil {
+		t.Errorf("Error getting dummy crypto material: %s", err)
+	}
+
+	sMime, err := newSMimeWithRSA(privateKey, certificate, intermediateCertificate)
+	if err != nil {
+		t.Errorf("Error creating new SMime from keyPair: %s", err)
+	}
+
+	result, err := sMime.encodeMessage(encoding, body)
+	if err != nil {
+		t.Errorf("Error preparing message: %s", err)
+	}
+
+	if *result != body {
+		t.Errorf("encodeMessage() did not return the correct encoded message: %s", *result)
+	}
+}
+
+// TestEncodeMessage_QuotedPrintable tests the TestEncodeMessage method with quoted printable body
+func TestEncodeMessage_QuotedPrintable(t *testing.T) {
+	body := "This is the body with special chars like äöü ÄÖÜ ß!"
+	quotedPrintableBody := "This is the body with special chars like =C3=A4=C3=B6=C3=BC =C3=84=C3=96=C3=\r\n=9C =C3=9F!"
+	encoding := EncodingQP
+
+	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
+	if err != nil {
+		t.Errorf("Error getting dummy crypto material: %s", err)
+	}
+
+	sMime, err := newSMimeWithRSA(privateKey, certificate, intermediateCertificate)
+	if err != nil {
+		t.Errorf("Error creating new SMime from keyPair: %s", err)
+	}
+
+	result, err := sMime.encodeMessage(encoding, body)
+	if err != nil {
+		t.Errorf("Error preparing message: %s", err)
+	}
+
+	if *result != quotedPrintableBody {
+		t.Errorf("encodeMessage() did not return the correct encoded message: %s", *result)
 	}
 }
 

@@ -2184,8 +2184,11 @@ func (m *Msg) signMessage(msg *Msg) (*Msg, error) {
 
 // createSignaturePart creates an additional part that be used for storing the S/MIME signature of the given body
 func (m *Msg) createSignaturePart(encoding Encoding, contentType ContentType, charSet Charset, body []byte) (*Part, error) {
-	message := m.sMime.prepareMessage(encoding, contentType, charSet, body)
-	signedMessage, err := m.sMime.signMessage(message)
+	message, err := m.sMime.prepareMessage(encoding, contentType, charSet, body)
+	if err != nil {
+		return nil, err
+	}
+	signedMessage, err := m.sMime.signMessage(*message)
 	if err != nil {
 		return nil, err
 	}

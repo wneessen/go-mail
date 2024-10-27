@@ -13,6 +13,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"mime/quotedprintable"
 	"strings"
 )
 
@@ -119,8 +120,32 @@ func (sm *SMime) signMessage(message string) (*string, error) {
 }
 
 // createMessage prepares the message that will be used for the sign method later
-func (sm *SMime) prepareMessage(encoding Encoding, contentType ContentType, charset Charset, body []byte) string {
-	return fmt.Sprintf("Content-Transfer-Encoding: %v\r\nContent-Type: %v; charset=%v\r\n\r\n%v", encoding, contentType, charset, string(body))
+func (sm *SMime) prepareMessage(encoding Encoding, contentType ContentType, charset Charset, body []byte) (*string, error) {
+	encodedMessage, err := sm.encodeMessage(encoding, string(body))
+	if err != nil {
+		return nil, err
+	}
+	preparedMessage := fmt.Sprintf("Content-Transfer-Encoding: %v\r\nContent-Type: %v; charset=%v\r\n\r\n%v", encoding, contentType, charset, *encodedMessage)
+	return &preparedMessage, nil
+}
+
+// encodeMessage encodes the message with the given encoding
+func (sm *SMime) encodeMessage(encoding Encoding, message string) (*string, error) {
+	if encoding != EncodingQP {
+		return &message, nil
+	}
+
+	buffer := bytes.Buffer{}
+	writer := quotedprintable.NewWriter(&buffer)
+	if _, err := writer.Write([]byte(message)); err != nil {
+		return nil, err
+	}
+	if err := writer.Close(); err != nil {
+		return nil, err
+	}
+	encodedMessage := buffer.String()
+
+	return &encodedMessage, nil
 }
 
 // encodeToPEM uses the method pem.Encode from the standard library but cuts the typical PEM preamble
