@@ -4533,7 +4533,7 @@ func TestMsg_AttachReader(t *testing.T) {
 				t.Errorf("failed to close file: %s", err)
 			}
 		})
-		if err := message.AttachReader("attachment.txt", file); err != nil {
+		if err = message.AttachReader("attachment.txt", file); err != nil {
 			t.Fatalf("failed to attach reader: %s", err)
 		}
 		attachments := message.GetAttachments()
@@ -4556,23 +4556,6 @@ func TestMsg_AttachReader(t *testing.T) {
 			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment", got)
 		}
 	})
-	/*
-		t.Run("AttachReader with non-existant file", func(t *testing.T) {
-			message := NewMsg()
-			if message == nil {
-				t.Fatal("message is nil")
-			}
-			message.AttachReader("testdata/non-existant-file.txt")
-			attachments := message.GetAttachments()
-			if len(attachments) != 0 {
-				t.Fatalf("failed to retrieve attachments list")
-			}
-		})
-		t.Run("AttachReader with options", func(t *testing.T) {
-			t.Log("all options have already been tested in file_test.go")
-		})
-
-	*/
 }
 
 /*
