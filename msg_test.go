@@ -3427,6 +3427,123 @@ func TestMsg_SetAttachements(t *testing.T) {
 	t.Skip("SetAttachements is deprecated and fully tested by SetAttachments already")
 }
 
+func TestMsg_UnsetAllAttachments(t *testing.T) {
+	message := NewMsg()
+	if message == nil {
+		t.Fatal("message is nil")
+	}
+	file1 := &File{
+		ContentType: TypeTextPlain,
+		Desc:        "Test file",
+		Name:        "attachment.txt",
+		Writer: func(w io.Writer) (int64, error) {
+			buf := bytes.NewBuffer([]byte("This is a test attachment\n"))
+			n, err := w.Write(buf.Bytes())
+			return int64(n), err
+		},
+	}
+	file2 := &File{
+		ContentType: TypeTextPlain,
+		Desc:        "Test file no. 2",
+		Name:        "attachment2.txt",
+		Writer: func(w io.Writer) (int64, error) {
+			buf := bytes.NewBuffer([]byte("This is also a test attachment\n"))
+			n, err := w.Write(buf.Bytes())
+			return int64(n), err
+		},
+	}
+	message.SetAttachments([]*File{file1, file2})
+	message.UnsetAllAttachments()
+	if message.attachments != nil {
+		t.Errorf("UnsetAllAttachments: expected attachments to be nil, got: %v", message.attachments)
+	}
+	attachments := message.GetAttachments()
+	if len(attachments) != 0 {
+		t.Fatalf("GetAttachments: expected 0 attachment, got: %d", len(attachments))
+	}
+}
+
+func TestMsg_GetEmbeds(t *testing.T) {
+	t.Run("GetEmbeds with single embed", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.EmbedFile("testdata/embed.txt")
+		embeds := message.GetEmbeds()
+		if len(embeds) != 1 {
+			t.Fatalf("GetEmbeds: expected 1 embed, got: %d", len(embeds))
+		}
+		if embeds[0] == nil {
+			t.Fatalf("GetEmbeds: expected embed, got nil")
+		}
+		if embeds[0].Name != "embed.txt" {
+			t.Errorf("GetEmbeds: expected embed name to be %s, got: %s", "embed.txt",
+				embeds[0].Name)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err := embeds[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("GetEmbeds: Writer func failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "This is a test embed\n") {
+			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is a test embed\n",
+				messageBuf.String())
+		}
+	})
+	t.Run("GetEmbeds with multiple embeds", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.EmbedFile("testdata/embed.txt")
+		message.EmbedFile("testdata/embed.txt", WithFileName("embed2.txt"))
+		embeds := message.GetEmbeds()
+		if len(embeds) != 2 {
+			t.Fatalf("GetEmbeds: expected 2 embed, got: %d", len(embeds))
+		}
+		if embeds[0] == nil || embeds[1] == nil {
+			t.Fatalf("GetEmbeds: expected embed, got nil")
+		}
+		if embeds[0].Name != "embed.txt" {
+			t.Errorf("GetEmbeds: expected embed name to be %s, got: %s", "embed.txt",
+				embeds[0].Name)
+		}
+		if embeds[1].Name != "embed2.txt" {
+			t.Errorf("GetEmbeds: expected embed name to be %s, got: %s", "embed2.txt",
+				embeds[1].Name)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err := embeds[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("GetEmbeds: Writer func failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "This is a test embed\n") {
+			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is a test embed\n",
+				messageBuf.String())
+		}
+		messageBuf.Reset()
+		_, err = embeds[1].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("GetEmbeds: Writer func failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "This is a test embed\n") {
+			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is a test embed\n",
+				messageBuf.String())
+		}
+	})
+	t.Run("GetEmbeds with no embeds", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		embeds := message.GetEmbeds()
+		if len(embeds) != 0 {
+			t.Fatalf("GetEmbeds: expected 1 embeds, got: %d", len(embeds))
+		}
+	})
+}
+
 // checkAddrHeader verifies the correctness of an AddrHeader in a Msg based on the provided criteria.
 // It checks whether the AddrHeader contains the correct address, name, and number of fields.
 func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, field, wantFields int,
