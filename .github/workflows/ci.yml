@@ -146,10 +146,6 @@ jobs:
             matrix:
                 osver: ['13.4', '14.0', '14.1']
         steps:
-            - name: Harden Runner
-              uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
-              with:
-                  egress-policy: audit
             - name: Checkout Code
               uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
             - name: Run go test on FreeBSD
