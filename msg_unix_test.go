@@ -9,27 +9,43 @@ package mail
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestMsg_AttachFile_unixOnly(t *testing.T) {
 	t.Run("AttachFile with fileFromFS fails on open", func(t *testing.T) {
+		if os.Getenv("PERFORM_UNIX_OPEN_WRITE_TESTS") != "true" {
+			t.Skipf("PERFORM_UNIX_OPEN_WRITE_TESTS variable is not set. Skipping unix open/write tests")
+		}
+
+		tempFile, err := os.CreateTemp("testdata/tmp", "attachfile-open-write-test.*.txt")
+		if err != nil {
+			t.Fatalf("failed to create temp file: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := os.Remove(tempFile.Name()); err != nil {
+				t.Errorf("failed to remove temp file: %s", err)
+			}
+		})
+		if err = os.Chmod(tempFile.Name(), 0o000); err != nil {
+			t.Fatalf("failed to chmod temp file: %s", err)
+		}
+
 		message := NewMsg()
 		if message == nil {
 			t.Fatal("message is nil")
 		}
-		// The /dev/mem device should not be readable on normal UNIX systems. We choose this
-		// approach over os.Chmod(0000) on a temp file, since Github runners give full access
-		// to the file system
-		message.AttachFile("/dev/mem")
+		message.AttachFile(tempFile.Name())
 		attachments := message.GetAttachments()
 		if len(attachments) != 1 {
 			t.Fatalf("failed to get attachments, expected 1, got: %d", len(attachments))
 		}
 		messageBuf := bytes.NewBuffer(nil)
-		_, err := attachments[0].Writer(messageBuf)
+		_, err = attachments[0].Writer(messageBuf)
 		if err == nil {
 			t.Error("writer func expected to fail, but didn't")
 		}
@@ -117,7 +133,6 @@ func TestMsg_AttachReader_unixOnly(t *testing.T) {
 	})
 }
 
-/*
 // TestMsg_WriteToSendmailWithContext tests the WriteToSendmailWithContext() method of the Msg
 func TestMsg_WriteToSendmailWithContext(t *testing.T) {
 	if os.Getenv("TEST_SENDMAIL") != "true" {
@@ -187,4 +202,3 @@ func TestMsg_WriteToTempFileFailed(t *testing.T) {
 		t.Errorf("WriteToTempFile() did not fail as expected")
 	}
 }
-*/

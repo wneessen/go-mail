@@ -31,6 +31,7 @@ jobs:
                 go: ['1.23']
         env:
             PERFORM_ONLINE_TEST: ${{ vars.PERFORM_ONLINE_TEST }}
+            PERFORM_UNIX_OPEN_WRITE_TESTS: "true"
             TEST_SENDMAIL: ${{ vars.TEST_SENDMAIL }}
             TEST_HOST: ${{ secrets.TEST_HOST }}
             TEST_USER: ${{ secrets.TEST_USER }}
@@ -145,7 +146,7 @@ jobs:
         strategy:
             matrix:
                 osver: ['14.1']
-                #osver: ['13.4', '14.0', '14.1']
+                osver: ['14.1', '14.0', 13.4']
         steps:
             - name: Checkout Code
               uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
