@@ -4225,7 +4225,7 @@ func TestMsg_AddAlternativeWriter(t *testing.T) {
 		message.AddAlternativeWriter(TypeTextHTML, writerFunc)
 		parts := message.GetParts()
 		if len(parts) != 2 {
-			t.Fatalf("expected 1 part, got: %d", len(parts))
+			t.Fatalf("expected 2 part, got: %d", len(parts))
 		}
 		if parts[0] == nil || parts[1] == nil {
 			t.Fatal("expected part to be not nil")
@@ -4253,6 +4253,114 @@ func TestMsg_AddAlternativeWriter(t *testing.T) {
 		}
 		if !strings.EqualFold(messageBuf.String(), "<p>alternative body</p>") {
 			t.Errorf("expected alternative message body to be %s, got: %s", "<p>alternative body</p>", messageBuf.String())
+		}
+	})
+}
+
+func TestMsg_AddAlternativeHTMLTemplate(t *testing.T) {
+	tplString := `<p>{{.teststring}}</p>`
+	invalidTplString := `<p>{{call $.invalid .teststring}}</p>`
+	data := map[string]interface{}{"teststring": "this is a test"}
+	htmlTpl, err := ht.New("htmltpl").Parse(tplString)
+	if err != nil {
+		t.Fatalf("failed to parse HTML template: %s", err)
+	}
+	invalidTpl, err := ht.New("htmltpl").Parse(invalidTplString)
+	if err != nil {
+		t.Fatalf("failed to parse invalid HTML template: %s", err)
+	}
+	t.Run("AddAlternativeHTMLTemplate default", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err = message.AddAlternativeHTMLTemplate(htmlTpl, data); err != nil {
+			t.Fatalf("failed to set body HTML template: %s", err)
+		}
+		parts := message.GetParts()
+		if len(parts) != 1 {
+			t.Fatalf("expected 1 part, got: %d", len(parts))
+		}
+		if parts[0] == nil {
+			t.Fatal("expected part to be not nil")
+		}
+		if parts[0].contentType != TypeTextHTML {
+			t.Errorf("expected contentType to be %s, got: %s", TypeTextHTML, parts[0].contentType)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err = parts[0].writeFunc(messageBuf)
+		if err != nil {
+			t.Errorf("writeFunc failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "<p>this is a test</p>") {
+			t.Errorf("expected message body to be %s, got: %s", "<p>this is a test</p>", messageBuf.String())
+		}
+	})
+	t.Run("AddAlternativeHTMLTemplate with body string", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.SetBodyString(TypeTextPlain, "body string")
+		if err = message.AddAlternativeHTMLTemplate(htmlTpl, data); err != nil {
+			t.Fatalf("failed to set body HTML template: %s", err)
+		}
+		parts := message.GetParts()
+		if len(parts) != 2 {
+			t.Fatalf("expected 2 part, got: %d", len(parts))
+		}
+		if parts[0] == nil || parts[1] == nil {
+			t.Fatal("expected part to be not nil")
+		}
+		if parts[0].contentType != TypeTextPlain {
+			t.Errorf("expected contentType to be %s, got: %s", TypeTextPlain, parts[0].contentType)
+		}
+		if parts[1].contentType != TypeTextHTML {
+			t.Errorf("expected contentType to be %s, got: %s", TypeTextHTML, parts[1].contentType)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err = parts[0].writeFunc(messageBuf)
+		if err != nil {
+			t.Errorf("writeFunc failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "body string") {
+			t.Errorf("expected message body to be %s, got: %s", "body string", messageBuf.String())
+		}
+		messageBuf.Reset()
+		_, err = parts[1].writeFunc(messageBuf)
+		if err != nil {
+			t.Errorf("writeFunc failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "<p>this is a test</p>") {
+			t.Errorf("expected message body to be %s, got: %s", "<p>this is a test</p>", messageBuf.String())
+		}
+	})
+	t.Run("AddAlternativeHTMLTemplate with nil tpl", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		err = message.AddAlternativeHTMLTemplate(nil, nil)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.EqualFold(err.Error(), errTplPointerNil) {
+			t.Errorf("expected error to be %s, got: %s", errTplPointerNil, err.Error())
+		}
+	})
+	t.Run("AddAlternativeHTMLTemplate with invalid tpl", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		err = message.AddAlternativeHTMLTemplate(invalidTpl, data)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		expectErr := `failed to execute template: template: htmltpl:1:5: executing "htmltpl" at <call $.invalid ` +
+			`.teststring>: error calling call: call of nil`
+		if !strings.EqualFold(err.Error(), expectErr) {
+			t.Errorf("expected error to be %s, got: %s", expectErr, err.Error())
 		}
 	})
 }
