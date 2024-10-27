@@ -3845,51 +3845,6 @@ func TestMsg_SetBodyWriter(t *testing.T) {
 	})
 }
 
-// checkAddrHeader verifies the correctness of an AddrHeader in a Msg based on the provided criteria.
-// It checks whether the AddrHeader contains the correct address, name, and number of fields.
-func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, field, wantFields int,
-	wantMail, wantName string,
-) {
-	t.Helper()
-	addresses, ok := message.addrHeader[header]
-	if !ok {
-		t.Fatalf("failed to set %s, addrHeader field is not set", fn)
-	}
-	if len(addresses) != wantFields {
-		t.Fatalf("failed to set %s, addrHeader value count is: %d, want: %d", fn, len(addresses), field)
-	}
-	if addresses[field].Address != wantMail {
-		t.Errorf("failed to set %s, addrHeader value is %s, want: %s", fn, addresses[field].Address, wantMail)
-	}
-	wantString := fmt.Sprintf(`<%s>`, wantMail)
-	if wantName != "" {
-		wantString = fmt.Sprintf(`%q <%s>`, wantName, wantMail)
-	}
-	if addresses[field].String() != wantString {
-		t.Errorf("failed to set %s, addrHeader value is %s, want: %s", fn, addresses[field].String(), wantString)
-	}
-	if addresses[field].Name != wantName {
-		t.Errorf("failed to set %s, addrHeader name is %s, want: %s", fn, addresses[field].Name, wantName)
-	}
-}
-
-// checkGenHeader validates the generated header in an email message, verifying its presence and expected values.
-func checkGenHeader(t *testing.T, message *Msg, header Header, fn string, field, wantFields int,
-	wantVal string,
-) {
-	t.Helper()
-	values, ok := message.genHeader[header]
-	if !ok {
-		t.Fatalf("failed to set %s, genHeader field is not set", fn)
-	}
-	if len(values) != wantFields {
-		t.Fatalf("failed to set %s, genHeader value count is: %d, want: %d", fn, len(values), field)
-	}
-	if values[field] != wantVal {
-		t.Errorf("failed to set %s, genHeader value is %s, want: %s", fn, values[field], wantVal)
-	}
-}
-
 /*
 // TestNewMsgWithMiddleware tests WithMiddleware
 
@@ -3935,42 +3890,6 @@ func checkGenHeader(t *testing.T, message *Msg, header Header, fn string, field,
 				}
 				if s[0] != tt.want {
 					t.Errorf("applyMiddlewares() method failed. Expected: %s, got: %s", tt.want, s[0])
-				}
-			})
-		}
-	}
-
-// TestMsg_SetBodyString tests the Msg.SetBodyString method
-
-	func TestMsg_SetBodyString(t *testing.T) {
-		tests := []struct {
-			name  string
-			ct    ContentType
-			value string
-			want  string
-			sf    bool
-		}{
-			{"Body: test", TypeTextPlain, "test", "test", false},
-			{
-				"Body: with Umlauts", TypeTextHTML, "<strong>üäöß</strong>",
-				"<strong>üäöß</strong>", false,
-			},
-			{"Body: with emoji", TypeTextPlain, "📧", "📧", false},
-		}
-		m := NewMsg()
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				m.SetBodyString(tt.ct, tt.value)
-				if len(m.parts) != 1 {
-					t.Errorf("SetBodyString() failed: no mail parts found")
-				}
-				part := m.parts[0]
-				res := bytes.Buffer{}
-				if _, err := part.writeFunc(&res); err != nil && !tt.sf {
-					t.Errorf("WriteFunc of part failed: %s", err)
-				}
-				if res.String() != tt.want {
-					t.Errorf("SetBodyString() failed. Expecteding: %s, got: %s", tt.want, res.String())
 				}
 			})
 		}
@@ -4055,88 +3974,6 @@ func checkGenHeader(t *testing.T, message *Msg, header Header, fn string, field,
 		}
 	}
 
-// TestMsg_UnsetAllAttachments tests the Msg.UnsetAllAttachments method
-
-	func TestMsg_UnsetAllAttachments(t *testing.T) {
-		tests := []struct {
-			name        string
-			attachments []string
-		}{
-			{"File: one file", []string{"README.md"}},
-			{"File: two files", []string{"README.md", "doc.go"}},
-			{"File: nil", nil},
-		}
-		m := NewMsg()
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				var files []*File
-				for _, f := range tt.attachments {
-					files = append(files, &File{Name: f})
-				}
-				m.SetAttachments(files)
-
-				if len(m.attachments) != len(files) {
-					t.Errorf("SetAttachements() failed. Number of attachments expected: %d, got: %d", len(files),
-						len(m.attachments))
-					return
-				}
-				m.UnsetAllAttachments()
-				if m.attachments != nil {
-					t.Errorf("UnsetAllAttachments() failed. The attachments file's pointer is not nil")
-					return
-				}
-				m.Reset()
-			})
-		}
-	}
-
-// TestMsg_GetEmbeds tests the Msg.GetEmbeds method
-
-	func TestMsg_GetEmbeds(t *testing.T) {
-		tests := []struct {
-			name  string
-			files []string
-		}{
-			{"File: README.md", []string{"README.md"}},
-			{"File: doc.go", []string{"doc.go"}},
-			{"File: README.md and doc.go", []string{"README.md", "doc.go"}},
-			{"File: nonexisting", nil},
-		}
-		m := NewMsg()
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				for _, f := range tt.files {
-					m.EmbedFile(f, WithFileName(f), nil)
-				}
-				if len(m.embeds) != len(tt.files) {
-					t.Errorf("EmbedFile() failed. Number of embedded files expected: %d, got: %d", len(tt.files),
-						len(m.embeds))
-					return
-				}
-				ff := m.GetEmbeds()
-				if len(m.embeds) != len(ff) {
-					t.Errorf("GetEmbeds() failed. Number of embedded files expected: %d, got: %d", len(m.embeds),
-						len(ff))
-					return
-				}
-				var fn []string
-				for _, f := range ff {
-					fn = append(fn, f.Name)
-				}
-				sort.Strings(fn)
-				sort.Strings(tt.files)
-				for i, f := range tt.files {
-					if f != fn[i] {
-						t.Errorf("GetEmbeds() failed. Embedded file name expected: %s, got: %s", f,
-							fn[i])
-						return
-					}
-				}
-				m.Reset()
-			})
-		}
-	}
-
 // TestMsg_SetEmbeds tests the Msg.GetEmbeds method
 
 	func TestMsg_SetEmbeds(t *testing.T) {
@@ -4179,90 +4016,6 @@ func checkGenHeader(t *testing.T, message *Msg, header Header, fn string, field,
 							m.embeds[i].Name)
 						return
 					}
-				}
-				m.Reset()
-			})
-		}
-	}
-
-// TestMsg_UnsetAllEmbeds tests the Msg.TestMsg_UnsetAllEmbeds method
-
-	func TestMsg_UnsetAllEmbeds(t *testing.T) {
-		tests := []struct {
-			name   string
-			embeds []string
-		}{
-			{"File: one file", []string{"README.md"}},
-			{"File: two files", []string{"README.md", "doc.go"}},
-			{"File: nil", nil},
-		}
-		m := NewMsg()
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				var files []*File
-				for _, f := range tt.embeds {
-					files = append(files, &File{Name: f})
-				}
-				m.SetEmbeds(files)
-				if len(m.embeds) != len(files) {
-					t.Errorf("SetEmbeds() failed. Number of embedded files expected: %d, got: %d", len(files),
-						len(m.embeds))
-					return
-				}
-				m.UnsetAllEmbeds()
-				if m.embeds != nil {
-					t.Errorf("UnsetAllEmbeds() failed. The embeds file's point is not nil")
-					return
-				}
-				m.Reset()
-			})
-		}
-	}
-
-// TestMsg_UnsetAllParts tests the Msg.TestMsg_UnsetAllParts method
-
-	func TestMsg_UnsetAllParts(t *testing.T) {
-		tests := []struct {
-			name        string
-			attachments []string
-			embeds      []string
-		}{
-			{"File: both is exist", []string{"README.md"}, []string{"doc.go"}},
-			{"File: both is nil", nil, nil},
-			{"File: attachment exist, embed nil", []string{"README.md"}, nil},
-			{"File: attachment nil, embed exist", nil, []string{"README.md"}},
-		}
-		m := NewMsg()
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				var attachments []*File
-				for _, f := range tt.attachments {
-					attachments = append(attachments, &File{Name: f})
-				}
-				m.SetAttachments(attachments)
-				if len(m.attachments) != len(attachments) {
-					t.Errorf("SetAttachements() failed. Number of attachments files expected: %d, got: %d",
-						len(attachments), len(m.attachments))
-					return
-				}
-				var embeds []*File
-				for _, f := range tt.embeds {
-					embeds = append(embeds, &File{Name: f})
-				}
-				m.SetEmbeds(embeds)
-				if len(m.embeds) != len(embeds) {
-					t.Errorf("SetEmbeds() failed. Number of embedded files expected: %d, got: %d", len(embeds),
-						len(m.embeds))
-					return
-				}
-				m.UnsetAllParts()
-				if m.attachments != nil {
-					t.Errorf("UnsetAllParts() failed. The attachments file's point is not nil")
-					return
-				}
-				if m.embeds != nil {
-					t.Errorf("UnsetAllParts() failed. The embeds file's point is not nil")
-					return
 				}
 				m.Reset()
 			})
@@ -5976,4 +5729,49 @@ func (mw encodeMiddleware) Handle(m *Msg) *Msg {
 
 func (mw encodeMiddleware) Type() MiddlewareType {
 	return "encode"
+}
+
+// checkAddrHeader verifies the correctness of an AddrHeader in a Msg based on the provided criteria.
+// It checks whether the AddrHeader contains the correct address, name, and number of fields.
+func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, field, wantFields int,
+	wantMail, wantName string,
+) {
+	t.Helper()
+	addresses, ok := message.addrHeader[header]
+	if !ok {
+		t.Fatalf("failed to set %s, addrHeader field is not set", fn)
+	}
+	if len(addresses) != wantFields {
+		t.Fatalf("failed to set %s, addrHeader value count is: %d, want: %d", fn, len(addresses), field)
+	}
+	if addresses[field].Address != wantMail {
+		t.Errorf("failed to set %s, addrHeader value is %s, want: %s", fn, addresses[field].Address, wantMail)
+	}
+	wantString := fmt.Sprintf(`<%s>`, wantMail)
+	if wantName != "" {
+		wantString = fmt.Sprintf(`%q <%s>`, wantName, wantMail)
+	}
+	if addresses[field].String() != wantString {
+		t.Errorf("failed to set %s, addrHeader value is %s, want: %s", fn, addresses[field].String(), wantString)
+	}
+	if addresses[field].Name != wantName {
+		t.Errorf("failed to set %s, addrHeader name is %s, want: %s", fn, addresses[field].Name, wantName)
+	}
+}
+
+// checkGenHeader validates the generated header in an email message, verifying its presence and expected values.
+func checkGenHeader(t *testing.T, message *Msg, header Header, fn string, field, wantFields int,
+	wantVal string,
+) {
+	t.Helper()
+	values, ok := message.genHeader[header]
+	if !ok {
+		t.Fatalf("failed to set %s, genHeader field is not set", fn)
+	}
+	if len(values) != wantFields {
+		t.Fatalf("failed to set %s, genHeader value count is: %d, want: %d", fn, len(values), field)
+	}
+	if values[field] != wantVal {
+		t.Errorf("failed to set %s, genHeader value is %s, want: %s", fn, values[field], wantVal)
+	}
 }
