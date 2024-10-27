@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"reflect"
 	"strings"
@@ -3307,6 +3308,123 @@ func TestMsg_GetBoundary(t *testing.T) {
 			t.Errorf("GetBoundary: expected empty, got: %s", message.GetBoundary())
 		}
 	})
+}
+
+func TestMsg_SetAttachments(t *testing.T) {
+	t.Run("SetAttachments with single file", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		file := &File{
+			ContentType: TypeTextPlain,
+			Desc:        "Test file",
+			Name:        "attachment.txt",
+			Writer: func(w io.Writer) (int64, error) {
+				buf := bytes.NewBuffer([]byte("This is a test attachment\n"))
+				n, err := w.Write(buf.Bytes())
+				return int64(n), err
+			},
+		}
+		message.SetAttachments([]*File{file})
+		attachments := message.GetAttachments()
+		if len(attachments) != 1 {
+			t.Fatalf("GetAttachments: expected 1 attachment, got: %d", len(attachments))
+		}
+		if attachments[0] == nil {
+			t.Fatalf("GetAttachments: expected attachment, got nil")
+		}
+		if attachments[0].Name != "attachment.txt" {
+			t.Errorf("GetAttachments: expected attachment name to be %s, got: %s", "attachment.txt",
+				attachments[0].Name)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err := attachments[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("GetAttachments: Writer func failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "This is a test attachment\n") {
+			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is a test attachment\n",
+				messageBuf.String())
+		}
+	})
+	t.Run("SetAttachments with multiple files", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		file1 := &File{
+			ContentType: TypeTextPlain,
+			Desc:        "Test file",
+			Name:        "attachment.txt",
+			Writer: func(w io.Writer) (int64, error) {
+				buf := bytes.NewBuffer([]byte("This is a test attachment\n"))
+				n, err := w.Write(buf.Bytes())
+				return int64(n), err
+			},
+		}
+		file2 := &File{
+			ContentType: TypeTextPlain,
+			Desc:        "Test file no. 2",
+			Name:        "attachment2.txt",
+			Writer: func(w io.Writer) (int64, error) {
+				buf := bytes.NewBuffer([]byte("This is also a test attachment\n"))
+				n, err := w.Write(buf.Bytes())
+				return int64(n), err
+			},
+		}
+		message.SetAttachments([]*File{file1, file2})
+		attachments := message.GetAttachments()
+		if len(attachments) != 2 {
+			t.Fatalf("GetAttachments: expected 2 attachment, got: %d", len(attachments))
+		}
+		if attachments[0] == nil || attachments[1] == nil {
+			t.Fatalf("GetAttachments: expected attachment, got nil")
+		}
+		if attachments[0].Name != "attachment.txt" {
+			t.Errorf("GetAttachments: expected attachment name to be %s, got: %s", "attachment.txt",
+				attachments[0].Name)
+		}
+		if attachments[1].Name != "attachment2.txt" {
+			t.Errorf("GetAttachments: expected attachment name to be %s, got: %s", "attachment2.txt",
+				attachments[1].Name)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err := attachments[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("GetAttachments: Writer func failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "This is a test attachment\n") {
+			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is a test attachment\n",
+				messageBuf.String())
+		}
+		messageBuf.Reset()
+		_, err = attachments[1].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("GetAttachments: Writer func failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "This is also a test attachment\n") {
+			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is also a test attachment\n",
+				messageBuf.String())
+		}
+	})
+	t.Run("SetAttachments with no file", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.SetAttachments(nil)
+		attachments := message.GetAttachments()
+		if len(attachments) != 0 {
+			t.Fatalf("GetAttachments: expected 0 attachment, got: %d", len(attachments))
+		}
+	})
+}
+
+func TestMsg_SetAttachements(t *testing.T) {
+	message := NewMsg()
+	message.SetAttachements(nil)
+	t.Skip("SetAttachements is deprecated and fully tested by SetAttachments already")
 }
 
 // checkAddrHeader verifies the correctness of an AddrHeader in a Msg based on the provided criteria.
