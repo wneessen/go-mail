@@ -1712,11 +1712,11 @@ func (m *Msg) SetBodyTextTemplate(tpl *tt.Template, data interface{}, opts ...Pa
 	if tpl == nil {
 		return errors.New(errTplPointerNil)
 	}
-	buf := bytes.Buffer{}
-	if err := tpl.Execute(&buf, data); err != nil {
+	buffer := bytes.NewBuffer(nil)
+	if err := tpl.Execute(buffer, data); err != nil {
 		return fmt.Errorf(errTplExecuteFailed, err)
 	}
-	writeFunc := writeFuncFromBuffer(&buf)
+	writeFunc := writeFuncFromBuffer(buffer)
 	m.SetBodyWriter(TypeTextPlain, writeFunc, opts...)
 	return nil
 }
