@@ -3288,6 +3288,27 @@ func TestMsg_GetAttachments(t *testing.T) {
 	})
 }
 
+func TestMsg_GetBoundary(t *testing.T) {
+	t.Run("GetBoundary", func(t *testing.T) {
+		message := NewMsg(WithBoundary("test"))
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if message.GetBoundary() != "test" {
+			t.Errorf("GetBoundary: expected %s, got: %s", "test", message.GetBoundary())
+		}
+	})
+	t.Run("GetBoundary with no boundary", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if message.GetBoundary() != "" {
+			t.Errorf("GetBoundary: expected empty, got: %s", message.GetBoundary())
+		}
+	})
+}
+
 // checkAddrHeader verifies the correctness of an AddrHeader in a Msg based on the provided criteria.
 // It checks whether the AddrHeader contains the correct address, name, and number of fields.
 func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, field, wantFields int,
