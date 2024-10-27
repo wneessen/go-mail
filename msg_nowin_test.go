@@ -18,7 +18,7 @@ import (
 
 func TestMsg_AttachFile_unixOnly(t *testing.T) {
 	t.Run("AttachFile with fileFromFS fails on open", func(t *testing.T) {
-		tempfile, err := os.CreateTemp("", "attachfile-unable-to-open.*.txt")
+		tempfile, err := os.CreateTemp("testdata/tmp", "attachfile-unable-to-open.*.txt")
 		if err != nil {
 			t.Fatalf("failed to create temp file: %s", err)
 		}
@@ -49,7 +49,7 @@ func TestMsg_AttachFile_unixOnly(t *testing.T) {
 		}
 	})
 	t.Run("AttachFile with fileFromFS fails on copy", func(t *testing.T) {
-		tempfile, err := os.CreateTemp("", "attachfile-close-early.*.txt")
+		tempfile, err := os.CreateTemp("testdata/tmp", "attachfile-close-early.*.txt")
 		if err != nil {
 			t.Fatalf("failed to create temp file: %s", err)
 		}
