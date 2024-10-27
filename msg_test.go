@@ -4047,6 +4047,216 @@ func TestMsg_SetBodyTextTemplate(t *testing.T) {
 	})
 }
 
+func TestMsg_AddAlternativeString(t *testing.T) {
+	t.Run("AddAlternativeString on all types", func(t *testing.T) {
+		for _, tt := range contentTypeTests {
+			t.Run(tt.name, func(t *testing.T) {
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				message.AddAlternativeString(tt.ctype, "test")
+				parts := message.GetParts()
+				if len(parts) != 1 {
+					t.Fatalf("expected 1 part, got: %d", len(parts))
+				}
+				if parts[0] == nil {
+					t.Fatal("expected part to be not nil")
+				}
+				if parts[0].contentType != tt.ctype {
+					t.Errorf("expected contentType to be %s, got: %s", tt.ctype,
+						parts[0].contentType)
+				}
+				messageBuf := bytes.NewBuffer(nil)
+				_, err := parts[0].writeFunc(messageBuf)
+				if err != nil {
+					t.Errorf("writeFunc failed: %s", err)
+				}
+				if !strings.EqualFold(messageBuf.String(), "test") {
+					t.Errorf("expected message body to be %s, got: %s", "test", messageBuf.String())
+				}
+			})
+		}
+	})
+}
+
+func TestMsg_AddAlternativeWriter(t *testing.T) {
+	writerFunc := func(w io.Writer) (int64, error) {
+		buffer := bytes.NewBufferString("test")
+		n, err := w.Write(buffer.Bytes())
+		return int64(n), err
+	}
+	t.Run("AddAlternativeWriter on all types", func(t *testing.T) {
+		for _, tt := range contentTypeTests {
+			t.Run(tt.name, func(t *testing.T) {
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				message.AddAlternativeWriter(tt.ctype, writerFunc)
+				parts := message.GetParts()
+				if len(parts) != 1 {
+					t.Fatalf("expected 1 part, got: %d", len(parts))
+				}
+				if parts[0] == nil {
+					t.Fatal("expected part to be not nil")
+				}
+				if parts[0].contentType != tt.ctype {
+					t.Errorf("expected contentType to be %s, got: %s", tt.ctype,
+						parts[0].contentType)
+				}
+				messageBuf := bytes.NewBuffer(nil)
+				_, err := parts[0].writeFunc(messageBuf)
+				if err != nil {
+					t.Errorf("writeFunc failed: %s", err)
+				}
+				if !strings.EqualFold(messageBuf.String(), "test") {
+					t.Errorf("expected message body to be %s, got: %s", "test", messageBuf.String())
+				}
+			})
+		}
+	})
+	t.Run("AddAlternativeWriter WithPartCharset", func(t *testing.T) {
+		for _, tt := range charsetTests {
+			t.Run(tt.name, func(t *testing.T) {
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				message.AddAlternativeWriter(TypeTextPlain, writerFunc, WithPartCharset(tt.value))
+				parts := message.GetParts()
+				if len(parts) != 1 {
+					t.Fatalf("expected 1 part, got: %d", len(parts))
+				}
+				if parts[0] == nil {
+					t.Fatal("expected part to be not nil")
+				}
+				if parts[0].contentType != TypeTextPlain {
+					t.Errorf("expected contentType to be %s, got: %s", TypeTextPlain,
+						parts[0].contentType)
+				}
+				if parts[0].charset != tt.value {
+					t.Errorf("expected charset to be %s, got: %s", tt.value, parts[0].charset)
+				}
+				messageBuf := bytes.NewBuffer(nil)
+				_, err := parts[0].writeFunc(messageBuf)
+				if err != nil {
+					t.Errorf("writeFunc failed: %s", err)
+				}
+				if !strings.EqualFold(messageBuf.String(), "test") {
+					t.Errorf("expected message body to be %s, got: %s", "test", messageBuf.String())
+				}
+			})
+		}
+	})
+	t.Run("AddAlternativeWriter WithPartEncoding", func(t *testing.T) {
+		for _, tt := range encodingTests {
+			t.Run(tt.name, func(t *testing.T) {
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				message.AddAlternativeWriter(TypeTextPlain, writerFunc, WithPartEncoding(tt.value))
+				parts := message.GetParts()
+				if len(parts) != 1 {
+					t.Fatalf("expected 1 part, got: %d", len(parts))
+				}
+				if parts[0] == nil {
+					t.Fatal("expected part to be not nil")
+				}
+				if parts[0].contentType != TypeTextPlain {
+					t.Errorf("expected contentType to be %s, got: %s", TypeTextPlain,
+						parts[0].contentType)
+				}
+				if parts[0].encoding != tt.value {
+					t.Errorf("expected encoding to be %s, got: %s", tt.value, parts[0].encoding)
+				}
+				messageBuf := bytes.NewBuffer(nil)
+				_, err := parts[0].writeFunc(messageBuf)
+				if err != nil {
+					t.Errorf("writeFunc failed: %s", err)
+				}
+				if !strings.EqualFold(messageBuf.String(), "test") {
+					t.Errorf("expected message body to be %s, got: %s", "test", messageBuf.String())
+				}
+			})
+		}
+	})
+	t.Run("AddAlternativeWriter WithPartContentDescription", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.AddAlternativeWriter(TypeTextPlain, writerFunc, WithPartContentDescription("description"))
+		parts := message.GetParts()
+		if len(parts) != 1 {
+			t.Fatalf("expected 1 part, got: %d", len(parts))
+		}
+		if parts[0] == nil {
+			t.Fatal("expected part to be not nil")
+		}
+		if parts[0].contentType != TypeTextPlain {
+			t.Errorf("expected contentType to be %s, got: %s", TypeTextPlain,
+				parts[0].contentType)
+		}
+		if parts[0].description != "description" {
+			t.Errorf("expected description to be %s, got: %s", "description", parts[0].description)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err := parts[0].writeFunc(messageBuf)
+		if err != nil {
+			t.Errorf("writeFunc failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "test") {
+			t.Errorf("expected message body to be %s, got: %s", "test", messageBuf.String())
+		}
+	})
+	t.Run("AddAlternativeWriter with body string set", func(t *testing.T) {
+		writerFunc = func(w io.Writer) (int64, error) {
+			buffer := bytes.NewBufferString("<p>alternative body</p>")
+			n, err := w.Write(buffer.Bytes())
+			return int64(n), err
+		}
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.SetBodyString(TypeTextPlain, "body string")
+		message.AddAlternativeWriter(TypeTextHTML, writerFunc)
+		parts := message.GetParts()
+		if len(parts) != 2 {
+			t.Fatalf("expected 1 part, got: %d", len(parts))
+		}
+		if parts[0] == nil || parts[1] == nil {
+			t.Fatal("expected part to be not nil")
+		}
+		if parts[0].contentType != TypeTextPlain {
+			t.Errorf("expected contentType to be %s, got: %s", TypeTextPlain,
+				parts[0].contentType)
+		}
+		if parts[1].contentType != TypeTextHTML {
+			t.Errorf("expected alternative contentType to be %s, got: %s", TypeTextHTML,
+				parts[1].contentType)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err := parts[0].writeFunc(messageBuf)
+		if err != nil {
+			t.Errorf("writeFunc failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "body string") {
+			t.Errorf("expected message body to be %s, got: %s", "body string", messageBuf.String())
+		}
+		messageBuf.Reset()
+		_, err = parts[1].writeFunc(messageBuf)
+		if err != nil {
+			t.Errorf("writeFunc failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "<p>alternative body</p>") {
+			t.Errorf("expected alternative message body to be %s, got: %s", "<p>alternative body</p>", messageBuf.String())
+		}
+	})
+}
+
 /*
 // TestNewMsgWithMiddleware tests WithMiddleware
 
