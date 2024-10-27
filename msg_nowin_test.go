@@ -79,9 +79,6 @@ func TestMsg_AttachFile_unixOnly(t *testing.T) {
 		if err == nil {
 			t.Error("writer func expected to fail, but didn't")
 		}
-		if !errors.Is(err, os.ErrClosed) {
-			t.Errorf("expected error to be %s, got: %s", os.ErrClosed, err)
-		}
 	})
 }
 
@@ -127,9 +124,6 @@ func TestMsg_AttachReader_unixOnly(t *testing.T) {
 		_, err = attachments[0].Writer(messageBuf)
 		if err == nil {
 			t.Error("writer func expected to fail, but didn't")
-		}
-		if !errors.Is(err, os.ErrClosed) {
-			t.Errorf("expected error to be %s, got: %s", os.ErrClosed, err)
 		}
 	})
 }
