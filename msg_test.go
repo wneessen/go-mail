@@ -89,6 +89,14 @@ var (
 		{"1.0", MIME10, "1.0"},
 		{"1.1 (not a valid version at this time)", MIMEVersion("1.1"), "1.1"},
 	}
+	contentTypeTests = []struct {
+		name  string
+		ctype ContentType
+	}{
+		{"text/plain", TypeTextPlain},
+		{"text/html", TypeTextHTML},
+		{"application/octet-stream", TypeAppOctetStream},
+	}
 	// Inspired by https://www.youtube.com/watch?v=xxX81WmXjPg&t=623s, yet, some assumptions in that video are
 	// incorrect for RFC5321/RFC5322 but rely on deprecated information from RFC822. The tests have been
 	// adjusted accordingly.
@@ -2090,7 +2098,7 @@ func TestMsg_GetSender(t *testing.T) {
 			t.Errorf("failed to get sender: %s", err)
 		}
 		if !strings.EqualFold(sender, "toni.tester@example.com") {
-			t.Errorf("GetSender: expected sender not returned. Want: %s, got: %s", "toni.tester@example.com", sender)
+			t.Errorf("expected sender not returned. Want: %s, got: %s", "toni.tester@example.com", sender)
 		}
 	})
 	t.Run("GetSender with envelope from only (full address)", func(t *testing.T) {
@@ -2106,7 +2114,7 @@ func TestMsg_GetSender(t *testing.T) {
 			t.Errorf("failed to get sender: %s", err)
 		}
 		if !strings.EqualFold(sender, "<toni.tester@example.com>") {
-			t.Errorf("GetSender: expected sender not returned. Want: %s, got: %s", "<toni.tester@example.com>", sender)
+			t.Errorf("expected sender not returned. Want: %s, got: %s", "<toni.tester@example.com>", sender)
 		}
 	})
 	t.Run("GetSender with from only (no full address)", func(t *testing.T) {
@@ -2122,7 +2130,7 @@ func TestMsg_GetSender(t *testing.T) {
 			t.Errorf("failed to get sender: %s", err)
 		}
 		if !strings.EqualFold(sender, "toni.tester@example.com") {
-			t.Errorf("GetSender: expected sender not returned. Want: %s, got: %s", "toni.tester@example.com", sender)
+			t.Errorf("expected sender not returned. Want: %s, got: %s", "toni.tester@example.com", sender)
 		}
 	})
 	t.Run("GetSender with from only (full address)", func(t *testing.T) {
@@ -2138,7 +2146,7 @@ func TestMsg_GetSender(t *testing.T) {
 			t.Errorf("failed to get sender: %s", err)
 		}
 		if !strings.EqualFold(sender, "<toni.tester@example.com>") {
-			t.Errorf("GetSender: expected sender not returned. Want: %s, got: %s", "<toni.tester@example.com>", sender)
+			t.Errorf("expected sender not returned. Want: %s, got: %s", "<toni.tester@example.com>", sender)
 		}
 	})
 	t.Run("GetSender with envelope from and from (no full address)", func(t *testing.T) {
@@ -2157,7 +2165,7 @@ func TestMsg_GetSender(t *testing.T) {
 			t.Errorf("failed to get sender: %s", err)
 		}
 		if !strings.EqualFold(sender, "toni.tester@example.com") {
-			t.Errorf("GetSender: expected sender not returned. Want: %s, got: %s", "toni.tester@example.com", sender)
+			t.Errorf("expected sender not returned. Want: %s, got: %s", "toni.tester@example.com", sender)
 		}
 	})
 	t.Run("GetSender with envelope from and from (full address)", func(t *testing.T) {
@@ -2176,7 +2184,7 @@ func TestMsg_GetSender(t *testing.T) {
 			t.Errorf("failed to get sender: %s", err)
 		}
 		if !strings.EqualFold(sender, "<toni.tester@example.com>") {
-			t.Errorf("GetSender: expected sender not returned. Want: %s, got: %s", "<toni.tester@example.com>", sender)
+			t.Errorf("expected sender not returned. Want: %s, got: %s", "<toni.tester@example.com>", sender)
 		}
 	})
 	t.Run("GetSender with no envelope from or from", func(t *testing.T) {
@@ -2209,10 +2217,10 @@ func TestMsg_GetRecipients(t *testing.T) {
 			t.Errorf("failed to get recipients: %s", err)
 		}
 		if len(rcpts) != 1 {
-			t.Fatalf("GetRecipients: expected 1 recipient, got: %d", len(rcpts))
+			t.Fatalf("expected 1 recipient, got: %d", len(rcpts))
 		}
 		if !strings.EqualFold(rcpts[0], "toni.tester@example.com") {
-			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+			t.Errorf("expected recipient not returned. Want: %s, got: %s",
 				"toni.tester@example.com", rcpts[0])
 		}
 	})
@@ -2229,10 +2237,10 @@ func TestMsg_GetRecipients(t *testing.T) {
 			t.Errorf("failed to get recipients: %s", err)
 		}
 		if len(rcpts) != 1 {
-			t.Fatalf("GetRecipients: expected 1 recipient, got: %d", len(rcpts))
+			t.Fatalf("expected 1 recipient, got: %d", len(rcpts))
 		}
 		if !strings.EqualFold(rcpts[0], "toni.tester@example.com") {
-			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+			t.Errorf("expected recipient not returned. Want: %s, got: %s",
 				"toni.tester@example.com", rcpts[0])
 		}
 	})
@@ -2249,10 +2257,10 @@ func TestMsg_GetRecipients(t *testing.T) {
 			t.Errorf("failed to get recipients: %s", err)
 		}
 		if len(rcpts) != 1 {
-			t.Fatalf("GetRecipients: expected 1 recipient, got: %d", len(rcpts))
+			t.Fatalf("expected 1 recipient, got: %d", len(rcpts))
 		}
 		if !strings.EqualFold(rcpts[0], "toni.tester@example.com") {
-			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+			t.Errorf("expected recipient not returned. Want: %s, got: %s",
 				"toni.tester@example.com", rcpts[0])
 		}
 	})
@@ -2272,14 +2280,14 @@ func TestMsg_GetRecipients(t *testing.T) {
 			t.Errorf("failed to get recipients: %s", err)
 		}
 		if len(rcpts) != 2 {
-			t.Fatalf("GetRecipients: expected 2 recipient, got: %d", len(rcpts))
+			t.Fatalf("expected 2 recipient, got: %d", len(rcpts))
 		}
 		if !strings.EqualFold(rcpts[0], "toni.tester@example.com") {
-			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+			t.Errorf("expected recipient not returned. Want: %s, got: %s",
 				"toni.tester@example.com", rcpts[0])
 		}
 		if !strings.EqualFold(rcpts[1], "tina.tester@example.com") {
-			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+			t.Errorf("expected recipient not returned. Want: %s, got: %s",
 				"tina.tester@example.com", rcpts[1])
 		}
 	})
@@ -2299,14 +2307,14 @@ func TestMsg_GetRecipients(t *testing.T) {
 			t.Errorf("failed to get recipients: %s", err)
 		}
 		if len(rcpts) != 2 {
-			t.Fatalf("GetRecipients: expected 2 recipient, got: %d", len(rcpts))
+			t.Fatalf("expected 2 recipient, got: %d", len(rcpts))
 		}
 		if !strings.EqualFold(rcpts[0], "toni.tester@example.com") {
-			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+			t.Errorf("expected recipient not returned. Want: %s, got: %s",
 				"toni.tester@example.com", rcpts[0])
 		}
 		if !strings.EqualFold(rcpts[1], "tina.tester@example.com") {
-			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+			t.Errorf("expected recipient not returned. Want: %s, got: %s",
 				"tina.tester@example.com", rcpts[1])
 		}
 	})
@@ -2326,14 +2334,14 @@ func TestMsg_GetRecipients(t *testing.T) {
 			t.Errorf("failed to get recipients: %s", err)
 		}
 		if len(rcpts) != 2 {
-			t.Fatalf("GetRecipients: expected 2 recipient, got: %d", len(rcpts))
+			t.Fatalf("expected 2 recipient, got: %d", len(rcpts))
 		}
 		if !strings.EqualFold(rcpts[0], "toni.tester@example.com") {
-			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+			t.Errorf("expected recipient not returned. Want: %s, got: %s",
 				"toni.tester@example.com", rcpts[0])
 		}
 		if !strings.EqualFold(rcpts[1], "tina.tester@example.com") {
-			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+			t.Errorf("expected recipient not returned. Want: %s, got: %s",
 				"tina.tester@example.com", rcpts[1])
 		}
 	})
@@ -2356,18 +2364,18 @@ func TestMsg_GetRecipients(t *testing.T) {
 			t.Errorf("failed to get recipients: %s", err)
 		}
 		if len(rcpts) != 3 {
-			t.Fatalf("GetRecipients: expected 3 recipient, got: %d", len(rcpts))
+			t.Fatalf("expected 3 recipient, got: %d", len(rcpts))
 		}
 		if !strings.EqualFold(rcpts[0], "toni.tester@example.com") {
-			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+			t.Errorf("expected recipient not returned. Want: %s, got: %s",
 				"toni.tester@example.com", rcpts[0])
 		}
 		if !strings.EqualFold(rcpts[1], "tina.tester@example.com") {
-			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+			t.Errorf("expected recipient not returned. Want: %s, got: %s",
 				"tina.tester@example.com", rcpts[1])
 		}
 		if !strings.EqualFold(rcpts[2], "tom.tester@example.com") {
-			t.Errorf("GetRecipients: expected recipient not returned. Want: %s, got: %s",
+			t.Errorf("expected recipient not returned. Want: %s, got: %s",
 				"tina.tester@example.com", rcpts[2])
 		}
 	})
@@ -2378,10 +2386,10 @@ func TestMsg_GetRecipients(t *testing.T) {
 		}
 		_, err := message.GetRecipients()
 		if err == nil {
-			t.Errorf("GetRecipients: expected error, got nil")
+			t.Errorf("expected error, got nil")
 		}
 		if !errors.Is(err, ErrNoRcptAddresses) {
-			t.Errorf("GetRecipients: expected ErrNoRcptAddresses, got: %s", err)
+			t.Errorf("expected ErrNoRcptAddresses, got: %s", err)
 		}
 	})
 }
@@ -2397,13 +2405,13 @@ func TestMsg_GetAddrHeader(t *testing.T) {
 		}
 		addrheader := message.GetAddrHeader(HeaderFrom)
 		if len(addrheader) != 1 {
-			t.Errorf("GetAddrHeader: expected 1 address, got: %d", len(addrheader))
+			t.Errorf("expected 1 address, got: %d", len(addrheader))
 		}
 		if addrheader[0] == nil {
-			t.Fatalf("GetAddrHeader: expected address, got nil")
+			t.Fatalf("expected address, got nil")
 		}
 		if addrheader[0].String() != "<toni.tester@example.com>" {
-			t.Errorf("GetAddrHeader: expected address not returned. Want: %s, got: %s",
+			t.Errorf("expected address not returned. Want: %s, got: %s",
 				"<toni.tester@example.com>", addrheader[0].String())
 		}
 	})
@@ -2434,13 +2442,13 @@ func TestMsg_GetAddrHeader(t *testing.T) {
 				}
 				addrheader := message.GetAddrHeader(tt.header)
 				if len(addrheader) != 1 {
-					t.Errorf("GetAddrHeader: expected 1 address, got: %d", len(addrheader))
+					t.Errorf("expected 1 address, got: %d", len(addrheader))
 				}
 				if addrheader[0] == nil {
-					t.Fatalf("GetAddrHeader: expected address, got nil")
+					t.Fatalf("expected address, got nil")
 				}
 				if addrheader[0].String() != "<toni.tester@example.com>" {
-					t.Errorf("GetAddrHeader: expected address not returned. Want: %s, got: %s",
+					t.Errorf("expected address not returned. Want: %s, got: %s",
 						"<toni.tester@example.com>", addrheader[0].String())
 				}
 			})
@@ -2480,20 +2488,20 @@ func TestMsg_GetAddrHeader(t *testing.T) {
 				}
 				addrheader := message.GetAddrHeader(tt.header)
 				if len(addrheader) != 2 {
-					t.Errorf("GetAddrHeader: expected 1 address, got: %d", len(addrheader))
+					t.Errorf("expected 1 address, got: %d", len(addrheader))
 				}
 				if addrheader[0] == nil {
-					t.Fatalf("GetAddrHeader: expected address, got nil")
+					t.Fatalf("expected address, got nil")
 				}
 				if addrheader[0].String() != "<toni.tester@example.com>" {
-					t.Errorf("GetAddrHeader: expected address not returned. Want: %s, got: %s",
+					t.Errorf("expected address not returned. Want: %s, got: %s",
 						"<toni.tester@example.com>", addrheader[0].String())
 				}
 				if addrheader[1] == nil {
-					t.Fatalf("GetAddrHeader: expected address, got nil")
+					t.Fatalf("expected address, got nil")
 				}
 				if addrheader[1].String() != "<tina.tester@example.com>" {
-					t.Errorf("GetAddrHeader: expected address not returned. Want: %s, got: %s",
+					t.Errorf("expected address not returned. Want: %s, got: %s",
 						"<tina.tester@example.com>", addrheader[1].String())
 				}
 			})
@@ -2508,7 +2516,7 @@ func TestMsg_GetAddrHeader(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				addrheader := message.GetAddrHeader(HeaderFrom)
 				if len(addrheader) != 0 {
-					t.Errorf("GetAddrHeader: expected 0 address, got: %d", len(addrheader))
+					t.Errorf("expected 0 address, got: %d", len(addrheader))
 				}
 			})
 		}
@@ -2526,13 +2534,13 @@ func TestMsg_GetAddrHeaderString(t *testing.T) {
 		}
 		addrheader := message.GetAddrHeaderString(HeaderFrom)
 		if len(addrheader) != 1 {
-			t.Errorf("GetAddrHeaderString: expected 1 address, got: %d", len(addrheader))
+			t.Errorf("expected 1 address, got: %d", len(addrheader))
 		}
 		if addrheader[0] == "" {
-			t.Fatalf("GetAddrHeaderString: expected address, got empty string")
+			t.Fatalf("expected address, got empty string")
 		}
 		if addrheader[0] != "<toni.tester@example.com>" {
-			t.Errorf("GetAddrHeaderString: expected address not returned. Want: %s, got: %s",
+			t.Errorf("expected address not returned. Want: %s, got: %s",
 				"<toni.tester@example.com>", addrheader[0])
 		}
 	})
@@ -2563,13 +2571,13 @@ func TestMsg_GetAddrHeaderString(t *testing.T) {
 				}
 				addrheader := message.GetAddrHeaderString(tt.header)
 				if len(addrheader) != 1 {
-					t.Errorf("GetAddrHeaderString: expected 1 address, got: %d", len(addrheader))
+					t.Errorf("expected 1 address, got: %d", len(addrheader))
 				}
 				if addrheader[0] == "" {
-					t.Fatalf("GetAddrHeaderString: expected address, got empty string")
+					t.Fatalf("expected address, got empty string")
 				}
 				if addrheader[0] != "<toni.tester@example.com>" {
-					t.Errorf("GetAddrHeaderString: expected address not returned. Want: %s, got: %s",
+					t.Errorf("expected address not returned. Want: %s, got: %s",
 						"<toni.tester@example.com>", addrheader[0])
 				}
 			})
@@ -2609,20 +2617,20 @@ func TestMsg_GetAddrHeaderString(t *testing.T) {
 				}
 				addrheader := message.GetAddrHeaderString(tt.header)
 				if len(addrheader) != 2 {
-					t.Errorf("GetAddrHeaderString: expected 1 address, got: %d", len(addrheader))
+					t.Errorf("expected 1 address, got: %d", len(addrheader))
 				}
 				if addrheader[0] == "" {
-					t.Fatalf("GetAddrHeaderString: expected address, got empty string")
+					t.Fatalf("expected address, got empty string")
 				}
 				if addrheader[0] != "<toni.tester@example.com>" {
-					t.Errorf("GetAddrHeaderString: expected address not returned. Want: %s, got: %s",
+					t.Errorf("expected address not returned. Want: %s, got: %s",
 						"<toni.tester@example.com>", addrheader[0])
 				}
 				if addrheader[1] == "" {
-					t.Fatalf("GetAddrHeaderString: expected address, got nil")
+					t.Fatalf("expected address, got nil")
 				}
 				if addrheader[1] != "<tina.tester@example.com>" {
-					t.Errorf("GetAddrHeaderString: expected address not returned. Want: %s, got: %s",
+					t.Errorf("expected address not returned. Want: %s, got: %s",
 						"<tina.tester@example.com>", addrheader[1])
 				}
 			})
@@ -2637,7 +2645,7 @@ func TestMsg_GetAddrHeaderString(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				addrheader := message.GetAddrHeaderString(HeaderFrom)
 				if len(addrheader) != 0 {
-					t.Errorf("GetAddrHeaderString: expected 0 address, got: %d", len(addrheader))
+					t.Errorf("expected 0 address, got: %d", len(addrheader))
 				}
 			})
 		}
@@ -2655,13 +2663,13 @@ func TestMsg_GetFrom(t *testing.T) {
 		}
 		addresses := message.GetFrom()
 		if len(addresses) != 1 {
-			t.Fatalf("GetFrom: expected 1 address, got: %d", len(addresses))
+			t.Fatalf("expected 1 address, got: %d", len(addresses))
 		}
 		if addresses[0] == nil {
-			t.Fatalf("GetFrom: expected address, got nil")
+			t.Fatalf("expected address, got nil")
 		}
 		if addresses[0].String() != "<toni.tester@example.com>" {
-			t.Errorf("GetFrom: expected address not returned. Want: %s, got: %s",
+			t.Errorf("expected address not returned. Want: %s, got: %s",
 				"<toni.tester@example.com>", addresses[0].String())
 		}
 	})
@@ -2672,7 +2680,7 @@ func TestMsg_GetFrom(t *testing.T) {
 		}
 		addresses := message.GetFrom()
 		if len(addresses) != 0 {
-			t.Errorf("GetFrom: expected 0 address, got: %d", len(addresses))
+			t.Errorf("expected 0 address, got: %d", len(addresses))
 		}
 	})
 }
@@ -2688,13 +2696,13 @@ func TestMsg_GetFromString(t *testing.T) {
 		}
 		addresses := message.GetFromString()
 		if len(addresses) != 1 {
-			t.Fatalf("GetFromString: expected 1 address, got: %d", len(addresses))
+			t.Fatalf("expected 1 address, got: %d", len(addresses))
 		}
 		if addresses[0] == "" {
-			t.Fatalf("GetFromString: expected address, got nil")
+			t.Fatalf("expected address, got nil")
 		}
 		if addresses[0] != "<toni.tester@example.com>" {
-			t.Errorf("GetFromString: expected address not returned. Want: %s, got: %s",
+			t.Errorf("expected address not returned. Want: %s, got: %s",
 				"<toni.tester@example.com>", addresses[0])
 		}
 	})
@@ -2705,7 +2713,7 @@ func TestMsg_GetFromString(t *testing.T) {
 		}
 		addresses := message.GetFromString()
 		if len(addresses) != 0 {
-			t.Errorf("GetFrom: expected 0 address, got: %d", len(addresses))
+			t.Errorf("expected 0 address, got: %d", len(addresses))
 		}
 	})
 }
@@ -2721,13 +2729,13 @@ func TestMsg_GetTo(t *testing.T) {
 		}
 		addresses := message.GetTo()
 		if len(addresses) != 1 {
-			t.Fatalf("GetTo: expected 1 address, got: %d", len(addresses))
+			t.Fatalf("expected 1 address, got: %d", len(addresses))
 		}
 		if addresses[0] == nil {
-			t.Fatalf("GetTo: expected address, got nil")
+			t.Fatalf("expected address, got nil")
 		}
 		if addresses[0].String() != "<toni.tester@example.com>" {
-			t.Errorf("GetTo: expected address not returned. Want: %s, got: %s",
+			t.Errorf("expected address not returned. Want: %s, got: %s",
 				"<toni.tester@example.com>", addresses[0].String())
 		}
 	})
@@ -2741,20 +2749,20 @@ func TestMsg_GetTo(t *testing.T) {
 		}
 		addresses := message.GetTo()
 		if len(addresses) != 2 {
-			t.Fatalf("GetTo: expected 2 address, got: %d", len(addresses))
+			t.Fatalf("expected 2 address, got: %d", len(addresses))
 		}
 		if addresses[0] == nil {
-			t.Fatalf("GetTo: expected address, got nil")
+			t.Fatalf("expected address, got nil")
 		}
 		if addresses[0].String() != "<toni.tester@example.com>" {
-			t.Errorf("GetTo: expected address not returned. Want: %s, got: %s",
+			t.Errorf("expected address not returned. Want: %s, got: %s",
 				"<toni.tester@example.com>", addresses[0].String())
 		}
 		if addresses[1] == nil {
-			t.Fatalf("GetTo: expected address, got nil")
+			t.Fatalf("expected address, got nil")
 		}
 		if addresses[1].String() != "<tina.tester@example.com>" {
-			t.Errorf("GetTo: expected address not returned. Want: %s, got: %s",
+			t.Errorf("expected address not returned. Want: %s, got: %s",
 				"<tina.tester@example.com>", addresses[1].String())
 		}
 	})
@@ -2765,7 +2773,7 @@ func TestMsg_GetTo(t *testing.T) {
 		}
 		addresses := message.GetTo()
 		if len(addresses) != 0 {
-			t.Errorf("GetTo: expected 0 address, got: %d", len(addresses))
+			t.Errorf("expected 0 address, got: %d", len(addresses))
 		}
 	})
 }
@@ -2781,10 +2789,10 @@ func TestMsg_GetToString(t *testing.T) {
 		}
 		addresses := message.GetToString()
 		if len(addresses) != 1 {
-			t.Fatalf("GetToString: expected 1 address, got: %d", len(addresses))
+			t.Fatalf("expected 1 address, got: %d", len(addresses))
 		}
 		if addresses[0] == "" {
-			t.Fatalf("GetToString: expected address, got nil")
+			t.Fatalf("expected address, got nil")
 		}
 		if addresses[0] != "<toni.tester@example.com>" {
 			t.Errorf("GetToString: expected address not returned. Want: %s, got: %s",
@@ -2801,20 +2809,20 @@ func TestMsg_GetToString(t *testing.T) {
 		}
 		addresses := message.GetToString()
 		if len(addresses) != 2 {
-			t.Fatalf("GetToString: expected 2 address, got: %d", len(addresses))
+			t.Fatalf("expected 2 address, got: %d", len(addresses))
 		}
 		if addresses[0] == "" {
-			t.Fatalf("GetToString: expected address, got nil")
+			t.Fatalf("expected address, got nil")
 		}
 		if addresses[0] != "<toni.tester@example.com>" {
-			t.Errorf("GetToString: expected address not returned. Want: %s, got: %s",
+			t.Errorf("expected address not returned. Want: %s, got: %s",
 				"<toni.tester@example.com>", addresses[0])
 		}
 		if addresses[1] == "" {
-			t.Fatalf("GetToString: expected address, got nil")
+			t.Fatalf("expected address, got nil")
 		}
 		if addresses[1] != "<tina.tester@example.com>" {
-			t.Errorf("GetToString: expected address not returned. Want: %s, got: %s",
+			t.Errorf("expected address not returned. Want: %s, got: %s",
 				"<tina.tester@example.com>", addresses[1])
 		}
 	})
@@ -2825,7 +2833,7 @@ func TestMsg_GetToString(t *testing.T) {
 		}
 		addresses := message.GetToString()
 		if len(addresses) != 0 {
-			t.Errorf("GetTo: expected 0 address, got: %d", len(addresses))
+			t.Errorf("expected 0 address, got: %d", len(addresses))
 		}
 	})
 }
@@ -2841,13 +2849,13 @@ func TestMsg_GetCc(t *testing.T) {
 		}
 		addresses := message.GetCc()
 		if len(addresses) != 1 {
-			t.Fatalf("GetCc: expected 1 address, got: %d", len(addresses))
+			t.Fatalf("expected 1 address, got: %d", len(addresses))
 		}
 		if addresses[0] == nil {
-			t.Fatalf("GetCc: expected address, got nil")
+			t.Fatalf("expected address, got nil")
 		}
 		if addresses[0].String() != "<toni.tester@example.com>" {
-			t.Errorf("GetCc: expected address not returned. Want: %s, got: %s",
+			t.Errorf("expected address not returned. Want: %s, got: %s",
 				"<toni.tester@example.com>", addresses[0].String())
 		}
 	})
@@ -2861,20 +2869,20 @@ func TestMsg_GetCc(t *testing.T) {
 		}
 		addresses := message.GetCc()
 		if len(addresses) != 2 {
-			t.Fatalf("GetCc: expected 2 address, got: %d", len(addresses))
+			t.Fatalf("expected 2 address, got: %d", len(addresses))
 		}
 		if addresses[0] == nil {
-			t.Fatalf("GetCc: expected address, got nil")
+			t.Fatalf("expected address, got nil")
 		}
 		if addresses[0].String() != "<toni.tester@example.com>" {
-			t.Errorf("GetCc: expected address not returned. Want: %s, got: %s",
+			t.Errorf("expected address not returned. Want: %s, got: %s",
 				"<toni.tester@example.com>", addresses[0].String())
 		}
 		if addresses[1] == nil {
-			t.Fatalf("GetCc: expected address, got nil")
+			t.Fatalf("expected address, got nil")
 		}
 		if addresses[1].String() != "<tina.tester@example.com>" {
-			t.Errorf("GetCc: expected address not returned. Want: %s, got: %s",
+			t.Errorf("expected address not returned. Want: %s, got: %s",
 				"<tina.tester@example.com>", addresses[1].String())
 		}
 	})
@@ -2885,7 +2893,7 @@ func TestMsg_GetCc(t *testing.T) {
 		}
 		addresses := message.GetCc()
 		if len(addresses) != 0 {
-			t.Errorf("GetCc: expected 0 address, got: %d", len(addresses))
+			t.Errorf("expected 0 address, got: %d", len(addresses))
 		}
 	})
 }
@@ -2901,13 +2909,13 @@ func TestMsg_GetCcString(t *testing.T) {
 		}
 		addresses := message.GetCcString()
 		if len(addresses) != 1 {
-			t.Fatalf("GetCcString: expected 1 address, got: %d", len(addresses))
+			t.Fatalf("expected 1 address, got: %d", len(addresses))
 		}
 		if addresses[0] == "" {
-			t.Fatalf("GetCcString: expected address, got nil")
+			t.Fatalf("expected address, got nil")
 		}
 		if addresses[0] != "<toni.tester@example.com>" {
-			t.Errorf("GetCcString: expected address not returned. Want: %s, got: %s",
+			t.Errorf("expected address not returned. Want: %s, got: %s",
 				"<toni.tester@example.com>", addresses[0])
 		}
 	})
@@ -2921,20 +2929,20 @@ func TestMsg_GetCcString(t *testing.T) {
 		}
 		addresses := message.GetCcString()
 		if len(addresses) != 2 {
-			t.Fatalf("GetCcString: expected 2 address, got: %d", len(addresses))
+			t.Fatalf("expected 2 address, got: %d", len(addresses))
 		}
 		if addresses[0] == "" {
-			t.Fatalf("GetCcString: expected address, got nil")
+			t.Fatalf("expected address, got nil")
 		}
 		if addresses[0] != "<toni.tester@example.com>" {
-			t.Errorf("GetCcString: expected address not returned. Want: %s, got: %s",
+			t.Errorf("expected address not returned. Want: %s, got: %s",
 				"<toni.tester@example.com>", addresses[0])
 		}
 		if addresses[1] == "" {
 			t.Fatalf("GetCcString: expected address, got nil")
 		}
 		if addresses[1] != "<tina.tester@example.com>" {
-			t.Errorf("GetCcString: expected address not returned. Want: %s, got: %s",
+			t.Errorf("expected address not returned. Want: %s, got: %s",
 				"<tina.tester@example.com>", addresses[1])
 		}
 	})
@@ -2945,7 +2953,7 @@ func TestMsg_GetCcString(t *testing.T) {
 		}
 		addresses := message.GetCcString()
 		if len(addresses) != 0 {
-			t.Errorf("GetTo: expected 0 address, got: %d", len(addresses))
+			t.Errorf("expected 0 address, got: %d", len(addresses))
 		}
 	})
 }
@@ -2961,13 +2969,13 @@ func TestMsg_GetBcc(t *testing.T) {
 		}
 		addresses := message.GetBcc()
 		if len(addresses) != 1 {
-			t.Fatalf("GetBcc: expected 1 address, got: %d", len(addresses))
+			t.Fatalf("expected 1 address, got: %d", len(addresses))
 		}
 		if addresses[0] == nil {
-			t.Fatalf("GetBcc: expected address, got nil")
+			t.Fatalf("expected address, got nil")
 		}
 		if addresses[0].String() != "<toni.tester@example.com>" {
-			t.Errorf("GetBcc: expected address not returned. Want: %s, got: %s",
+			t.Errorf("expected address not returned. Want: %s, got: %s",
 				"<toni.tester@example.com>", addresses[0].String())
 		}
 	})
@@ -2981,20 +2989,20 @@ func TestMsg_GetBcc(t *testing.T) {
 		}
 		addresses := message.GetBcc()
 		if len(addresses) != 2 {
-			t.Fatalf("GetBcc: expected 2 address, got: %d", len(addresses))
+			t.Fatalf("expected 2 address, got: %d", len(addresses))
 		}
 		if addresses[0] == nil {
-			t.Fatalf("GetBcc: expected address, got nil")
+			t.Fatalf("expected address, got nil")
 		}
 		if addresses[0].String() != "<toni.tester@example.com>" {
-			t.Errorf("GetBcc: expected address not returned. Want: %s, got: %s",
+			t.Errorf("expected address not returned. Want: %s, got: %s",
 				"<toni.tester@example.com>", addresses[0].String())
 		}
 		if addresses[1] == nil {
-			t.Fatalf("GetBcc: expected address, got nil")
+			t.Fatalf("expected address, got nil")
 		}
 		if addresses[1].String() != "<tina.tester@example.com>" {
-			t.Errorf("GetBcc: expected address not returned. Want: %s, got: %s",
+			t.Errorf("expected address not returned. Want: %s, got: %s",
 				"<tina.tester@example.com>", addresses[1].String())
 		}
 	})
@@ -3005,7 +3013,7 @@ func TestMsg_GetBcc(t *testing.T) {
 		}
 		addresses := message.GetBcc()
 		if len(addresses) != 0 {
-			t.Errorf("GetBcc: expected 0 address, got: %d", len(addresses))
+			t.Errorf("expected 0 address, got: %d", len(addresses))
 		}
 	})
 }
@@ -3021,13 +3029,13 @@ func TestMsg_GetBccString(t *testing.T) {
 		}
 		addresses := message.GetBccString()
 		if len(addresses) != 1 {
-			t.Fatalf("GetBccString: expected 1 address, got: %d", len(addresses))
+			t.Fatalf("expected 1 address, got: %d", len(addresses))
 		}
 		if addresses[0] == "" {
-			t.Fatalf("GetBccString: expected address, got nil")
+			t.Fatalf("expected address, got nil")
 		}
 		if addresses[0] != "<toni.tester@example.com>" {
-			t.Errorf("GetBccString: expected address not returned. Want: %s, got: %s",
+			t.Errorf("expected address not returned. Want: %s, got: %s",
 				"<toni.tester@example.com>", addresses[0])
 		}
 	})
@@ -3041,20 +3049,20 @@ func TestMsg_GetBccString(t *testing.T) {
 		}
 		addresses := message.GetBccString()
 		if len(addresses) != 2 {
-			t.Fatalf("GetBccString: expected 2 address, got: %d", len(addresses))
+			t.Fatalf("expected 2 address, got: %d", len(addresses))
 		}
 		if addresses[0] == "" {
-			t.Fatalf("GetBccString: expected address, got nil")
+			t.Fatalf("expected address, got nil")
 		}
 		if addresses[0] != "<toni.tester@example.com>" {
-			t.Errorf("GetBccString: expected address not returned. Want: %s, got: %s",
+			t.Errorf("expected address not returned. Want: %s, got: %s",
 				"<toni.tester@example.com>", addresses[0])
 		}
 		if addresses[1] == "" {
-			t.Fatalf("GetBccString: expected address, got nil")
+			t.Fatalf("expected address, got nil")
 		}
 		if addresses[1] != "<tina.tester@example.com>" {
-			t.Errorf("GetBccString: expected address not returned. Want: %s, got: %s",
+			t.Errorf("expected address not returned. Want: %s, got: %s",
 				"<tina.tester@example.com>", addresses[1])
 		}
 	})
@@ -3065,7 +3073,7 @@ func TestMsg_GetBccString(t *testing.T) {
 		}
 		addresses := message.GetBccString()
 		if len(addresses) != 0 {
-			t.Errorf("GetTo: expected 0 address, got: %d", len(addresses))
+			t.Errorf("expected 0 address, got: %d", len(addresses))
 		}
 	})
 }
@@ -3081,10 +3089,10 @@ func TestMsg_GetGenHeader(t *testing.T) {
 				message.SetGenHeader(tt.header, "test")
 				values := message.GetGenHeader(tt.header)
 				if len(values) != 1 {
-					t.Errorf("GetGenHeader: expected 1 value, got: %d", len(values))
+					t.Errorf("expected 1 value, got: %d", len(values))
 				}
 				if values[0] != "test" {
-					t.Errorf("GetGenHeader: expected value not returned. Want: %s, got: %s",
+					t.Errorf("expected value not returned. Want: %s, got: %s",
 						"test", values[0])
 				}
 			})
@@ -3100,14 +3108,14 @@ func TestMsg_GetGenHeader(t *testing.T) {
 				message.SetGenHeader(tt.header, "test", "foobar")
 				values := message.GetGenHeader(tt.header)
 				if len(values) != 2 {
-					t.Errorf("GetGenHeader: expected 1 value, got: %d", len(values))
+					t.Errorf("expected 1 value, got: %d", len(values))
 				}
 				if values[0] != "test" {
-					t.Errorf("GetGenHeader: expected value not returned. Want: %s, got: %s",
+					t.Errorf("expected value not returned. Want: %s, got: %s",
 						"test", values[0])
 				}
 				if values[1] != "foobar" {
-					t.Errorf("GetGenHeader: expected value not returned. Want: %s, got: %s",
+					t.Errorf("expected value not returned. Want: %s, got: %s",
 						"foobar", values[1])
 				}
 			})
@@ -3123,7 +3131,7 @@ func TestMsg_GetGenHeader(t *testing.T) {
 				message.SetGenHeader(tt.header)
 				values := message.GetGenHeader(tt.header)
 				if len(values) != 0 {
-					t.Errorf("GetGenHeader: expected 1 value, got: %d", len(values))
+					t.Errorf("expected 1 value, got: %d", len(values))
 				}
 			})
 		}
@@ -3139,21 +3147,21 @@ func TestMsg_GetParts(t *testing.T) {
 		message.SetBodyString(TypeTextPlain, "this is a test body")
 		parts := message.GetParts()
 		if len(parts) != 1 {
-			t.Fatalf("GetParts: expected 1 part, got: %d", len(parts))
+			t.Fatalf("expected 1 part, got: %d", len(parts))
 		}
 		if parts[0] == nil {
-			t.Fatalf("GetParts: expected part, got nil")
+			t.Fatalf("expected part, got nil")
 		}
 		if parts[0].contentType != TypeTextPlain {
-			t.Errorf("GetParts: expected contentType to be TypeTextPlain, got: %s", parts[0].contentType)
+			t.Errorf("expected contentType to be TypeTextPlain, got: %s", parts[0].contentType)
 		}
 		messageBuf := bytes.NewBuffer(nil)
 		_, err := parts[0].writeFunc(messageBuf)
 		if err != nil {
-			t.Errorf("GetParts: writeFunc failed: %s", err)
+			t.Errorf("writeFunc failed: %s", err)
 		}
 		if !strings.EqualFold(messageBuf.String(), "this is a test body") {
-			t.Errorf("GetParts: expected message body to be %s, got: %s", "this is a test body",
+			t.Errorf("expected message body to be %s, got: %s", "this is a test body",
 				messageBuf.String())
 		}
 	})
@@ -3166,24 +3174,24 @@ func TestMsg_GetParts(t *testing.T) {
 		message.AddAlternativeString(TypeTextHTML, "<p>This is HTML</p>")
 		parts := message.GetParts()
 		if len(parts) != 2 {
-			t.Fatalf("GetParts: expected 2 parts, got: %d", len(parts))
+			t.Fatalf("expected 2 parts, got: %d", len(parts))
 		}
 		if parts[0] == nil || parts[1] == nil {
-			t.Fatalf("GetParts: expected parts, got nil")
+			t.Fatalf("expected parts, got nil")
 		}
 		if parts[0].contentType != TypeTextPlain {
-			t.Errorf("GetParts: expected contentType to be TypeTextPlain, got: %s", parts[0].contentType)
+			t.Errorf("expected contentType to be TypeTextPlain, got: %s", parts[0].contentType)
 		}
 		if parts[1].contentType != TypeTextHTML {
-			t.Errorf("GetParts: expected contentType to be TypeTextHTML, got: %s", parts[1].contentType)
+			t.Errorf("expected contentType to be TypeTextHTML, got: %s", parts[1].contentType)
 		}
 		messageBuf := bytes.NewBuffer(nil)
 		_, err := parts[0].writeFunc(messageBuf)
 		if err != nil {
-			t.Errorf("GetParts: writeFunc failed: %s", err)
+			t.Errorf("writeFunc failed: %s", err)
 		}
 		if !strings.EqualFold(messageBuf.String(), "this is a test body") {
-			t.Errorf("GetParts: expected message body to be %s, got: %s", "this is a test body",
+			t.Errorf("expected message body to be %s, got: %s", "this is a test body",
 				messageBuf.String())
 		}
 		messageBuf.Reset()
@@ -3192,7 +3200,7 @@ func TestMsg_GetParts(t *testing.T) {
 			t.Errorf("GetParts: writeFunc failed: %s", err)
 		}
 		if !strings.EqualFold(messageBuf.String(), "<p>This is HTML</p>") {
-			t.Errorf("GetParts: expected message body to be %s, got: %s", "<p>This is HTML</p>",
+			t.Errorf("expected message body to be %s, got: %s", "<p>This is HTML</p>",
 				messageBuf.String())
 		}
 	})
@@ -3203,7 +3211,7 @@ func TestMsg_GetParts(t *testing.T) {
 		}
 		parts := message.GetParts()
 		if len(parts) != 0 {
-			t.Fatalf("GetParts: expected no parts, got: %d", len(parts))
+			t.Fatalf("expected no parts, got: %d", len(parts))
 		}
 	})
 }
@@ -3217,22 +3225,22 @@ func TestMsg_GetAttachments(t *testing.T) {
 		message.AttachFile("testdata/attachment.txt")
 		attachments := message.GetAttachments()
 		if len(attachments) != 1 {
-			t.Fatalf("GetAttachments: expected 1 attachment, got: %d", len(attachments))
+			t.Fatalf("expected 1 attachment, got: %d", len(attachments))
 		}
 		if attachments[0] == nil {
-			t.Fatalf("GetAttachments: expected attachment, got nil")
+			t.Fatalf("expected attachment, got nil")
 		}
 		if attachments[0].Name != "attachment.txt" {
-			t.Errorf("GetAttachments: expected attachment name to be %s, got: %s", "attachment.txt",
+			t.Errorf("expected attachment name to be %s, got: %s", "attachment.txt",
 				attachments[0].Name)
 		}
 		messageBuf := bytes.NewBuffer(nil)
 		_, err := attachments[0].Writer(messageBuf)
 		if err != nil {
-			t.Errorf("GetAttachments: Writer func failed: %s", err)
+			t.Errorf("writer func failed: %s", err)
 		}
 		if !strings.EqualFold(messageBuf.String(), "This is a test attachment\n") {
-			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is a test attachment\n",
+			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment\n",
 				messageBuf.String())
 		}
 	})
@@ -3245,35 +3253,35 @@ func TestMsg_GetAttachments(t *testing.T) {
 		message.AttachFile("testdata/attachment.txt", WithFileName("attachment2.txt"))
 		attachments := message.GetAttachments()
 		if len(attachments) != 2 {
-			t.Fatalf("GetAttachments: expected 2 attachment, got: %d", len(attachments))
+			t.Fatalf("expected 2 attachment, got: %d", len(attachments))
 		}
 		if attachments[0] == nil || attachments[1] == nil {
-			t.Fatalf("GetAttachments: expected attachment, got nil")
+			t.Fatalf("expected attachment, got nil")
 		}
 		if attachments[0].Name != "attachment.txt" {
-			t.Errorf("GetAttachments: expected attachment name to be %s, got: %s", "attachment.txt",
+			t.Errorf("expected attachment name to be %s, got: %s", "attachment.txt",
 				attachments[0].Name)
 		}
 		if attachments[1].Name != "attachment2.txt" {
-			t.Errorf("GetAttachments: expected attachment name to be %s, got: %s", "attachment2.txt",
+			t.Errorf("expected attachment name to be %s, got: %s", "attachment2.txt",
 				attachments[1].Name)
 		}
 		messageBuf := bytes.NewBuffer(nil)
 		_, err := attachments[0].Writer(messageBuf)
 		if err != nil {
-			t.Errorf("GetAttachments: Writer func failed: %s", err)
+			t.Errorf("writer func failed: %s", err)
 		}
 		if !strings.EqualFold(messageBuf.String(), "This is a test attachment\n") {
-			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is a test attachment\n",
+			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment\n",
 				messageBuf.String())
 		}
 		messageBuf.Reset()
 		_, err = attachments[1].Writer(messageBuf)
 		if err != nil {
-			t.Errorf("GetAttachments: Writer func failed: %s", err)
+			t.Errorf("writer func failed: %s", err)
 		}
 		if !strings.EqualFold(messageBuf.String(), "This is a test attachment\n") {
-			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is a test attachment\n",
+			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment\n",
 				messageBuf.String())
 		}
 	})
@@ -3284,7 +3292,7 @@ func TestMsg_GetAttachments(t *testing.T) {
 		}
 		attachments := message.GetAttachments()
 		if len(attachments) != 0 {
-			t.Fatalf("GetAttachments: expected 1 attachment, got: %d", len(attachments))
+			t.Fatalf("expected 1 attachment, got: %d", len(attachments))
 		}
 	})
 }
@@ -3296,7 +3304,7 @@ func TestMsg_GetBoundary(t *testing.T) {
 			t.Fatal("message is nil")
 		}
 		if message.GetBoundary() != "test" {
-			t.Errorf("GetBoundary: expected %s, got: %s", "test", message.GetBoundary())
+			t.Errorf("expected %s, got: %s", "test", message.GetBoundary())
 		}
 	})
 	t.Run("GetBoundary with no boundary", func(t *testing.T) {
@@ -3305,7 +3313,7 @@ func TestMsg_GetBoundary(t *testing.T) {
 			t.Fatal("message is nil")
 		}
 		if message.GetBoundary() != "" {
-			t.Errorf("GetBoundary: expected empty, got: %s", message.GetBoundary())
+			t.Errorf("expected empty, got: %s", message.GetBoundary())
 		}
 	})
 }
@@ -3329,22 +3337,22 @@ func TestMsg_SetAttachments(t *testing.T) {
 		message.SetAttachments([]*File{file})
 		attachments := message.GetAttachments()
 		if len(attachments) != 1 {
-			t.Fatalf("GetAttachments: expected 1 attachment, got: %d", len(attachments))
+			t.Fatalf("expected 1 attachment, got: %d", len(attachments))
 		}
 		if attachments[0] == nil {
-			t.Fatalf("GetAttachments: expected attachment, got nil")
+			t.Fatalf("expected attachment, got nil")
 		}
 		if attachments[0].Name != "attachment.txt" {
-			t.Errorf("GetAttachments: expected attachment name to be %s, got: %s", "attachment.txt",
+			t.Errorf("expected attachment name to be %s, got: %s", "attachment.txt",
 				attachments[0].Name)
 		}
 		messageBuf := bytes.NewBuffer(nil)
 		_, err := attachments[0].Writer(messageBuf)
 		if err != nil {
-			t.Errorf("GetAttachments: Writer func failed: %s", err)
+			t.Errorf("writer func failed: %s", err)
 		}
 		if !strings.EqualFold(messageBuf.String(), "This is a test attachment\n") {
-			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is a test attachment\n",
+			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment\n",
 				messageBuf.String())
 		}
 	})
@@ -3376,35 +3384,35 @@ func TestMsg_SetAttachments(t *testing.T) {
 		message.SetAttachments([]*File{file1, file2})
 		attachments := message.GetAttachments()
 		if len(attachments) != 2 {
-			t.Fatalf("GetAttachments: expected 2 attachment, got: %d", len(attachments))
+			t.Fatalf("expected 2 attachment, got: %d", len(attachments))
 		}
 		if attachments[0] == nil || attachments[1] == nil {
-			t.Fatalf("GetAttachments: expected attachment, got nil")
+			t.Fatalf("expected attachment, got nil")
 		}
 		if attachments[0].Name != "attachment.txt" {
-			t.Errorf("GetAttachments: expected attachment name to be %s, got: %s", "attachment.txt",
+			t.Errorf("expected attachment name to be %s, got: %s", "attachment.txt",
 				attachments[0].Name)
 		}
 		if attachments[1].Name != "attachment2.txt" {
-			t.Errorf("GetAttachments: expected attachment name to be %s, got: %s", "attachment2.txt",
+			t.Errorf("expected attachment name to be %s, got: %s", "attachment2.txt",
 				attachments[1].Name)
 		}
 		messageBuf := bytes.NewBuffer(nil)
 		_, err := attachments[0].Writer(messageBuf)
 		if err != nil {
-			t.Errorf("GetAttachments: Writer func failed: %s", err)
+			t.Errorf("writer func failed: %s", err)
 		}
 		if !strings.EqualFold(messageBuf.String(), "This is a test attachment\n") {
-			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is a test attachment\n",
+			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment\n",
 				messageBuf.String())
 		}
 		messageBuf.Reset()
 		_, err = attachments[1].Writer(messageBuf)
 		if err != nil {
-			t.Errorf("GetAttachments: Writer func failed: %s", err)
+			t.Errorf("writer func failed: %s", err)
 		}
 		if !strings.EqualFold(messageBuf.String(), "This is also a test attachment\n") {
-			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is also a test attachment\n",
+			t.Errorf("expected message body to be %s, got: %s", "This is also a test attachment\n",
 				messageBuf.String())
 		}
 	})
@@ -3416,7 +3424,7 @@ func TestMsg_SetAttachments(t *testing.T) {
 		message.SetAttachments(nil)
 		attachments := message.GetAttachments()
 		if len(attachments) != 0 {
-			t.Fatalf("GetAttachments: expected 0 attachment, got: %d", len(attachments))
+			t.Fatalf("expected 0 attachment, got: %d", len(attachments))
 		}
 	})
 }
@@ -3455,11 +3463,11 @@ func TestMsg_UnsetAllAttachments(t *testing.T) {
 	message.SetAttachments([]*File{file1, file2})
 	message.UnsetAllAttachments()
 	if message.attachments != nil {
-		t.Errorf("UnsetAllAttachments: expected attachments to be nil, got: %v", message.attachments)
+		t.Errorf("expected attachments to be nil, got: %v", message.attachments)
 	}
 	attachments := message.GetAttachments()
 	if len(attachments) != 0 {
-		t.Fatalf("GetAttachments: expected 0 attachment, got: %d", len(attachments))
+		t.Fatalf("expected 0 attachment, got: %d", len(attachments))
 	}
 }
 
@@ -3472,22 +3480,22 @@ func TestMsg_GetEmbeds(t *testing.T) {
 		message.EmbedFile("testdata/embed.txt")
 		embeds := message.GetEmbeds()
 		if len(embeds) != 1 {
-			t.Fatalf("GetEmbeds: expected 1 embed, got: %d", len(embeds))
+			t.Fatalf("expected 1 embed, got: %d", len(embeds))
 		}
 		if embeds[0] == nil {
-			t.Fatalf("GetEmbeds: expected embed, got nil")
+			t.Fatalf("expected embed, got nil")
 		}
 		if embeds[0].Name != "embed.txt" {
-			t.Errorf("GetEmbeds: expected embed name to be %s, got: %s", "embed.txt",
+			t.Errorf("expected embed name to be %s, got: %s", "embed.txt",
 				embeds[0].Name)
 		}
 		messageBuf := bytes.NewBuffer(nil)
 		_, err := embeds[0].Writer(messageBuf)
 		if err != nil {
-			t.Errorf("GetEmbeds: Writer func failed: %s", err)
+			t.Errorf("Writer func failed: %s", err)
 		}
 		if !strings.EqualFold(messageBuf.String(), "This is a test embed\n") {
-			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is a test embed\n",
+			t.Errorf("expected message body to be %s, got: %s", "This is a test embed\n",
 				messageBuf.String())
 		}
 	})
@@ -3500,35 +3508,35 @@ func TestMsg_GetEmbeds(t *testing.T) {
 		message.EmbedFile("testdata/embed.txt", WithFileName("embed2.txt"))
 		embeds := message.GetEmbeds()
 		if len(embeds) != 2 {
-			t.Fatalf("GetEmbeds: expected 2 embed, got: %d", len(embeds))
+			t.Fatalf("expected 2 embed, got: %d", len(embeds))
 		}
 		if embeds[0] == nil || embeds[1] == nil {
-			t.Fatalf("GetEmbeds: expected embed, got nil")
+			t.Fatalf("expected embed, got nil")
 		}
 		if embeds[0].Name != "embed.txt" {
-			t.Errorf("GetEmbeds: expected embed name to be %s, got: %s", "embed.txt",
+			t.Errorf("expected embed name to be %s, got: %s", "embed.txt",
 				embeds[0].Name)
 		}
 		if embeds[1].Name != "embed2.txt" {
-			t.Errorf("GetEmbeds: expected embed name to be %s, got: %s", "embed2.txt",
+			t.Errorf("expected embed name to be %s, got: %s", "embed2.txt",
 				embeds[1].Name)
 		}
 		messageBuf := bytes.NewBuffer(nil)
 		_, err := embeds[0].Writer(messageBuf)
 		if err != nil {
-			t.Errorf("GetEmbeds: Writer func failed: %s", err)
+			t.Errorf("Writer func failed: %s", err)
 		}
 		if !strings.EqualFold(messageBuf.String(), "This is a test embed\n") {
-			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is a test embed\n",
+			t.Errorf("expected message body to be %s, got: %s", "This is a test embed\n",
 				messageBuf.String())
 		}
 		messageBuf.Reset()
 		_, err = embeds[1].Writer(messageBuf)
 		if err != nil {
-			t.Errorf("GetEmbeds: Writer func failed: %s", err)
+			t.Errorf("Writer func failed: %s", err)
 		}
 		if !strings.EqualFold(messageBuf.String(), "This is a test embed\n") {
-			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is a test embed\n",
+			t.Errorf("expected message body to be %s, got: %s", "This is a test embed\n",
 				messageBuf.String())
 		}
 	})
@@ -3539,7 +3547,7 @@ func TestMsg_GetEmbeds(t *testing.T) {
 		}
 		embeds := message.GetEmbeds()
 		if len(embeds) != 0 {
-			t.Fatalf("GetEmbeds: expected 1 embeds, got: %d", len(embeds))
+			t.Fatalf("expected 1 embeds, got: %d", len(embeds))
 		}
 	})
 }
@@ -3563,22 +3571,22 @@ func TestMsg_SetEmbeds(t *testing.T) {
 		message.SetEmbeds([]*File{file})
 		embeds := message.GetEmbeds()
 		if len(embeds) != 1 {
-			t.Fatalf("GetEmbeds: expected 1 embed, got: %d", len(embeds))
+			t.Fatalf("expected 1 embed, got: %d", len(embeds))
 		}
 		if embeds[0] == nil {
-			t.Fatalf("GetEmbeds: expected embed, got nil")
+			t.Fatalf("expected embed, got nil")
 		}
 		if embeds[0].Name != "embed.txt" {
-			t.Errorf("GetEmbeds: expected embed name to be %s, got: %s", "embed.txt",
+			t.Errorf("expected embed name to be %s, got: %s", "embed.txt",
 				embeds[0].Name)
 		}
 		messageBuf := bytes.NewBuffer(nil)
 		_, err := embeds[0].Writer(messageBuf)
 		if err != nil {
-			t.Errorf("GetEmbeds: Writer func failed: %s", err)
+			t.Errorf("Writer func failed: %s", err)
 		}
 		if !strings.EqualFold(messageBuf.String(), "This is a test embed\n") {
-			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is a test embed\n",
+			t.Errorf("expected message body to be %s, got: %s", "This is a test embed\n",
 				messageBuf.String())
 		}
 	})
@@ -3610,35 +3618,35 @@ func TestMsg_SetEmbeds(t *testing.T) {
 		message.SetEmbeds([]*File{file1, file2})
 		embeds := message.GetEmbeds()
 		if len(embeds) != 2 {
-			t.Fatalf("GetEmbeds: expected 2 embed, got: %d", len(embeds))
+			t.Fatalf("expected 2 embed, got: %d", len(embeds))
 		}
 		if embeds[0] == nil || embeds[1] == nil {
-			t.Fatalf("GetEmbeds: expected embed, got nil")
+			t.Fatalf("expected embed, got nil")
 		}
 		if embeds[0].Name != "embed.txt" {
-			t.Errorf("GetEmbeds: expected embed name to be %s, got: %s", "embed.txt",
+			t.Errorf("expected embed name to be %s, got: %s", "embed.txt",
 				embeds[0].Name)
 		}
 		if embeds[1].Name != "embed2.txt" {
-			t.Errorf("GetEmbeds: expected embed name to be %s, got: %s", "embed2.txt",
+			t.Errorf("expected embed name to be %s, got: %s", "embed2.txt",
 				embeds[1].Name)
 		}
 		messageBuf := bytes.NewBuffer(nil)
 		_, err := embeds[0].Writer(messageBuf)
 		if err != nil {
-			t.Errorf("GetEmbeds: Writer func failed: %s", err)
+			t.Errorf("Writer func failed: %s", err)
 		}
 		if !strings.EqualFold(messageBuf.String(), "This is a test embed\n") {
-			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is a test embed\n",
+			t.Errorf("expected message body to be %s, got: %s", "This is a test embed\n",
 				messageBuf.String())
 		}
 		messageBuf.Reset()
 		_, err = embeds[1].Writer(messageBuf)
 		if err != nil {
-			t.Errorf("GetEmbeds: Writer func failed: %s", err)
+			t.Errorf("Writer func failed: %s", err)
 		}
 		if !strings.EqualFold(messageBuf.String(), "This is also a test embed\n") {
-			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is also a test embed\n",
+			t.Errorf("expected message body to be %s, got: %s", "This is also a test embed\n",
 				messageBuf.String())
 		}
 	})
@@ -3650,7 +3658,7 @@ func TestMsg_SetEmbeds(t *testing.T) {
 		message.SetEmbeds(nil)
 		embeds := message.GetEmbeds()
 		if len(embeds) != 0 {
-			t.Fatalf("GetEmbeds: expected 0 embed, got: %d", len(embeds))
+			t.Fatalf("expected 0 embed, got: %d", len(embeds))
 		}
 	})
 }
@@ -3683,11 +3691,11 @@ func TestMsg_UnsetAllEmbeds(t *testing.T) {
 	message.SetEmbeds([]*File{file1, file2})
 	message.UnsetAllEmbeds()
 	if message.embeds != nil {
-		t.Errorf("UnsetAllEmbeds: expected embeds to be nil, got: %v", message.embeds)
+		t.Errorf("expected embeds to be nil, got: %v", message.embeds)
 	}
 	embeds := message.GetEmbeds()
 	if len(embeds) != 0 {
-		t.Fatalf("GetEmbeds: expected 0 embed, got: %d", len(embeds))
+		t.Fatalf("expected 0 embed, got: %d", len(embeds))
 	}
 }
 
@@ -3720,16 +3728,121 @@ func TestMsg_UnsetAllParts(t *testing.T) {
 	message.SetEmbeds([]*File{file2})
 	message.UnsetAllParts()
 	if message.embeds != nil || message.attachments != nil {
-		t.Error("UnsetAllParts: expected attachments/embeds to be nil, got: value")
+		t.Error("expected attachments/embeds to be nil, got: value")
 	}
 	embeds := message.GetEmbeds()
 	if len(embeds) != 0 {
-		t.Fatalf("GetEmbeds: expected 0 embed, got: %d", len(embeds))
+		t.Fatalf("expected 0 embed, got: %d", len(embeds))
 	}
 	attachments := message.GetAttachments()
 	if len(attachments) != 0 {
-		t.Fatalf("GetAttachments: expected 0 attachments, got: %d", len(attachments))
+		t.Fatalf("expected 0 attachments, got: %d", len(attachments))
 	}
+}
+
+func TestMsg_SetBodyString(t *testing.T) {
+	t.Run("SetBodyString on all types", func(t *testing.T) {
+		for _, tt := range contentTypeTests {
+			t.Run(tt.name, func(t *testing.T) {
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				message.SetBodyString(tt.ctype, "test")
+				parts := message.GetParts()
+				if len(parts) != 1 {
+					t.Fatalf("expected 1 part, got: %d", len(parts))
+				}
+				if parts[0] == nil {
+					t.Fatal("expected part to be not nil")
+				}
+				if parts[0].contentType != tt.ctype {
+					t.Errorf("expected contentType to be %s, got: %s", tt.ctype,
+						parts[0].contentType)
+				}
+				messageBuf := bytes.NewBuffer(nil)
+				_, err := parts[0].writeFunc(messageBuf)
+				if err != nil {
+					t.Errorf("writeFunc failed: %s", err)
+				}
+				if !strings.EqualFold(messageBuf.String(), "test") {
+					t.Errorf("expected message body to be %s, got: %s", "test", messageBuf.String())
+				}
+			})
+		}
+	})
+}
+
+func TestMsg_SetBodyWriter(t *testing.T) {
+	writerFunc := func(w io.Writer) (int64, error) {
+		buffer := bytes.NewBufferString("test")
+		n, err := w.Write(buffer.Bytes())
+		return int64(n), err
+	}
+	t.Run("SetBodyWriter on all types", func(t *testing.T) {
+		for _, tt := range contentTypeTests {
+			t.Run(tt.name, func(t *testing.T) {
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				message.SetBodyWriter(tt.ctype, writerFunc)
+				parts := message.GetParts()
+				if len(parts) != 1 {
+					t.Fatalf("expected 1 part, got: %d", len(parts))
+				}
+				if parts[0] == nil {
+					t.Fatal("expected part to be not nil")
+				}
+				if parts[0].contentType != tt.ctype {
+					t.Errorf("expected contentType to be %s, got: %s", tt.ctype,
+						parts[0].contentType)
+				}
+				messageBuf := bytes.NewBuffer(nil)
+				_, err := parts[0].writeFunc(messageBuf)
+				if err != nil {
+					t.Errorf("writeFunc failed: %s", err)
+				}
+				if !strings.EqualFold(messageBuf.String(), "test") {
+					t.Errorf("expected message body to be %s, got: %s", "test", messageBuf.String())
+				}
+			})
+		}
+	})
+	t.Run("SetBodyWriter WithPartCharset", func(t *testing.T) {
+		for _, tt := range charsetTests {
+			t.Run(tt.name, func(t *testing.T) {
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				message.SetBodyWriter(TypeTextPlain, writerFunc, WithPartCharset(tt.value))
+				parts := message.GetParts()
+				if len(parts) != 1 {
+					t.Fatalf("expected 1 part, got: %d", len(parts))
+				}
+				if parts[0] == nil {
+					t.Fatal("expected part to be not nil")
+				}
+				if parts[0].contentType != TypeTextPlain {
+					t.Errorf("expected contentType to be %s, got: %s", TypeTextPlain,
+						parts[0].contentType)
+				}
+				if parts[0].charset != tt.value {
+					t.Errorf("expected charset to be %s, got: %s", tt.value, parts[0].charset)
+				}
+				messageBuf := bytes.NewBuffer(nil)
+				_, err := parts[0].writeFunc(messageBuf)
+				if err != nil {
+					t.Errorf("writeFunc failed: %s", err)
+				}
+				if !strings.EqualFold(messageBuf.String(), "test") {
+					t.Errorf("expected message body to be %s, got: %s", "test", messageBuf.String())
+				}
+			})
+		}
+	})
+
 }
 
 // checkAddrHeader verifies the correctness of an AddrHeader in a Msg based on the provided criteria.
