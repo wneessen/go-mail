@@ -1681,11 +1681,11 @@ func (m *Msg) SetBodyHTMLTemplate(tpl *ht.Template, data interface{}, opts ...Pa
 	if tpl == nil {
 		return errors.New(errTplPointerNil)
 	}
-	buffer := bytes.Buffer{}
-	if err := tpl.Execute(&buffer, data); err != nil {
+	buffer := bytes.NewBuffer(nil)
+	if err := tpl.Execute(buffer, data); err != nil {
 		return fmt.Errorf(errTplExecuteFailed, err)
 	}
-	writeFunc := writeFuncFromBuffer(&buffer)
+	writeFunc := writeFuncFromBuffer(buffer)
 	m.SetBodyWriter(TypeTextHTML, writeFunc, opts...)
 	return nil
 }
