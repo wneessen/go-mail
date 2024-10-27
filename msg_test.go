@@ -4365,6 +4365,114 @@ func TestMsg_AddAlternativeHTMLTemplate(t *testing.T) {
 	})
 }
 
+func TestMsg_AddAlternativeTextTemplate(t *testing.T) {
+	tplString := `Teststring: {{.teststring}}`
+	invalidTplString := `Teststring: {{call $.invalid .teststring}}`
+	data := map[string]interface{}{"teststring": "this is a test"}
+	textTpl, err := ttpl.New("texttpl").Parse(tplString)
+	if err != nil {
+		t.Fatalf("failed to parse Text template: %s", err)
+	}
+	invalidTpl, err := ttpl.New("texttpl").Parse(invalidTplString)
+	if err != nil {
+		t.Fatalf("failed to parse invalid Text template: %s", err)
+	}
+	t.Run("AddAlternativeTextTemplate default", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err = message.AddAlternativeTextTemplate(textTpl, data); err != nil {
+			t.Fatalf("failed to set body text template: %s", err)
+		}
+		parts := message.GetParts()
+		if len(parts) != 1 {
+			t.Fatalf("expected 1 part, got: %d", len(parts))
+		}
+		if parts[0] == nil {
+			t.Fatal("expected part to be not nil")
+		}
+		if parts[0].contentType != TypeTextPlain {
+			t.Errorf("expected contentType to be %s, got: %s", TypeTextPlain, parts[0].contentType)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err = parts[0].writeFunc(messageBuf)
+		if err != nil {
+			t.Errorf("writeFunc failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "Teststring: this is a test") {
+			t.Errorf("expected message body to be %s, got: %s", "Teststring: this is a test", messageBuf.String())
+		}
+	})
+	t.Run("AddAlternativeTextTemplate with body string", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.SetBodyString(TypeTextPlain, "body string")
+		if err = message.AddAlternativeTextTemplate(textTpl, data); err != nil {
+			t.Fatalf("failed to set body text template: %s", err)
+		}
+		parts := message.GetParts()
+		if len(parts) != 2 {
+			t.Fatalf("expected 2 part, got: %d", len(parts))
+		}
+		if parts[0] == nil || parts[1] == nil {
+			t.Fatal("expected part to be not nil")
+		}
+		if parts[0].contentType != TypeTextPlain {
+			t.Errorf("expected contentType to be %s, got: %s", TypeTextPlain, parts[0].contentType)
+		}
+		if parts[1].contentType != TypeTextPlain {
+			t.Errorf("expected contentType to be %s, got: %s", TypeTextPlain, parts[1].contentType)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err = parts[0].writeFunc(messageBuf)
+		if err != nil {
+			t.Errorf("writeFunc failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "body string") {
+			t.Errorf("expected message body to be %s, got: %s", "body string", messageBuf.String())
+		}
+		messageBuf.Reset()
+		_, err = parts[1].writeFunc(messageBuf)
+		if err != nil {
+			t.Errorf("writeFunc failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "Teststring: this is a test") {
+			t.Errorf("expected message body to be %s, got: %s", "Teststring: this is a test", messageBuf.String())
+		}
+	})
+	t.Run("AddAlternativeTextTemplate with nil tpl", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		err = message.AddAlternativeTextTemplate(nil, nil)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.EqualFold(err.Error(), errTplPointerNil) {
+			t.Errorf("expected error to be %s, got: %s", errTplPointerNil, err.Error())
+		}
+	})
+	t.Run("AddAlternativeTextTemplate with invalid tpl", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		err = message.AddAlternativeTextTemplate(invalidTpl, data)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		expectErr := `failed to execute template: template: texttpl:1:14: executing "texttpl" at <call $.invalid ` +
+			`.teststring>: error calling call: call of nil`
+		if !strings.EqualFold(err.Error(), expectErr) {
+			t.Errorf("expected error to be %s, got: %s", expectErr, err.Error())
+		}
+	})
+}
+
 /*
 // TestNewMsgWithMiddleware tests WithMiddleware
 
