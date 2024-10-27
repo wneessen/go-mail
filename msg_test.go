@@ -12,6 +12,7 @@ import (
 	ht "html/template"
 	"io"
 	"net"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -4491,6 +4492,15 @@ func TestMsg_AttachFile(t *testing.T) {
 		if attachments[0].Name != "attachment.txt" {
 			t.Errorf("expected attachment name to be %s, got: %s", "attachment.txt", attachments[0].Name)
 		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err := attachments[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("writer func failed: %s", err)
+		}
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "This is a test attachment") {
+			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment", got)
+		}
 	})
 	t.Run("AttachFile with non-existant file", func(t *testing.T) {
 		message := NewMsg()
@@ -4506,6 +4516,63 @@ func TestMsg_AttachFile(t *testing.T) {
 	t.Run("AttachFile with options", func(t *testing.T) {
 		t.Log("all options have already been tested in file_test.go")
 	})
+}
+
+func TestMsg_AttachReader(t *testing.T) {
+	t.Run("AttachReader with file", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		file, err := os.Open("testdata/attachment.txt")
+		if err != nil {
+			t.Fatalf("failed to open file: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := file.Close(); err != nil {
+				t.Errorf("failed to close file: %s", err)
+			}
+		})
+		if err := message.AttachReader("attachment.txt", file); err != nil {
+			t.Fatalf("failed to attach reader: %s", err)
+		}
+		attachments := message.GetAttachments()
+		if len(attachments) != 1 {
+			t.Fatalf("failed to retrieve attachments list")
+		}
+		if attachments[0] == nil {
+			t.Fatal("expected attachment to be not nil")
+		}
+		if attachments[0].Name != "attachment.txt" {
+			t.Errorf("expected attachment name to be %s, got: %s", "attachment.txt", attachments[0].Name)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err = attachments[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("writer func failed: %s", err)
+		}
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "This is a test attachment") {
+			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment", got)
+		}
+	})
+	/*
+		t.Run("AttachReader with non-existant file", func(t *testing.T) {
+			message := NewMsg()
+			if message == nil {
+				t.Fatal("message is nil")
+			}
+			message.AttachReader("testdata/non-existant-file.txt")
+			attachments := message.GetAttachments()
+			if len(attachments) != 0 {
+				t.Fatalf("failed to retrieve attachments list")
+			}
+		})
+		t.Run("AttachReader with options", func(t *testing.T) {
+			t.Log("all options have already been tested in file_test.go")
+		})
+
+	*/
 }
 
 /*
