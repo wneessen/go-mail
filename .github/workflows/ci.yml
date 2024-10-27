@@ -154,7 +154,6 @@ jobs:
               uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
             - name: Run go test on FreeBSD
               uses: vmactions/freebsd-vm@v1
-            - name: Run go test
               with:
                   usesh: true
                   prepare: |
