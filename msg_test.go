@@ -5,6 +5,7 @@
 package mail
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -3064,6 +3065,144 @@ func TestMsg_GetBccString(t *testing.T) {
 		addresses := message.GetBccString()
 		if len(addresses) != 0 {
 			t.Errorf("GetTo: expected 0 address, got: %d", len(addresses))
+		}
+	})
+}
+
+func TestMsg_GetGenHeader(t *testing.T) {
+	t.Run("GetGenHeader with single value", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		for _, tt := range genHeaderTests {
+			t.Run(tt.name, func(t *testing.T) {
+				message.SetGenHeader(tt.header, "test")
+				values := message.GetGenHeader(tt.header)
+				if len(values) != 1 {
+					t.Errorf("GetGenHeader: expected 1 value, got: %d", len(values))
+				}
+				if values[0] != "test" {
+					t.Errorf("GetGenHeader: expected value not returned. Want: %s, got: %s",
+						"test", values[0])
+				}
+			})
+		}
+	})
+	t.Run("GetGenHeader with multiple values", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		for _, tt := range genHeaderTests {
+			t.Run(tt.name, func(t *testing.T) {
+				message.SetGenHeader(tt.header, "test", "foobar")
+				values := message.GetGenHeader(tt.header)
+				if len(values) != 2 {
+					t.Errorf("GetGenHeader: expected 1 value, got: %d", len(values))
+				}
+				if values[0] != "test" {
+					t.Errorf("GetGenHeader: expected value not returned. Want: %s, got: %s",
+						"test", values[0])
+				}
+				if values[1] != "foobar" {
+					t.Errorf("GetGenHeader: expected value not returned. Want: %s, got: %s",
+						"foobar", values[1])
+				}
+			})
+		}
+	})
+	t.Run("GetGenHeader with nil", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		for _, tt := range genHeaderTests {
+			t.Run(tt.name, func(t *testing.T) {
+				message.SetGenHeader(tt.header)
+				values := message.GetGenHeader(tt.header)
+				if len(values) != 0 {
+					t.Errorf("GetGenHeader: expected 1 value, got: %d", len(values))
+				}
+			})
+		}
+	})
+}
+
+func TestMsg_GetParts(t *testing.T) {
+	t.Run("GetParts with single part", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.SetBodyString(TypeTextPlain, "this is a test body")
+		parts := message.GetParts()
+		if len(parts) != 1 {
+			t.Fatalf("GetParts: expected 1 part, got: %d", len(parts))
+		}
+		if parts[0] == nil {
+			t.Fatalf("GetParts: expected part, got nil")
+		}
+		if parts[0].contentType != TypeTextPlain {
+			t.Errorf("GetParts: expected contentType to be TypeTextPlain, got: %s", parts[0].contentType)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err := parts[0].writeFunc(messageBuf)
+		if err != nil {
+			t.Errorf("GetParts: writeFunc failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "this is a test body") {
+			t.Errorf("GetParts: expected message body to be %s, got: %s", "this is a test body",
+				messageBuf.String())
+		}
+	})
+	t.Run("GetParts with multiple parts", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.SetBodyString(TypeTextPlain, "this is a test body")
+		message.AddAlternativeString(TypeTextHTML, "<p>This is HTML</p>")
+		parts := message.GetParts()
+		if len(parts) != 2 {
+			t.Fatalf("GetParts: expected 2 parts, got: %d", len(parts))
+		}
+		if parts[0] == nil || parts[1] == nil {
+			t.Fatalf("GetParts: expected parts, got nil")
+		}
+		if parts[0].contentType != TypeTextPlain {
+			t.Errorf("GetParts: expected contentType to be TypeTextPlain, got: %s", parts[0].contentType)
+		}
+		if parts[1].contentType != TypeTextHTML {
+			t.Errorf("GetParts: expected contentType to be TypeTextHTML, got: %s", parts[1].contentType)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err := parts[0].writeFunc(messageBuf)
+		if err != nil {
+			t.Errorf("GetParts: writeFunc failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "this is a test body") {
+			t.Errorf("GetParts: expected message body to be %s, got: %s", "this is a test body",
+				messageBuf.String())
+		}
+		messageBuf.Reset()
+		_, err = parts[1].writeFunc(messageBuf)
+		if err != nil {
+			t.Errorf("GetParts: writeFunc failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "<p>This is HTML</p>") {
+			t.Errorf("GetParts: expected message body to be %s, got: %s", "<p>This is HTML</p>",
+				messageBuf.String())
+		}
+	})
+	t.Run("GetParts with no parts", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		parts := message.GetParts()
+		if len(parts) != 0 {
+			t.Fatalf("GetParts: expected no parts, got: %d", len(parts))
 		}
 	})
 }
