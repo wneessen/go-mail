@@ -1683,7 +1683,7 @@ func TestMsg_GetMessageID(t *testing.T) {
 
 func TestMsg_SetMessageIDWithValue(t *testing.T) {
 	// We have already covered SetMessageIDWithValue in SetMessageID and GetMessageID
-	t.Skip("SetMessageIDWithValue is fully covered by TestMsg_GetMessageID")
+	t.Log("SetMessageIDWithValue is fully covered by TestMsg_GetMessageID")
 }
 
 func TestMsg_SetBulk(t *testing.T) {
@@ -1775,7 +1775,8 @@ func TestMsg_SetImportance(t *testing.T) {
 			}
 			message.SetImportance(tt.importance)
 			if tt.importance == ImportanceNormal {
-				t.Skip("ImportanceNormal is does currently not set any values")
+				t.Log("ImportanceNormal is does currently not set any values")
+				return
 			}
 			checkGenHeader(t, message, HeaderImportance, "SetImportance", 0, 1, tt.importance.String())
 			checkGenHeader(t, message, HeaderPriority, "SetImportance", 0, 1, tt.importance.NumString())
@@ -3435,7 +3436,7 @@ func TestMsg_SetAttachements(t *testing.T) {
 	message := NewMsg()
 	//goland:noinspection GoDeprecation
 	message.SetAttachements(nil)
-	t.Skip("SetAttachements is deprecated and fully tested by SetAttachments already")
+	t.Log("SetAttachements is deprecated and fully tested by SetAttachments already")
 }
 
 func TestMsg_UnsetAllAttachments(t *testing.T) {
@@ -4473,6 +4474,40 @@ func TestMsg_AddAlternativeTextTemplate(t *testing.T) {
 	})
 }
 
+func TestMsg_AttachFile(t *testing.T) {
+	t.Run("AttachFile with file", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.AttachFile("testdata/attachment.txt")
+		attachments := message.GetAttachments()
+		if len(attachments) != 1 {
+			t.Fatalf("failed to retrieve attachments list")
+		}
+		if attachments[0] == nil {
+			t.Fatal("expected attachment to be not nil")
+		}
+		if attachments[0].Name != "attachment.txt" {
+			t.Errorf("expected attachment name to be %s, got: %s", "attachment.txt", attachments[0].Name)
+		}
+	})
+	t.Run("AttachFile with non-existant file", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.AttachFile("testdata/non-existant-file.txt")
+		attachments := message.GetAttachments()
+		if len(attachments) != 0 {
+			t.Fatalf("failed to retrieve attachments list")
+		}
+	})
+	t.Run("AttachFile with options", func(t *testing.T) {
+		t.Log("all options have already been tested in file_test.go")
+	})
+}
+
 /*
 // TestNewMsgWithMiddleware tests WithMiddleware
 
@@ -4518,42 +4553,6 @@ func TestMsg_AddAlternativeTextTemplate(t *testing.T) {
 				}
 				if s[0] != tt.want {
 					t.Errorf("applyMiddlewares() method failed. Expected: %s, got: %s", tt.want, s[0])
-				}
-			})
-		}
-	}
-
-// TestMsg_AddAlternativeString tests the Msg.AddAlternativeString method
-
-	func TestMsg_AddAlternativeString(t *testing.T) {
-		tests := []struct {
-			name  string
-			value string
-			want  string
-			sf    bool
-		}{
-			{"Body: test", "test", "test", false},
-			{"Body: with Umlauts", "<strong>üäöß</strong>", "<strong>üäöß</strong>", false},
-			{"Body: with emoji", "📧", "📧", false},
-		}
-		m := NewMsg()
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				m.SetBodyString(TypeTextPlain, tt.value)
-				if len(m.parts) != 1 {
-					t.Errorf("AddAlternativeString() => SetBodyString() failed: no mail parts found")
-				}
-				m.AddAlternativeString(TypeTextHTML, tt.value)
-				if len(m.parts) != 2 {
-					t.Errorf("AddAlternativeString() failed: no alternative mail parts found")
-				}
-				apart := m.parts[1]
-				res := bytes.Buffer{}
-				if _, err := apart.writeFunc(&res); err != nil && !tt.sf {
-					t.Errorf("WriteFunc of part failed: %s", err)
-				}
-				if res.String() != tt.want {
-					t.Errorf("AddAlternativeString() failed. Expecteding: %s, got: %s", tt.want, res.String())
 				}
 			})
 		}
