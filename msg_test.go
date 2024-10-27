@@ -3544,6 +3544,194 @@ func TestMsg_GetEmbeds(t *testing.T) {
 	})
 }
 
+func TestMsg_SetEmbeds(t *testing.T) {
+	t.Run("SetEmbeds with single file", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		file := &File{
+			ContentType: TypeTextPlain,
+			Desc:        "Test file",
+			Name:        "embed.txt",
+			Writer: func(w io.Writer) (int64, error) {
+				buf := bytes.NewBuffer([]byte("This is a test embed\n"))
+				n, err := w.Write(buf.Bytes())
+				return int64(n), err
+			},
+		}
+		message.SetEmbeds([]*File{file})
+		embeds := message.GetEmbeds()
+		if len(embeds) != 1 {
+			t.Fatalf("GetEmbeds: expected 1 embed, got: %d", len(embeds))
+		}
+		if embeds[0] == nil {
+			t.Fatalf("GetEmbeds: expected embed, got nil")
+		}
+		if embeds[0].Name != "embed.txt" {
+			t.Errorf("GetEmbeds: expected embed name to be %s, got: %s", "embed.txt",
+				embeds[0].Name)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err := embeds[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("GetEmbeds: Writer func failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "This is a test embed\n") {
+			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is a test embed\n",
+				messageBuf.String())
+		}
+	})
+	t.Run("SetEmbeds with multiple files", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		file1 := &File{
+			ContentType: TypeTextPlain,
+			Desc:        "Test file",
+			Name:        "embed.txt",
+			Writer: func(w io.Writer) (int64, error) {
+				buf := bytes.NewBuffer([]byte("This is a test embed\n"))
+				n, err := w.Write(buf.Bytes())
+				return int64(n), err
+			},
+		}
+		file2 := &File{
+			ContentType: TypeTextPlain,
+			Desc:        "Test file no. 2",
+			Name:        "embed2.txt",
+			Writer: func(w io.Writer) (int64, error) {
+				buf := bytes.NewBuffer([]byte("This is also a test embed\n"))
+				n, err := w.Write(buf.Bytes())
+				return int64(n), err
+			},
+		}
+		message.SetEmbeds([]*File{file1, file2})
+		embeds := message.GetEmbeds()
+		if len(embeds) != 2 {
+			t.Fatalf("GetEmbeds: expected 2 embed, got: %d", len(embeds))
+		}
+		if embeds[0] == nil || embeds[1] == nil {
+			t.Fatalf("GetEmbeds: expected embed, got nil")
+		}
+		if embeds[0].Name != "embed.txt" {
+			t.Errorf("GetEmbeds: expected embed name to be %s, got: %s", "embed.txt",
+				embeds[0].Name)
+		}
+		if embeds[1].Name != "embed2.txt" {
+			t.Errorf("GetEmbeds: expected embed name to be %s, got: %s", "embed2.txt",
+				embeds[1].Name)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err := embeds[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("GetEmbeds: Writer func failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "This is a test embed\n") {
+			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is a test embed\n",
+				messageBuf.String())
+		}
+		messageBuf.Reset()
+		_, err = embeds[1].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("GetEmbeds: Writer func failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "This is also a test embed\n") {
+			t.Errorf("GetParts: expected message body to be %s, got: %s", "This is also a test embed\n",
+				messageBuf.String())
+		}
+	})
+	t.Run("SetEmbeds with no file", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.SetEmbeds(nil)
+		embeds := message.GetEmbeds()
+		if len(embeds) != 0 {
+			t.Fatalf("GetEmbeds: expected 0 embed, got: %d", len(embeds))
+		}
+	})
+}
+
+func TestMsg_UnsetAllEmbeds(t *testing.T) {
+	message := NewMsg()
+	if message == nil {
+		t.Fatal("message is nil")
+	}
+	file1 := &File{
+		ContentType: TypeTextPlain,
+		Desc:        "Test file",
+		Name:        "embed.txt",
+		Writer: func(w io.Writer) (int64, error) {
+			buf := bytes.NewBuffer([]byte("This is a test embed\n"))
+			n, err := w.Write(buf.Bytes())
+			return int64(n), err
+		},
+	}
+	file2 := &File{
+		ContentType: TypeTextPlain,
+		Desc:        "Test file no. 2",
+		Name:        "embed2.txt",
+		Writer: func(w io.Writer) (int64, error) {
+			buf := bytes.NewBuffer([]byte("This is also a test embed\n"))
+			n, err := w.Write(buf.Bytes())
+			return int64(n), err
+		},
+	}
+	message.SetEmbeds([]*File{file1, file2})
+	message.UnsetAllEmbeds()
+	if message.embeds != nil {
+		t.Errorf("UnsetAllEmbeds: expected embeds to be nil, got: %v", message.embeds)
+	}
+	embeds := message.GetEmbeds()
+	if len(embeds) != 0 {
+		t.Fatalf("GetEmbeds: expected 0 embed, got: %d", len(embeds))
+	}
+}
+
+func TestMsg_UnsetAllParts(t *testing.T) {
+	message := NewMsg()
+	if message == nil {
+		t.Fatal("message is nil")
+	}
+	file1 := &File{
+		ContentType: TypeTextPlain,
+		Desc:        "Test file",
+		Name:        "embed.txt",
+		Writer: func(w io.Writer) (int64, error) {
+			buf := bytes.NewBuffer([]byte("This is a test embed\n"))
+			n, err := w.Write(buf.Bytes())
+			return int64(n), err
+		},
+	}
+	file2 := &File{
+		ContentType: TypeTextPlain,
+		Desc:        "Test file no. 2",
+		Name:        "embed2.txt",
+		Writer: func(w io.Writer) (int64, error) {
+			buf := bytes.NewBuffer([]byte("This is also a test embed\n"))
+			n, err := w.Write(buf.Bytes())
+			return int64(n), err
+		},
+	}
+	message.SetAttachments([]*File{file1})
+	message.SetEmbeds([]*File{file2})
+	message.UnsetAllParts()
+	if message.embeds != nil || message.attachments != nil {
+		t.Error("UnsetAllParts: expected attachments/embeds to be nil, got: value")
+	}
+	embeds := message.GetEmbeds()
+	if len(embeds) != 0 {
+		t.Fatalf("GetEmbeds: expected 0 embed, got: %d", len(embeds))
+	}
+	attachments := message.GetAttachments()
+	if len(attachments) != 0 {
+		t.Fatalf("GetAttachments: expected 0 attachments, got: %d", len(attachments))
+	}
+}
+
 // checkAddrHeader verifies the correctness of an AddrHeader in a Msg based on the provided criteria.
 // It checks whether the AddrHeader contains the correct address, name, and number of fields.
 func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, field, wantFields int,
