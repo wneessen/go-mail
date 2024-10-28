@@ -4832,6 +4832,46 @@ func TestMsg_EmbedFile(t *testing.T) {
 	})
 }
 
+func TestMsg_EmbedReader(t *testing.T) {
+	t.Run("EmbedReader with file", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		file, err := os.Open("testdata/embed.txt")
+		if err != nil {
+			t.Fatalf("failed to open file: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := file.Close(); err != nil {
+				t.Errorf("failed to close file: %s", err)
+			}
+		})
+		if err = message.EmbedReader("embed.txt", file); err != nil {
+			t.Fatalf("failed to embed reader: %s", err)
+		}
+		embeds := message.GetEmbeds()
+		if len(embeds) != 1 {
+			t.Fatalf("failed to retrieve embeds list")
+		}
+		if embeds[0] == nil {
+			t.Fatal("expected embed to be not nil")
+		}
+		if embeds[0].Name != "embed.txt" {
+			t.Errorf("expected embed name to be %s, got: %s", "embed.txt", embeds[0].Name)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err = embeds[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("writer func failed: %s", err)
+		}
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "This is a test embed") {
+			t.Errorf("expected message body to be %s, got: %s", "This is a test embed", got)
+		}
+	})
+}
+
 /*
 // TestNewMsgWithMiddleware tests WithMiddleware
 
