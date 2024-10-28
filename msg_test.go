@@ -5142,24 +5142,136 @@ func TestMsg_Reset(t *testing.T) {
 	}
 }
 
+func TestMsg_applyMiddlewares(t *testing.T) {
+	t.Run("new message with middleware: uppercase", func(t *testing.T) {
+		tests := []struct {
+			subject string
+			want    string
+		}{
+			{"This is test subject", "THIS IS TEST SUBJECT"},
+			{"This is also a test subject", "THIS IS ALSO A TEST SUBJECT"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.subject, func(t *testing.T) {
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				if len(message.middlewares) != 0 {
+					t.Errorf("NewMsg() failed. Expected empty middlewares, got: %d", len(message.middlewares))
+				}
+				message = NewMsg(WithMiddleware(uppercaseMiddleware{}))
+				if len(message.middlewares) != 1 {
+					t.Errorf("NewMsg(WithMiddleware(uppercaseMiddleware{})) failed. Expected 1 middleware, got: %d",
+						len(message.middlewares))
+				}
+				message.Subject(tt.subject)
+				checkGenHeader(t, message, HeaderSubject, "applyMiddleware", 0, 1, tt.subject)
+				message = message.applyMiddlewares(message)
+				checkGenHeader(t, message, HeaderSubject, "applyMiddleware", 0, 1, tt.want)
+			})
+		}
+	})
+	t.Run("new message with middleware: encode", func(t *testing.T) {
+		tests := []struct {
+			subject string
+			want    string
+		}{
+			{"This is a test subject", "This is @ test subject"},
+			{"This is also a test subject", "This is @lso @ test subject"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.subject, func(t *testing.T) {
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				if len(message.middlewares) != 0 {
+					t.Errorf("NewMsg() failed. Expected empty middlewares, got: %d", len(message.middlewares))
+				}
+				message = NewMsg(WithMiddleware(encodeMiddleware{}))
+				if len(message.middlewares) != 1 {
+					t.Errorf("NewMsg(WithMiddleware(encodeMiddleware{})) failed. Expected 1 middleware, got: %d",
+						len(message.middlewares))
+				}
+				message.Subject(tt.subject)
+				checkGenHeader(t, message, HeaderSubject, "applyMiddleware", 0, 1, tt.subject)
+				message = message.applyMiddlewares(message)
+				checkGenHeader(t, message, HeaderSubject, "applyMiddleware", 0, 1, tt.want)
+			})
+		}
+	})
+	t.Run("new message with middleware: uppercase and encode", func(t *testing.T) {
+		tests := []struct {
+			subject string
+			want    string
+		}{
+			{"This is a test subject", "THIS IS @ TEST SUBJECT"},
+			{"This is also a test subject", "THIS IS @LSO @ TEST SUBJECT"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.subject, func(t *testing.T) {
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				if len(message.middlewares) != 0 {
+					t.Errorf("NewMsg() failed. Expected empty middlewares, got: %d", len(message.middlewares))
+				}
+				message = NewMsg(WithMiddleware(encodeMiddleware{}), WithMiddleware(uppercaseMiddleware{}))
+				if len(message.middlewares) != 2 {
+					t.Errorf("NewMsg(WithMiddleware(encodeMiddleware{})) failed. Expected 2 middlewares, got: %d",
+						len(message.middlewares))
+				}
+				message.Subject(tt.subject)
+				checkGenHeader(t, message, HeaderSubject, "applyMiddleware", 0, 1, tt.subject)
+				message = message.applyMiddlewares(message)
+				checkGenHeader(t, message, HeaderSubject, "applyMiddleware", 0, 1, tt.want)
+			})
+		}
+	})
+}
+
+func TestMsg_WriteTo(t *testing.T) {
+	t.Run("WriteTo memory buffer with normal mail parts", func(t *testing.T) {
+		message := testMessage(t)
+		buffer := bytes.NewBuffer(nil)
+		if _, err := message.WriteTo(buffer); err != nil {
+			t.Fatalf("failed to write message to buffer: %s", err)
+		}
+		parsed, err := EMLToMsgFromReader(buffer)
+		if err != nil {
+			t.Fatalf("failed to parse message in buffer: %s", err)
+		}
+		checkAddrHeader(t, parsed, HeaderFrom, "WriteTo", 0, 1, TestSenderValid, "")
+		checkAddrHeader(t, parsed, HeaderTo, "WriteTo", 0, 1, TestRcptValid, "")
+		checkGenHeader(t, parsed, HeaderSubject, "WriteTo", 0, 1, "Testmail")
+		parts := parsed.GetParts()
+		if len(parts) != 1 {
+			t.Fatalf("expected 1 parts, got: %d", len(parts))
+		}
+		if parts[0].contentType != TypeTextPlain {
+			t.Errorf("expected contentType to be %s, got: %s", TypeTextPlain, parts[0].contentType)
+		}
+		if parts[0].encoding != EncodingQP {
+			t.Errorf("expected encoding to be %s, got: %s", EncodingQP, parts[0].encoding)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err = parts[0].writeFunc(messageBuf)
+		if err != nil {
+			t.Errorf("writer func failed: %s", err)
+		}
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.HasSuffix(got, "Testmail") {
+			t.Errorf("expected message buffer to contain Testmail, got: %s", got)
+		}
+	})
+}
+
 /*
-// TestNewMsgWithMiddleware tests WithMiddleware
-
-	func TestNewMsgWithMiddleware(t *testing.T) {
-		m := NewMsg()
-		if len(m.middlewares) != 0 {
-			t.Errorf("empty middlewares failed. m.middlewares expected to be: empty, got: %d middleware", len(m.middlewares))
-		}
-		m = NewMsg(WithMiddleware(uppercaseMiddleware{}))
-		if len(m.middlewares) != 1 {
-			t.Errorf("empty middlewares failed. m.middlewares expected to be: 1, got: %d middleware", len(m.middlewares))
-		}
-		m = NewMsg(WithMiddleware(uppercaseMiddleware{}), WithMiddleware(encodeMiddleware{}))
-		if len(m.middlewares) != 2 {
-			t.Errorf("empty middlewares failed. m.middlewares expected to be: 2, got: %d middleware", len(m.middlewares))
-		}
-	}
-
 // TestApplyMiddlewares tests the applyMiddlewares for the Msg object
 
 	func TestApplyMiddlewares(t *testing.T) {
@@ -6658,23 +6770,23 @@ func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, f
 	t.Helper()
 	addresses, ok := message.addrHeader[header]
 	if !ok {
-		t.Fatalf("failed to set %s, addrHeader field is not set", fn)
+		t.Fatalf("failed to exec %s, addrHeader field is not set", fn)
 	}
 	if len(addresses) != wantFields {
-		t.Fatalf("failed to set %s, addrHeader value count is: %d, want: %d", fn, len(addresses), field)
+		t.Fatalf("failed to exec %s, addrHeader value count is: %d, want: %d", fn, len(addresses), field)
 	}
 	if addresses[field].Address != wantMail {
-		t.Errorf("failed to set %s, addrHeader value is %s, want: %s", fn, addresses[field].Address, wantMail)
+		t.Errorf("failed to exec %s, addrHeader value is %s, want: %s", fn, addresses[field].Address, wantMail)
 	}
 	wantString := fmt.Sprintf(`<%s>`, wantMail)
 	if wantName != "" {
 		wantString = fmt.Sprintf(`%q <%s>`, wantName, wantMail)
 	}
 	if addresses[field].String() != wantString {
-		t.Errorf("failed to set %s, addrHeader value is %s, want: %s", fn, addresses[field].String(), wantString)
+		t.Errorf("failed to exec %s, addrHeader value is %s, want: %s", fn, addresses[field].String(), wantString)
 	}
 	if addresses[field].Name != wantName {
-		t.Errorf("failed to set %s, addrHeader name is %s, want: %s", fn, addresses[field].Name, wantName)
+		t.Errorf("failed to exec %s, addrHeader name is %s, want: %s", fn, addresses[field].Name, wantName)
 	}
 }
 
@@ -6685,12 +6797,12 @@ func checkGenHeader(t *testing.T, message *Msg, header Header, fn string, field,
 	t.Helper()
 	values, ok := message.genHeader[header]
 	if !ok {
-		t.Fatalf("failed to set %s, genHeader field is not set", fn)
+		t.Fatalf("failed to exec %s, genHeader field is not set", fn)
 	}
 	if len(values) != wantFields {
-		t.Fatalf("failed to set %s, genHeader value count is: %d, want: %d", fn, len(values), field)
+		t.Fatalf("failed to exec %s, genHeader value count is: %d, want: %d", fn, len(values), field)
 	}
 	if values[field] != wantVal {
-		t.Errorf("failed to set %s, genHeader value is %s, want: %s", fn, values[field], wantVal)
+		t.Errorf("failed to exec %s, genHeader value is %s, want: %s", fn, values[field], wantVal)
 	}
 }
