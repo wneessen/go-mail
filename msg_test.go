@@ -4515,6 +4515,21 @@ func TestMsg_AttachFile(t *testing.T) {
 	t.Run("AttachFile with options", func(t *testing.T) {
 		t.Log("all options have already been tested in file_test.go")
 	})
+	t.Run("AttachFile with fileFromFS fails on copy", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.AttachFile("testdata/attachment.txt")
+		attachments := message.GetAttachments()
+		if len(attachments) != 1 {
+			t.Fatalf("failed to get attachments, expected 1, got: %d", len(attachments))
+		}
+		_, err := attachments[0].Writer(failReadWriteSeekCloser{})
+		if err == nil {
+			t.Error("writer func expected to fail, but didn't")
+		}
+	})
 }
 
 func TestMsg_AttachReader(t *testing.T) {
@@ -4555,6 +4570,32 @@ func TestMsg_AttachReader(t *testing.T) {
 			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment", got)
 		}
 	})
+	t.Run("AttachReader with fileFromReader fails on copy", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		file, err := os.Open("testdata/attachment.txt")
+		if err != nil {
+			t.Fatalf("failed to open file: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := file.Close(); err != nil {
+				t.Errorf("failed to close file: %s", err)
+			}
+		})
+		if err = message.AttachReader("attachment.txt", file); err != nil {
+			t.Fatalf("failed to attach reader: %s", err)
+		}
+		attachments := message.GetAttachments()
+		if len(attachments) != 1 {
+			t.Fatalf("failed to get attachments, expected 1, got: %d", len(attachments))
+		}
+		_, err = attachments[0].Writer(failReadWriteSeekCloser{})
+		if err == nil {
+			t.Error("writer func expected to fail, but didn't")
+		}
+	})
 }
 
 func TestMsg_AttachReadSeeker(t *testing.T) {
@@ -4591,6 +4632,30 @@ func TestMsg_AttachReadSeeker(t *testing.T) {
 		got := strings.TrimSpace(messageBuf.String())
 		if !strings.EqualFold(got, "This is a test attachment") {
 			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment", got)
+		}
+	})
+	t.Run("AttachReadSeeker with fileFromReadSeeker fails on copy", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		file, err := os.Open("testdata/attachment.txt")
+		if err != nil {
+			t.Fatalf("failed to open file: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := file.Close(); err != nil {
+				t.Errorf("failed to close file: %s", err)
+			}
+		})
+		message.AttachReadSeeker("attachment.txt", file)
+		attachments := message.GetAttachments()
+		if len(attachments) != 1 {
+			t.Fatalf("failed to get attachments, expected 1, got: %d", len(attachments))
+		}
+		_, err = attachments[0].Writer(failReadWriteSeekCloser{})
+		if err == nil {
+			t.Error("writer func expected to fail, but didn't")
 		}
 	})
 }
@@ -4827,6 +4892,21 @@ func TestMsg_EmbedFile(t *testing.T) {
 			t.Fatalf("failed to retrieve attachments list")
 		}
 	})
+	t.Run("EmbedFile with fileFromFS fails on copy", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.EmbedFile("testdata/embed.txt")
+		emebeds := message.GetEmbeds()
+		if len(emebeds) != 1 {
+			t.Fatalf("failed to get emebeds, expected 1, got: %d", len(emebeds))
+		}
+		_, err := emebeds[0].Writer(failReadWriteSeekCloser{})
+		if err == nil {
+			t.Error("writer func expected to fail, but didn't")
+		}
+	})
 	t.Run("EmbedFile with options", func(t *testing.T) {
 		t.Log("all options have already been tested in file_test.go")
 	})
@@ -4870,6 +4950,53 @@ func TestMsg_EmbedReader(t *testing.T) {
 			t.Errorf("expected message body to be %s, got: %s", "This is a test embed", got)
 		}
 	})
+	t.Run("EmbedReader with fileFromReader fails on copy", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		file, err := os.Open("testdata/embed.txt")
+		if err != nil {
+			t.Fatalf("failed to open file: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := file.Close(); err != nil {
+				t.Errorf("failed to close file: %s", err)
+			}
+		})
+		if err = message.EmbedReader("embed.txt", file); err != nil {
+			t.Fatalf("failed to embed reader: %s", err)
+		}
+		embeds := message.GetEmbeds()
+		if len(embeds) != 1 {
+			t.Fatalf("failed to get embeds, expected 1, got: %d", len(embeds))
+		}
+		_, err = embeds[0].Writer(failReadWriteSeekCloser{})
+		if err == nil {
+			t.Error("writer func expected to fail, but didn't")
+		}
+	})
+	t.Run("EmbedReader with fileFromReader on closed reader", func(t *testing.T) {
+		tempfile, err := os.CreateTemp("", "embedfile-close-reader.*.txt")
+		if err != nil {
+			t.Fatalf("failed to create temp file: %s", err)
+		}
+		if err = tempfile.Close(); err != nil {
+			t.Fatalf("failed to close temp file: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := os.Remove(tempfile.Name()); err != nil {
+				t.Errorf("failed to remove temp file: %s", err)
+			}
+		})
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err = message.EmbedReader("embed.txt", tempfile); err == nil {
+			t.Fatalf("expected error, got nil")
+		}
+	})
 }
 
 func TestMsg_EmbedReadSeeker(t *testing.T) {
@@ -4906,6 +5033,30 @@ func TestMsg_EmbedReadSeeker(t *testing.T) {
 		got := strings.TrimSpace(messageBuf.String())
 		if !strings.EqualFold(got, "This is a test embed") {
 			t.Errorf("expected message body to be %s, got: %s", "This is a test embed", got)
+		}
+	})
+	t.Run("EmbedReadSeeker with fileFromReadSeeker fails on copy", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		file, err := os.Open("testdata/embed.txt")
+		if err != nil {
+			t.Fatalf("failed to open file: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := file.Close(); err != nil {
+				t.Errorf("failed to close file: %s", err)
+			}
+		})
+		message.EmbedReadSeeker("embed.txt", file)
+		embeds := message.GetEmbeds()
+		if len(embeds) != 1 {
+			t.Fatalf("failed to get embeds, expected 1, got: %d", len(embeds))
+		}
+		_, err = embeds[0].Writer(failReadWriteSeekCloser{})
+		if err == nil {
+			t.Error("writer func expected to fail, but didn't")
 		}
 	})
 }
