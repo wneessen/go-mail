@@ -296,3 +296,137 @@ func TestMsgWriter_writePreformattedGenHeader(t *testing.T) {
 		}
 	})
 }
+
+func TestMsgWriter_addFiles(t *testing.T) {
+	msgwriter := &msgWriter{
+		charset: CharsetUTF8,
+		encoder: getEncoder(EncodingQP),
+	}
+	t.Run("message with a single file attached", func(t *testing.T) {
+		buffer := bytes.NewBuffer(nil)
+		msgwriter.writer = buffer
+		message := testMessage(t)
+		message.AttachFile("testdata/attachment.txt")
+		msgwriter.writeMsg(message)
+		if msgwriter.err != nil {
+			t.Errorf("msgWriter failed to write: %s", msgwriter.err)
+		}
+		if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo=") {
+			t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
+		}
+		if !strings.Contains(buffer.String(), `Content-Disposition: attachment; filename="attachment.txt"`) {
+			t.Errorf("Content-Dispositon header not found for attachment. Mail: %s", buffer.String())
+		}
+		if !strings.Contains(buffer.String(), `Content-Type: text/plain; charset=utf-8; name="attachment.txt"`) {
+			t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
+		}
+	})
+	t.Run("message with a single file attached no extension", func(t *testing.T) {
+		buffer := bytes.NewBuffer(nil)
+		msgwriter.writer = buffer
+		message := testMessage(t)
+		message.AttachFile("testdata/attachment")
+		msgwriter.writeMsg(message)
+		if msgwriter.err != nil {
+			t.Errorf("msgWriter failed to write: %s", msgwriter.err)
+		}
+		if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo=") {
+			t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
+		}
+		if !strings.Contains(buffer.String(), `Content-Disposition: attachment; filename="attachment"`) {
+			t.Errorf("Content-Dispositon header not found for attachment. Mail: %s", buffer.String())
+		}
+		if !strings.Contains(buffer.String(), `Content-Type: application/octet-stream; name="attachment"`) {
+			t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
+		}
+	})
+	t.Run("message with a single file attached custom content-type", func(t *testing.T) {
+		buffer := bytes.NewBuffer(nil)
+		msgwriter.writer = buffer
+		message := testMessage(t)
+		message.AttachFile("testdata/attachment.txt", WithFileContentType(TypeAppOctetStream))
+		msgwriter.writeMsg(message)
+		if msgwriter.err != nil {
+			t.Errorf("msgWriter failed to write: %s", msgwriter.err)
+		}
+		if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo=") {
+			t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
+		}
+		if !strings.Contains(buffer.String(), `Content-Disposition: attachment; filename="attachment.txt"`) {
+			t.Errorf("Content-Dispositon header not found for attachment. Mail: %s", buffer.String())
+		}
+		if !strings.Contains(buffer.String(), `Content-Type: application/octet-stream; name="attachment.txt"`) {
+			t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
+		}
+	})
+	t.Run("message with a single file attached custom transfer-encoding", func(t *testing.T) {
+		buffer := bytes.NewBuffer(nil)
+		msgwriter.writer = buffer
+		message := testMessage(t)
+		message.AttachFile("testdata/attachment.txt", WithFileEncoding(EncodingUSASCII))
+		msgwriter.writeMsg(message)
+		if msgwriter.err != nil {
+			t.Errorf("msgWriter failed to write: %s", msgwriter.err)
+		}
+		if !strings.Contains(buffer.String(), "\r\n\r\nThis is a test attachment") {
+			t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
+		}
+		if !strings.Contains(buffer.String(), `Content-Disposition: attachment; filename="attachment.txt"`) {
+			t.Errorf("Content-Dispositon header not found for attachment. Mail: %s", buffer.String())
+		}
+		if !strings.Contains(buffer.String(), `text/plain; charset=utf-8; name="attachment.txt"`) {
+			t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
+		}
+		if !strings.Contains(buffer.String(), `Content-Transfer-Encoding: 7bit`) {
+			t.Errorf("Content-Transfer-Encoding header not found for attachment. Mail: %s", buffer.String())
+		}
+	})
+	t.Run("message with a single file attached custom description", func(t *testing.T) {
+		buffer := bytes.NewBuffer(nil)
+		msgwriter.writer = buffer
+		message := testMessage(t)
+		message.AttachFile("testdata/attachment.txt", WithFileDescription("Testdescription"))
+		msgwriter.writeMsg(message)
+		if msgwriter.err != nil {
+			t.Errorf("msgWriter failed to write: %s", msgwriter.err)
+		}
+		if !strings.Contains(buffer.String(), "\r\n\r\nVGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo=") {
+			t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
+		}
+		if !strings.Contains(buffer.String(), `Content-Disposition: attachment; filename="attachment.txt"`) {
+			t.Errorf("Content-Dispositon header not found for attachment. Mail: %s", buffer.String())
+		}
+		if !strings.Contains(buffer.String(), `text/plain; charset=utf-8; name="attachment.txt"`) {
+			t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
+		}
+		if !strings.Contains(buffer.String(), `Content-Transfer-Encoding: base64`) {
+			t.Errorf("Content-Transfer-Encoding header not found for attachment. Mail: %s", buffer.String())
+		}
+		if !strings.Contains(buffer.String(), `Content-Description: Testdescription`) {
+			t.Errorf("Content-Description header not found for attachment. Mail: %s", buffer.String())
+		}
+	})
+	t.Run("message with attachment but no body part", func(t *testing.T) {
+		buffer := bytes.NewBuffer(nil)
+		msgwriter.writer = buffer
+		message := testMessage(t)
+		message.parts = nil
+		message.AttachFile("testdata/attachment.txt")
+		msgwriter.writeMsg(message)
+		if msgwriter.err != nil {
+			t.Errorf("msgWriter failed to write: %s", msgwriter.err)
+		}
+		if !strings.Contains(buffer.String(), "\r\n\r\nVGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo=") {
+			t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
+		}
+		if !strings.Contains(buffer.String(), `Content-Disposition: attachment; filename="attachment.txt"`) {
+			t.Errorf("Content-Dispositon header not found for attachment. Mail: %s", buffer.String())
+		}
+		if !strings.Contains(buffer.String(), `text/plain; charset=utf-8; name="attachment.txt"`) {
+			t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
+		}
+		if !strings.Contains(buffer.String(), `Content-Transfer-Encoding: base64`) {
+			t.Errorf("Content-Transfer-Encoding header not found for attachment. Mail: %s", buffer.String())
+		}
+	})
+}
