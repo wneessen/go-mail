@@ -31,8 +31,8 @@ jobs:
                 go: ['1.23']
         env:
             PERFORM_ONLINE_TEST: ${{ vars.PERFORM_ONLINE_TEST }}
-            PERFORM_UNIX_OPEN_WRITE_TESTS: "true"
-            TEST_SENDMAIL: ${{ vars.TEST_SENDMAIL }}
+            PERFORM_UNIX_OPEN_WRITE_TESTS: ${{ vars.PERFORM_UNIX_OPEN_WRITE_TESTS }}
+            PERFORM_SENDMAIL_TESTS: ${{ vars.PERFORM_SENDMAIL_TESTS }}
             TEST_HOST: ${{ secrets.TEST_HOST }}
             TEST_USER: ${{ secrets.TEST_USER }}
             TEST_PASS: ${{ secrets.TEST_PASS }}
