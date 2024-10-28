@@ -6037,6 +6037,46 @@ func TestMsg_HasSendError(t *testing.T) {
 	})
 }
 
+func TestMsg_WriteToTempFile(t *testing.T) {
+	if os.Getenv("PERFORM_UNIX_OPEN_WRITE_TESTS") != "true" {
+		t.Skipf("PERFORM_UNIX_OPEN_WRITE_TESTS variable is not set. Skipping unix open/write tests")
+	}
+
+	t.Run("WriteToTempFile succeeds", func(t *testing.T) {
+		message := testMessage(t)
+		tempFile, err := message.WriteToTempFile()
+		if err != nil {
+			t.Fatalf("failed to write message to temp file: %s", err)
+		}
+		parsed, err := EMLToMsgFromFile(tempFile)
+		if err != nil {
+			t.Fatalf("failed to parse message in buffer: %s", err)
+		}
+		checkAddrHeader(t, parsed, HeaderFrom, "WriteTo", 0, 1, TestSenderValid, "")
+		checkAddrHeader(t, parsed, HeaderTo, "WriteTo", 0, 1, TestRcptValid, "")
+		checkGenHeader(t, parsed, HeaderSubject, "WriteTo", 0, 1, "Testmail")
+		parts := parsed.GetParts()
+		if len(parts) != 1 {
+			t.Fatalf("expected 1 parts, got: %d", len(parts))
+		}
+		if parts[0].contentType != TypeTextPlain {
+			t.Errorf("expected contentType to be %s, got: %s", TypeTextPlain, parts[0].contentType)
+		}
+		if parts[0].encoding != EncodingQP {
+			t.Errorf("expected encoding to be %s, got: %s", EncodingQP, parts[0].encoding)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err = parts[0].writeFunc(messageBuf)
+		if err != nil {
+			t.Errorf("writer func failed: %s", err)
+		}
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.HasSuffix(got, "Testmail") {
+			t.Errorf("expected message buffer to contain Testmail, got: %s", got)
+		}
+	})
+}
+
 /*
 // TestMsg_hasAlt tests the hasAlt() method of the Msg
 

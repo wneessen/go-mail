@@ -120,28 +120,27 @@ func TestMsg_WriteToFile_unixOnly(t *testing.T) {
 	})
 }
 
-/*
-func TestMsg_WriteToTempFileFailed(t *testing.T) {
-	m := NewMsg()
-	_ = m.From("Toni Tester <tester@example.com>")
-	_ = m.To("Ellenor Tester <ellinor@example.com>")
-	m.SetBodyString(TypeTextPlain, "This is a test")
+func TestMsg_WriteToTempFile_unixOnly(t *testing.T) {
+	if os.Getenv("PERFORM_UNIX_OPEN_WRITE_TESTS") != "true" {
+		t.Skipf("PERFORM_UNIX_OPEN_WRITE_TESTS variable is not set. Skipping unix open/write tests")
+	}
 
-	curTmpDir := os.Getenv("TMPDIR")
-	defer func() {
-		if err := os.Setenv("TMPDIR", curTmpDir); err != nil {
-			t.Errorf("failed to set TMPDIR environment variable: %s", err)
+	t.Run("WriteToTempFile fails on invalid TMPDIR", func(t *testing.T) {
+		// We store the current TMPDIR variable so we can set it back when the test is over
+		curTmpDir := os.Getenv("TMPDIR")
+		t.Cleanup(func() {
+			if err := os.Setenv("TMPDIR", curTmpDir); err != nil {
+				t.Errorf("failed to set TMPDIR environment variable: %s", err)
+			}
+		})
+
+		if err := os.Setenv("TMPDIR", "/invalid/directory/that/does/not/exist"); err != nil {
+			t.Fatalf("failed to set TMPDIR environment variable: %s", err)
 		}
-	}()
-
-	if err := os.Setenv("TMPDIR", "/invalid/directory/that/does/not/exist"); err != nil {
-		t.Errorf("failed to set TMPDIR environment variable: %s", err)
-	}
-	_, err := m.WriteToTempFile()
-	if err == nil {
-		t.Errorf("WriteToTempFile() did not fail as expected")
-	}
+		message := testMessage(t)
+		_, err := message.WriteToTempFile()
+		if err == nil {
+			t.Errorf("expected writing to invalid TMPDIR to fail, got: %s", err)
+		}
+	})
 }
-
-
-*/
