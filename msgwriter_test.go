@@ -468,3 +468,34 @@ func TestMsgWriter_writePart(t *testing.T) {
 		}
 	})
 }
+
+func TestMsgWriter_writeString(t *testing.T) {
+	msgwriter := &msgWriter{
+		charset: CharsetUTF8,
+		encoder: getEncoder(EncodingQP),
+	}
+	t.Run("writeString succeeds", func(t *testing.T) {
+		buffer := bytes.NewBuffer(nil)
+		msgwriter.writer = buffer
+		msgwriter.writeString("thisisatest")
+		if !strings.EqualFold(buffer.String(), "thisisatest") {
+			t.Errorf("writeString failed, expected: thisisatest got: %s", buffer.String())
+		}
+	})
+	t.Run("writeString fails", func(t *testing.T) {
+		msgwriter.writer = failReadWriteSeekCloser{}
+		msgwriter.writeString("thisisatest")
+		if msgwriter.err == nil {
+			t.Errorf("writeString succeeded, expected error")
+		}
+	})
+	t.Run("writeString on errored writer should return", func(t *testing.T) {
+		buffer := bytes.NewBuffer(nil)
+		msgwriter.writer = buffer
+		msgwriter.err = errors.New("intentional error")
+		msgwriter.writeString("thisisatest")
+		if !strings.EqualFold(buffer.String(), "") {
+			t.Errorf("writeString succeeded, expected: empty string, got: %s", buffer.String())
+		}
+	})
+}
