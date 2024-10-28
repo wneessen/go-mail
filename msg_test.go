@@ -5432,6 +5432,7 @@ func TestMsg_WriteTo(t *testing.T) {
 		}
 	})
 }
+
 func TestMsg_Write(t *testing.T) {
 	message := testMessage(t)
 	if _, err := message.Write(io.Discard); err != nil {
