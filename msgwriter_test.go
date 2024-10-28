@@ -430,3 +430,41 @@ func TestMsgWriter_addFiles(t *testing.T) {
 		}
 	})
 }
+
+func TestMsgWriter_writePart(t *testing.T) {
+	msgwriter := &msgWriter{
+		charset: CharsetUTF8,
+		encoder: getEncoder(EncodingQP),
+	}
+	t.Run("message with no part charset should use default message charset", func(t *testing.T) {
+		buffer := bytes.NewBuffer(nil)
+		msgwriter.writer = buffer
+		message := testMessage(t, WithCharset(CharsetUTF7))
+		message.AddAlternativeString(TypeTextPlain, "thisisatest")
+		message.parts[1].charset = ""
+		msgwriter.writeMsg(message)
+		if msgwriter.err != nil {
+			t.Errorf("msgWriter failed to write: %s", msgwriter.err)
+		}
+		if !strings.Contains(buffer.String(), "ontent-Type: text/plain; charset=UTF-7\r\n\r\nTestmail") {
+			t.Errorf("part not found in mail message. Mail: %s", buffer.String())
+		}
+		if !strings.Contains(buffer.String(), "ontent-Type: text/plain; charset=UTF-7\r\n\r\nthisisatest") {
+			t.Errorf("part not found in mail message. Mail: %s", buffer.String())
+		}
+	})
+	t.Run("message with parts that have a description", func(t *testing.T) {
+		buffer := bytes.NewBuffer(nil)
+		msgwriter.writer = buffer
+		message := testMessage(t)
+		message.AddAlternativeString(TypeTextPlain, "thisisatest")
+		message.parts[1].description = "thisisadescription"
+		msgwriter.writeMsg(message)
+		if msgwriter.err != nil {
+			t.Errorf("msgWriter failed to write: %s", msgwriter.err)
+		}
+		if !strings.Contains(buffer.String(), "Content-Description: thisisadescription") {
+			t.Errorf("part description not found in mail message. Mail: %s", buffer.String())
+		}
+	})
+}
