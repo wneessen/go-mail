@@ -5104,6 +5104,44 @@ func TestMsg_EmbedFromEmbedFS(t *testing.T) {
 	})
 }
 
+func TestMsg_Reset(t *testing.T) {
+	message := NewMsg()
+	if message == nil {
+		t.Fatal("message is nil")
+	}
+	if err := message.From("toni.tester@example.com"); err != nil {
+		t.Fatalf("failed to set From address: %s", err)
+	}
+	if err := message.To("tina.tester@example.com"); err != nil {
+		t.Fatalf("failed to set To address: %s", err)
+	}
+	message.Subject("This is the subject")
+	message.SetBodyString(TypeTextPlain, "This is the body")
+	message.AddAlternativeString(TypeTextPlain, "This is the alternative string")
+	message.EmbedFile("testdata/embed.txt")
+	message.AttachFile("testdata/attach.txt")
+
+	message.Reset()
+	if len(message.GetFromString()) != 0 {
+		t.Errorf("expected message From address to be empty, got: %+v", message.GetFromString())
+	}
+	if len(message.GetToString()) != 0 {
+		t.Errorf("expected message To address to be empty, got: %+v", message.GetFromString())
+	}
+	if len(message.GetGenHeader(HeaderSubject)) != 0 {
+		t.Errorf("expected message Subject to be empty, got: %+v", message.GetGenHeader(HeaderSubject))
+	}
+	if len(message.GetAttachments()) != 0 {
+		t.Errorf("expected message Attachments to be empty, got: %d", len(message.GetAttachments()))
+	}
+	if len(message.GetEmbeds()) != 0 {
+		t.Errorf("expected message Embeds to be empty, got: %d", len(message.GetEmbeds()))
+	}
+	if len(message.GetParts()) != 0 {
+		t.Errorf("expected message Parts to be empty, got: %d", len(message.GetParts()))
+	}
+}
+
 /*
 // TestNewMsgWithMiddleware tests WithMiddleware
 
