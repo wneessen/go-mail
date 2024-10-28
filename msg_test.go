@@ -7,6 +7,7 @@ package mail
 import (
 	"bytes"
 	"context"
+	"embed"
 	"errors"
 	"fmt"
 	ht "html/template"
@@ -135,10 +136,8 @@ var (
 	}
 )
 
-/*
-//go:embed README.md
+//go:embed testdata/attachment.txt
 var efs embed.FS
-*/
 
 func TestNewMsg(t *testing.T) {
 	t.Run("create new message", func(t *testing.T) {
@@ -4593,6 +4592,181 @@ func TestMsg_AttachReadSeeker(t *testing.T) {
 		if !strings.EqualFold(got, "This is a test attachment") {
 			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment", got)
 		}
+	})
+}
+
+func TestMsg_AttachHTMLTemplate(t *testing.T) {
+	tplString := `<p>{{.teststring}}</p>`
+	invalidTplString := `<p>{{call $.invalid .teststring}}</p>`
+	data := map[string]interface{}{"teststring": "this is a test"}
+	htmlTpl, err := ht.New("htmltpl").Parse(tplString)
+	if err != nil {
+		t.Fatalf("failed to parse HTML template: %s", err)
+	}
+	invalidTpl, err := ht.New("htmltpl").Parse(invalidTplString)
+	if err != nil {
+		t.Fatalf("failed to parse invalid HTML template: %s", err)
+	}
+	t.Run("AttachHTMLTemplate with valid template", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err = message.AttachHTMLTemplate("attachment.html", htmlTpl, data); err != nil {
+			t.Fatalf("failed to set body HTML template: %s", err)
+		}
+		attachments := message.GetAttachments()
+		if len(attachments) != 1 {
+			t.Fatalf("failed to retrieve attachments list")
+		}
+		if attachments[0] == nil {
+			t.Fatal("expected attachment to be not nil")
+		}
+		if attachments[0].Name != "attachment.html" {
+			t.Errorf("expected attachment name to be %s, got: %s", "attachment.html", attachments[0].Name)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err = attachments[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("writer func failed: %s", err)
+		}
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "<p>this is a test</p>") {
+			t.Errorf("expected message body to be %s, got: %s", "<p>this is a test</p>", got)
+		}
+	})
+	t.Run("AttachHTMLTemplate with invalid template", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		err = message.AttachHTMLTemplate("attachment.html", invalidTpl, data)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		expectErr := `failed to attach template: failed to execute template: template: htmltpl:1:5: executing "htmltpl" ` +
+			`at <call $.invalid .teststring>: error calling call: call of nil`
+		if !strings.EqualFold(err.Error(), expectErr) {
+			t.Errorf("expected error to be %s, got: %s", expectErr, err.Error())
+		}
+	})
+	t.Run("AttachHTMLTemplate with nil template", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		err = message.AttachHTMLTemplate("attachment.html", nil, data)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		expectedErr := `failed to attach template: ` + errTplPointerNil
+		if !strings.EqualFold(err.Error(), expectedErr) {
+			t.Errorf("expected error to be %s, got: %s", expectedErr, err.Error())
+		}
+	})
+}
+
+func TestMsg_AttachTextTemplate(t *testing.T) {
+	tplString := `Teststring: {{.teststring}}`
+	invalidTplString := `Teststring: {{call $.invalid .teststring}}`
+	data := map[string]interface{}{"teststring": "this is a test"}
+	textTpl, err := ttpl.New("texttpl").Parse(tplString)
+	if err != nil {
+		t.Fatalf("failed to parse Text template: %s", err)
+	}
+	invalidTpl, err := ttpl.New("texttpl").Parse(invalidTplString)
+	if err != nil {
+		t.Fatalf("failed to parse invalid Text template: %s", err)
+	}
+	t.Run("AttachTextTemplate with valid template", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err = message.AttachTextTemplate("attachment.txt", textTpl, data); err != nil {
+			t.Fatalf("failed to set body HTML template: %s", err)
+		}
+		attachments := message.GetAttachments()
+		if len(attachments) != 1 {
+			t.Fatalf("failed to retrieve attachments list")
+		}
+		if attachments[0] == nil {
+			t.Fatal("expected attachment to be not nil")
+		}
+		if attachments[0].Name != "attachment.txt" {
+			t.Errorf("expected attachment name to be %s, got: %s", "attachment.txt", attachments[0].Name)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err = attachments[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("writer func failed: %s", err)
+		}
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "Teststring: this is a test") {
+			t.Errorf("expected message body to be %s, got: %s", "Teststring: this is a test", got)
+		}
+	})
+	t.Run("AttachTextTemplate with invalid template", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		err = message.AttachTextTemplate("attachment.txt", invalidTpl, data)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		expectErr := `failed to attach template: failed to execute template: template: texttpl:1:14: executing "texttpl" ` +
+			`at <call $.invalid .teststring>: error calling call: call of nil`
+		if !strings.EqualFold(err.Error(), expectErr) {
+			t.Errorf("expected error to be %s, got: %s", expectErr, err.Error())
+		}
+	})
+	t.Run("AttachTextTemplate with nil template", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		err = message.AttachTextTemplate("attachment.html", nil, data)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		expectedErr := `failed to attach template: ` + errTplPointerNil
+		if !strings.EqualFold(err.Error(), expectedErr) {
+			t.Errorf("expected error to be %s, got: %s", expectedErr, err.Error())
+		}
+	})
+}
+
+func TestMsg_AttachFromEmbedFS(t *testing.T) {
+	t.Run("AttachFromEmbedFS successful", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.AttachFromEmbedFS("testdata/attachment.txt", &efs,
+			WithFileName("attachment.txt")); err != nil {
+			t.Fatalf("failed to attach from embed FS: %s", err)
+		}
+		attachments := message.GetAttachments()
+		if len(attachments) != 1 {
+			t.Fatalf("failed to retrieve attachments list")
+		}
+		if attachments[0] == nil {
+			t.Fatal("expected attachment to be not nil")
+		}
+		if attachments[0].Name != "attachment.txt" {
+			t.Errorf("expected attachment name to be %s, got: %s", "attachment.txt", attachments[0].Name)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err := attachments[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("writer func failed: %s", err)
+		}
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "This is a test attachment") {
+			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment", got)
+		}
+
 	})
 }
 
