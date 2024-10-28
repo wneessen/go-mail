@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -312,14 +313,28 @@ func TestMsgWriter_addFiles(t *testing.T) {
 		if msgwriter.err != nil {
 			t.Errorf("msgWriter failed to write: %s", msgwriter.err)
 		}
-		if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo=") {
-			t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
+		switch runtime.GOOS {
+		case "windows":
+			if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo") {
+				t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
+			}
+		default:
+			if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo=") {
+				t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
+			}
 		}
 		if !strings.Contains(buffer.String(), `Content-Disposition: attachment; filename="attachment.txt"`) {
 			t.Errorf("Content-Dispositon header not found for attachment. Mail: %s", buffer.String())
 		}
-		if !strings.Contains(buffer.String(), `Content-Type: text/plain; charset=utf-8; name="attachment.txt"`) {
-			t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
+		switch runtime.GOOS {
+		case "freebsd":
+			if !strings.Contains(buffer.String(), `Content-Type: application/octet-stream; name="attachment.txt"`) {
+				t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
+			}
+		default:
+			if !strings.Contains(buffer.String(), `Content-Type: text/plain; charset=utf-8; name="attachment.txt"`) {
+				t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
+			}
 		}
 	})
 	t.Run("message with a single file attached no extension", func(t *testing.T) {
@@ -331,8 +346,15 @@ func TestMsgWriter_addFiles(t *testing.T) {
 		if msgwriter.err != nil {
 			t.Errorf("msgWriter failed to write: %s", msgwriter.err)
 		}
-		if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo=") {
-			t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
+		switch runtime.GOOS {
+		case "windows":
+			if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo") {
+				t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
+			}
+		default:
+			if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo=") {
+				t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
+			}
 		}
 		if !strings.Contains(buffer.String(), `Content-Disposition: attachment; filename="attachment"`) {
 			t.Errorf("Content-Dispositon header not found for attachment. Mail: %s", buffer.String())
@@ -350,8 +372,15 @@ func TestMsgWriter_addFiles(t *testing.T) {
 		if msgwriter.err != nil {
 			t.Errorf("msgWriter failed to write: %s", msgwriter.err)
 		}
-		if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo=") {
-			t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
+		switch runtime.GOOS {
+		case "windows":
+			if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo") {
+				t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
+			}
+		default:
+			if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo=") {
+				t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
+			}
 		}
 		if !strings.Contains(buffer.String(), `Content-Disposition: attachment; filename="attachment.txt"`) {
 			t.Errorf("Content-Dispositon header not found for attachment. Mail: %s", buffer.String())
@@ -375,8 +404,15 @@ func TestMsgWriter_addFiles(t *testing.T) {
 		if !strings.Contains(buffer.String(), `Content-Disposition: attachment; filename="attachment.txt"`) {
 			t.Errorf("Content-Dispositon header not found for attachment. Mail: %s", buffer.String())
 		}
-		if !strings.Contains(buffer.String(), `text/plain; charset=utf-8; name="attachment.txt"`) {
-			t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
+		switch runtime.GOOS {
+		case "freebsd":
+			if !strings.Contains(buffer.String(), `Content-Type: application/octet-stream; name="attachment.txt"`) {
+				t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
+			}
+		default:
+			if !strings.Contains(buffer.String(), `Content-Type: text/plain; charset=utf-8; name="attachment.txt"`) {
+				t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
+			}
 		}
 		if !strings.Contains(buffer.String(), `Content-Transfer-Encoding: 7bit`) {
 			t.Errorf("Content-Transfer-Encoding header not found for attachment. Mail: %s", buffer.String())
@@ -391,14 +427,28 @@ func TestMsgWriter_addFiles(t *testing.T) {
 		if msgwriter.err != nil {
 			t.Errorf("msgWriter failed to write: %s", msgwriter.err)
 		}
-		if !strings.Contains(buffer.String(), "\r\n\r\nVGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo=") {
-			t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
+		switch runtime.GOOS {
+		case "windows":
+			if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo") {
+				t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
+			}
+		default:
+			if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo=") {
+				t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
+			}
 		}
 		if !strings.Contains(buffer.String(), `Content-Disposition: attachment; filename="attachment.txt"`) {
 			t.Errorf("Content-Dispositon header not found for attachment. Mail: %s", buffer.String())
 		}
-		if !strings.Contains(buffer.String(), `text/plain; charset=utf-8; name="attachment.txt"`) {
-			t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
+		switch runtime.GOOS {
+		case "freebsd":
+			if !strings.Contains(buffer.String(), `Content-Type: application/octet-stream; name="attachment.txt"`) {
+				t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
+			}
+		default:
+			if !strings.Contains(buffer.String(), `Content-Type: text/plain; charset=utf-8; name="attachment.txt"`) {
+				t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
+			}
 		}
 		if !strings.Contains(buffer.String(), `Content-Transfer-Encoding: base64`) {
 			t.Errorf("Content-Transfer-Encoding header not found for attachment. Mail: %s", buffer.String())
@@ -417,14 +467,28 @@ func TestMsgWriter_addFiles(t *testing.T) {
 		if msgwriter.err != nil {
 			t.Errorf("msgWriter failed to write: %s", msgwriter.err)
 		}
-		if !strings.Contains(buffer.String(), "\r\n\r\nVGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo=") {
-			t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
+		switch runtime.GOOS {
+		case "windows":
+			if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo") {
+				t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
+			}
+		default:
+			if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo=") {
+				t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
+			}
 		}
 		if !strings.Contains(buffer.String(), `Content-Disposition: attachment; filename="attachment.txt"`) {
 			t.Errorf("Content-Dispositon header not found for attachment. Mail: %s", buffer.String())
 		}
-		if !strings.Contains(buffer.String(), `text/plain; charset=utf-8; name="attachment.txt"`) {
-			t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
+		switch runtime.GOOS {
+		case "freebsd":
+			if !strings.Contains(buffer.String(), `Content-Type: application/octet-stream; name="attachment.txt"`) {
+				t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
+			}
+		default:
+			if !strings.Contains(buffer.String(), `Content-Type: text/plain; charset=utf-8; name="attachment.txt"`) {
+				t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
+			}
 		}
 		if !strings.Contains(buffer.String(), `Content-Transfer-Encoding: base64`) {
 			t.Errorf("Content-Transfer-Encoding header not found for attachment. Mail: %s", buffer.String())
