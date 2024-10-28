@@ -9,11 +9,9 @@ package mail
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"os"
 	"testing"
-	"time"
 )
 
 func TestMsg_AttachFile_unixOnly(t *testing.T) {
@@ -94,52 +92,28 @@ func TestMsg_EmbedFile_unixOnly(t *testing.T) {
 	})
 }
 
-// TestMsg_WriteToSendmailWithContext tests the WriteToSendmailWithContext() method of the Msg
-func TestMsg_WriteToSendmailWithContext(t *testing.T) {
-	if os.Getenv("TEST_SENDMAIL") != "true" {
-		t.Skipf("TEST_SENDMAIL variable is not set. Skipping sendmail test")
-	}
-	tests := []struct {
-		name string
-		sp   string
-		sf   bool
-	}{
-		{"Sendmail path: /dev/null", "/dev/null", true},
-		{"Sendmail path: /bin/cat", "/bin/cat", true},
-		{"Sendmail path: /is/invalid", "/is/invalid", true},
-		{"Sendmail path: /bin/echo", "/bin/echo", false},
-	}
-	m := NewMsg()
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx, cfn := context.WithTimeout(context.Background(), time.Second*10)
-			defer cfn()
-			m.SetBodyString(TypeTextPlain, "Plain")
-			if err := m.WriteToSendmailWithContext(ctx, tt.sp); err != nil && !tt.sf {
-				t.Errorf("WriteToSendmailWithCommand() failed: %s", err)
+func TestMsg_WriteToFile_unixOnly(t *testing.T) {
+	t.Run("WriteToFile fails on create", func(t *testing.T) {
+		tempfile, err := os.CreateTemp("", "testmail-create.*.eml")
+		if err != nil {
+			t.Fatalf("failed to create temp file: %s", err)
+		}
+		if err = os.Chmod(tempfile.Name(), 0o000); err != nil {
+			t.Fatalf("failed to chmod temp file: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = tempfile.Close(); err != nil {
+				t.Fatalf("failed to close temp file: %s", err)
 			}
-			m.Reset()
+			if err = os.Remove(tempfile.Name()); err != nil {
+				t.Fatalf("failed to remove temp file: %s", err)
+			}
 		})
-	}
-}
-
-// TestMsg_WriteToSendmail will test the output to the local sendmail command
-func TestMsg_WriteToSendmail(t *testing.T) {
-	if os.Getenv("TEST_SENDMAIL") != "true" {
-		t.Skipf("TEST_SENDMAIL variable is not set. Skipping sendmail test")
-	}
-	_, err := os.Stat(SendmailPath)
-	if err != nil {
-		t.Skipf("local sendmail command not found in expected path. Skipping")
-	}
-
-	m := NewMsg()
-	_ = m.From("Toni Tester <tester@example.com>")
-	_ = m.To(TestRcpt)
-	m.SetBodyString(TypeTextPlain, "This is a test")
-	if err := m.WriteToSendmail(); err != nil {
-		t.Errorf("WriteToSendmail failed: %s", err)
-	}
+		message := testMessage(t)
+		if err = message.WriteToFile(tempfile.Name()); err == nil {
+			t.Errorf("expected error, got nil")
+		}
+	})
 }
 
 func TestMsg_WriteToTempFileFailed(t *testing.T) {

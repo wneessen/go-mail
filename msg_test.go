@@ -5472,6 +5472,90 @@ func TestMsg_WriteTo(t *testing.T) {
 			t.Errorf("expected written bytes: %d, got: %d", n, messageBuffer.Len())
 		}
 	})
+	t.Run("WriteTo with multiple writes", func(t *testing.T) {
+		message := testMessage(t)
+		buffer := bytes.NewBuffer(nil)
+		messageBuf := bytes.NewBuffer(nil)
+		for i := 0; i < 10; i++ {
+			t.Run(fmt.Sprintf("write %d", i), func(t *testing.T) {
+				if _, err := message.WriteTo(buffer); err != nil {
+					t.Fatalf("failed to write message to buffer: %s", err)
+				}
+				parsed, err := EMLToMsgFromReader(buffer)
+				if err != nil {
+					t.Fatalf("failed to parse message in buffer: %s", err)
+				}
+				checkAddrHeader(t, parsed, HeaderFrom, "WriteTo", 0, 1, TestSenderValid, "")
+				checkAddrHeader(t, parsed, HeaderTo, "WriteTo", 0, 1, TestRcptValid, "")
+				checkGenHeader(t, parsed, HeaderSubject, "WriteTo", 0, 1, "Testmail")
+				parts := parsed.GetParts()
+				if len(parts) != 1 {
+					t.Fatalf("expected 1 parts, got: %d", len(parts))
+				}
+				if parts[0].contentType != TypeTextPlain {
+					t.Errorf("expected contentType to be %s, got: %s", TypeTextPlain, parts[0].contentType)
+				}
+				if parts[0].encoding != EncodingQP {
+					t.Errorf("expected encoding to be %s, got: %s", EncodingQP, parts[0].encoding)
+				}
+				_, err = parts[0].writeFunc(messageBuf)
+				if err != nil {
+					t.Errorf("writer func failed: %s", err)
+				}
+				got := strings.TrimSpace(messageBuf.String())
+				if !strings.HasSuffix(got, "Testmail") {
+					t.Errorf("expected message buffer to contain Testmail, got: %s", got)
+				}
+				buffer.Reset()
+			})
+		}
+	})
+}
+
+func TestMsg_WriteToFile(t *testing.T) {
+	t.Run("WriteToFile with normal mail parts", func(t *testing.T) {
+		tempfile, err := os.CreateTemp("", "testmail.*.eml")
+		if err != nil {
+			t.Fatalf("failed to create temp file: %s", err)
+		}
+		if err = tempfile.Close(); err != nil {
+			t.Fatalf("failed to close temp file: %s", err)
+		}
+		if err = os.Remove(tempfile.Name()); err != nil {
+			t.Fatalf("failed to remove temp file: %s", err)
+		}
+
+		message := testMessage(t)
+		if err = message.WriteToFile(tempfile.Name()); err != nil {
+			t.Fatalf("failed to write message to tempfile %q: %s", tempfile.Name(), err)
+		}
+		parsed, err := EMLToMsgFromFile(tempfile.Name())
+		if err != nil {
+			t.Fatalf("failed to parse message in buffer: %s", err)
+		}
+		checkAddrHeader(t, parsed, HeaderFrom, "WriteTo", 0, 1, TestSenderValid, "")
+		checkAddrHeader(t, parsed, HeaderTo, "WriteTo", 0, 1, TestRcptValid, "")
+		checkGenHeader(t, parsed, HeaderSubject, "WriteTo", 0, 1, "Testmail")
+		parts := parsed.GetParts()
+		if len(parts) != 1 {
+			t.Fatalf("expected 1 parts, got: %d", len(parts))
+		}
+		if parts[0].contentType != TypeTextPlain {
+			t.Errorf("expected contentType to be %s, got: %s", TypeTextPlain, parts[0].contentType)
+		}
+		if parts[0].encoding != EncodingQP {
+			t.Errorf("expected encoding to be %s, got: %s", EncodingQP, parts[0].encoding)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err = parts[0].writeFunc(messageBuf)
+		if err != nil {
+			t.Errorf("writer func failed: %s", err)
+		}
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.HasSuffix(got, "Testmail") {
+			t.Errorf("expected message buffer to contain Testmail, got: %s", got)
+		}
+	})
 }
 
 func TestMsg_Write(t *testing.T) {
@@ -5530,9 +5614,134 @@ func TestMsg_WriteToSkipMiddleware(t *testing.T) {
 	})
 }
 
-/*
-// TestApplyMiddlewares tests the applyMiddlewares for the Msg object
+// TestMsg_WriteToSendmailWithContext tests the WriteToSendmailWithContext() method of the Msg
+func TestMsg_WriteToSendmailWithContext(t *testing.T) {
+	if os.Getenv("PERFORM_SENDMAIL_TESTS") != "true" {
+		t.Skipf("PERFORM_SENDMAIL_TESTS variable is not set to true, skipping sendmail test")
+	}
 
+	if !hasSendmail() {
+		t.Skipf("sendmail binary not found, skipping test")
+	}
+	tests := []struct {
+		sendmailPath string
+		shouldFail   bool
+	}{
+		{"/dev/null", true},
+		{"/bin/cat", true},
+		{"/is/invalid", true},
+		{SendmailPath, false},
+	}
+	t.Run("WriteToSendmailWithContext on different paths", func(t *testing.T) {
+		for _, tt := range tests {
+			t.Run(tt.sendmailPath, func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+				defer cancel()
+
+				message := testMessage(t)
+				err := message.WriteToSendmailWithContext(ctx, tt.sendmailPath)
+				if err != nil && !tt.shouldFail {
+					t.Errorf("failed to write message to sendmail: %s", err)
+				}
+				if err == nil && tt.shouldFail {
+					t.Error("expected error, got nil")
+				}
+			})
+		}
+	})
+	t.Run("WriteToSendmailWithContext on canceled context", func(t *testing.T) {
+		if !hasSendmail() {
+			t.Skipf("sendmail binary not found, skipping test")
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+		cancel()
+
+		message := testMessage(t)
+		if err := message.WriteToSendmailWithContext(ctx, SendmailPath); err == nil {
+			t.Fatalf("expected error on canceled context, got nil")
+		}
+	})
+	t.Run("WriteToSendmailWithContext via WriteToSendmail", func(t *testing.T) {
+		if !hasSendmail() {
+			t.Skipf("sendmail binary not found, skipping test")
+		}
+		message := testMessage(t)
+		if err := message.WriteToSendmail(); err != nil {
+			t.Fatalf("failed to write message to sendmail: %s", err)
+		}
+	})
+	t.Run("WriteToSendmailWithContext via WriteToSendmailWithCommand", func(t *testing.T) {
+		if !hasSendmail() {
+			t.Skipf("sendmail binary not found, skipping test")
+		}
+		message := testMessage(t)
+		if err := message.WriteToSendmailWithCommand(SendmailPath); err != nil {
+			t.Fatalf("failed to write message to sendmail: %s", err)
+		}
+	})
+}
+
+func TestMsg_NewReader(t *testing.T) {
+	t.Run("NewReader succeeds", func(t *testing.T) {
+		message := testMessage(t)
+		reader := message.NewReader()
+		if reader == nil {
+			t.Fatalf("failed to create message reader")
+		}
+		if reader.Error() != nil {
+			t.Errorf("failed to create message reader: %s", reader.Error())
+		}
+		parsed, err := EMLToMsgFromReader(reader)
+		if err != nil {
+			t.Fatalf("failed to parse message in buffer: %s", err)
+		}
+		checkAddrHeader(t, parsed, HeaderFrom, "WriteTo", 0, 1, TestSenderValid, "")
+		checkAddrHeader(t, parsed, HeaderTo, "WriteTo", 0, 1, TestRcptValid, "")
+		checkGenHeader(t, parsed, HeaderSubject, "WriteTo", 0, 1, "Testmail")
+		parts := parsed.GetParts()
+		if len(parts) != 1 {
+			t.Fatalf("expected 1 parts, got: %d", len(parts))
+		}
+		if parts[0].contentType != TypeTextPlain {
+			t.Errorf("expected contentType to be %s, got: %s", TypeTextPlain, parts[0].contentType)
+		}
+		if parts[0].encoding != EncodingQP {
+			t.Errorf("expected encoding to be %s, got: %s", EncodingQP, parts[0].encoding)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err = parts[0].writeFunc(messageBuf)
+		if err != nil {
+			t.Errorf("writer func failed: %s", err)
+		}
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.HasSuffix(got, "Testmail") {
+			t.Errorf("expected message buffer to contain Testmail, got: %s", got)
+		}
+	})
+	t.Run("NewReader should fail on write", func(t *testing.T) {
+		message := testMessage(t)
+		if len(message.parts) != 1 {
+			t.Fatalf("expected 1 parts, got: %d", len(message.parts))
+		}
+		message.parts[0].writeFunc = func(io.Writer) (int64, error) {
+			return 0, errors.New("intentional write error")
+		}
+		reader := message.NewReader()
+		if reader == nil {
+			t.Fatalf("failed to create message reader")
+		}
+		if reader.Error() == nil {
+			t.Fatalf("expected error on write, got nil")
+		}
+		if !strings.EqualFold(reader.Error().Error(), `failed to write Msg to Reader buffer: bodyWriter function: `+
+			`intentional write error`) {
+			t.Errorf("expected error to be %s, got: %s", `failed to write Msg to Reader buffer: bodyWriter function: `+
+				`intentional write error`, reader.Error().Error())
+		}
+	})
+}
+
+/*
 // TestMsg_hasAlt tests the hasAlt() method of the Msg
 
 	func TestMsg_hasAlt(t *testing.T) {
@@ -5563,52 +5772,6 @@ func TestMsg_WriteToSkipMiddleware(t *testing.T) {
 		m.AttachFile("README.md")
 		if !m.hasMixed() {
 			t.Errorf("mail has mixed parts but hasMixed() returned true")
-		}
-	}
-
-// TestMsg_appendFile tests the appendFile() method of the Msg
-
-	func TestMsg_appendFile(t *testing.T) {
-		m := NewMsg()
-		var fl []*File
-		f := &File{
-			Name: "file.txt",
-		}
-		fl = m.appendFile(fl, f, nil)
-		if len(fl) != 1 {
-			t.Errorf("appendFile() failed. Expected length: %d, got: %d", 1, len(fl))
-		}
-		fl = m.appendFile(fl, f, nil)
-		if len(fl) != 2 {
-			t.Errorf("appendFile() failed. Expected length: %d, got: %d", 2, len(fl))
-		}
-	}
-
-// TestMsg_multipleWrites tests multiple executions of WriteTo on the Msg
-
-	func TestMsg_multipleWrites(t *testing.T) {
-		ts := "XXX_UNIQUE_STRING_XXX"
-		wbuf := bytes.Buffer{}
-		m := NewMsg()
-		m.SetBodyString(TypeTextPlain, ts)
-
-		// First WriteTo()
-		_, err := m.WriteTo(&wbuf)
-		if err != nil {
-			t.Errorf("failed to write body to buffer: %s", err)
-		}
-		if !strings.Contains(wbuf.String(), ts) {
-			t.Errorf("first WriteTo() body does not contain unique string: %s", ts)
-		}
-
-		// Second WriteTo()
-		wbuf.Reset()
-		_, err = m.WriteTo(&wbuf)
-		if err != nil {
-			t.Errorf("failed to write body to buffer: %s", err)
-		}
-		if !strings.Contains(wbuf.String(), ts) {
-			t.Errorf("second WriteTo() body does not contain unique string: %s", ts)
 		}
 	}
 
@@ -5686,436 +5849,6 @@ func TestMsg_WriteToSkipMiddleware(t *testing.T) {
 		if !strings.Contains(wbuf2.String(), "Subject: Subject-Run 2") {
 			t.Errorf("io.Copy on Reader failed. Expected to find %q but string in Subject was not found",
 				"Subject-Run 2")
-		}
-	}
-
-// TestMsg_SetBodyTextTemplate tests the Msg.SetBodyTextTemplate method
-
-	func TestMsg_SetBodyTextTemplate(t *testing.T) {
-		tests := []struct {
-			name string
-			tpl  string
-			ph   string
-			sf   bool
-		}{
-			{"normal text", "This is a {{.Placeholder}}", "TemplateTest", false},
-			{"invalid tpl", "This is a {{ foo .Placeholder}}", "TemplateTest", true},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				data := struct {
-					Placeholder string
-				}{Placeholder: tt.ph}
-				tpl, err := ttpl.New("test").Parse(tt.tpl)
-				if err != nil && !tt.sf {
-					t.Errorf("failed to render template: %s", err)
-					return
-				}
-				m := NewMsg()
-				if err := m.SetBodyTextTemplate(tpl, data); err != nil && !tt.sf {
-					t.Errorf("failed to set template as body: %s", err)
-				}
-
-				wbuf := bytes.Buffer{}
-				_, err = m.WriteTo(&wbuf)
-				if err != nil {
-					t.Errorf("failed to write body to buffer: %s", err)
-				}
-				if !strings.Contains(wbuf.String(), tt.ph) && !tt.sf {
-					t.Errorf("SetBodyTextTemplate failed: Body does not contain the expected tpl placeholder: %s", tt.ph)
-				}
-				m.Reset()
-			})
-		}
-	}
-
-// TestMsg_SetBodyHTMLTemplate tests the Msg.SetBodyHTMLTemplate method
-
-	func TestMsg_SetBodyHTMLTemplate(t *testing.T) {
-		tests := []struct {
-			name string
-			tpl  string
-			ph   string
-			ex   string
-			sf   bool
-		}{
-			{"normal HTML", "<p>This is a {{.Placeholder}}</p>", "TemplateTest", "TemplateTest", false},
-			{
-				"HTML with HTML", "<p>This is a {{.Placeholder}}</p>", "<script>alert(1)</script>",
-				"&lt;script&gt;alert(1)&lt;/script&gt;", false,
-			},
-			{"invalid tpl", "<p>This is a {{ foo .Placeholder}}</p>", "TemplateTest", "", true},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				data := struct {
-					Placeholder string
-				}{Placeholder: tt.ph}
-				tpl, err := htpl.New("test").Parse(tt.tpl)
-				if err != nil && !tt.sf {
-					t.Errorf("failed to render template: %s", err)
-					return
-				}
-				m := NewMsg()
-				if err := m.SetBodyHTMLTemplate(tpl, data); err != nil && !tt.sf {
-					t.Errorf("failed to set template as body: %s", err)
-				}
-
-				wbuf := bytes.Buffer{}
-				_, err = m.WriteTo(&wbuf)
-				if err != nil {
-					t.Errorf("failed to write body to buffer: %s", err)
-				}
-				if !strings.Contains(wbuf.String(), tt.ex) && !tt.sf {
-					t.Errorf("SetBodyTextTemplate failed: Body does not contain the expected tpl placeholder: %s", tt.ph)
-				}
-				m.Reset()
-			})
-		}
-	}
-
-// TestMsg_AddAlternativeTextTemplate tests the Msg.AddAlternativeTextTemplate method
-
-	func TestMsg_AddAlternativeTextTemplate(t *testing.T) {
-		tests := []struct {
-			name string
-			tpl  string
-			ph   string
-			sf   bool
-		}{
-			{"normal text", "This is a {{.Placeholder}}", "TemplateTest", false},
-			{"invalid tpl", "This is a {{ foo .Placeholder}}", "TemplateTest", true},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				data := struct {
-					Placeholder string
-				}{Placeholder: tt.ph}
-				tpl, err := ttpl.New("test").Parse(tt.tpl)
-				if err != nil && !tt.sf {
-					t.Errorf("failed to render template: %s", err)
-					return
-				}
-				m := NewMsg()
-				m.SetBodyString(TypeTextHTML, "")
-				if err := m.AddAlternativeTextTemplate(tpl, data); err != nil && !tt.sf {
-					t.Errorf("failed to set template as alternative part: %s", err)
-				}
-
-				wbuf := bytes.Buffer{}
-				_, err = m.WriteTo(&wbuf)
-				if err != nil {
-					t.Errorf("failed to write body to buffer: %s", err)
-				}
-				if !strings.Contains(wbuf.String(), tt.ph) && !tt.sf {
-					t.Errorf("SetBodyTextTemplate failed: Body does not contain the expected tpl placeholder: %s", tt.ph)
-				}
-				m.Reset()
-			})
-		}
-	}
-
-// TestMsg_AddAlternativeHTMLTemplate tests the Msg.AddAlternativeHTMLTemplate method
-
-	func TestMsg_AddAlternativeHTMLTemplate(t *testing.T) {
-		tests := []struct {
-			name string
-			tpl  string
-			ph   string
-			ex   string
-			sf   bool
-		}{
-			{"normal HTML", "<p>This is a {{.Placeholder}}</p>", "TemplateTest", "TemplateTest", false},
-			{
-				"HTML with HTML", "<p>This is a {{.Placeholder}}</p>", "<script>alert(1)</script>",
-				"&lt;script&gt;alert(1)&lt;/script&gt;", false,
-			},
-			{"invalid tpl", "<p>This is a {{ foo .Placeholder}}</p>", "TemplateTest", "", true},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				data := struct {
-					Placeholder string
-				}{Placeholder: tt.ph}
-				tpl, err := htpl.New("test").Parse(tt.tpl)
-				if err != nil && !tt.sf {
-					t.Errorf("failed to render template: %s", err)
-					return
-				}
-				m := NewMsg()
-				m.SetBodyString(TypeTextPlain, "")
-				if err := m.AddAlternativeHTMLTemplate(tpl, data); err != nil && !tt.sf {
-					t.Errorf("failed to set template as alternative part: %s", err)
-				}
-
-				wbuf := bytes.Buffer{}
-				_, err = m.WriteTo(&wbuf)
-				if err != nil {
-					t.Errorf("failed to write body to buffer: %s", err)
-				}
-				if !strings.Contains(wbuf.String(), tt.ex) && !tt.sf {
-					t.Errorf("SetBodyTextTemplate failed: Body does not contain the expected tpl placeholder: %s", tt.ph)
-				}
-				m.Reset()
-			})
-		}
-	}
-
-// TestMsg_AttachTextTemplate tests the Msg.AttachTextTemplate method
-
-	func TestMsg_AttachTextTemplate(t *testing.T) {
-		tests := []struct {
-			name string
-			tpl  string
-			ph   string
-			ex   string
-			ac   int
-			sf   bool
-		}{
-			{
-				"normal text", "This is a {{.Placeholder}}", "TemplateTest",
-				"VGhpcyBpcyBhIFRlbXBsYXRlVGVzdA==", 1, false,
-			},
-			{"invalid tpl", "This is a {{ foo .Placeholder}}", "TemplateTest", "", 0, true},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				data := struct {
-					Placeholder string
-				}{Placeholder: tt.ph}
-				tpl, err := ttpl.New("test").Parse(tt.tpl)
-				if err != nil && !tt.sf {
-					t.Errorf("failed to render template: %s", err)
-					return
-				}
-				m := NewMsg()
-				m.SetBodyString(TypeTextPlain, "This is the body")
-				if err := m.AttachTextTemplate("attachment.txt", tpl, data); err != nil && !tt.sf {
-					t.Errorf("failed to attach template: %s", err)
-				}
-
-				wbuf := bytes.Buffer{}
-				_, err = m.WriteTo(&wbuf)
-				if err != nil {
-					t.Errorf("failed to write body to buffer: %s", err)
-				}
-				if !strings.Contains(wbuf.String(), tt.ex) && !tt.sf {
-					t.Errorf("SetBodyTextTemplate failed: Body does not contain the expected tpl placeholder: %s", tt.ph)
-				}
-				if len(m.attachments) != tt.ac {
-					t.Errorf("wrong number of attachments. Expected: %d, got: %d", tt.ac, len(m.attachments))
-				}
-				m.Reset()
-			})
-		}
-	}
-
-// TestMsg_AttachHTMLTemplate tests the Msg.AttachHTMLTemplate method
-
-	func TestMsg_AttachHTMLTemplate(t *testing.T) {
-		tests := []struct {
-			name string
-			tpl  string
-			ph   string
-			ex   string
-			ac   int
-			sf   bool
-		}{
-			{
-				"normal HTML", "<p>This is a {{.Placeholder}}</p>", "TemplateTest",
-				"PHA+VGhpcyBpcyBhIFRlbXBsYXRlVGVzdDwvcD4=", 1, false,
-			},
-			{
-				"HTML with HTML", "<p>This is a {{.Placeholder}}</p>", "<script>alert(1)</script>",
-				"PHA+VGhpcyBpcyBhICZsdDtzY3JpcHQmZ3Q7YWxlcnQoMSkmbHQ7L3NjcmlwdCZndDs8L3A+", 1, false,
-			},
-			{"invalid tpl", "<p>This is a {{ foo .Placeholder}}</p>", "TemplateTest", "", 0, true},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				data := struct {
-					Placeholder string
-				}{Placeholder: tt.ph}
-				tpl, err := htpl.New("test").Parse(tt.tpl)
-				if err != nil && !tt.sf {
-					t.Errorf("failed to render template: %s", err)
-					return
-				}
-				m := NewMsg()
-				m.SetBodyString(TypeTextPlain, "")
-				if err := m.AttachHTMLTemplate("attachment.html", tpl, data); err != nil && !tt.sf {
-					t.Errorf("failed to set template as alternative part: %s", err)
-				}
-
-				wbuf := bytes.Buffer{}
-				_, err = m.WriteTo(&wbuf)
-				if err != nil {
-					t.Errorf("failed to write body to buffer: %s", err)
-				}
-				if !strings.Contains(wbuf.String(), tt.ex) && !tt.sf {
-					t.Errorf("SetBodyTextTemplate failed: Body does not contain the expected tpl placeholder: %s", tt.ph)
-				}
-				if len(m.attachments) != tt.ac {
-					t.Errorf("wrong number of attachments. Expected: %d, got: %d", tt.ac, len(m.attachments))
-				}
-				m.Reset()
-			})
-		}
-	}
-
-// TestMsg_EmbedTextTemplate tests the Msg.EmbedTextTemplate method
-
-	func TestMsg_EmbedTextTemplate(t *testing.T) {
-		tests := []struct {
-			name string
-			tpl  string
-			ph   string
-			ex   string
-			ec   int
-			sf   bool
-		}{
-			{
-				"normal text", "This is a {{.Placeholder}}", "TemplateTest",
-				"VGhpcyBpcyBhIFRlbXBsYXRlVGVzdA==", 1, false,
-			},
-			{"invalid tpl", "This is a {{ foo .Placeholder}}", "TemplateTest", "", 0, true},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				data := struct {
-					Placeholder string
-				}{Placeholder: tt.ph}
-				tpl, err := ttpl.New("test").Parse(tt.tpl)
-				if err != nil && !tt.sf {
-					t.Errorf("failed to render template: %s", err)
-					return
-				}
-				m := NewMsg()
-				m.SetBodyString(TypeTextPlain, "This is the body")
-				if err := m.EmbedTextTemplate("attachment.txt", tpl, data); err != nil && !tt.sf {
-					t.Errorf("failed to attach template: %s", err)
-				}
-
-				wbuf := bytes.Buffer{}
-				_, err = m.WriteTo(&wbuf)
-				if err != nil {
-					t.Errorf("failed to write body to buffer: %s", err)
-				}
-				if !strings.Contains(wbuf.String(), tt.ex) && !tt.sf {
-					t.Errorf("SetBodyTextTemplate failed: Body does not contain the expected tpl placeholder: %s", tt.ph)
-				}
-				if len(m.embeds) != tt.ec {
-					t.Errorf("wrong number of attachments. Expected: %d, got: %d", tt.ec, len(m.attachments))
-				}
-				m.Reset()
-			})
-		}
-	}
-
-// TestMsg_EmbedHTMLTemplate tests the Msg.EmbedHTMLTemplate method
-
-	func TestMsg_EmbedHTMLTemplate(t *testing.T) {
-		tests := []struct {
-			name string
-			tpl  string
-			ph   string
-			ex   string
-			ec   int
-			sf   bool
-		}{
-			{
-				"normal HTML", "<p>This is a {{.Placeholder}}</p>", "TemplateTest",
-				"PHA+VGhpcyBpcyBhIFRlbXBsYXRlVGVzdDwvcD4=", 1, false,
-			},
-			{
-				"HTML with HTML", "<p>This is a {{.Placeholder}}</p>", "<script>alert(1)</script>",
-				"PHA+VGhpcyBpcyBhICZsdDtzY3JpcHQmZ3Q7YWxlcnQoMSkmbHQ7L3NjcmlwdCZndDs8L3A+", 1, false,
-			},
-			{"invalid tpl", "<p>This is a {{ foo .Placeholder}}</p>", "TemplateTest", "", 0, true},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				data := struct {
-					Placeholder string
-				}{Placeholder: tt.ph}
-				tpl, err := htpl.New("test").Parse(tt.tpl)
-				if err != nil && !tt.sf {
-					t.Errorf("failed to render template: %s", err)
-					return
-				}
-				m := NewMsg()
-				m.SetBodyString(TypeTextPlain, "")
-				if err := m.EmbedHTMLTemplate("attachment.html", tpl, data); err != nil && !tt.sf {
-					t.Errorf("failed to set template as alternative part: %s", err)
-				}
-
-				wbuf := bytes.Buffer{}
-				_, err = m.WriteTo(&wbuf)
-				if err != nil {
-					t.Errorf("failed to write body to buffer: %s", err)
-				}
-				if !strings.Contains(wbuf.String(), tt.ex) && !tt.sf {
-					t.Errorf("SetBodyTextTemplate failed: Body does not contain the expected tpl placeholder: %s", tt.ph)
-				}
-				if len(m.embeds) != tt.ec {
-					t.Errorf("wrong number of attachments. Expected: %d, got: %d", tt.ec, len(m.attachments))
-				}
-				m.Reset()
-			})
-		}
-	}
-
-// TestMsg_WriteToTempFile will test the output to temporary files
-
-	func TestMsg_WriteToTempFile(t *testing.T) {
-		m := NewMsg()
-		_ = m.From("Toni Tester <tester@example.com>")
-		_ = m.To("Ellenor Tester <ellinor@example.com>")
-		m.SetBodyString(TypeTextPlain, "This is a test")
-		f, err := m.WriteToTempFile()
-		if err != nil {
-			t.Errorf("failed to write message to temporary output file: %s", err)
-		}
-		_ = os.Remove(f)
-	}
-
-// TestMsg_WriteToFile will test the output to a file
-
-	func TestMsg_WriteToFile(t *testing.T) {
-		f, err := os.CreateTemp("", "go-mail-test_*.eml")
-		if err != nil {
-			t.Errorf("failed to create temporary output file: %s", err)
-		}
-		defer func() {
-			_ = f.Close()
-			_ = os.Remove(f.Name())
-		}()
-
-		m := NewMsg()
-		_ = m.From("Toni Tester <tester@example.com>")
-		_ = m.To("Ellenor Tester <ellinor@example.com>")
-		m.SetBodyString(TypeTextPlain, "This is a test")
-		if err := m.WriteToFile(f.Name()); err != nil {
-			t.Errorf("failed to write to output file: %s", err)
-		}
-		fi, err := os.Stat(f.Name())
-		if err != nil {
-			t.Errorf("failed to stat output file: %s", err)
-		}
-		if fi == nil {
-			t.Errorf("received empty file handle")
-			return
-		}
-		if fi.Size() <= 0 {
-			t.Errorf("output file is expected to contain data but its size is zero")
 		}
 	}
 
@@ -6891,4 +6624,15 @@ func checkGenHeader(t *testing.T, message *Msg, header Header, fn string, field,
 	if values[field] != wantVal {
 		t.Errorf("failed to exec %s, genHeader value is %s, want: %s", fn, values[field], wantVal)
 	}
+}
+
+// hasSendmail checks if the /usr/sbin/sendmail file exists and is executable. Returns true if conditions are met.
+func hasSendmail() bool {
+	sm, err := os.Stat(SendmailPath)
+	if err == nil {
+		if sm.Mode()&0o111 != 0 {
+			return true
+		}
+	}
+	return false
 }
