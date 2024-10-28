@@ -3908,6 +3908,32 @@ func TestMsg_SetBodyWriter(t *testing.T) {
 			t.Errorf("expected message body to be %s, got: %s", "test", messageBuf.String())
 		}
 	})
+	t.Run("SetBodyWriter with nil option", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.SetBodyWriter(TypeTextPlain, writerFunc, nil)
+		parts := message.GetParts()
+		if len(parts) != 1 {
+			t.Fatalf("expected 1 part, got: %d", len(parts))
+		}
+		if parts[0] == nil {
+			t.Fatal("expected part to be not nil")
+		}
+		if parts[0].contentType != TypeTextPlain {
+			t.Errorf("expected contentType to be %s, got: %s", TypeTextPlain,
+				parts[0].contentType)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err := parts[0].writeFunc(messageBuf)
+		if err != nil {
+			t.Errorf("writeFunc failed: %s", err)
+		}
+		if !strings.EqualFold(messageBuf.String(), "test") {
+			t.Errorf("expected message body to be %s, got: %s", "test", messageBuf.String())
+		}
+	})
 }
 
 func TestMsg_SetBodyHTMLTemplate(t *testing.T) {
@@ -4622,6 +4648,39 @@ func TestMsg_AttachReader(t *testing.T) {
 			t.Error("writer func expected to fail, but didn't")
 		}
 	})
+	// Tests the Msg.AttachReader methods with consecutive calls to Msg.WriteTo to make sure
+	// the attachments are not lost.
+	// https://github.com/wneessen/go-mail/issues/110
+	t.Run("AttachReader with consecutive writes", func(t *testing.T) {
+		teststring := "This is a test string"
+		message := testMessage(t)
+		if err := message.AttachReader("attachment.txt", bytes.NewBufferString(teststring)); err != nil {
+			t.Fatalf("failed to attach teststring buffer: %s", err)
+		}
+		messageBuffer := bytes.NewBuffer(nil)
+		altBuffer := bytes.NewBuffer(nil)
+		// First write
+		n1, err := message.WriteTo(messageBuffer)
+		if err != nil {
+			t.Fatalf("failed to write message to buffer: %s", err)
+		}
+		// Second write
+		n2, err := message.WriteTo(altBuffer)
+		if err != nil {
+			t.Fatalf("failed to write message to alternative buffer: %s", err)
+		}
+		if n1 != n2 {
+			t.Errorf("number of written bytes between consecutive writes differ, got: %d and %d", n1, n2)
+		}
+		if !strings.Contains(messageBuffer.String(), "VGhpcyBpcyBhIHRlc3Qgc3RyaW5n") {
+			t.Errorf("expected string not found in message buffer, want: %s, got: %s",
+				"VGhpcyBpcyBhIHRlc3Qgc3RyaW5n", messageBuffer.String())
+		}
+		if !strings.Contains(altBuffer.String(), "VGhpcyBpcyBhIHRlc3Qgc3RyaW5n") {
+			t.Errorf("expected string not found in alternative message buffer, want: %s, got: %s",
+				"VGhpcyBpcyBhIHRlc3Qgc3RyaW5n", altBuffer.String())
+		}
+	})
 }
 
 func TestMsg_AttachReadSeeker(t *testing.T) {
@@ -4682,6 +4741,37 @@ func TestMsg_AttachReadSeeker(t *testing.T) {
 		_, err = attachments[0].Writer(failReadWriteSeekCloser{})
 		if err == nil {
 			t.Error("writer func expected to fail, but didn't")
+		}
+	})
+	// Tests the Msg.AttachReadSeeker methods with consecutive calls to Msg.WriteTo to make sure
+	// the attachments are not lost.
+	// https://github.com/wneessen/go-mail/issues/110
+	t.Run("AttachReadSeeker with consecutive writes", func(t *testing.T) {
+		teststring := []byte("This is a test string")
+		message := testMessage(t)
+		message.AttachReadSeeker("attachment.txt", bytes.NewReader(teststring))
+		messageBuffer := bytes.NewBuffer(nil)
+		altBuffer := bytes.NewBuffer(nil)
+		// First write
+		n1, err := message.WriteTo(messageBuffer)
+		if err != nil {
+			t.Fatalf("failed to write message to buffer: %s", err)
+		}
+		// Second write
+		n2, err := message.WriteTo(altBuffer)
+		if err != nil {
+			t.Fatalf("failed to write message to alternative buffer: %s", err)
+		}
+		if n1 != n2 {
+			t.Errorf("number of written bytes between consecutive writes differ, got: %d and %d", n1, n2)
+		}
+		if !strings.Contains(messageBuffer.String(), "VGhpcyBpcyBhIHRlc3Qgc3RyaW5n") {
+			t.Errorf("expected string not found in message buffer, want: %s, got: %s",
+				"VGhpcyBpcyBhIHRlc3Qgc3RyaW5n", messageBuffer.String())
+		}
+		if !strings.Contains(altBuffer.String(), "VGhpcyBpcyBhIHRlc3Qgc3RyaW5n") {
+			t.Errorf("expected string not found in alternative message buffer, want: %s, got: %s",
+				"VGhpcyBpcyBhIHRlc3Qgc3RyaW5n", altBuffer.String())
 		}
 	})
 }
@@ -5023,6 +5113,39 @@ func TestMsg_EmbedReader(t *testing.T) {
 			t.Fatalf("expected error, got nil")
 		}
 	})
+	// Tests the Msg.EmbedReader methods with consecutive calls to Msg.WriteTo to make sure
+	// the attachments are not lost.
+	// https://github.com/wneessen/go-mail/issues/110
+	t.Run("EmbedReader with consecutive writes", func(t *testing.T) {
+		teststring := "This is a test string"
+		message := testMessage(t)
+		if err := message.EmbedReader("embed.txt", bytes.NewBufferString(teststring)); err != nil {
+			t.Fatalf("failed to embed teststring buffer: %s", err)
+		}
+		messageBuffer := bytes.NewBuffer(nil)
+		altBuffer := bytes.NewBuffer(nil)
+		// First write
+		n1, err := message.WriteTo(messageBuffer)
+		if err != nil {
+			t.Fatalf("failed to write message to buffer: %s", err)
+		}
+		// Second write
+		n2, err := message.WriteTo(altBuffer)
+		if err != nil {
+			t.Fatalf("failed to write message to alternative buffer: %s", err)
+		}
+		if n1 != n2 {
+			t.Errorf("number of written bytes between consecutive writes differ, got: %d and %d", n1, n2)
+		}
+		if !strings.Contains(messageBuffer.String(), "VGhpcyBpcyBhIHRlc3Qgc3RyaW5n") {
+			t.Errorf("expected string not found in message buffer, want: %s, got: %s",
+				"VGhpcyBpcyBhIHRlc3Qgc3RyaW5n", messageBuffer.String())
+		}
+		if !strings.Contains(altBuffer.String(), "VGhpcyBpcyBhIHRlc3Qgc3RyaW5n") {
+			t.Errorf("expected string not found in alternative message buffer, want: %s, got: %s",
+				"VGhpcyBpcyBhIHRlc3Qgc3RyaW5n", altBuffer.String())
+		}
+	})
 }
 
 func TestMsg_EmbedReadSeeker(t *testing.T) {
@@ -5083,6 +5206,37 @@ func TestMsg_EmbedReadSeeker(t *testing.T) {
 		_, err = embeds[0].Writer(failReadWriteSeekCloser{})
 		if err == nil {
 			t.Error("writer func expected to fail, but didn't")
+		}
+	})
+	// Tests the Msg.EmbedReadSeeker methods with consecutive calls to Msg.WriteTo to make sure
+	// the attachments are not lost.
+	// https://github.com/wneessen/go-mail/issues/110
+	t.Run("EmbedReadSeeker with consecutive writes", func(t *testing.T) {
+		teststring := []byte("This is a test string")
+		message := testMessage(t)
+		message.EmbedReadSeeker("embed.txt", bytes.NewReader(teststring))
+		messageBuffer := bytes.NewBuffer(nil)
+		altBuffer := bytes.NewBuffer(nil)
+		// First write
+		n1, err := message.WriteTo(messageBuffer)
+		if err != nil {
+			t.Fatalf("failed to write message to buffer: %s", err)
+		}
+		// Second write
+		n2, err := message.WriteTo(altBuffer)
+		if err != nil {
+			t.Fatalf("failed to write message to alternative buffer: %s", err)
+		}
+		if n1 != n2 {
+			t.Errorf("number of written bytes between consecutive writes differ, got: %d and %d", n1, n2)
+		}
+		if !strings.Contains(messageBuffer.String(), "VGhpcyBpcyBhIHRlc3Qgc3RyaW5n") {
+			t.Errorf("expected string not found in message buffer, want: %s, got: %s",
+				"VGhpcyBpcyBhIHRlc3Qgc3RyaW5n", messageBuffer.String())
+		}
+		if !strings.Contains(altBuffer.String(), "VGhpcyBpcyBhIHRlc3Qgc3RyaW5n") {
+			t.Errorf("expected string not found in alternative message buffer, want: %s, got: %s",
+				"VGhpcyBpcyBhIHRlc3Qgc3RyaW5n", altBuffer.String())
 		}
 	})
 }
@@ -6077,743 +6231,219 @@ func TestMsg_WriteToTempFile(t *testing.T) {
 	})
 }
 
-/*
-// TestMsg_hasAlt tests the hasAlt() method of the Msg
+func TestMsg_hasAlt(t *testing.T) {
+	t.Run("message has no alt", func(t *testing.T) {
+		message := testMessage(t)
+		if message.hasAlt() {
+			t.Error("message has no alt, but hasAlt returned true")
+		}
+	})
+	t.Run("message has alt", func(t *testing.T) {
+		message := testMessage(t)
+		message.AddAlternativeString(TypeTextHTML, "this is the alt")
+		if !message.hasAlt() {
+			t.Error("message has alt, but hasAlt returned false")
+		}
+	})
+	t.Run("message has no alt due to deleted part", func(t *testing.T) {
+		message := testMessage(t)
+		message.AddAlternativeString(TypeTextHTML, "this is the alt")
+		if len(message.GetParts()) != 2 {
+			t.Errorf("expected message to have 2 parts, got: %d", len(message.GetParts()))
+		}
+		message.parts[1].isDeleted = true
+		if message.hasAlt() {
+			t.Error("message has no alt, but hasAlt returned true")
+		}
+	})
+	t.Run("message has alt and deleted parts", func(t *testing.T) {
+		message := testMessage(t)
+		message.AddAlternativeString(TypeTextHTML, "this is the alt")
+		message.AddAlternativeString(TypeTextPlain, "this is also a alt")
+		if len(message.GetParts()) != 3 {
+			t.Errorf("expected message to have 3 parts, got: %d", len(message.GetParts()))
+		}
+		message.parts[1].isDeleted = true
+		if !message.hasAlt() {
+			t.Error("message has alt, but hasAlt returned false")
+		}
+	})
+	t.Run("message has alt but it is pgptype", func(t *testing.T) {
+		message := testMessage(t)
+		message.SetPGPType(PGPSignature)
+		if message.hasAlt() {
+			t.Error("message has alt but it is a pgpType, hence hasAlt should return false")
+		}
+	})
+}
 
-	func TestMsg_hasAlt(t *testing.T) {
-		m := NewMsg()
-		m.SetBodyString(TypeTextPlain, "Plain")
-		m.AddAlternativeString(TypeTextHTML, "<b>HTML</b>")
-		if !m.hasAlt() {
-			t.Errorf("mail has alternative parts but hasAlt() returned true")
+func TestMsg_hasMixed(t *testing.T) {
+	t.Run("message has no mixed", func(t *testing.T) {
+		message := testMessage(t)
+		if message.hasMixed() {
+			t.Error("message has no mixed, but hasMixed returned true")
 		}
-	}
+	})
+	t.Run("message with alt has no mixed", func(t *testing.T) {
+		message := testMessage(t)
+		message.AddAlternativeString(TypeTextHTML, "this is the alt")
+		if message.hasMixed() {
+			t.Error("message has no mixed, but hasMixed returned true")
+		}
+	})
+	t.Run("message with attachment is mixed", func(t *testing.T) {
+		message := testMessage(t)
+		message.AttachFile("testdata/attachment.txt")
+		if !message.hasMixed() {
+			t.Error("message with attachment is supposed to be mixed")
+		}
+	})
+	t.Run("message with embed is not mixed", func(t *testing.T) {
+		message := testMessage(t)
+		message.EmbedFile("testdata/embed.txt")
+		if message.hasMixed() {
+			t.Error("message with embed is not supposed to be mixed")
+		}
+	})
+	t.Run("message with attachment and embed is mixed", func(t *testing.T) {
+		message := testMessage(t)
+		message.AttachFile("testdata/attachment.txt")
+		message.EmbedFile("testdata/embed.txt")
+		if !message.hasMixed() {
+			t.Error("message with attachment and embed is supposed to be mixed")
+		}
+	})
+}
 
-// TestMsg_hasRelated tests the hasRelated() method of the Msg
+func TestMsg_hasRelated(t *testing.T) {
+	t.Run("message has no related", func(t *testing.T) {
+		message := testMessage(t)
+		if message.hasRelated() {
+			t.Error("message has no related, but hasRelated returned true")
+		}
+	})
+	t.Run("message with alt has no related", func(t *testing.T) {
+		message := testMessage(t)
+		message.AddAlternativeString(TypeTextHTML, "this is the alt")
+		if message.hasRelated() {
+			t.Error("message has no related, but hasRelated returned true")
+		}
+	})
+	t.Run("message with attachment is not related", func(t *testing.T) {
+		message := testMessage(t)
+		message.AttachFile("testdata/attachment.txt")
+		if message.hasRelated() {
+			t.Error("message with attachment is not supposed to be related")
+		}
+	})
+	t.Run("message with embed is related", func(t *testing.T) {
+		message := testMessage(t)
+		message.EmbedFile("testdata/embed.txt")
+		if !message.hasRelated() {
+			t.Error("message with embed is supposed to be related")
+		}
+	})
+	t.Run("message with attachment and embed is related", func(t *testing.T) {
+		message := testMessage(t)
+		message.AttachFile("testdata/attachment.txt")
+		message.EmbedFile("testdata/embed.txt")
+		if !message.hasRelated() {
+			t.Error("message with attachment and embed is supposed to be related")
+		}
+	})
+}
 
-	func TestMsg_hasRelated(t *testing.T) {
-		m := NewMsg()
-		m.SetBodyString(TypeTextPlain, "Plain")
-		m.EmbedFile("README.md")
-		if !m.hasRelated() {
-			t.Errorf("mail has related parts but hasRelated() returned true")
+func TestMsg_hasPGPType(t *testing.T) {
+	t.Run("message has no pgpType", func(t *testing.T) {
+		message := testMessage(t)
+		if message.hasPGPType() {
+			t.Error("message has no PGPType, but hasPGPType returned true")
 		}
-	}
+	})
+	t.Run("message has signature", func(t *testing.T) {
+		message := testMessage(t)
+		message.SetPGPType(PGPSignature)
+		if !message.hasPGPType() {
+			t.Error("message has signature, but hasPGPType returned false")
+		}
+	})
+	t.Run("message has encryption", func(t *testing.T) {
+		message := testMessage(t)
+		message.SetPGPType(PGPEncrypt)
+		if !message.hasPGPType() {
+			t.Error("message has encryption, but hasPGPType returned false")
+		}
+	})
+	t.Run("message has encryption and signature", func(t *testing.T) {
+		message := testMessage(t)
+		message.SetPGPType(PGPEncrypt | PGPSignature)
+		if !message.hasPGPType() {
+			t.Error("message has encryption and signature, but hasPGPType returned false")
+		}
+	})
+	t.Run("message has NoPGP", func(t *testing.T) {
+		message := testMessage(t)
+		message.SetPGPType(NoPGP)
+		if message.hasPGPType() {
+			t.Error("message has NoPGP, but hasPGPType returned true")
+		}
+	})
+}
 
-// TestMsg_hasMixed tests the hasMixed() method of the Msg
+func TestMsg_checkUserAgent(t *testing.T) {
+	t.Run("default user agent should be set", func(t *testing.T) {
+		message := testMessage(t)
+		message.checkUserAgent()
+		checkGenHeader(t, message, HeaderUserAgent, "checkUserAgent", 0, 1,
+			fmt.Sprintf("go-mail v%s // https://github.com/wneessen/go-mail", VERSION))
+		checkGenHeader(t, message, HeaderXMailer, "checkUserAgent", 0, 1,
+			fmt.Sprintf("go-mail v%s // https://github.com/wneessen/go-mail", VERSION))
+	})
+	t.Run("noDefaultUserAgent should return empty string", func(t *testing.T) {
+		message := testMessage(t)
+		message.noDefaultUserAgent = true
+		message.checkUserAgent()
+		if len(message.genHeader[HeaderUserAgent]) != 0 {
+			t.Error("user agent should be empty")
+		}
+		if len(message.genHeader[HeaderXMailer]) != 0 {
+			t.Error("x-mailer should be empty")
+		}
+	})
+}
 
-	func TestMsg_hasMixed(t *testing.T) {
-		m := NewMsg()
-		m.SetBodyString(TypeTextPlain, "Plain")
-		m.AttachFile("README.md")
-		if !m.hasMixed() {
-			t.Errorf("mail has mixed parts but hasMixed() returned true")
+func TestMsg_addDefaultHeader(t *testing.T) {
+	t.Run("empty message should add defaults", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("failed to create new message")
 		}
-	}
+		if _, ok := message.genHeader[HeaderDate]; ok {
+			t.Error("empty message should not have date header")
+		}
+		if _, ok := message.genHeader[HeaderMessageID]; ok {
+			t.Error("empty message should not have message-id header")
+		}
+		if _, ok := message.genHeader[HeaderMIMEVersion]; ok {
+			t.Error("empty message should not have mime version header")
+		}
+		message.addDefaultHeader()
+		if _, ok := message.genHeader[HeaderDate]; !ok {
+			t.Error("message should now have date header")
+		}
+		if _, ok := message.genHeader[HeaderMessageID]; !ok {
+			t.Error("message should now have message-id header")
+		}
+		if _, ok := message.genHeader[HeaderMIMEVersion]; !ok {
+			t.Error("message should now have mime version header")
+		}
+	})
+}
 
-// TestMsg_UpdateReader tests the Msg.UpdateReader method
-
-	func TestMsg_UpdateReader(t *testing.T) {
-		m := NewMsg()
-		m.Subject("Subject-Run 1")
-		mr := m.NewReader()
-		if mr == nil {
-			t.Errorf("NewReader failed: Reader is nil")
-		}
-		wbuf1 := bytes.Buffer{}
-		_, err := io.Copy(&wbuf1, mr)
-		if err != nil {
-			t.Errorf("io.Copy on Reader failed: %s", err)
-		}
-		if !strings.Contains(wbuf1.String(), "Subject: Subject-Run 1") {
-			t.Errorf("io.Copy on Reader failed. Expected to find %q but string in Subject was not found",
-				"Subject-Run 1")
-		}
-
-		m.Subject("Subject-Run 2")
-		m.UpdateReader(mr)
-		wbuf2 := bytes.Buffer{}
-		_, err = io.Copy(&wbuf2, mr)
-		if err != nil {
-			t.Errorf("2nd io.Copy on Reader failed: %s", err)
-		}
-		if !strings.Contains(wbuf2.String(), "Subject: Subject-Run 2") {
-			t.Errorf("io.Copy on Reader failed. Expected to find %q but string in Subject was not found",
-				"Subject-Run 2")
-		}
-	}
-
-// TestMsg_GetGenHeader will test the GetGenHeader method of the Msg
-
-	func TestMsg_GetGenHeader(t *testing.T) {
-		m := NewMsg()
-		m.Subject("this is a test")
-		sa := m.GetGenHeader(HeaderSubject)
-		if len(sa) <= 0 {
-			t.Errorf("GetGenHeader on subject failed. Got empty slice")
-			return
-		}
-		if sa[0] == "" {
-			t.Errorf("GetGenHeader on subject failed. Got empty value")
-		}
-		if sa[0] != "this is a test" {
-			t.Errorf("GetGenHeader on subject failed. Expected: %q, got: %q", "this is a test", sa[0])
-		}
-	}
-
-// TestMsg_GetAddrHeader will test the Msg.GetAddrHeader method
-
-	func TestMsg_GetAddrHeader(t *testing.T) {
-		m := NewMsg()
-		if err := m.FromFormat("Toni Sender", "sender@example.com"); err != nil {
-			t.Errorf("failed to set FROM address: %s", err)
-		}
-		if err := m.AddToFormat("Toni To", "to@example.com"); err != nil {
-			t.Errorf("failed to set TO address: %s", err)
-		}
-		if err := m.AddCcFormat("Toni Cc", "cc@example.com"); err != nil {
-			t.Errorf("failed to set CC address: %s", err)
-		}
-		if err := m.AddBccFormat("Toni Bcc", "bcc@example.com"); err != nil {
-			t.Errorf("failed to set BCC address: %s", err)
-		}
-		fh := m.GetAddrHeader(HeaderFrom)
-		if len(fh) <= 0 {
-			t.Errorf("GetAddrHeader on FROM failed. Got empty slice")
-			return
-		}
-		if fh[0].String() == "" {
-			t.Errorf("GetAddrHeader on FROM failed. Got empty value")
-		}
-		if fh[0].String() != `"Toni Sender" <sender@example.com>` {
-			t.Errorf("GetAddrHeader on FROM failed. Expected: %q, got: %q",
-				`"Toni Sender" <sender@example.com>"`, fh[0].String())
-		}
-		th := m.GetAddrHeader(HeaderTo)
-		if len(th) <= 0 {
-			t.Errorf("GetAddrHeader on TO failed. Got empty slice")
-			return
-		}
-		if th[0].String() == "" {
-			t.Errorf("GetAddrHeader on TO failed. Got empty value")
-		}
-		if th[0].String() != `"Toni To" <to@example.com>` {
-			t.Errorf("GetAddrHeader on TO failed. Expected: %q, got: %q",
-				`"Toni To" <to@example.com>"`, th[0].String())
-		}
-		ch := m.GetAddrHeader(HeaderCc)
-		if len(ch) <= 0 {
-			t.Errorf("GetAddrHeader on CC failed. Got empty slice")
-			return
-		}
-		if ch[0].String() == "" {
-			t.Errorf("GetAddrHeader on CC failed. Got empty value")
-		}
-		if ch[0].String() != `"Toni Cc" <cc@example.com>` {
-			t.Errorf("GetAddrHeader on CC failed. Expected: %q, got: %q",
-				`"Toni Cc" <cc@example.com>"`, ch[0].String())
-		}
-		bh := m.GetAddrHeader(HeaderBcc)
-		if len(bh) <= 0 {
-			t.Errorf("GetAddrHeader on BCC failed. Got empty slice")
-			return
-		}
-		if bh[0].String() == "" {
-			t.Errorf("GetAddrHeader on BCC failed. Got empty value")
-		}
-		if bh[0].String() != `"Toni Bcc" <bcc@example.com>` {
-			t.Errorf("GetAddrHeader on BCC failed. Expected: %q, got: %q",
-				`"Toni Bcc" <bcc@example.com>"`, bh[0].String())
-		}
-	}
-
-// TestMsg_GetFrom will test the Msg.GetFrom method
-
-	func TestMsg_GetFrom(t *testing.T) {
-		m := NewMsg()
-		if err := m.FromFormat("Toni Sender", "sender@example.com"); err != nil {
-			t.Errorf("failed to set FROM address: %s", err)
-		}
-		fh := m.GetFrom()
-		if len(fh) <= 0 {
-			t.Errorf("GetFrom failed. Got empty slice")
-			return
-		}
-		if fh[0].String() == "" {
-			t.Errorf("GetFrom failed. Got empty value")
-		}
-		if fh[0].String() != `"Toni Sender" <sender@example.com>` {
-			t.Errorf("GetFrom failed. Expected: %q, got: %q",
-				`"Toni Sender" <sender@example.com>"`, fh[0].String())
-		}
-	}
-
-// TestMsg_GetFromString will test the Msg.GetFromString method
-
-	func TestMsg_GetFromString(t *testing.T) {
-		m := NewMsg()
-		if err := m.FromFormat("Toni Sender", "sender@example.com"); err != nil {
-			t.Errorf("failed to set FROM address: %s", err)
-		}
-		fh := m.GetFromString()
-		if len(fh) <= 0 {
-			t.Errorf("GetFromString failed. Got empty slice")
-			return
-		}
-		if fh[0] == "" {
-			t.Errorf("GetFromString failed. Got empty value")
-		}
-		if fh[0] != `"Toni Sender" <sender@example.com>` {
-			t.Errorf("GetFromString failed. Expected: %q, got: %q",
-				`"Toni Sender" <sender@example.com>"`, fh[0])
-		}
-	}
-
-// TestMsg_GetTo will test the Msg.GetTo method
-
-	func TestMsg_GetTo(t *testing.T) {
-		m := NewMsg()
-		if err := m.AddToFormat("Toni To", "to@example.com"); err != nil {
-			t.Errorf("failed to set TO address: %s", err)
-		}
-		fh := m.GetTo()
-		if len(fh) <= 0 {
-			t.Errorf("GetTo failed. Got empty slice")
-			return
-		}
-		if fh[0].String() == "" {
-			t.Errorf("GetTo failed. Got empty value")
-		}
-		if fh[0].String() != `"Toni To" <to@example.com>` {
-			t.Errorf("GetTo failed. Expected: %q, got: %q",
-				`"Toni To" <to@example.com>"`, fh[0].String())
-		}
-	}
-
-// TestMsg_GetToString will test the Msg.GetToString method
-
-	func TestMsg_GetToString(t *testing.T) {
-		m := NewMsg()
-		if err := m.AddToFormat("Toni To", "to@example.com"); err != nil {
-			t.Errorf("failed to set TO address: %s", err)
-		}
-		fh := m.GetToString()
-		if len(fh) <= 0 {
-			t.Errorf("GetToString failed. Got empty slice")
-			return
-		}
-		if fh[0] == "" {
-			t.Errorf("GetToString failed. Got empty value")
-		}
-		if fh[0] != `"Toni To" <to@example.com>` {
-			t.Errorf("GetToString failed. Expected: %q, got: %q",
-				`"Toni To" <to@example.com>"`, fh[0])
-		}
-	}
-
-// TestMsg_GetCc will test the Msg.GetCc method
-
-	func TestMsg_GetCc(t *testing.T) {
-		m := NewMsg()
-		if err := m.AddCcFormat("Toni Cc", "cc@example.com"); err != nil {
-			t.Errorf("failed to set TO address: %s", err)
-		}
-		fh := m.GetCc()
-		if len(fh) <= 0 {
-			t.Errorf("GetCc failed. Got empty slice")
-			return
-		}
-		if fh[0].String() == "" {
-			t.Errorf("GetCc failed. Got empty value")
-		}
-		if fh[0].String() != `"Toni Cc" <cc@example.com>` {
-			t.Errorf("GetCc failed. Expected: %q, got: %q",
-				`"Toni Cc" <cc@example.com>"`, fh[0].String())
-		}
-	}
-
-// TestMsg_GetCcString will test the Msg.GetCcString method
-
-	func TestMsg_GetCcString(t *testing.T) {
-		m := NewMsg()
-		if err := m.AddCcFormat("Toni Cc", "cc@example.com"); err != nil {
-			t.Errorf("failed to set TO address: %s", err)
-		}
-		fh := m.GetCcString()
-		if len(fh) <= 0 {
-			t.Errorf("GetCcString failed. Got empty slice")
-			return
-		}
-		if fh[0] == "" {
-			t.Errorf("GetCcString failed. Got empty value")
-		}
-		if fh[0] != `"Toni Cc" <cc@example.com>` {
-			t.Errorf("GetCcString failed. Expected: %q, got: %q",
-				`"Toni Cc" <cc@example.com>"`, fh[0])
-		}
-	}
-
-// TestMsg_GetBcc will test the Msg.GetBcc method
-
-	func TestMsg_GetBcc(t *testing.T) {
-		m := NewMsg()
-		if err := m.AddBccFormat("Toni Bcc", "bcc@example.com"); err != nil {
-			t.Errorf("failed to set TO address: %s", err)
-		}
-		fh := m.GetBcc()
-		if len(fh) <= 0 {
-			t.Errorf("GetBcc failed. Got empty slice")
-			return
-		}
-		if fh[0].String() == "" {
-			t.Errorf("GetBcc failed. Got empty value")
-		}
-		if fh[0].String() != `"Toni Bcc" <bcc@example.com>` {
-			t.Errorf("GetBcc failed. Expected: %q, got: %q",
-				`"Toni Cc" <bcc@example.com>"`, fh[0].String())
-		}
-	}
-
-// TestMsg_GetBccString will test the Msg.GetBccString method
-
-	func TestMsg_GetBccString(t *testing.T) {
-		m := NewMsg()
-		if err := m.AddBccFormat("Toni Bcc", "bcc@example.com"); err != nil {
-			t.Errorf("failed to set TO address: %s", err)
-		}
-		fh := m.GetBccString()
-		if len(fh) <= 0 {
-			t.Errorf("GetBccString failed. Got empty slice")
-			return
-		}
-		if fh[0] == "" {
-			t.Errorf("GetBccString failed. Got empty value")
-		}
-		if fh[0] != `"Toni Bcc" <bcc@example.com>` {
-			t.Errorf("GetBccString failed. Expected: %q, got: %q",
-				`"Toni Cc" <bcc@example.com>"`, fh[0])
-		}
-	}
-
-// TestMsg_GetBoundary will test the Msg.GetBoundary method
-
-	func TestMsg_GetBoundary(t *testing.T) {
-		b := "random_boundary_string"
-		m := NewMsg()
-		if boundary := m.GetBoundary(); boundary != "" {
-			t.Errorf("GetBoundary failed. Expected empty string, but got: %s", boundary)
-		}
-		m = NewMsg(WithBoundary(b))
-		if boundary := m.GetBoundary(); boundary != b {
-			t.Errorf("GetBoundary failed. Expected boundary: %s, got: %s", b, boundary)
-		}
-	}
-
-// TestMsg_AttachEmbedReader_consecutive tests the Msg.AttachReader and Msg.EmbedReader
-// methods with consecutive calls to Msg.WriteTo to make sure the attachments are not
-// lost (see Github issue #110)
-
-	func TestMsg_AttachEmbedReader_consecutive(t *testing.T) {
-		ts1 := "This is a test string"
-		ts2 := "Another test string"
-		m := NewMsg()
-		if err := m.AttachReader("attachment.txt", bytes.NewBufferString(ts1)); err != nil {
-			t.Errorf("AttachReader() failed. Expected no error, got: %s", err.Error())
-			return
-		}
-		if err := m.EmbedReader("embedded.txt", bytes.NewBufferString(ts2)); err != nil {
-			t.Errorf("EmbedReader() failed. Expected no error, got: %s", err.Error())
-			return
-		}
-		obuf1 := &bytes.Buffer{}
-		obuf2 := &bytes.Buffer{}
-		_, err := m.WriteTo(obuf1)
-		if err != nil {
-			t.Errorf("WriteTo to first output buffer failed: %s", err)
-		}
-		_, err = m.WriteTo(obuf2)
-		if err != nil {
-			t.Errorf("WriteTo to second output buffer failed: %s", err)
-		}
-		if !strings.Contains(obuf1.String(), "VGhpcyBpcyBhIHRlc3Qgc3RyaW5n") {
-			t.Errorf("Expected file attachment string not found in first output buffer")
-		}
-		if !strings.Contains(obuf2.String(), "VGhpcyBpcyBhIHRlc3Qgc3RyaW5n") {
-			t.Errorf("Expected file attachment string not found in second output buffer")
-		}
-		if !strings.Contains(obuf1.String(), "QW5vdGhlciB0ZXN0IHN0cmluZw==") {
-			t.Errorf("Expected embedded file string not found in first output buffer")
-		}
-		if !strings.Contains(obuf2.String(), "QW5vdGhlciB0ZXN0IHN0cmluZw==") {
-			t.Errorf("Expected embded file string not found in second output buffer")
-		}
-	}
-
-// TestMsg_AttachEmbedReadSeeker_consecutive tests the Msg.AttachReadSeeker and
-// Msg.EmbedReadSeeker methods with consecutive calls to Msg.WriteTo to make
-// sure the attachments are not lost (see Github issue #110)
-
-	func TestMsg_AttachEmbedReadSeeker_consecutive(t *testing.T) {
-		ts1 := []byte("This is a test string")
-		ts2 := []byte("Another test string")
-		m := NewMsg()
-		m.AttachReadSeeker("attachment.txt", bytes.NewReader(ts1))
-		m.EmbedReadSeeker("embedded.txt", bytes.NewReader(ts2))
-		obuf1 := &bytes.Buffer{}
-		obuf2 := &bytes.Buffer{}
-		_, err := m.WriteTo(obuf1)
-		if err != nil {
-			t.Errorf("WriteTo to first output buffer failed: %s", err)
-		}
-		_, err = m.WriteTo(obuf2)
-		if err != nil {
-			t.Errorf("WriteTo to second output buffer failed: %s", err)
-		}
-		if !strings.Contains(obuf1.String(), "VGhpcyBpcyBhIHRlc3Qgc3RyaW5n") {
-			t.Errorf("Expected file attachment string not found in first output buffer")
-		}
-		if !strings.Contains(obuf2.String(), "VGhpcyBpcyBhIHRlc3Qgc3RyaW5n") {
-			t.Errorf("Expected file attachment string not found in second output buffer")
-		}
-		if !strings.Contains(obuf1.String(), "QW5vdGhlciB0ZXN0IHN0cmluZw==") {
-			t.Errorf("Expected embedded file string not found in first output buffer")
-		}
-		if !strings.Contains(obuf2.String(), "QW5vdGhlciB0ZXN0IHN0cmluZw==") {
-			t.Errorf("Expected embded file string not found in second output buffer")
-		}
-	}
-
-// TestMsg_AttachReadSeeker tests the Msg.AttachReadSeeker method
-
-	func TestMsg_AttachReadSeeker(t *testing.T) {
-		m := NewMsg()
-		ts := []byte("This is a test string")
-		r := bytes.NewReader(ts)
-		m.AttachReadSeeker("testfile.txt", r)
-		if len(m.attachments) != 1 {
-			t.Errorf("AttachReadSeeker() failed. Number of attachments expected: %d, got: %d", 1,
-				len(m.attachments))
-			return
-		}
-		file := m.attachments[0]
-		if file == nil {
-			t.Errorf("AttachReadSeeker() failed. Attachment file pointer is nil")
-			return
-		}
-		if file.Name != "testfile.txt" {
-			t.Errorf("AttachReadSeeker() failed. Expected file name: %s, got: %s", "testfile.txt",
-				file.Name)
-		}
-		wbuf := bytes.Buffer{}
-		if _, err := file.Writer(&wbuf); err != nil {
-			t.Errorf("execute WriterFunc failed: %s", err)
-		}
-		if wbuf.String() != string(ts) {
-			t.Errorf("AttachReadSeeker() failed. Expected string: %q, got: %q", ts, wbuf.String())
-		}
-	}
-
-// TestMsg_EmbedReadSeeker tests the Msg.EmbedReadSeeker method
-
-	func TestMsg_EmbedReadSeeker(t *testing.T) {
-		m := NewMsg()
-		ts := []byte("This is a test string")
-		r := bytes.NewReader(ts)
-		m.EmbedReadSeeker("testfile.txt", r)
-		if len(m.embeds) != 1 {
-			t.Errorf("EmbedReadSeeker() failed. Number of attachments expected: %d, got: %d", 1,
-				len(m.embeds))
-			return
-		}
-		file := m.embeds[0]
-		if file == nil {
-			t.Errorf("EmbedReadSeeker() failed. Embedded file pointer is nil")
-			return
-		}
-		if file.Name != "testfile.txt" {
-			t.Errorf("EmbedReadSeeker() failed. Expected file name: %s, got: %s", "testfile.txt",
-				file.Name)
-		}
-		wbuf := bytes.Buffer{}
-		if _, err := file.Writer(&wbuf); err != nil {
-			t.Errorf("execute WriterFunc failed: %s", err)
-		}
-		if wbuf.String() != string(ts) {
-			t.Errorf("EmbedReadSeeker() failed. Expected string: %q, got: %q", ts, wbuf.String())
-		}
-	}
-
-// TestMsg_ToFromString tests Msg.ToFromString in different scenarios
-
-	func TestMsg_ToFromString(t *testing.T) {
-		tests := []struct {
-			n  string
-			v  string
-			w  []*mail.Address
-			sf bool
-		}{
-			{"valid single address", "test@test.com", []*mail.Address{
-				{Name: "", Address: "test@test.com"},
-			}, false},
-			{
-				"valid multiple addresses", "test@test.com,test2@example.com",
-				[]*mail.Address{
-					{Name: "", Address: "test@test.com"},
-					{Name: "", Address: "test2@example.com"},
-				},
-				false,
-			},
-			{
-				"valid multiple addresses with space and name",
-				`test@test.com, "Toni Tester" <test2@example.com>`,
-				[]*mail.Address{
-					{Name: "", Address: "test@test.com"},
-					{Name: "Toni Tester", Address: "test2@example.com"},
-				},
-				false,
-			},
-			{
-				"invalid and valid multiple addresses", "test@test.com,test2#example.com", nil,
-				true,
-			},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.n, func(t *testing.T) {
-				m := NewMsg()
-				if err := m.ToFromString(tt.v); err != nil && !tt.sf {
-					t.Errorf("Msg.ToFromString failed: %s", err)
-					return
-				}
-				mto := m.GetTo()
-				if len(mto) != len(tt.w) {
-					t.Errorf("Msg.ToFromString failed, expected len: %d, got: %d", len(tt.w),
-						len(mto))
-					return
-				}
-				for i := range mto {
-					w := tt.w[i]
-					g := mto[i]
-					if w.String() != g.String() {
-						t.Errorf("Msg.ToFromString failed, expected address: %s, got: %s",
-							w.String(), g.String())
-					}
-				}
-			})
-		}
-	}
-
-// TestMsg_CcFromString tests Msg.CcFromString in different scenarios
-
-	func TestMsg_CcFromString(t *testing.T) {
-		tests := []struct {
-			n  string
-			v  string
-			w  []*mail.Address
-			sf bool
-		}{
-			{"valid single address", "test@test.com", []*mail.Address{
-				{Name: "", Address: "test@test.com"},
-			}, false},
-			{
-				"valid multiple addresses", "test@test.com,test2@example.com",
-				[]*mail.Address{
-					{Name: "", Address: "test@test.com"},
-					{Name: "", Address: "test2@example.com"},
-				},
-				false,
-			},
-			{
-				"valid multiple addresses with space and name",
-				`test@test.com, "Toni Tester" <test2@example.com>`,
-				[]*mail.Address{
-					{Name: "", Address: "test@test.com"},
-					{Name: "Toni Tester", Address: "test2@example.com"},
-				},
-				false,
-			},
-			{
-				"invalid and valid multiple addresses", "test@test.com,test2#example.com", nil,
-				true,
-			},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.n, func(t *testing.T) {
-				m := NewMsg()
-				if err := m.CcFromString(tt.v); err != nil && !tt.sf {
-					t.Errorf("Msg.CcFromString failed: %s", err)
-					return
-				}
-				mto := m.GetCc()
-				if len(mto) != len(tt.w) {
-					t.Errorf("Msg.CcFromString failed, expected len: %d, got: %d", len(tt.w),
-						len(mto))
-					return
-				}
-				for i := range mto {
-					w := tt.w[i]
-					g := mto[i]
-					if w.String() != g.String() {
-						t.Errorf("Msg.CcFromString failed, expected address: %s, got: %s",
-							w.String(), g.String())
-					}
-				}
-			})
-		}
-	}
-
-// TestMsg_BccFromString tests Msg.BccFromString in different scenarios
-
-	func TestMsg_BccFromString(t *testing.T) {
-		tests := []struct {
-			n  string
-			v  string
-			w  []*mail.Address
-			sf bool
-		}{
-			{"valid single address", "test@test.com", []*mail.Address{
-				{Name: "", Address: "test@test.com"},
-			}, false},
-			{
-				"valid multiple addresses", "test@test.com,test2@example.com",
-				[]*mail.Address{
-					{Name: "", Address: "test@test.com"},
-					{Name: "", Address: "test2@example.com"},
-				},
-				false,
-			},
-			{
-				"valid multiple addresses with space and name",
-				`test@test.com, "Toni Tester" <test2@example.com>`,
-				[]*mail.Address{
-					{Name: "", Address: "test@test.com"},
-					{Name: "Toni Tester", Address: "test2@example.com"},
-				},
-				false,
-			},
-			{
-				"invalid and valid multiple addresses", "test@test.com,test2#example.com", nil,
-				true,
-			},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.n, func(t *testing.T) {
-				m := NewMsg()
-				if err := m.BccFromString(tt.v); err != nil && !tt.sf {
-					t.Errorf("Msg.BccFromString failed: %s", err)
-					return
-				}
-				mto := m.GetBcc()
-				if len(mto) != len(tt.w) {
-					t.Errorf("Msg.BccFromString failed, expected len: %d, got: %d", len(tt.w),
-						len(mto))
-					return
-				}
-				for i := range mto {
-					w := tt.w[i]
-					g := mto[i]
-					if w.String() != g.String() {
-						t.Errorf("Msg.BccFromString failed, expected address: %s, got: %s",
-							w.String(), g.String())
-					}
-				}
-			})
-		}
-	}
-
-// TestMsg_checkUserAgent tests the checkUserAgent method of the Msg
-
-	func TestMsg_checkUserAgent(t *testing.T) {
-		tests := []struct {
-			name               string
-			noDefaultUserAgent bool
-			genHeader          map[Header][]string
-			wantUserAgent      string
-			sf                 bool
-		}{
-			{
-				name:               "check default user agent",
-				noDefaultUserAgent: false,
-				wantUserAgent:      fmt.Sprintf("go-mail v%s // https://github.com/wneessen/go-mail", VERSION),
-				sf:                 false,
-			},
-			{
-				name:               "check no default user agent",
-				noDefaultUserAgent: true,
-				wantUserAgent:      "",
-				sf:                 true,
-			},
-			{
-				name:               "check if ua and xm is already set",
-				noDefaultUserAgent: false,
-				genHeader: map[Header][]string{
-					HeaderUserAgent: {"custom UA"},
-					HeaderXMailer:   {"custom XM"},
-				},
-				wantUserAgent: "custom UA",
-				sf:            false,
-			},
-		}
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				msg := &Msg{
-					noDefaultUserAgent: tt.noDefaultUserAgent,
-					genHeader:          tt.genHeader,
-				}
-				msg.checkUserAgent()
-				gotUserAgent := ""
-				if val, ok := msg.genHeader[HeaderUserAgent]; ok {
-					gotUserAgent = val[0] // Assuming the first one is the needed value
-				}
-				if gotUserAgent != tt.wantUserAgent && !tt.sf {
-					t.Errorf("UserAgent got = %v, want = %v", gotUserAgent, tt.wantUserAgent)
-				}
-			})
-		}
-	}
-
-// TestNewMsgWithMIMEVersion tests WithMIMEVersion and Msg.SetMIMEVersion
-
-	func TestNewMsgWithNoDefaultUserAgent(t *testing.T) {
-		m := NewMsg(WithNoDefaultUserAgent())
-		if m.noDefaultUserAgent != true {
-			t.Errorf("WithNoDefaultUserAgent() failed. Expected: %t, got: %t", true, false)
-		}
-	}
-
-// Fuzzing tests
-
-	func FuzzMsg_Subject(f *testing.F) {
-		f.Add("Testsubject")
-		f.Add("")
-		f.Add("This is a longer test subject.")
-		f.Add("Let's add some umlauts: üäöß")
-		f.Add("Or even emojis: ☝️💪👍")
-		f.Fuzz(func(t *testing.T, data string) {
-			m := NewMsg()
-			m.Subject(data)
-			m.Reset()
-		})
-	}
-
-	func FuzzMsg_From(f *testing.F) {
-		f.Add("Toni Tester <toni@tester.com>")
-		f.Add("<tester@example.com>")
-		f.Add("mail@server.com")
-		f.Fuzz(func(t *testing.T, data string) {
-			m := NewMsg()
-			if err := m.From(data); err != nil &&
-				!strings.Contains(err.Error(), "failed to parse mail address") {
-				t.Errorf("failed set set FROM address: %s", err)
-			}
-			m.Reset()
-		})
-	}
-*/
+// uppercaseMiddleware is a middleware type that transforms the subject to uppercase.
 type uppercaseMiddleware struct{}
 
+// Handle satisfies the Middleware interface for the uppercaseMiddlware
 func (mw uppercaseMiddleware) Handle(m *Msg) *Msg {
 	s, ok := m.genHeader[HeaderSubject]
 	if !ok {
@@ -6826,12 +6456,15 @@ func (mw uppercaseMiddleware) Handle(m *Msg) *Msg {
 	return m
 }
 
+// Type satisfies the Middleware interface for the uppercaseMiddlware
 func (mw uppercaseMiddleware) Type() MiddlewareType {
 	return "uppercase"
 }
 
+// encodeMiddleware is a middleware type that transforms an "a" in the subject to an "@"
 type encodeMiddleware struct{}
 
+// Handle satisfies the Middleware interface for the encodeMiddleware
 func (mw encodeMiddleware) Handle(m *Msg) *Msg {
 	s, ok := m.genHeader[HeaderSubject]
 	if !ok {
@@ -6844,6 +6477,7 @@ func (mw encodeMiddleware) Handle(m *Msg) *Msg {
 	return m
 }
 
+// Type satisfies the Middleware interface for the encodeMiddleware
 func (mw encodeMiddleware) Type() MiddlewareType {
 	return "encode"
 }
@@ -6926,4 +6560,32 @@ func hasSendmail() bool {
 		}
 	}
 	return false
+}
+
+// Fuzzing tests
+func FuzzMsg_Subject(f *testing.F) {
+	f.Add("Testsubject")
+	f.Add("")
+	f.Add("This is a longer test subject.")
+	f.Add("Let's add some umlauts: üäöß")
+	f.Add("Or even emojis: ☝️💪👍")
+	f.Fuzz(func(t *testing.T, data string) {
+		m := NewMsg()
+		m.Subject(data)
+		m.Reset()
+	})
+}
+
+func FuzzMsg_From(f *testing.F) {
+	f.Add("Toni Tester <toni@tester.com>")
+	f.Add("<tester@example.com>")
+	f.Add("mail@server.com")
+	f.Fuzz(func(t *testing.T, data string) {
+		m := NewMsg()
+		if err := m.From(data); err != nil &&
+			!strings.Contains(err.Error(), "failed to parse mail address") {
+			t.Errorf("failed set set FROM address: %s", err)
+		}
+		m.Reset()
+	})
 }
