@@ -4515,6 +4515,32 @@ func TestMsg_AttachFile(t *testing.T) {
 	t.Run("AttachFile with options", func(t *testing.T) {
 		t.Log("all options have already been tested in file_test.go")
 	})
+	t.Run("AttachFile with normal file and nil option", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.AttachFile("testdata/attachment.txt", nil)
+		attachments := message.GetAttachments()
+		if len(attachments) != 1 {
+			t.Fatalf("failed to retrieve attachments list")
+		}
+		if attachments[0] == nil {
+			t.Fatal("expected attachment to be not nil")
+		}
+		if attachments[0].Name != "attachment.txt" {
+			t.Errorf("expected attachment name to be %s, got: %s", "attachment.txt", attachments[0].Name)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err := attachments[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("writer func failed: %s", err)
+		}
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "This is a test attachment") {
+			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment", got)
+		}
+	})
 	t.Run("AttachFile with fileFromFS fails on copy", func(t *testing.T) {
 		message := NewMsg()
 		if message == nil {
@@ -5431,6 +5457,21 @@ func TestMsg_WriteTo(t *testing.T) {
 				err)
 		}
 	})
+	t.Run("WriteTo with long headers", func(t *testing.T) {
+		message := testMessage(t)
+		message.SetGenHeader(HeaderContentLang, "de", "en", "fr", "es", "xxxx", "yyyy", "de", "en", "fr",
+			"es", "xxxx", "yyyy", "de", "en", "fr", "es", "xxxx", "yyyy", "de", "en", "fr")
+		message.SetGenHeader(HeaderContentID, "XXXXXXXXXXXXXXX XXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXX "+
+			"XXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXX")
+		messageBuffer := bytes.NewBuffer(nil)
+		n, err := message.WriteTo(messageBuffer)
+		if err != nil {
+			t.Fatalf("failed to write message to buffer: %s", err)
+		}
+		if n != int64(messageBuffer.Len()) {
+			t.Errorf("expected written bytes: %d, got: %d", n, messageBuffer.Len())
+		}
+	})
 }
 
 func TestMsg_Write(t *testing.T) {
@@ -5522,124 +5563,6 @@ func TestMsg_WriteToSkipMiddleware(t *testing.T) {
 		m.AttachFile("README.md")
 		if !m.hasMixed() {
 			t.Errorf("mail has mixed parts but hasMixed() returned true")
-		}
-	}
-
-// TestMsg_WriteTo_fails tests the WriteTo() method of the Msg but with a failing body writer function
-
-	func TestMsg_WriteTo_fails(t *testing.T) {
-		m := NewMsg()
-		m.SetBodyWriter(TypeTextPlain, func(io.Writer) (int64, error) {
-			return 0, errors.New("failed")
-		})
-		_, err := m.WriteTo(io.Discard)
-		if err == nil {
-			t.Errorf("WriteTo() with failing BodyWriter function was supposed to fail, but didn't")
-			return
-		}
-
-		// NoEncoding handles the errors separately
-		m = NewMsg(WithEncoding(NoEncoding))
-		m.SetBodyWriter(TypeTextPlain, func(io.Writer) (int64, error) {
-			return 0, errors.New("failed")
-		})
-		_, err = m.WriteTo(io.Discard)
-		if err == nil {
-			t.Errorf("WriteTo() (no encoding) with failing BodyWriter function was supposed to fail, but didn't")
-			return
-		}
-	}
-
-// TestMsg_Write tests the Write() method of the Msg
-
-	func TestMsg_Write(t *testing.T) {
-		m := NewMsg()
-		m.SetBodyString(TypeTextPlain, "Plain")
-		wbuf := bytes.Buffer{}
-		n, err := m.Write(&wbuf)
-		if err != nil {
-			t.Errorf("WriteTo() failed: %s", err)
-			return
-		}
-		if n != int64(wbuf.Len()) {
-			t.Errorf("WriteTo() failed: expected written byte length: %d, got: %d", n, wbuf.Len())
-		}
-	}
-
-// TestMsg_WriteWithLongHeader tests the WriteTo() method of the Msg with a long header
-
-	func TestMsg_WriteWithLongHeader(t *testing.T) {
-		m := NewMsg()
-		m.SetBodyString(TypeTextPlain, "Plain")
-		m.SetGenHeader(HeaderContentLang, "de", "en", "fr", "es", "xxxx", "yyyy", "de", "en", "fr",
-			"es", "xxxx", "yyyy", "de", "en", "fr", "es", "xxxx", "yyyy", "de", "en", "fr")
-		m.SetGenHeader(HeaderContentID, "XXXXXXXXXXXXXXX XXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXX",
-			"XXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXX")
-		wbuf := bytes.Buffer{}
-		n, err := m.WriteTo(&wbuf)
-		if err != nil {
-			t.Errorf("WriteTo() failed: %s", err)
-			return
-		}
-		if n != int64(wbuf.Len()) {
-			t.Errorf("WriteTo() failed: expected written byte length: %d, got: %d", n, wbuf.Len())
-		}
-	}
-
-// TestMsg_WriteDiffEncoding tests the WriteTo() method of the Msg with different Encoding
-
-	func TestMsg_WriteDiffEncoding(t *testing.T) {
-		tests := []struct {
-			name string
-			ct   ContentType
-			en   Encoding
-			alt  bool
-			wa   bool
-			we   bool
-		}{
-			{"Plain/QP/NoAlt/NoAttach/NoEmbed", TypeTextPlain, EncodingQP, false, false, false},
-			{"Plain/B64/NoAlt/NoAttach/NoEmbed", TypeTextPlain, EncodingB64, false, false, false},
-			{"Plain/No/NoAlt/NoAttach/NoEmbed", TypeTextPlain, NoEncoding, false, false, false},
-			{"HTML/QP/NoAlt/NoAttach/NoEmbed", TypeTextHTML, EncodingQP, false, false, false},
-			{"HTML/B64/NoAlt/NoAttach/NoEmbed", TypeTextHTML, EncodingB64, false, false, false},
-			{"HTML/No/NoAlt/NoAttach/NoEmbed", TypeTextHTML, NoEncoding, false, false, false},
-			{"Plain/QP/HTML/NoAttach/NoEmbed", TypeTextPlain, EncodingQP, true, false, false},
-			{"Plain/B64/HTML/NoAttach/NoEmbed", TypeTextPlain, EncodingB64, true, false, false},
-			{"Plain/No/HTML/NoAttach/NoEmbed", TypeTextPlain, NoEncoding, true, false, false},
-			{"Plain/QP/NoAlt/Attach/NoEmbed", TypeTextPlain, EncodingQP, false, true, false},
-			{"Plain/B64/NoAlt/Attach/NoEmbed", TypeTextPlain, EncodingB64, false, true, false},
-			{"Plain/No/NoAlt/Attach/NoEmbed", TypeTextPlain, NoEncoding, false, true, false},
-			{"Plain/QP/NoAlt/NoAttach/Embed", TypeTextPlain, EncodingQP, false, false, true},
-			{"Plain/B64/NoAlt/NoAttach/Embed", TypeTextPlain, EncodingB64, false, false, true},
-			{"Plain/No/NoAlt/NoAttach/Embed", TypeTextPlain, NoEncoding, false, false, true},
-			{"Plain/QP/HTML/Attach/Embed", TypeTextPlain, EncodingQP, true, true, true},
-			{"Plain/B64/HTML/Attach/Embed", TypeTextPlain, EncodingB64, true, true, true},
-			{"Plain/No/HTML/Attach/Embed", TypeTextPlain, NoEncoding, true, true, true},
-		}
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				m := NewMsg(WithEncoding(tt.en))
-				m.SetBodyString(tt.ct, tt.name)
-				if tt.alt {
-					m.AddAlternativeString(TypeTextHTML, fmt.Sprintf("<p>%s</p>", tt.name))
-				}
-				if tt.wa {
-					m.AttachFile("README.md")
-				}
-				if tt.we {
-					m.EmbedFile("README.md")
-				}
-				wbuf := bytes.Buffer{}
-				n, err := m.WriteTo(&wbuf)
-				if err != nil {
-					t.Errorf("WriteTo() failed: %s", err)
-					return
-				}
-				if n != int64(wbuf.Len()) {
-					t.Errorf("WriteTo() failed: expected written byte length: %d, got: %d", n, wbuf.Len())
-				}
-				wbuf.Reset()
-			})
 		}
 	}
 
