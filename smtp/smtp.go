@@ -554,9 +554,9 @@ func (c *Client) Noop() error {
 
 // Quit sends the QUIT command and closes the connection to the server.
 func (c *Client) Quit() error {
-	if err := c.hello(); err != nil {
-		return err
-	}
+	// See https://github.com/golang/go/issues/70011
+	_ = c.hello() // ignore error; we're quitting anyhow
+
 	_, _, err := c.cmd(221, "QUIT")
 	if err != nil {
 		return err

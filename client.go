@@ -242,6 +242,12 @@ var (
 	// provided as argument to the WithDSN Option.
 	ErrInvalidDSNRcptNotifyCombination = errors.New("DSN rcpt notify option NEVER cannot be " +
 		"combined with any of SUCCESS, FAILURE or DELAY")
+
+	// ErrSMTPAuthMethodIsNil indicates that the SMTP authentication method provided is nil
+	ErrSMTPAuthMethodIsNil = errors.New("SMTP auth method is nil")
+
+	// ErrDialContextFuncIsNil indicates that a required dial context function is not provided.
+	ErrDialContextFuncIsNil = errors.New("dial context function is nil")
 )
 
 // NewClient creates a new Client instance with the provided host and optional configuration Option functions.
@@ -510,6 +516,9 @@ func WithSMTPAuth(authtype SMTPAuthType) Option {
 //   - An Option function that sets the custom SMTP authentication for the Client.
 func WithSMTPAuthCustom(smtpAuth smtp.Auth) Option {
 	return func(c *Client) error {
+		if smtpAuth == nil {
+			return ErrSMTPAuthMethodIsNil
+		}
 		c.smtpAuth = smtpAuth
 		c.smtpAuthType = SMTPAuthCustom
 		return nil
@@ -671,6 +680,9 @@ func WithoutNoop() Option {
 //   - An Option function that sets the custom DialContextFunc for the Client.
 func WithDialContextFunc(dialCtxFunc DialContextFunc) Option {
 	return func(c *Client) error {
+		if dialCtxFunc == nil {
+			return ErrDialContextFuncIsNil
+		}
 		c.dialContextFunc = dialCtxFunc
 		return nil
 	}
@@ -739,6 +751,7 @@ func (c *Client) SetTLSPolicy(policy TLSPolicy) {
 func (c *Client) SetTLSPortPolicy(policy TLSPolicy) {
 	if c.port == DefaultPort {
 		c.port = DefaultPortTLS
+		c.fallbackPort = 0
 
 		if policy == TLSOpportunistic {
 			c.fallbackPort = DefaultPort
@@ -1081,10 +1094,6 @@ func (c *Client) DialAndSendWithContext(ctx context.Context, messages ...*Msg) e
 //   - An error if the connection check fails, if no supported authentication method is found,
 //     or if the authentication process fails.
 func (c *Client) auth() error {
-	if err := c.checkConn(); err != nil {
-		return fmt.Errorf("failed to authenticate: %w", err)
-	}
-
 	if c.smtpAuth == nil && c.smtpAuthType != SMTPAuthNoAuth {
 		hasSMTPAuth, smtpAuthType := c.smtpClient.Extension("AUTH")
 		if !hasSMTPAuth {
@@ -1252,24 +1261,17 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 			affectedMsg: message,
 		}
 	}
-	message.isDelivered = true
-
 	if err = writer.Close(); err != nil {
 		return &SendError{
 			Reason: ErrSMTPDataClose, errlist: []error{err}, isTemp: isTempError(err),
 			affectedMsg: message,
 		}
 	}
+	message.isDelivered = true
 
 	if err = c.Reset(); err != nil {
 		return &SendError{
 			Reason: ErrSMTPReset, errlist: []error{err}, isTemp: isTempError(err),
-			affectedMsg: message,
-		}
-	}
-	if err = c.checkConn(); err != nil {
-		return &SendError{
-			Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err),
 			affectedMsg: message,
 		}
 	}
@@ -1289,6 +1291,9 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 //   - An error if there is no active connection, if the NOOP command fails, or if extending
 //     the deadline fails; otherwise, returns nil.
 func (c *Client) checkConn() error {
+	if c.smtpClient == nil {
+		return ErrNoActiveConnection
+	}
 	if !c.smtpClient.HasConnection() {
 		return ErrNoActiveConnection
 	}
@@ -1347,9 +1352,6 @@ func (c *Client) setDefaultHelo() error {
 //   - An error if there is no active connection, if STARTTLS is required but not supported,
 //     or if there are issues during the TLS handshake; otherwise, returns nil.
 func (c *Client) tls() error {
-	if !c.smtpClient.HasConnection() {
-		return ErrNoActiveConnection
-	}
 	if !c.useSSL && c.tlspolicy != NoTLS {
 		hasStartTLS := false
 		extension, _ := c.smtpClient.Extension("STARTTLS")

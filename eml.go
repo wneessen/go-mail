@@ -60,7 +60,7 @@ func EMLToMsgFromReader(reader io.Reader) (*Msg, error) {
 		return msg, fmt.Errorf("failed to parse EML from reader: %w", err)
 	}
 
-	if err := parseEML(parsedMsg, bodybuf, msg); err != nil {
+	if err = parseEML(parsedMsg, bodybuf, msg); err != nil {
 		return msg, fmt.Errorf("failed to parse EML contents: %w", err)
 	}
 
@@ -93,7 +93,7 @@ func EMLToMsgFromFile(filePath string) (*Msg, error) {
 		return msg, fmt.Errorf("failed to parse EML file: %w", err)
 	}
 
-	if err := parseEML(parsedMsg, bodybuf, msg); err != nil {
+	if err = parseEML(parsedMsg, bodybuf, msg); err != nil {
 		return msg, fmt.Errorf("failed to parse EML contents: %w", err)
 	}
 
@@ -218,9 +218,9 @@ func parseEMLHeaders(mailHeader *netmail.Header, msg *Msg) error {
 			for _, addr := range parsedAddrs {
 				addrStrings = append(addrStrings, addr.String())
 			}
-			if err = addrFunc(addrStrings...); err != nil {
-				return fmt.Errorf(`failed to parse %q header: %w`, addrHeader, err)
-			}
+			// We can skip the error checking here since netmail.ParseAddressList already performed the
+			// same address checking that the msg methods do.
+			_ = addrFunc(addrStrings...)
 		}
 	}
 
@@ -600,6 +600,8 @@ func parseEMLAttachmentEmbed(contentDisposition []string, multiPart *multipart.P
 		if err := msg.EmbedReader(filename, dataReader); err != nil {
 			return fmt.Errorf("failed to embed multipart body: %w", err)
 		}
+	default:
+		return errors.New("unsupported content disposition type")
 	}
 	return nil
 }

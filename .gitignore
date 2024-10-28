@@ -56,4 +56,6 @@ crashlytics.properties
 crashlytics-build.properties
 fabric.properties
 
-testdata
+## Coverage data
+coverage.coverprofile
+coverage.html
