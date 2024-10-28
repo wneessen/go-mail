@@ -3559,6 +3559,7 @@ type serverProps struct {
 	FailOnQuit      bool
 	FailOnReset     bool
 	FailOnSTARTTLS  bool
+	FailTemp        bool
 	FeatureSet      string
 	ListenPort      int
 	SSLListener     bool
@@ -3718,6 +3719,10 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 				if ddata == "." {
 					if props.FailOnDataClose {
 						writeLine("500 5.0.0 Error during DATA transmission")
+						break
+					}
+					if props.FailTemp {
+						writeLine("451 4.3.0 Error: fail on DATA close")
 						break
 					}
 					writeLine("250 2.0.0 Ok: queued as 1234567890")
