@@ -4558,6 +4558,44 @@ func TestMsg_AttachReader(t *testing.T) {
 	})
 }
 
+func TestMsg_AttachReadSeeker(t *testing.T) {
+	t.Run("AttachReadSeeker with file", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		file, err := os.Open("testdata/attachment.txt")
+		if err != nil {
+			t.Fatalf("failed to open file: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := file.Close(); err != nil {
+				t.Errorf("failed to close file: %s", err)
+			}
+		})
+		message.AttachReadSeeker("attachment.txt", file)
+		attachments := message.GetAttachments()
+		if len(attachments) != 1 {
+			t.Fatalf("failed to retrieve attachments list")
+		}
+		if attachments[0] == nil {
+			t.Fatal("expected attachment to be not nil")
+		}
+		if attachments[0].Name != "attachment.txt" {
+			t.Errorf("expected attachment name to be %s, got: %s", "attachment.txt", attachments[0].Name)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err = attachments[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("writer func failed: %s", err)
+		}
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "This is a test attachment") {
+			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment", got)
+		}
+	})
+}
+
 /*
 // TestNewMsgWithMiddleware tests WithMiddleware
 
