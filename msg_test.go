@@ -5741,6 +5741,81 @@ func TestMsg_NewReader(t *testing.T) {
 	})
 }
 
+func TestMsg_UpdateReader(t *testing.T) {
+	t.Run("UpdateReader succeeds", func(t *testing.T) {
+		message := testMessage(t)
+		reader := message.NewReader()
+		if reader == nil {
+			t.Fatalf("failed to create message reader")
+		}
+		if reader.Error() != nil {
+			t.Errorf("failed to create message reader: %s", reader.Error())
+		}
+		message.Subject("This is the actual subject")
+		message.UpdateReader(reader)
+		if reader == nil {
+			t.Fatalf("failed to create message reader")
+		}
+		if reader.Error() != nil {
+			t.Errorf("failed to create message reader: %s", reader.Error())
+		}
+		parsed, err := EMLToMsgFromReader(reader)
+		if err != nil {
+			t.Fatalf("failed to parse message in buffer: %s", err)
+		}
+		checkAddrHeader(t, parsed, HeaderFrom, "WriteTo", 0, 1, TestSenderValid, "")
+		checkAddrHeader(t, parsed, HeaderTo, "WriteTo", 0, 1, TestRcptValid, "")
+		checkGenHeader(t, parsed, HeaderSubject, "WriteTo", 0, 1, "This is the actual subject")
+		parts := parsed.GetParts()
+		if len(parts) != 1 {
+			t.Fatalf("expected 1 parts, got: %d", len(parts))
+		}
+		if parts[0].contentType != TypeTextPlain {
+			t.Errorf("expected contentType to be %s, got: %s", TypeTextPlain, parts[0].contentType)
+		}
+		if parts[0].encoding != EncodingQP {
+			t.Errorf("expected encoding to be %s, got: %s", EncodingQP, parts[0].encoding)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err = parts[0].writeFunc(messageBuf)
+		if err != nil {
+			t.Errorf("writer func failed: %s", err)
+		}
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.HasSuffix(got, "Testmail") {
+			t.Errorf("expected message buffer to contain Testmail, got: %s", got)
+		}
+	})
+	t.Run("UpdateReader should fail on write", func(t *testing.T) {
+		message := testMessage(t)
+		reader := message.NewReader()
+		if reader == nil {
+			t.Fatalf("failed to create message reader")
+		}
+		if reader.Error() != nil {
+			t.Errorf("failed to create message reader: %s", reader.Error())
+		}
+		message.Subject("This is the actual subject")
+		if len(message.parts) != 1 {
+			t.Fatalf("expected 1 parts, got: %d", len(message.parts))
+		}
+		message.parts[0].writeFunc = func(io.Writer) (int64, error) {
+			return 0, errors.New("intentional write error")
+		}
+		message.UpdateReader(reader)
+		if reader == nil {
+			t.Fatalf("failed to create message reader")
+		}
+		if reader.Error() == nil {
+			t.Fatalf("expected error on write, got nil")
+		}
+		if !strings.EqualFold(reader.Error().Error(), `bodyWriter function: intentional write error`) {
+			t.Errorf("expected error to be %s, got: %s", `bodyWriter function: intentional write error`,
+				reader.Error().Error())
+		}
+	})
+}
+
 /*
 // TestMsg_hasAlt tests the hasAlt() method of the Msg
 
@@ -5772,51 +5847,6 @@ func TestMsg_NewReader(t *testing.T) {
 		m.AttachFile("README.md")
 		if !m.hasMixed() {
 			t.Errorf("mail has mixed parts but hasMixed() returned true")
-		}
-	}
-
-// TestMsg_NewReader tests the Msg.NewReader method
-
-	func TestMsg_NewReader(t *testing.T) {
-		m := NewMsg()
-		m.SetBodyString(TypeTextPlain, "TEST123")
-		mr := m.NewReader()
-		if mr == nil {
-			t.Errorf("NewReader failed: Reader is nil")
-		}
-		if mr.Error() != nil {
-			t.Errorf("NewReader failed: %s", mr.Error())
-		}
-	}
-
-// TestMsg_NewReader_ioCopy tests the Msg.NewReader method using io.Copy
-
-	func TestMsg_NewReader_ioCopy(t *testing.T) {
-		wbuf1 := bytes.Buffer{}
-		wbuf2 := bytes.Buffer{}
-		m := NewMsg()
-		m.SetBodyString(TypeTextPlain, "TEST123")
-		mr := m.NewReader()
-		if mr == nil {
-			t.Errorf("NewReader failed: Reader is nil")
-		}
-
-		// First we use WriteTo to have something to compare to
-		_, err := m.WriteTo(&wbuf1)
-		if err != nil {
-			t.Errorf("failed to write body to buffer: %s", err)
-		}
-
-		// Then we write to wbuf2 via io.Copy
-		n, err := io.Copy(&wbuf2, mr)
-		if err != nil {
-			t.Errorf("failed to use io.Copy on Reader: %s", err)
-		}
-		if n != int64(wbuf1.Len()) {
-			t.Errorf("message length of WriteTo and io.Copy differ. Expected: %d, got: %d", wbuf1.Len(), n)
-		}
-		if wbuf1.String() != wbuf2.String() {
-			t.Errorf("message content of WriteTo and io.Copy differ")
 		}
 	}
 
