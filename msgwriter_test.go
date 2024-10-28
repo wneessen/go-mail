@@ -315,7 +315,7 @@ func TestMsgWriter_addFiles(t *testing.T) {
 		}
 		switch runtime.GOOS {
 		case "windows":
-			if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo") {
+			if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudA0K") {
 				t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
 			}
 		default:
@@ -348,7 +348,7 @@ func TestMsgWriter_addFiles(t *testing.T) {
 		}
 		switch runtime.GOOS {
 		case "windows":
-			if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo") {
+			if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudA0K") {
 				t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
 			}
 		default:
@@ -374,7 +374,7 @@ func TestMsgWriter_addFiles(t *testing.T) {
 		}
 		switch runtime.GOOS {
 		case "windows":
-			if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo") {
+			if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudA0K") {
 				t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
 			}
 		default:
@@ -429,7 +429,7 @@ func TestMsgWriter_addFiles(t *testing.T) {
 		}
 		switch runtime.GOOS {
 		case "windows":
-			if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo") {
+			if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudA0K") {
 				t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
 			}
 		default:
@@ -469,7 +469,7 @@ func TestMsgWriter_addFiles(t *testing.T) {
 		}
 		switch runtime.GOOS {
 		case "windows":
-			if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudAo") {
+			if !strings.Contains(buffer.String(), "VGhpcyBpcyBhIHRlc3QgYXR0YWNobWVudA0K") {
 				t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
 			}
 		default:
