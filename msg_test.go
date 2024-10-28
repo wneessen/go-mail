@@ -136,7 +136,7 @@ var (
 	}
 )
 
-//go:embed testdata/attachment.txt
+//go:embed testdata/attachment.txt testdata/embed.txt
 var efs embed.FS
 
 func TestNewMsg(t *testing.T) {
@@ -4868,6 +4868,238 @@ func TestMsg_EmbedReader(t *testing.T) {
 		got := strings.TrimSpace(messageBuf.String())
 		if !strings.EqualFold(got, "This is a test embed") {
 			t.Errorf("expected message body to be %s, got: %s", "This is a test embed", got)
+		}
+	})
+}
+
+func TestMsg_EmbedReadSeeker(t *testing.T) {
+	t.Run("EmbedReadSeeker with file", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		file, err := os.Open("testdata/embed.txt")
+		if err != nil {
+			t.Fatalf("failed to open file: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := file.Close(); err != nil {
+				t.Errorf("failed to close file: %s", err)
+			}
+		})
+		message.EmbedReadSeeker("embed.txt", file)
+		embeds := message.GetEmbeds()
+		if len(embeds) != 1 {
+			t.Fatalf("failed to retrieve embeds list")
+		}
+		if embeds[0] == nil {
+			t.Fatal("expected embed to be not nil")
+		}
+		if embeds[0].Name != "embed.txt" {
+			t.Errorf("expected embed name to be %s, got: %s", "embed.txt", embeds[0].Name)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err = embeds[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("writer func failed: %s", err)
+		}
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "This is a test embed") {
+			t.Errorf("expected message body to be %s, got: %s", "This is a test embed", got)
+		}
+	})
+}
+
+func TestMsg_EmbedHTMLTemplate(t *testing.T) {
+	tplString := `<p>{{.teststring}}</p>`
+	invalidTplString := `<p>{{call $.invalid .teststring}}</p>`
+	data := map[string]interface{}{"teststring": "this is a test"}
+	htmlTpl, err := ht.New("htmltpl").Parse(tplString)
+	if err != nil {
+		t.Fatalf("failed to parse HTML template: %s", err)
+	}
+	invalidTpl, err := ht.New("htmltpl").Parse(invalidTplString)
+	if err != nil {
+		t.Fatalf("failed to parse invalid HTML template: %s", err)
+	}
+	t.Run("EmbedHTMLTemplate with valid template", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err = message.EmbedHTMLTemplate("embed.html", htmlTpl, data); err != nil {
+			t.Fatalf("failed to set body HTML template: %s", err)
+		}
+		embeds := message.GetEmbeds()
+		if len(embeds) != 1 {
+			t.Fatalf("failed to retrieve embeds list")
+		}
+		if embeds[0] == nil {
+			t.Fatal("expected embed to be not nil")
+		}
+		if embeds[0].Name != "embed.html" {
+			t.Errorf("expected embed name to be %s, got: %s", "embed.html", embeds[0].Name)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err = embeds[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("writer func failed: %s", err)
+		}
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "<p>this is a test</p>") {
+			t.Errorf("expected message body to be %s, got: %s", "<p>this is a test</p>", got)
+		}
+	})
+	t.Run("EmbedHTMLTemplate with invalid template", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		err = message.EmbedHTMLTemplate("embed.html", invalidTpl, data)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		expectErr := `failed to embed template: failed to execute template: template: htmltpl:1:5: executing "htmltpl" ` +
+			`at <call $.invalid .teststring>: error calling call: call of nil`
+		if !strings.EqualFold(err.Error(), expectErr) {
+			t.Errorf("expected error to be %s, got: %s", expectErr, err.Error())
+		}
+	})
+	t.Run("EmbedHTMLTemplate with nil template", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		err = message.EmbedHTMLTemplate("embed.html", nil, data)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		expectedErr := `failed to embed template: ` + errTplPointerNil
+		if !strings.EqualFold(err.Error(), expectedErr) {
+			t.Errorf("expected error to be %s, got: %s", expectedErr, err.Error())
+		}
+	})
+}
+
+func TestMsg_EmbedTextTemplate(t *testing.T) {
+	tplString := `Teststring: {{.teststring}}`
+	invalidTplString := `Teststring: {{call $.invalid .teststring}}`
+	data := map[string]interface{}{"teststring": "this is a test"}
+	textTpl, err := ttpl.New("texttpl").Parse(tplString)
+	if err != nil {
+		t.Fatalf("failed to parse Text template: %s", err)
+	}
+	invalidTpl, err := ttpl.New("texttpl").Parse(invalidTplString)
+	if err != nil {
+		t.Fatalf("failed to parse invalid Text template: %s", err)
+	}
+	t.Run("EmbedTextTemplate with valid template", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err = message.EmbedTextTemplate("embed.txt", textTpl, data); err != nil {
+			t.Fatalf("failed to set body HTML template: %s", err)
+		}
+		embeds := message.GetEmbeds()
+		if len(embeds) != 1 {
+			t.Fatalf("failed to retrieve embeds list")
+		}
+		if embeds[0] == nil {
+			t.Fatal("expected embed to be not nil")
+		}
+		if embeds[0].Name != "embed.txt" {
+			t.Errorf("expected embed name to be %s, got: %s", "embed.txt", embeds[0].Name)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err = embeds[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("writer func failed: %s", err)
+		}
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "Teststring: this is a test") {
+			t.Errorf("expected message body to be %s, got: %s", "Teststring: this is a test", got)
+		}
+	})
+	t.Run("EmbedTextTemplate with invalid template", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		err = message.EmbedTextTemplate("embed.txt", invalidTpl, data)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		expectErr := `failed to embed template: failed to execute template: template: texttpl:1:14: executing "texttpl" ` +
+			`at <call $.invalid .teststring>: error calling call: call of nil`
+		if !strings.EqualFold(err.Error(), expectErr) {
+			t.Errorf("expected error to be %s, got: %s", expectErr, err.Error())
+		}
+	})
+	t.Run("EmbedTextTemplate with nil template", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		err = message.EmbedTextTemplate("embed.html", nil, data)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		expectedErr := `failed to embed template: ` + errTplPointerNil
+		if !strings.EqualFold(err.Error(), expectedErr) {
+			t.Errorf("expected error to be %s, got: %s", expectedErr, err.Error())
+		}
+	})
+}
+
+func TestMsg_EmbedFromEmbedFS(t *testing.T) {
+	t.Run("EmbedFromEmbedFS successful", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.EmbedFromEmbedFS("testdata/embed.txt", &efs,
+			WithFileName("embed.txt")); err != nil {
+			t.Fatalf("failed to embed from embed FS: %s", err)
+		}
+		embeds := message.GetEmbeds()
+		if len(embeds) != 1 {
+			t.Fatalf("failed to retrieve embeds list")
+		}
+		if embeds[0] == nil {
+			t.Fatal("expected embed to be not nil")
+		}
+		if embeds[0].Name != "embed.txt" {
+			t.Errorf("expected embed name to be %s, got: %s", "embed.txt", embeds[0].Name)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err := embeds[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("writer func failed: %s", err)
+		}
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "This is a test embed") {
+			t.Errorf("expected message body to be %s, got: %s", "This is a test embed", got)
+		}
+	})
+	t.Run("EmbedFromEmbedFS with invalid path", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		err := message.EmbedFromEmbedFS("testdata/invalid.txt", &efs, WithFileName("embed.txt"))
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
+	t.Run("EmbedFromEmbedFS with nil embed FS", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		err := message.EmbedFromEmbedFS("testdata/invalid.txt", nil, WithFileName("embed.txt"))
+		if err == nil {
+			t.Fatal("expected error, got nil")
 		}
 	})
 }
