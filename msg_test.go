@@ -5816,6 +5816,227 @@ func TestMsg_UpdateReader(t *testing.T) {
 	})
 }
 
+func TestMsg_HasSendError(t *testing.T) {
+	t.Run("HasSendError on unsent message", func(t *testing.T) {
+		message := testMessage(t)
+		if message.HasSendError() {
+			t.Error("HasSendError on unsent message should return false")
+		}
+	})
+	t.Run("HasSendError on sent message", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+
+		message := testMessage(t)
+		if err = client.DialAndSend(message); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+
+		if message.HasSendError() {
+			t.Error("HasSendError on sent message should return false")
+		}
+	})
+	t.Run("HasSendError on failed message delivery", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnDataClose: true,
+				FeatureSet:      featureSet,
+				ListenPort:      serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+
+		message := testMessage(t)
+		if err = client.DialAndSend(message); err == nil {
+			t.Error("message delivery was supposed to fail on data close")
+		}
+		if !message.HasSendError() {
+			t.Error("HasSendError on failed message delivery should return true")
+		}
+	})
+	t.Run("HasSendError on failed message with SendError", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnDataClose: true,
+				FeatureSet:      featureSet,
+				ListenPort:      serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+
+		message := testMessage(t)
+		if err = client.DialAndSend(message); err == nil {
+			t.Error("message delivery was supposed to fail on data close")
+		}
+		if !message.HasSendError() {
+			t.Fatal("HasSendError on failed message delivery should return true")
+		}
+		if message.SendError() == nil {
+			t.Fatal("SendError on failed message delivery should return SendErr")
+		}
+		var sendErr *SendError
+		if !errors.As(message.SendError(), &sendErr) {
+			t.Fatal("expected SendError to return a SendError type")
+		}
+	})
+	t.Run("HasSendError with SendErrorIsTemp", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnDataClose: true,
+				FeatureSet:      featureSet,
+				ListenPort:      serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+
+		message := testMessage(t)
+		if err = client.DialAndSend(message); err == nil {
+			t.Error("message delivery was supposed to fail on data close")
+		}
+		if !message.HasSendError() {
+			t.Error("HasSendError on failed message delivery should return true")
+		}
+		if message.SendErrorIsTemp() {
+			t.Error("SendErrorIsTemp on hard failed message delivery should return false")
+		}
+	})
+	t.Run("HasSendError with SendErrorIsTemp on temp error", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailTemp:   true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+
+		message := testMessage(t)
+		if err = client.DialAndSend(message); err == nil {
+			t.Error("message delivery was supposed to fail on data close")
+		}
+		if !message.HasSendError() {
+			t.Error("HasSendError on failed message delivery should return true")
+		}
+		if !message.SendErrorIsTemp() {
+			t.Error("SendErrorIsTemp on temp failed message delivery should return true")
+		}
+	})
+	t.Run("HasSendError with not a SendErr", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailTemp:   true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+
+		message := testMessage(t)
+		if err = client.DialAndSend(message); err == nil {
+			t.Error("message delivery was supposed to fail on data close")
+		}
+		message.sendError = errors.New("not a SendErr")
+		if !message.HasSendError() {
+			t.Error("HasSendError with not a SendErr should still return true")
+		}
+		if message.SendErrorIsTemp() {
+			t.Error("SendErrorIsTemp on not a SendErr should return false")
+		}
+	})
+}
+
 /*
 // TestMsg_hasAlt tests the hasAlt() method of the Msg
 
