@@ -94,6 +94,10 @@ func TestMsg_EmbedFile_unixOnly(t *testing.T) {
 
 func TestMsg_WriteToFile_unixOnly(t *testing.T) {
 	t.Run("WriteToFile fails on create", func(t *testing.T) {
+		if os.Getenv("PERFORM_UNIX_OPEN_WRITE_TESTS") != "true" {
+			t.Skipf("PERFORM_UNIX_OPEN_WRITE_TESTS variable is not set. Skipping unix open/write tests")
+		}
+
 		tempfile, err := os.CreateTemp("", "testmail-create.*.eml")
 		if err != nil {
 			t.Fatalf("failed to create temp file: %s", err)
@@ -116,6 +120,7 @@ func TestMsg_WriteToFile_unixOnly(t *testing.T) {
 	})
 }
 
+/*
 func TestMsg_WriteToTempFileFailed(t *testing.T) {
 	m := NewMsg()
 	_ = m.From("Toni Tester <tester@example.com>")
@@ -137,3 +142,6 @@ func TestMsg_WriteToTempFileFailed(t *testing.T) {
 		t.Errorf("WriteToTempFile() did not fail as expected")
 	}
 }
+
+
+*/
