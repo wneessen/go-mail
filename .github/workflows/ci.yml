@@ -100,6 +100,9 @@ jobs:
               uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
             - name: 'Dependency Review'
               uses: actions/dependency-review-action@a6993e2c61fd5dc440b409aa1d6904921c5e1894 # v4.3.5
+              with:
+                  base-ref: ${{ github.event.pull_request.base.sha || 'main' }}
+                  head-ref: ${{ github.event.pull_request.head.sha || github.ref }}
     govulncheck:
         name: Go vulnerabilities check
         runs-on: ubuntu-latest
