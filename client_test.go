@@ -3528,9 +3528,9 @@ func parseJSONLog(t *testing.T, buf *bytes.Buffer) logData {
 }
 
 // testMessage configures and returns a new email message for testing, initializing it with valid sender and recipient.
-func testMessage(t *testing.T) *Msg {
+func testMessage(t *testing.T, opts ...MsgOption) *Msg {
 	t.Helper()
-	message := NewMsg()
+	message := NewMsg(opts...)
 	if message == nil {
 		t.Fatal("failed to create new message")
 	}
