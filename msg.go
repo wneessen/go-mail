@@ -2371,8 +2371,8 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sendmailPath strin
 //   - https://datatracker.ietf.org/doc/html/rfc5322
 func (m *Msg) NewReader() *Reader {
 	reader := &Reader{}
-	buffer := bytes.Buffer{}
-	_, err := m.Write(&buffer)
+	buffer := bytes.NewBuffer(nil)
+	_, err := m.Write(buffer)
 	if err != nil {
 		reader.err = fmt.Errorf("failed to write Msg to Reader buffer: %w", err)
 	}
