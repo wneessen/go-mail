@@ -4766,8 +4766,28 @@ func TestMsg_AttachFromEmbedFS(t *testing.T) {
 		if !strings.EqualFold(got, "This is a test attachment") {
 			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment", got)
 		}
-
 	})
+	t.Run("AttachFromEmbedFS with invalid path", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		err := message.AttachFromEmbedFS("testdata/invalid.txt", &efs, WithFileName("attachment.txt"))
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
+	t.Run("AttachFromEmbedFS with nil embed FS", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		err := message.AttachFromEmbedFS("testdata/invalid.txt", nil, WithFileName("attachment.txt"))
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
+
 }
 
 /*
