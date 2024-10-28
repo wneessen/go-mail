@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"mime"
 	"strings"
 	"testing"
@@ -496,6 +497,118 @@ func TestMsgWriter_writeString(t *testing.T) {
 		msgwriter.writeString("thisisatest")
 		if !strings.EqualFold(buffer.String(), "") {
 			t.Errorf("writeString succeeded, expected: empty string, got: %s", buffer.String())
+		}
+	})
+}
+
+func TestMsgWriter_writeHeader(t *testing.T) {
+	msgwriter := &msgWriter{
+		charset: CharsetUTF8,
+		encoder: getEncoder(EncodingQP),
+	}
+	t.Run("writeHeader with single value", func(t *testing.T) {
+		buffer := bytes.NewBuffer(nil)
+		msgwriter.writer = buffer
+		msgwriter.writeHeader(HeaderMessageID, "this.is.a.test")
+		if !strings.EqualFold(buffer.String(), "Message-ID: this.is.a.test\r\n") {
+			t.Errorf("writeHeader failed, expected: %s, got: %s", "Message-ID: this.is.a.test",
+				buffer.String())
+		}
+	})
+	t.Run("writeHeader with multiple values", func(t *testing.T) {
+		buffer := bytes.NewBuffer(nil)
+		msgwriter.writer = buffer
+		msgwriter.writeHeader(HeaderMessageID, "this.is.a.test", "this.as.well")
+		if !strings.EqualFold(buffer.String(), "Message-ID: this.is.a.test, this.as.well\r\n") {
+			t.Errorf("writeHeader failed, expected: %s, got: %s", "Message-ID: this.is.a.test, this.as.well",
+				buffer.String())
+		}
+	})
+	t.Run("writeHeader with no values", func(t *testing.T) {
+		buffer := bytes.NewBuffer(nil)
+		msgwriter.writer = buffer
+		msgwriter.writeHeader(HeaderMessageID)
+		// While technically it is permitted to have empty headers, it's recommend to omit them if
+		// no value is present. We follow this recommendation.
+		if !strings.EqualFold(buffer.String(), "") {
+			t.Errorf("writeHeader failed, expected: %s, got: %s", "", buffer.String())
+		}
+	})
+	t.Run("writeHeader with very long value", func(t *testing.T) {
+		buffer := bytes.NewBuffer(nil)
+		msgwriter.writer = buffer
+		msgwriter.writeHeader(HeaderMessageID, strings.Repeat("a", MaxHeaderLength-13), "next-row")
+		want := "Message-ID:\r\n " + strings.Repeat("a", MaxHeaderLength-13) + ",\r\n next-row\r\n"
+		if !strings.EqualFold(buffer.String(), want) {
+			t.Errorf("writeHeader failed, expected: %s, got: %s", want, buffer.String())
+		}
+	})
+}
+
+func TestMsgWriter_writeBody(t *testing.T) {
+	t.Log("We only cover some edge-cases here, most of the functionality is tested already very thoroughly.")
+
+	msgwriter := &msgWriter{
+		charset: CharsetUTF8,
+		encoder: getEncoder(EncodingQP),
+	}
+	t.Run("writeBody on NoEncoding", func(t *testing.T) {
+		buffer := bytes.NewBuffer(nil)
+		msgwriter.writer = buffer
+		message := testMessage(t)
+		msgwriter.writeBody(message.parts[0].writeFunc, NoEncoding)
+		if msgwriter.err != nil {
+			t.Errorf("writeBody failed to write: %s", msgwriter.err)
+		}
+	})
+	t.Run("writeBody on NoEncoding fails on write", func(t *testing.T) {
+		msgwriter.writer = failReadWriteSeekCloser{}
+		message := testMessage(t)
+		msgwriter.writeBody(message.parts[0].writeFunc, NoEncoding)
+		if msgwriter.err == nil {
+			t.Errorf("writeBody succeeded, expected error")
+		}
+		if !strings.EqualFold(msgwriter.err.Error(), "bodyWriter io.Copy: intentional write failure") {
+			t.Errorf("expected error: bodyWriter io.Copy: intentional write failure, got: %s", msgwriter.err)
+		}
+	})
+	t.Run("writeBody on NoEncoding fails on writeFunc", func(t *testing.T) {
+		buffer := bytes.NewBuffer(nil)
+		msgwriter.writer = buffer
+		writeFunc := func(io.Writer) (int64, error) {
+			return 0, errors.New("intentional write failure")
+		}
+		msgwriter.writeBody(writeFunc, NoEncoding)
+		if msgwriter.err == nil {
+			t.Errorf("writeBody succeeded, expected error")
+		}
+		if !strings.EqualFold(msgwriter.err.Error(), "bodyWriter function: intentional write failure") {
+			t.Errorf("expected error: bodyWriter function: intentional write failure, got: %s", msgwriter.err)
+		}
+	})
+	t.Run("writeBody Quoted-Printable fails on write", func(t *testing.T) {
+		msgwriter.writer = failReadWriteSeekCloser{}
+		message := testMessage(t)
+		msgwriter.writeBody(message.parts[0].writeFunc, EncodingQP)
+		if msgwriter.err == nil {
+			t.Errorf("writeBody succeeded, expected error")
+		}
+		if !strings.EqualFold(msgwriter.err.Error(), "bodyWriter function: intentional write failure") {
+			t.Errorf("expected error: bodyWriter function: intentional write failure, got: %s", msgwriter.err)
+		}
+	})
+	t.Run("writeBody Quoted-Printable fails on writeFunc", func(t *testing.T) {
+		buffer := bytes.NewBuffer(nil)
+		msgwriter.writer = buffer
+		writeFunc := func(io.Writer) (int64, error) {
+			return 0, errors.New("intentional write failure")
+		}
+		msgwriter.writeBody(writeFunc, EncodingQP)
+		if msgwriter.err == nil {
+			t.Errorf("writeBody succeeded, expected error")
+		}
+		if !strings.EqualFold(msgwriter.err.Error(), "bodyWriter function: intentional write failure") {
+			t.Errorf("expected error: bodyWriter function: intentional write failure, got: %s", msgwriter.err)
 		}
 	})
 }
