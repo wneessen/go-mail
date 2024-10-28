@@ -4787,7 +4787,49 @@ func TestMsg_AttachFromEmbedFS(t *testing.T) {
 			t.Fatal("expected error, got nil")
 		}
 	})
+}
 
+func TestMsg_EmbedFile(t *testing.T) {
+	t.Run("EmbedFile with file", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.EmbedFile("testdata/embed.txt")
+		embeds := message.GetEmbeds()
+		if len(embeds) != 1 {
+			t.Fatalf("failed to retrieve embeds list")
+		}
+		if embeds[0] == nil {
+			t.Fatal("expected embed to be not nil")
+		}
+		if embeds[0].Name != "embed.txt" {
+			t.Errorf("expected embed name to be %s, got: %s", "embed.txt", embeds[0].Name)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err := embeds[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("writer func failed: %s", err)
+		}
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "This is a test embed") {
+			t.Errorf("expected message body to be %s, got: %s", "This is a test embed", got)
+		}
+	})
+	t.Run("EmbedFile with non-existant file", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.EmbedFile("testdata/non-existant-file.txt")
+		embeds := message.GetEmbeds()
+		if len(embeds) != 0 {
+			t.Fatalf("failed to retrieve attachments list")
+		}
+	})
+	t.Run("EmbedFile with options", func(t *testing.T) {
+		t.Log("all options have already been tested in file_test.go")
+	})
 }
 
 /*
