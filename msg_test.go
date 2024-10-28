@@ -5269,6 +5269,24 @@ func TestMsg_WriteTo(t *testing.T) {
 			t.Errorf("expected message buffer to contain Testmail, got: %s", got)
 		}
 	})
+	t.Run("WriteTo fails to write", func(t *testing.T) {
+		message := testMessage(t)
+		_, err := message.WriteTo(failReadWriteSeekCloser{})
+		if err == nil {
+			t.Fatalf("writing to failReadWriteSeekCloser should fail")
+		}
+		if strings.EqualFold(err.Error(), "failed to write message to buffer: intentional write failure") {
+			t.Fatalf("expected error to be: failed to write message to buffer: intentional write failure, got: %s",
+				err)
+		}
+	})
+}
+func TestMsg_Write(t *testing.T) {
+	message := testMessage(t)
+	if _, err := message.Write(io.Discard); err != nil {
+		t.Fatalf("failed to write message to io.Discard: %s", err)
+	}
+	t.Log("Write() is just an alias to WriteTo(), which has already been tested.")
 }
 
 func TestMsg_WriteToSkipMiddleware(t *testing.T) {
@@ -5352,39 +5370,6 @@ func TestMsg_WriteToSkipMiddleware(t *testing.T) {
 		m.AttachFile("README.md")
 		if !m.hasMixed() {
 			t.Errorf("mail has mixed parts but hasMixed() returned true")
-		}
-	}
-
-// TestMsg_WriteToSkipMiddleware tests the WriteTo() method of the Msg
-
-	func TestMsg_WriteToSkipMiddleware(t *testing.T) {
-		m := NewMsg(WithMiddleware(encodeMiddleware{}), WithMiddleware(uppercaseMiddleware{}))
-		m.Subject("This is a test")
-		m.SetBodyString(TypeTextPlain, "Plain")
-		wbuf := bytes.Buffer{}
-		n, err := m.WriteToSkipMiddleware(&wbuf, "uppercase")
-		if err != nil {
-			t.Errorf("WriteToSkipMiddleware() failed: %s", err)
-			return
-		}
-		if n != int64(wbuf.Len()) {
-			t.Errorf("WriteToSkipMiddleware() failed: expected written byte length: %d, got: %d", n, wbuf.Len())
-		}
-		if !strings.Contains(wbuf.String(), "Subject: This is @ test") {
-			t.Errorf("WriteToSkipMiddleware failed. Unable to find encoded subject")
-		}
-
-		wbuf2 := bytes.Buffer{}
-		n, err = m.WriteTo(&wbuf2)
-		if err != nil {
-			t.Errorf("WriteTo() failed: %s", err)
-			return
-		}
-		if n != int64(wbuf2.Len()) {
-			t.Errorf("WriteTo() failed: expected written byte length: %d, got: %d", n, wbuf2.Len())
-		}
-		if !strings.Contains(wbuf2.String(), "Subject: THIS IS @ TEST") {
-			t.Errorf("WriteToSkipMiddleware failed. Unable to find encoded and upperchase subject")
 		}
 	}
 
@@ -6762,6 +6747,30 @@ func (mw encodeMiddleware) Handle(m *Msg) *Msg {
 
 func (mw encodeMiddleware) Type() MiddlewareType {
 	return "encode"
+}
+
+// failReadWriteSeekCloser is a type that always returns an error. It satisfies the io.Reader, io.Writer
+// io.Closer, io.Seeker, io.WriteSeeker, io.ReadSeeker, io.ReadCloser and io.WriteCloser interfaces
+type failReadWriteSeekCloser struct{}
+
+// Write satisfies the io.Writer interface for the failReadWriteSeekCloser type
+func (failReadWriteSeekCloser) Write([]byte) (int, error) {
+	return 0, errors.New("intentional write failure")
+}
+
+// Read satisfies the io.Reader interface for the failReadWriteSeekCloser type
+func (failReadWriteSeekCloser) Read([]byte) (int, error) {
+	return 0, errors.New("intentional read failure")
+}
+
+// Seek satisfies the io.Seeker interface for the failReadWriteSeekCloser type
+func (failReadWriteSeekCloser) Seek(int64, int) (int64, error) {
+	return 0, errors.New("intentional seek failure")
+}
+
+// Close satisfies the io.Closer interface for the failReadWriteSeekCloser type
+func (failReadWriteSeekCloser) Close() error {
+	return errors.New("intentional close failure")
 }
 
 // checkAddrHeader verifies the correctness of an AddrHeader in a Msg based on the provided criteria.
