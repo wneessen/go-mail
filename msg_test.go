@@ -5271,38 +5271,56 @@ func TestMsg_WriteTo(t *testing.T) {
 	})
 }
 
+func TestMsg_WriteToSkipMiddleware(t *testing.T) {
+	t.Run("WriteToSkipMiddleware with two middlewares, skipping uppercase", func(t *testing.T) {
+		message := NewMsg(WithMiddleware(encodeMiddleware{}), WithMiddleware(uppercaseMiddleware{}))
+		if message == nil {
+			t.Fatal("failed to create new message")
+		}
+		if err := message.From(TestSenderValid); err != nil {
+			t.Errorf("failed to set sender address: %s", err)
+		}
+		if err := message.To(TestRcptValid); err != nil {
+			t.Errorf("failed to set recipient address: %s", err)
+		}
+		message.Subject("This is a test subject")
+		message.SetBodyString(TypeTextPlain, "Testmail")
+
+		buffer := bytes.NewBuffer(nil)
+		if _, err := message.WriteToSkipMiddleware(buffer, uppercaseMiddleware{}.Type()); err != nil {
+			t.Fatalf("failed to write message with middleware to buffer: %s", err)
+		}
+		parsed, err := EMLToMsgFromReader(buffer)
+		if err != nil {
+			t.Fatalf("failed to parse message in buffer: %s", err)
+		}
+		checkAddrHeader(t, parsed, HeaderFrom, "WriteTo", 0, 1, TestSenderValid, "")
+		checkAddrHeader(t, parsed, HeaderTo, "WriteTo", 0, 1, TestRcptValid, "")
+		checkGenHeader(t, parsed, HeaderSubject, "WriteTo", 0, 1, "This is @ test subject")
+		parts := parsed.GetParts()
+		if len(parts) != 1 {
+			t.Fatalf("expected 1 parts, got: %d", len(parts))
+		}
+		if parts[0].contentType != TypeTextPlain {
+			t.Errorf("expected contentType to be %s, got: %s", TypeTextPlain, parts[0].contentType)
+		}
+		if parts[0].encoding != EncodingQP {
+			t.Errorf("expected encoding to be %s, got: %s", EncodingQP, parts[0].encoding)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err = parts[0].writeFunc(messageBuf)
+		if err != nil {
+			t.Errorf("writer func failed: %s", err)
+		}
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.HasSuffix(got, "Testmail") {
+			t.Errorf("expected message buffer to contain Testmail, got: %s", got)
+		}
+	})
+}
+
 /*
 // TestApplyMiddlewares tests the applyMiddlewares for the Msg object
-
-	func TestApplyMiddlewares(t *testing.T) {
-		tests := []struct {
-			name string
-			sub  string
-			want string
-		}{
-			{"normal subject", "This is a test subject", "THIS IS @ TEST SUBJECT"},
-			{"subject with one middleware effect", "This is test subject", "THIS IS TEST SUBJECT"},
-			{"subject with one middleware effect", "This is A test subject", "THIS IS A TEST SUBJECT"},
-		}
-		m := NewMsg(WithMiddleware(encodeMiddleware{}), WithMiddleware(uppercaseMiddleware{}))
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				m.Subject(tt.sub)
-				if m.genHeader[HeaderSubject] == nil {
-					t.Errorf("Subject() method failed in applyMiddlewares() test. Generic header for subject is empty")
-					return
-				}
-				m = m.applyMiddlewares(m)
-				s, ok := m.genHeader[HeaderSubject]
-				if !ok {
-					t.Errorf("failed to get subject header")
-				}
-				if s[0] != tt.want {
-					t.Errorf("applyMiddlewares() method failed. Expected: %s, got: %s", tt.want, s[0])
-				}
-			})
-		}
-	}
 
 // TestMsg_hasAlt tests the hasAlt() method of the Msg
 
@@ -5334,22 +5352,6 @@ func TestMsg_WriteTo(t *testing.T) {
 		m.AttachFile("README.md")
 		if !m.hasMixed() {
 			t.Errorf("mail has mixed parts but hasMixed() returned true")
-		}
-	}
-
-// TestMsg_WriteTo tests the WriteTo() method of the Msg
-
-	func TestMsg_WriteTo(t *testing.T) {
-		m := NewMsg()
-		m.SetBodyString(TypeTextPlain, "Plain")
-		wbuf := bytes.Buffer{}
-		n, err := m.WriteTo(&wbuf)
-		if err != nil {
-			t.Errorf("WriteTo() failed: %s", err)
-			return
-		}
-		if n != int64(wbuf.Len()) {
-			t.Errorf("WriteTo() failed: expected written byte length: %d, got: %d", n, wbuf.Len())
 		}
 	}
 
