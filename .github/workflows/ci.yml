@@ -214,7 +214,7 @@ jobs:
                   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
                   SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
             - name: SonarQube quality gate
-              uses: sonarsource/sonarqube-quality-gate-action@dc2f7b0dd95544cd550de3028f89193576e958b9 # master
+              uses: sonarsource/sonarqube-quality-gate-action@8406f4f1edaffef38e9fb9c53eb292fc1d7684fa # master
               timeout-minutes: 5
               env:
                   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
