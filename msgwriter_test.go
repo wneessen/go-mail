@@ -620,7 +620,7 @@ func TestMsgWriter_writeBody(t *testing.T) {
 		buffer := bytes.NewBuffer(nil)
 		msgwriter.writer = buffer
 		message := testMessage(t)
-		msgwriter.writeBody(message.parts[0].writeFunc, NoEncoding)
+		msgwriter.writeBody(message.parts[0].writeFunc, NoEncoding, false)
 		if msgwriter.err != nil {
 			t.Errorf("writeBody failed to write: %s", msgwriter.err)
 		}
@@ -628,7 +628,7 @@ func TestMsgWriter_writeBody(t *testing.T) {
 	t.Run("writeBody on NoEncoding fails on write", func(t *testing.T) {
 		msgwriter.writer = failReadWriteSeekCloser{}
 		message := testMessage(t)
-		msgwriter.writeBody(message.parts[0].writeFunc, NoEncoding)
+		msgwriter.writeBody(message.parts[0].writeFunc, NoEncoding, false)
 		if msgwriter.err == nil {
 			t.Errorf("writeBody succeeded, expected error")
 		}
@@ -642,7 +642,7 @@ func TestMsgWriter_writeBody(t *testing.T) {
 		writeFunc := func(io.Writer) (int64, error) {
 			return 0, errors.New("intentional write failure")
 		}
-		msgwriter.writeBody(writeFunc, NoEncoding)
+		msgwriter.writeBody(writeFunc, NoEncoding, false)
 		if msgwriter.err == nil {
 			t.Errorf("writeBody succeeded, expected error")
 		}
@@ -653,7 +653,7 @@ func TestMsgWriter_writeBody(t *testing.T) {
 	t.Run("writeBody Quoted-Printable fails on write", func(t *testing.T) {
 		msgwriter.writer = failReadWriteSeekCloser{}
 		message := testMessage(t)
-		msgwriter.writeBody(message.parts[0].writeFunc, EncodingQP)
+		msgwriter.writeBody(message.parts[0].writeFunc, EncodingQP, false)
 		if msgwriter.err == nil {
 			t.Errorf("writeBody succeeded, expected error")
 		}
@@ -667,7 +667,7 @@ func TestMsgWriter_writeBody(t *testing.T) {
 		writeFunc := func(io.Writer) (int64, error) {
 			return 0, errors.New("intentional write failure")
 		}
-		msgwriter.writeBody(writeFunc, EncodingQP)
+		msgwriter.writeBody(writeFunc, EncodingQP, false)
 		if msgwriter.err == nil {
 			t.Errorf("writeBody succeeded, expected error")
 		}
