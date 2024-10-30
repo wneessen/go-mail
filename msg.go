@@ -654,6 +654,9 @@ func (m *Msg) SetAddrHeader(header AddrHeader, values ...string) error {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
 func (m *Msg) SetAddrHeaderIgnoreInvalid(header AddrHeader, values ...string) {
+	if m.addrHeader == nil {
+		m.addrHeader = make(map[AddrHeader][]*mail.Address)
+	}
 	var addresses []*mail.Address
 	for _, addrVal := range values {
 		address, err := mail.ParseAddress(m.encodeString(addrVal))
@@ -662,7 +665,14 @@ func (m *Msg) SetAddrHeaderIgnoreInvalid(header AddrHeader, values ...string) {
 		}
 		addresses = append(addresses, address)
 	}
-	m.addrHeader[header] = addresses
+	switch header {
+	case HeaderFrom:
+		if len(addresses) > 0 {
+			m.addrHeader[header] = []*mail.Address{addresses[0]}
+		}
+	default:
+		m.addrHeader[header] = addresses
+	}
 }
 
 // EnvelopeFrom sets the envelope from address for the Msg.
@@ -814,7 +824,16 @@ func (m *Msg) ToIgnoreInvalid(rcpts ...string) {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) ToFromString(rcpts string) error {
-	return m.To(strings.Split(rcpts, ",")...)
+	src := strings.Split(rcpts, ",")
+	var dst []string
+	for _, address := range src {
+		address = strings.TrimSpace(address)
+		if address == "" {
+			continue
+		}
+		dst = append(dst, address)
+	}
+	return m.To(dst...)
 }
 
 // Cc sets one or more "CC" (carbon copy) addresses in the mail body for the Msg.
@@ -899,7 +918,16 @@ func (m *Msg) CcIgnoreInvalid(rcpts ...string) {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) CcFromString(rcpts string) error {
-	return m.Cc(strings.Split(rcpts, ",")...)
+	src := strings.Split(rcpts, ",")
+	var dst []string
+	for _, address := range src {
+		address = strings.TrimSpace(address)
+		if address == "" {
+			continue
+		}
+		dst = append(dst, address)
+	}
+	return m.Cc(dst...)
 }
 
 // Bcc sets one or more "BCC" (blind carbon copy) addresses in the mail body for the Msg.
@@ -985,7 +1013,16 @@ func (m *Msg) BccIgnoreInvalid(rcpts ...string) {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) BccFromString(rcpts string) error {
-	return m.Bcc(strings.Split(rcpts, ",")...)
+	src := strings.Split(rcpts, ",")
+	var dst []string
+	for _, address := range src {
+		address = strings.TrimSpace(address)
+		if address == "" {
+			continue
+		}
+		dst = append(dst, address)
+	}
+	return m.Bcc(dst...)
 }
 
 // ReplyTo sets the "Reply-To" address for the Msg, specifying where replies should be sent.
@@ -1121,8 +1158,7 @@ func (m *Msg) SetBulk() {
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.3
 //   - https://datatracker.ietf.org/doc/html/rfc1123
 func (m *Msg) SetDate() {
-	now := time.Now().Format(time.RFC1123Z)
-	m.SetGenHeader(HeaderDate, now)
+	m.SetDateWithValue(time.Now())
 }
 
 // SetDateWithValue sets the "Date" header for the Msg using the provided time value in a valid RFC 1123 format.
@@ -1222,6 +1258,9 @@ func (m *Msg) IsDelivered() bool {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc8098
 func (m *Msg) RequestMDNTo(rcpts ...string) error {
+	if m.genHeader == nil {
+		m.genHeader = make(map[Header][]string)
+	}
 	var addresses []string
 	for _, addrVal := range rcpts {
 		address, err := mail.ParseAddress(addrVal)
@@ -1230,9 +1269,7 @@ func (m *Msg) RequestMDNTo(rcpts ...string) error {
 		}
 		addresses = append(addresses, address.String())
 	}
-	if _, ok := m.genHeader[HeaderDispositionNotificationTo]; ok {
-		m.genHeader[HeaderDispositionNotificationTo] = addresses
-	}
+	m.genHeader[HeaderDispositionNotificationTo] = addresses
 	return nil
 }
 
@@ -1271,11 +1308,11 @@ func (m *Msg) RequestMDNAddTo(rcpt string) error {
 		return fmt.Errorf(errParseMailAddr, rcpt, err)
 	}
 	var addresses []string
-	addresses = append(addresses, m.genHeader[HeaderDispositionNotificationTo]...)
-	addresses = append(addresses, address.String())
-	if _, ok := m.genHeader[HeaderDispositionNotificationTo]; ok {
-		m.genHeader[HeaderDispositionNotificationTo] = addresses
+	if current, ok := m.genHeader[HeaderDispositionNotificationTo]; ok {
+		addresses = current
 	}
+	addresses = append(addresses, address.String())
+	m.genHeader[HeaderDispositionNotificationTo] = addresses
 	return nil
 }
 
@@ -1715,11 +1752,11 @@ func (m *Msg) SetBodyHTMLTemplate(tpl *ht.Template, data interface{}, opts ...Pa
 	if tpl == nil {
 		return errors.New(errTplPointerNil)
 	}
-	buffer := bytes.Buffer{}
-	if err := tpl.Execute(&buffer, data); err != nil {
+	buffer := bytes.NewBuffer(nil)
+	if err := tpl.Execute(buffer, data); err != nil {
 		return fmt.Errorf(errTplExecuteFailed, err)
 	}
-	writeFunc := writeFuncFromBuffer(&buffer)
+	writeFunc := writeFuncFromBuffer(buffer)
 	m.SetBodyWriter(TypeTextHTML, writeFunc, opts...)
 	return nil
 }
@@ -1746,11 +1783,11 @@ func (m *Msg) SetBodyTextTemplate(tpl *tt.Template, data interface{}, opts ...Pa
 	if tpl == nil {
 		return errors.New(errTplPointerNil)
 	}
-	buf := bytes.Buffer{}
-	if err := tpl.Execute(&buf, data); err != nil {
+	buffer := bytes.NewBuffer(nil)
+	if err := tpl.Execute(buffer, data); err != nil {
 		return fmt.Errorf(errTplExecuteFailed, err)
 	}
-	writeFunc := writeFuncFromBuffer(&buf)
+	writeFunc := writeFuncFromBuffer(buffer)
 	m.SetBodyWriter(TypeTextPlain, writeFunc, opts...)
 	return nil
 }
@@ -1820,11 +1857,11 @@ func (m *Msg) AddAlternativeHTMLTemplate(tpl *ht.Template, data interface{}, opt
 	if tpl == nil {
 		return errors.New(errTplPointerNil)
 	}
-	buffer := bytes.Buffer{}
-	if err := tpl.Execute(&buffer, data); err != nil {
+	buffer := bytes.NewBuffer(nil)
+	if err := tpl.Execute(buffer, data); err != nil {
 		return fmt.Errorf(errTplExecuteFailed, err)
 	}
-	writeFunc := writeFuncFromBuffer(&buffer)
+	writeFunc := writeFuncFromBuffer(buffer)
 	m.AddAlternativeWriter(TypeTextHTML, writeFunc, opts...)
 	return nil
 }
@@ -1850,11 +1887,11 @@ func (m *Msg) AddAlternativeTextTemplate(tpl *tt.Template, data interface{}, opt
 	if tpl == nil {
 		return errors.New(errTplPointerNil)
 	}
-	buffer := bytes.Buffer{}
-	if err := tpl.Execute(&buffer, data); err != nil {
+	buffer := bytes.NewBuffer(nil)
+	if err := tpl.Execute(buffer, data); err != nil {
 		return fmt.Errorf(errTplExecuteFailed, err)
 	}
-	writeFunc := writeFuncFromBuffer(&buffer)
+	writeFunc := writeFuncFromBuffer(buffer)
 	m.AddAlternativeWriter(TypeTextPlain, writeFunc, opts...)
 	return nil
 }
@@ -2451,8 +2488,8 @@ func (m *Msg) WriteToSendmailWithContext(ctx context.Context, sendmailPath strin
 //   - https://datatracker.ietf.org/doc/html/rfc5322
 func (m *Msg) NewReader() *Reader {
 	reader := &Reader{}
-	buffer := bytes.Buffer{}
-	_, err := m.Write(&buffer)
+	buffer := bytes.NewBuffer(nil)
+	_, err := m.Write(buffer)
 	if err != nil {
 		reader.err = fmt.Errorf("failed to write Msg to Reader buffer: %w", err)
 	}

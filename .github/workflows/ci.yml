@@ -1,0 +1,221 @@
+# SPDX-FileCopyrightText: 2024 The go-mail Authors
+#
+# SPDX-License-Identifier: MIT
+
+name: CI
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+
+jobs:
+    codecov:
+        name: Test with Codecov coverage (${{ matrix.os }} / ${{ matrix.go }})
+        runs-on: ${{ matrix.os }}
+        concurrency:
+            group: ci-codecov-${{ matrix.os }}-${{ matrix.go }}
+            cancel-in-progress: true
+        strategy:
+            matrix:
+                os: [ubuntu-latest]
+                go: ['1.23']
+        env:
+            PERFORM_ONLINE_TEST: ${{ vars.PERFORM_ONLINE_TEST }}
+            PERFORM_UNIX_OPEN_WRITE_TESTS: ${{ vars.PERFORM_UNIX_OPEN_WRITE_TESTS }}
+            PERFORM_SENDMAIL_TESTS: ${{ vars.PERFORM_SENDMAIL_TESTS }}
+            TEST_HOST: ${{ secrets.TEST_HOST }}
+            TEST_USER: ${{ secrets.TEST_USER }}
+            TEST_PASS: ${{ secrets.TEST_PASS }}
+        steps:
+            - name: Harden Runner
+              uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+              with:
+                  egress-policy: audit
+            - name: Checkout Code
+              uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
+            - name: Setup go
+              uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+              with:
+                  go-version: ${{ matrix.go }}
+                  check-latest: true
+            - name: Install sendmail
+              run: |
+                sudo apt-get -y update >/dev/null && sudo apt-get -y upgrade >/dev/null && sudo DEBIAN_FRONTEND=noninteractive apt-get -y install nullmailer >/dev/null && which sendmail
+            - name: Run go test
+              if: success()
+              run: |
+                go test -race -shuffle=on --coverprofile=coverage.coverprofile --covermode=atomic ./...
+            - name: Upload coverage to Codecov
+              if: success()
+              uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4.6.0
+              with:
+                  token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
+    lint:
+        name: golangci-lint (${{ matrix.go }})
+        runs-on: ubuntu-latest
+        concurrency:
+            group: ci-lint-${{ matrix.go }}
+            cancel-in-progress: true
+        strategy:
+            matrix:
+                go: ['1.23']
+        steps:
+            - name: Harden Runner
+              uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+              with:
+                  egress-policy: audit
+            - name: Setup go
+              uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+              with:
+                  go-version: ${{ matrix.go }}
+                  check-latest: true
+            - name: Checkout Code
+              uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
+            - name: golangci-lint
+              uses: golangci/golangci-lint-action@971e284b6050e8a5849b72094c50ab08da042db8 # v6.1.1
+              with:
+                  version: latest
+    dependency-review:
+        name: Dependency review
+        runs-on: ubuntu-latest
+        concurrency:
+            group: ci-dependency-review
+            cancel-in-progress: true
+        steps:
+            - name: Harden Runner
+              uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+              with:
+                  egress-policy: audit
+            - name: Checkout Code
+              uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
+            - name: 'Dependency Review'
+              uses: actions/dependency-review-action@4081bf99e2866ebe428fc0477b69eb4fcda7220a # v4.4.0
+              with:
+                  base-ref: ${{ github.event.pull_request.base.sha || 'main' }}
+                  head-ref: ${{ github.event.pull_request.head.sha || github.ref }}
+    govulncheck:
+        name: Go vulnerabilities check
+        runs-on: ubuntu-latest
+        concurrency:
+            group: ci-govulncheck
+            cancel-in-progress: true
+        steps:
+            - name: Harden Runner
+              uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+              with:
+                  egress-policy: audit
+            - name: Run govulncheck
+              uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee # v1.0.4
+    test:
+        name: Test (${{ matrix.os }} / ${{ matrix.go }})
+        runs-on: ${{ matrix.os }}
+        concurrency:
+            group: ci-test-${{ matrix.os }}-${{ matrix.go }}
+            cancel-in-progress: true
+        strategy:
+            matrix:
+                os: [ubuntu-latest, macos-latest, windows-latest]
+                go: ['1.19', '1.20', '1.21', '1.22', '1.23']
+        steps:
+            - name: Harden Runner
+              uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+              with:
+                  egress-policy: audit
+            - name: Checkout Code
+              uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
+            - name: Setup go
+              uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+              with:
+                  go-version: ${{ matrix.go }}
+            - name: Run go test
+              run: |
+                go test -race -shuffle=on ./...
+    test-fbsd:
+        name: Test on FreeBSD ${{ matrix.osver }}
+        runs-on: ubuntu-latest
+        concurrency:
+            group: ci-test-freebsd-${{ matrix.osver }}
+            cancel-in-progress: true
+        strategy:
+            matrix:
+                osver: ['14.1', '14.0', 13.4']
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
+            - name: Run go test on FreeBSD
+              uses: vmactions/freebsd-vm@v1
+              with:
+                  usesh: true
+                  copyback: false
+                  prepare: |
+                    pkg install -y go
+                  run: |
+                    cd $GITHUB_WORKSPACE;
+                    go test -race -shuffle=on ./...
+    reuse:
+        name: REUSE Compliance Check
+        runs-on: ubuntu-latest
+        concurrency:
+            group: ci-reuse
+            cancel-in-progress: true
+        steps:
+            - name: Harden Runner
+              uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+              with:
+                  egress-policy: audit
+            - name: Checkout Code
+              uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
+            - name: REUSE Compliance Check
+              uses: fsfe/reuse-action@3ae3c6bdf1257ab19397fab11fd3312144692083 # v4.0.0
+    sonarqube:
+        name: Test with SonarQube review (${{ matrix.os }} / ${{ matrix.go }})
+        runs-on: ${{ matrix.os }}
+        concurrency:
+            group: ci-codecov-${{ matrix.go }}
+            cancel-in-progress: true
+        strategy:
+            matrix:
+                os: [ubuntu-latest]
+                go: ['1.23']
+        env:
+            PERFORM_ONLINE_TEST: ${{ vars.PERFORM_ONLINE_TEST }}
+            TEST_HOST: ${{ secrets.TEST_HOST }}
+            TEST_USER: ${{ secrets.TEST_USER }}
+            TEST_PASS: ${{ secrets.TEST_PASS }}
+        steps:
+            - name: Harden Runner
+              uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+              with:
+                  egress-policy: audit
+            - name: Checkout Code
+              uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
+            - name: Setup go
+              uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+              with:
+                  go-version: ${{ matrix.go }}
+                  check-latest: true
+            - name: Run go test
+              run: |
+                go test -shuffle=on -race --coverprofile=./cov.out ./...
+            - name: SonarQube scan
+              uses: sonarsource/sonarqube-scan-action@884b79409bbd464b2a59edc326a4b77dc56b2195 # master
+              if: success()
+              env:
+                  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+                  SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+            - name: SonarQube quality gate
+              uses: sonarsource/sonarqube-quality-gate-action@8406f4f1edaffef38e9fb9c53eb292fc1d7684fa # master
+              timeout-minutes: 5
+              env:
+                  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+                  SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}

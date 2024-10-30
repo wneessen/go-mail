@@ -145,6 +145,9 @@ type (
 		// isEncrypted indicates wether the Client connection is encrypted or not.
 		isEncrypted bool
 
+		// logAuthData indicates whether authentication-related data should be logged.
+		logAuthData bool
+
 		// logger is a logger that satisfies the log.Logger interface.
 		logger log.Logger
 
@@ -239,6 +242,12 @@ var (
 	// provided as argument to the WithDSN Option.
 	ErrInvalidDSNRcptNotifyCombination = errors.New("DSN rcpt notify option NEVER cannot be " +
 		"combined with any of SUCCESS, FAILURE or DELAY")
+
+	// ErrSMTPAuthMethodIsNil indicates that the SMTP authentication method provided is nil
+	ErrSMTPAuthMethodIsNil = errors.New("SMTP auth method is nil")
+
+	// ErrDialContextFuncIsNil indicates that a required dial context function is not provided.
+	ErrDialContextFuncIsNil = errors.New("dial context function is nil")
 )
 
 // NewClient creates a new Client instance with the provided host and optional configuration Option functions.
@@ -256,11 +265,12 @@ var (
 //   - An error if any critical default values are missing or options fail to apply.
 func NewClient(host string, opts ...Option) (*Client, error) {
 	c := &Client{
-		connTimeout: DefaultTimeout,
-		host:        host,
-		port:        DefaultPort,
-		tlsconfig:   &tls.Config{ServerName: host, MinVersion: DefaultTLSMinVersion},
-		tlspolicy:   DefaultTLSPolicy,
+		smtpAuthType: SMTPAuthNoAuth,
+		connTimeout:  DefaultTimeout,
+		host:         host,
+		port:         DefaultPort,
+		tlsconfig:    &tls.Config{ServerName: host, MinVersion: DefaultTLSMinVersion},
+		tlspolicy:    DefaultTLSPolicy,
 	}
 
 	// Set default HELO/EHLO hostname
@@ -364,9 +374,10 @@ func WithSSLPort(fallback bool) Option {
 // WithDebugLog enables debug logging for the Client.
 //
 // This function activates debug logging, which logs incoming and outgoing communication between the
-// Client and the SMTP server to os.Stderr. Be cautious when using this option, as the logs may include
-// unencrypted authentication data, depending on the SMTP authentication method in use, which could
-// pose a data protection risk.
+// Client and the SMTP server to os.Stderr. By default the debug logging will redact any kind of SMTP
+// authentication data. If you need access to the actual authentication data in your logs, you can
+// enable authentication data logging with the WithLogAuthData option or by setting it with the
+// Client.SetLogAuthData method.
 //
 // Returns:
 //   - An Option function that enables debug logging for the Client.
@@ -505,6 +516,9 @@ func WithSMTPAuth(authtype SMTPAuthType) Option {
 //   - An Option function that sets the custom SMTP authentication for the Client.
 func WithSMTPAuthCustom(smtpAuth smtp.Auth) Option {
 	return func(c *Client) error {
+		if smtpAuth == nil {
+			return ErrSMTPAuthMethodIsNil
+		}
 		c.smtpAuth = smtpAuth
 		c.smtpAuthType = SMTPAuthCustom
 		return nil
@@ -666,7 +680,26 @@ func WithoutNoop() Option {
 //   - An Option function that sets the custom DialContextFunc for the Client.
 func WithDialContextFunc(dialCtxFunc DialContextFunc) Option {
 	return func(c *Client) error {
+		if dialCtxFunc == nil {
+			return ErrDialContextFuncIsNil
+		}
 		c.dialContextFunc = dialCtxFunc
+		return nil
+	}
+}
+
+// WithLogAuthData enables logging of authentication data.
+//
+// This function sets the logAuthData field of the Client to true, enabling the logging of authentication data.
+//
+// Be cautious when using this option, as the logs may include unencrypted authentication data, depending on
+// the SMTP authentication method in use, which could pose a data protection risk.
+//
+// Returns:
+//   - An Option function that configures the Client to enable authentication data logging.
+func WithLogAuthData() Option {
+	return func(c *Client) error {
+		c.logAuthData = true
 		return nil
 	}
 }
@@ -718,6 +751,7 @@ func (c *Client) SetTLSPolicy(policy TLSPolicy) {
 func (c *Client) SetTLSPortPolicy(policy TLSPolicy) {
 	if c.port == DefaultPort {
 		c.port = DefaultPortTLS
+		c.fallbackPort = 0
 
 		if policy == TLSOpportunistic {
 			c.fallbackPort = DefaultPort
@@ -865,6 +899,19 @@ func (c *Client) SetSMTPAuthCustom(smtpAuth smtp.Auth) {
 	c.smtpAuthType = SMTPAuthCustom
 }
 
+// SetLogAuthData sets or overrides the logging of SMTP authentication data for the Client.
+//
+// This function sets the logAuthData field of the Client to true, enabling the logging of authentication data.
+//
+// Be cautious when using this option, as the logs may include unencrypted authentication data, depending on
+// the SMTP authentication method in use, which could pose a data protection risk.
+//
+// Parameters:
+//   - logAuth: Set wether or not to log SMTP authentication data for the Client.
+func (c *Client) SetLogAuthData(logAuth bool) {
+	c.logAuthData = logAuth
+}
+
 // DialWithContext establishes a connection to the server using the provided context.Context.
 //
 // This function adds a deadline based on the Client's timeout to the provided context.Context
@@ -920,6 +967,9 @@ func (c *Client) DialWithContext(dialCtx context.Context) error {
 	}
 	if c.useDebugLog {
 		c.smtpClient.SetDebugLog(true)
+	}
+	if c.logAuthData {
+		c.smtpClient.SetLogAuthData()
 	}
 	if err = c.smtpClient.Hello(c.helo); err != nil {
 		return err
@@ -1028,19 +1078,23 @@ func (c *Client) DialAndSendWithContext(ctx context.Context, messages ...*Msg) e
 // determines the supported authentication methods, and applies the appropriate authentication
 // type. An error is returned if authentication fails.
 //
-// This method first verifies the connection to the SMTP server. If no custom authentication
-// mechanism is provided, it checks which authentication methods are supported by the server.
-// Based on the configured SMTPAuthType, it sets up the appropriate authentication mechanism.
+// By default NewClient sets the SMTP authentication type to SMTPAuthNoAuth, meaning, that no
+// SMTP authentication will be performed. If the user makes use of SetSMTPAuth or initialzes the
+// client with WithSMTPAuth, the SMTP authentication type will be set in the Client, forcing
+// this method to determine if the server supports the selected authentication method and
+// assigning the corresponding smtp.Auth function to it.
+//
+// If the user set a custom SMTP authentication function using SetSMTPAuthCustom or
+// WithSMTPAuthCustom, we will not perform any detection and assignment logic and will trust
+// the user with their provided smtp.Auth function.
+//
 // Finally, it attempts to authenticate the client using the selected method.
 //
 // Returns:
 //   - An error if the connection check fails, if no supported authentication method is found,
 //     or if the authentication process fails.
 func (c *Client) auth() error {
-	if err := c.checkConn(); err != nil {
-		return fmt.Errorf("failed to authenticate: %w", err)
-	}
-	if c.smtpAuth == nil && c.smtpAuthType != SMTPAuthCustom {
+	if c.smtpAuth == nil && c.smtpAuthType != SMTPAuthNoAuth {
 		hasSMTPAuth, smtpAuthType := c.smtpClient.Extension("AUTH")
 		if !hasSMTPAuth {
 			return fmt.Errorf("server does not support SMTP AUTH")
@@ -1051,12 +1105,22 @@ func (c *Client) auth() error {
 			if !strings.Contains(smtpAuthType, string(SMTPAuthPlain)) {
 				return ErrPlainAuthNotSupported
 			}
-			c.smtpAuth = smtp.PlainAuth("", c.user, c.pass, c.host)
+			c.smtpAuth = smtp.PlainAuth("", c.user, c.pass, c.host, false)
+		case SMTPAuthPlainNoEnc:
+			if !strings.Contains(smtpAuthType, string(SMTPAuthPlain)) {
+				return ErrPlainAuthNotSupported
+			}
+			c.smtpAuth = smtp.PlainAuth("", c.user, c.pass, c.host, true)
 		case SMTPAuthLogin:
 			if !strings.Contains(smtpAuthType, string(SMTPAuthLogin)) {
 				return ErrLoginAuthNotSupported
 			}
-			c.smtpAuth = smtp.LoginAuth(c.user, c.pass, c.host)
+			c.smtpAuth = smtp.LoginAuth(c.user, c.pass, c.host, false)
+		case SMTPAuthLoginNoEnc:
+			if !strings.Contains(smtpAuthType, string(SMTPAuthLogin)) {
+				return ErrLoginAuthNotSupported
+			}
+			c.smtpAuth = smtp.LoginAuth(c.user, c.pass, c.host, true)
 		case SMTPAuthCramMD5:
 			if !strings.Contains(smtpAuthType, string(SMTPAuthCramMD5)) {
 				return ErrCramMD5AuthNotSupported
@@ -1197,24 +1261,17 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 			affectedMsg: message,
 		}
 	}
-	message.isDelivered = true
-
 	if err = writer.Close(); err != nil {
 		return &SendError{
 			Reason: ErrSMTPDataClose, errlist: []error{err}, isTemp: isTempError(err),
 			affectedMsg: message,
 		}
 	}
+	message.isDelivered = true
 
 	if err = c.Reset(); err != nil {
 		return &SendError{
 			Reason: ErrSMTPReset, errlist: []error{err}, isTemp: isTempError(err),
-			affectedMsg: message,
-		}
-	}
-	if err = c.checkConn(); err != nil {
-		return &SendError{
-			Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err),
 			affectedMsg: message,
 		}
 	}
@@ -1234,6 +1291,9 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 //   - An error if there is no active connection, if the NOOP command fails, or if extending
 //     the deadline fails; otherwise, returns nil.
 func (c *Client) checkConn() error {
+	if c.smtpClient == nil {
+		return ErrNoActiveConnection
+	}
 	if !c.smtpClient.HasConnection() {
 		return ErrNoActiveConnection
 	}
@@ -1292,9 +1352,6 @@ func (c *Client) setDefaultHelo() error {
 //   - An error if there is no active connection, if STARTTLS is required but not supported,
 //     or if there are issues during the TLS handshake; otherwise, returns nil.
 func (c *Client) tls() error {
-	if !c.smtpClient.HasConnection() {
-		return ErrNoActiveConnection
-	}
 	if !c.useSSL && c.tlspolicy != NoTLS {
 		hasStartTLS := false
 		extension, _ := c.smtpClient.Extension("STARTTLS")

@@ -4,7 +4,11 @@
 
 package mail
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"strings"
+)
 
 // SMTPAuthType is a type wrapper for a string type. It represents the type of SMTP authentication
 // mechanism to be used.
@@ -35,7 +39,7 @@ const (
 	// IETF draft. The IETF draft is more lax than the MS spec, therefore we follow the I-D, which
 	// automatically matches the MS spec.
 	//
-	// Since the "LOGIN" SASL authentication mechansim transmits the username and password in
+	// Since the "LOGIN" SASL authentication mechanism transmits the username and password in
 	// plaintext over the internet connection, we only allow this mechanism over a TLS secured
 	// connection.
 	//
@@ -44,19 +48,52 @@ const (
 	// https://datatracker.ietf.org/doc/html/draft-murchison-sasl-login-00
 	SMTPAuthLogin SMTPAuthType = "LOGIN"
 
+	// SMTPAuthLoginNoEnc is the "LOGIN" SASL authentication mechanism. This authentication mechanism
+	// does not have an official RFC that could be followed. There is a spec by Microsoft and an
+	// IETF draft. The IETF draft is more lax than the MS spec, therefore we follow the I-D, which
+	// automatically matches the MS spec.
+	//
+	// Since the "LOGIN" SASL authentication mechanism transmits the username and password in
+	// plaintext over the internet connection, by default we only allow this mechanism over
+	// a TLS secured connection. This authentiation mechanism overrides this default and will
+	// allow LOGIN authentication via an unencrypted channel. This can be useful if the
+	// connection has already been secured in a different way (e. g. a SSH tunnel)
+	//
+	// Note: Use this authentication method with caution. If used in the wrong way, you might
+	// expose your authentication information over unencrypted channels!
+	//
+	// https://msopenspecs.azureedge.net/files/MS-XLOGIN/%5bMS-XLOGIN%5d.pdf
+	//
+	// https://datatracker.ietf.org/doc/html/draft-murchison-sasl-login-00
+	SMTPAuthLoginNoEnc SMTPAuthType = "LOGIN-NOENC"
+
 	// SMTPAuthNoAuth is equivalent to performing no authentication at all. It is a convenience
 	// option and should not be used. Instead, for mail servers that do no support/require
 	// authentication, the Client should not be passed the WithSMTPAuth option at all.
-	SMTPAuthNoAuth SMTPAuthType = ""
+	SMTPAuthNoAuth SMTPAuthType = "NOAUTH"
 
 	// SMTPAuthPlain is the "PLAIN" authentication mechanism as described in RFC 4616.
 	//
-	// Since the "PLAIN" SASL authentication mechansim transmits the username and password in
+	// Since the "PLAIN" SASL authentication mechanism transmits the username and password in
 	// plaintext over the internet connection, we only allow this mechanism over a TLS secured
 	// connection.
 	//
 	// https://datatracker.ietf.org/doc/html/rfc4616/
 	SMTPAuthPlain SMTPAuthType = "PLAIN"
+
+	// SMTPAuthPlainNoEnc is the "PLAIN" authentication mechanism as described in RFC 4616.
+	//
+	// Since the "PLAIN" SASL authentication mechanism transmits the username and password in
+	// plaintext over the internet connection, by default we only allow this mechanism over
+	// a TLS secured connection. This authentiation mechanism overrides this default and will
+	// allow PLAIN authentication via an unencrypted channel. This can be useful if the
+	// connection has already been secured in a different way (e. g. a SSH tunnel)
+	//
+	// Note: Use this authentication method with caution. If used in the wrong way, you might
+	// expose your authentication information over unencrypted channels!
+	//
+	// https://datatracker.ietf.org/doc/html/rfc4616/
+	SMTPAuthPlainNoEnc SMTPAuthType = "PLAIN-NOENC"
 
 	// SMTPAuthXOAUTH2 is the "XOAUTH2" SASL authentication mechanism.
 	// https://developers.google.com/gmail/imap/xoauth2-protocol
@@ -76,7 +113,7 @@ const (
 	//
 	// SCRAM-SHA-X-PLUS authentication require TLS channel bindings to protect against MitM attacks and
 	// to guarantee that the integrity of the transport layer is preserved throughout the authentication
-	// process. Therefore we only allow this mechansim over a TLS secured connection.
+	// process. Therefore we only allow this mechanism over a TLS secured connection.
 	//
 	// SCRAM-SHA-1-PLUS is still considered secure for certain applications, particularly when used as part
 	// of a challenge-response authentication mechanism (as we use it). However, it is generally
@@ -95,7 +132,7 @@ const (
 	//
 	// SCRAM-SHA-X-PLUS authentication require TLS channel bindings to protect against MitM attacks and
 	// to guarantee that the integrity of the transport layer is preserved throughout the authentication
-	// process. Therefore we only allow this mechansim over a TLS secured connection.
+	// process. Therefore we only allow this mechanism over a TLS secured connection.
 	//
 	// https://datatracker.ietf.org/doc/html/rfc7677
 	SMTPAuthSCRAMSHA256PLUS SMTPAuthType = "SCRAM-SHA-256-PLUS"
@@ -134,3 +171,37 @@ var (
 	// authentication type.
 	ErrSCRAMSHA256PLUSAuthNotSupported = errors.New("server does not support SMTP AUTH type: SCRAM-SHA-256-PLUS")
 )
+
+// UnmarshalString satisfies the fig.StringUnmarshaler interface for the SMTPAuthType type
+// https://pkg.go.dev/github.com/kkyr/fig#StringUnmarshaler
+func (sa *SMTPAuthType) UnmarshalString(value string) error {
+	switch strings.ToLower(value) {
+	case "cram-md5", "crammd5", "cram":
+		*sa = SMTPAuthCramMD5
+	case "custom":
+		*sa = SMTPAuthCustom
+	case "login":
+		*sa = SMTPAuthLogin
+	case "login-noenc":
+		*sa = SMTPAuthLoginNoEnc
+	case "none", "noauth", "no":
+		*sa = SMTPAuthNoAuth
+	case "plain":
+		*sa = SMTPAuthPlain
+	case "plain-noenc":
+		*sa = SMTPAuthPlainNoEnc
+	case "scram-sha-1", "scram-sha1", "scramsha1":
+		*sa = SMTPAuthSCRAMSHA1
+	case "scram-sha-1-plus", "scram-sha1-plus", "scramsha1plus":
+		*sa = SMTPAuthSCRAMSHA1PLUS
+	case "scram-sha-256", "scram-sha256", "scramsha256":
+		*sa = SMTPAuthSCRAMSHA256
+	case "scram-sha-256-plus", "scram-sha256-plus", "scramsha256plus":
+		*sa = SMTPAuthSCRAMSHA256PLUS
+	case "xoauth2", "oauth2":
+		*sa = SMTPAuthXOAUTH2
+	default:
+		return fmt.Errorf("unsupported SMTP auth type: %s", value)
+	}
+	return nil
+}

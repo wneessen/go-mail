@@ -6,17 +6,17 @@ coverage:
   status:
     project:
       default:
-        target: 85%
-        threshold: 5%
+        target: 90%
+        threshold: 2%
         base: auto 
         if_ci_failed: error
         only_pulls: false
     patch:
       default:
-        target: 80%
+        target: 90%
         base: auto
         if_ci_failed: error
-        threshold: 5%
+        threshold: 2%
 
 comment:
   require_changes: true

@@ -6,11 +6,8 @@ package mail
 
 import (
 	"bytes"
-	"fmt"
-	"os"
 	"strings"
 	"testing"
-	"time"
 )
 
 const (
@@ -18,6 +15,23 @@ const (
 	// See: https://datatracker.ietf.org/doc/html/rfc5322#appendix-A.1.1
 	exampleMailRFC5322A11 = `From: John Doe <jdoe@machine.example>
 To: Mary Smith <mary@example.net>
+Subject: Saying Hello
+Date: Fri, 21 Nov 1997 09:55:06 -0600
+Message-ID: <1234@local.machine.example>
+
+This is a message just to say hello.
+So, "Hello".`
+	exampleMailRFC5322A11InvalidFrom = `From: §§§§§§§§§
+To: Mary Smith <mary@example.net>
+Subject: Saying Hello
+Date: Fri, 21 Nov 1997 09:55:06 -0600
+Message-ID: <1234@local.machine.example>
+
+This is a message just to say hello.
+So, "Hello".`
+	exampleMailInvalidHeader = `From: John Doe <jdoe@machine.example>
+To: Mary Smith <mary@example.net>
+Inva@id*Header; This is a header
 Subject: Saying Hello
 Date: Fri, 21 Nov 1997 09:55:06 -0600
 Message-ID: <1234@local.machine.example>
@@ -34,6 +48,52 @@ From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Dear Customer,
+
+This is a test mail. Please do not reply to this. Also this line is very long so it
+should be wrapped.
+
+
+Thank your for your business!
+The go-mail team
+
+--
+This is a signature`
+	exampleMailPlainInvalidCTE = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // plain text without encoding
+User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: invalid
+
+Dear Customer,
+
+This is a test mail. Please do not reply to this. Also this line is very long so it
+should be wrapped.
+
+
+Thank your for your business!
+The go-mail team
+
+--
+This is a signature`
+	exampleMailInvalidContentType = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // plain text without encoding
+User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: text/plain @ charset=UTF-8; $foo; bar; --invalid--
 Content-Transfer-Encoding: 8bit
 
 Dear Customer,
@@ -299,6 +359,128 @@ ClRoaXMgaXMgYSBzaWduYXR1cmU=
 Content-Disposition: attachment; filename="test.attachment"
 Content-Transfer-Encoding: base64
 Content-Type: application/octet-stream; name="test.attachment"
+
+VGhpcyBpcyBhIHNpbXBsZSB0ZXN0IHRleHQgZmlsZSBhdHRhY2htZW50LgoKSXQgCiAgaGFzCiAg
+ICAgc2V2ZXJhbAogICAgICAgICAgICBuZXdsaW5lcwoJICAgICAgICAgICAgYW5kCgkgICAgc3Bh
+Y2VzCiAgICAgaW4KICBpdAouCgpBcyB3ZWxsIGFzIGFuIGVtb2ppOiDwn5mCCg==
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7--`
+	exampleMailPlainB64WithAttachmentNoContentType = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // plain text base64 with attachment
+User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: multipart/mixed;
+ boundary=45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+Content-Transfer-Encoding: base64
+
+RGVhciBDdXN0b21lciwKClRoaXMgaXMgYSB0ZXN0IG1haWwuIFBsZWFzZSBkbyBub3QgcmVwbHkg
+dG8gdGhpcy4gQWxzbyB0aGlzIGxpbmUgaXMgdmVyeSBsb25nIHNvIGl0CnNob3VsZCBiZSB3cmFw
+cGVkLgoKClRoYW5rIHlvdXIgZm9yIHlvdXIgYnVzaW5lc3MhClRoZSBnby1tYWlsIHRlYW0KCi0t
+ClRoaXMgaXMgYSBzaWduYXR1cmU=
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+Content-Disposition: attachment; filename="test.attachment"
+Content-Transfer-Encoding: base64
+
+VGhpcyBpcyBhIHNpbXBsZSB0ZXN0IHRleHQgZmlsZSBhdHRhY2htZW50LgoKSXQgCiAgaGFzCiAg
+ICAgc2V2ZXJhbAogICAgICAgICAgICBuZXdsaW5lcwoJICAgICAgICAgICAgYW5kCgkgICAgc3Bh
+Y2VzCiAgICAgaW4KICBpdAouCgpBcyB3ZWxsIGFzIGFuIGVtb2ppOiDwn5mCCg==
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7--`
+	exampleMailPlainB64WithAttachmentBrokenB64 = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // plain text base64 with attachment
+User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: multipart/mixed;
+ boundary=45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+Content-Transfer-Encoding: base64
+Content-Type: text/plain; charset=UTF-8
+
+RGVhciBDdXN0b21lciwKClRoaXMgaXMgYSB0ZXN0IG1haWwuIFBsZWFzZSBkbyBub3QgcmVwbHkg
+dG8gdGhpcy4gQWxzbyB0aGl§§§§§@@@@@XMgdmVyeSBsb25nIHNvIGl0CnNob3VsZCBiZSB3cmFw
+cGVkLgoKClRoYW5rIHlvdXIgZm9yIHlvdXIgYnVzaW5lc3MhClRoZSBnby1tYWlsIHRlYW0KCi0t
+ClRoaXMgaXMgYSBzaWduYXR1cmU=
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+Content-Disposition: attachment; filename="test.attachment"
+Content-Transfer-Encoding: base64
+Content-Type: application/octet-stream; name="test.attachment"
+
+VGhpcyBpcyBhIHNpbXBsZSB0ZXN0IHRleHQgZmlsZSBhdHRhY2htZW50LgoKSXQgCiAgaGFzCiAg
+ICAgc2V2ZXJhbAogICAg§§§§§@@@@@BuZXdsaW5lcwoJICAgICAgICAgICAgYW5kCgkgICAgc3Bh
+Y2VzCiAgICAgaW4KICBpdAouCgpBcyB3ZWxsIGFzIGFuIGVtb2ppOiDwn5mCCg==
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7--`
+	exampleMailPlainB64WithAttachmentInvalidCTE = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // plain text base64 with attachment
+User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: multipart/mixed;
+ boundary=45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+Content-Transfer-Encoding: invalid
+Content-Type: text/plain; charset=UTF-8
+
+RGVhciBDdXN0b21lciwKClRoaXMgaXMgYSB0ZXN0IG1haWwuIFBsZWFzZSBkbyBub3QgcmVwbHkg
+dG8gdGhpcy4gQWxzbyB0aGlzIGxpbmUgaXMgdmVyeSBsb25nIHNvIGl0CnNob3VsZCBiZSB3cmFw
+cGVkLgoKClRoYW5rIHlvdXIgZm9yIHlvdXIgYnVzaW5lc3MhClRoZSBnby1tYWlsIHRlYW0KCi0t
+ClRoaXMgaXMgYSBzaWduYXR1cmU=
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+Content-Disposition: attachment; filename="test.attachment"
+Content-Transfer-Encoding: invalid
+Content-Type: application/octet-stream; name="test.attachment"
+
+VGhpcyBpcyBhIHNpbXBsZSB0ZXN0IHRleHQgZmlsZSBhdHRhY2htZW50LgoKSXQgCiAgaGFzCiAg
+ICAgc2V2ZXJhbAogICAgICAgICAgICBuZXdsaW5lcwoJICAgICAgICAgICAgYW5kCgkgICAgc3Bh
+Y2VzCiAgICAgaW4KICBpdAouCgpBcyB3ZWxsIGFzIGFuIGVtb2ppOiDwn5mCCg==
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7--`
+	exampleMailPlainB64WithAttachmentInvalidContentType = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // plain text base64 with attachment
+User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: multipart/mixed;
+ boundary=45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+Content-Transfer-Encoding: base64
+Content-Type: text/plain; charset=UTF-8
+
+RGVhciBDdXN0b21lciwKClRoaXMgaXMgYSB0ZXN0IG1haWwuIFBsZWFzZSBkbyBub3QgcmVwbHkg
+dG8gdGhpcy4gQWxzbyB0aGlzIGxpbmUgaXMgdmVyeSBsb25nIHNvIGl0CnNob3VsZCBiZSB3cmFw
+cGVkLgoKClRoYW5rIHlvdXIgZm9yIHlvdXIgYnVzaW5lc3MhClRoZSBnby1tYWlsIHRlYW0KCi0t
+ClRoaXMgaXMgYSBzaWduYXR1cmU=
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+Content-Disposition: attachment; filename="test.attachment"
+Content-Transfer-Encoding: base64
+Content-Type; text/plain @ charset=UTF-8; $foo; bar; --invalid--
 
 VGhpcyBpcyBhIHNpbXBsZSB0ZXN0IHRleHQgZmlsZSBhdHRhY2htZW50LgoKSXQgCiAgaGFzCiAg
 ICAgc2V2ZXJhbAogICAgICAgICAgICBuZXdsaW5lcwoJICAgICAgICAgICAgYW5kCgkgICAgc3Bh
@@ -579,6 +761,39 @@ Content-Disposition: attachment;
 
 VGhpcyBpcyBhIHRlc3QgaW4gQmFzZTY0
 --------------26A45336F6C6196BD8BBA2A2--`
+	exampleMultiPart7BitBase64BrokenB64 = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // 7bit with base64 attachment
+User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: multipart/mixed;
+ boundary="------------26A45336F6C6196BD8BBA2A2"
+
+This is a multi-part message in MIME format.
+--------------26A45336F6C6196BD8BBA2A2
+Content-Type: text/plain; charset=US-ASCII; format=flowed
+Content-Transfer-Encoding: 7bit
+
+testtest
+testtest
+testtest
+testtest
+testtest
+testtest
+
+--------------26A45336F6C6196BD8BBA2A2
+Content-Type: text/plain; charset=UTF-8;
+ name="testfile.txt"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment;
+ filename="testfile.txt"
+
+VGh@@@@§§§§hIHRlc3QgaW4gQmFzZTY0
+--------------26A45336F6C6196BD8BBA2A2--`
 	exampleMultiPart8BitBase64 = `Date: Wed, 01 Nov 2023 00:00:00 +0000
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
@@ -612,8 +827,352 @@ Content-Disposition: attachment;
 
 VGhpcyBpcyBhIHRlc3QgaW4gQmFzZTY0
 --------------26A45336F6C6196BD8BBA2A2--`
+	exampleMailWithInlineEmbed = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail with inline embed
+User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Content-Type: multipart/related; boundary="abc123"
+
+--abc123
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<html>
+  <body>
+    <p>Hello,</p>
+    <p>This is an example email with an inline image:</p>
+    <img src="cid:12345@go-mail.dev" alt="Inline Image">
+    <p>Best regards,<br>The go-mail team</p>
+  </body>
+</html>
+--abc123
+Content-Type: image/png
+Content-Transfer-Encoding: base64
+Content-ID: <12345@go-mail.dev>
+Content-Disposition: inline; filename="test.png"
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIW2NgYGD4DwABBAEAwS2O
+UAAAAABJRU5ErkJggg==
+--abc123--`
+	exampleMailWithInlineEmbedWrongDisposition = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail with inline embed
+User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Content-Type: multipart/related; boundary="abc123"
+
+--abc123
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<html>
+  <body>
+    <p>Hello,</p>
+    <p>This is an example email with an inline image:</p>
+    <img src="cid:12345@go-mail.dev" alt="Inline Image">
+    <p>Best regards,<br>The go-mail team</p>
+  </body>
+</html>
+--abc123
+Content-Type: image/png
+Content-Transfer-Encoding: base64
+Content-ID: <12345@go-mail.dev>
+Content-Disposition: broken; filename="test.png"
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIW2NgYGD4DwABBAEAwS2O
+UAAAAABJRU5ErkJggg==
+--abc123--`
 )
 
+func TestEMLToMsgFromReader(t *testing.T) {
+	t.Run("EMLToMsgFromReader via EMLToMsgFromString, check subject and encoding", func(t *testing.T) {
+		tests := []struct {
+			name         string
+			emlString    string
+			wantEncoding Encoding
+			wantSubject  string
+		}{
+			{
+				"RFC5322 A1.1 example mail", exampleMailRFC5322A11, EncodingUSASCII,
+				"Saying Hello",
+			},
+			{
+				"Plain text no encoding (7bit)", exampleMailPlain7Bit, EncodingUSASCII,
+				"Example mail // plain text without encoding",
+			},
+			{
+				"Plain text no encoding", exampleMailPlainNoEnc, NoEncoding,
+				"Example mail // plain text without encoding",
+			},
+			{
+				"Plain text quoted-printable", exampleMailPlainQP, EncodingQP,
+				"Example mail // plain text quoted-printable",
+			},
+			{
+				"Plain text base64", exampleMailPlainB64, EncodingB64,
+				"Example mail // plain text base64",
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				parsed, err := EMLToMsgFromString(tt.emlString)
+				if err != nil {
+					t.Fatalf("failed to parse EML string: %s", err)
+				}
+				if parsed.Encoding() != tt.wantEncoding.String() {
+					t.Errorf("failed to parse EML string: want encoding %s, got %s", tt.wantEncoding,
+						parsed.Encoding())
+				}
+				gotSubject, ok := parsed.genHeader[HeaderSubject]
+				if !ok {
+					t.Fatalf("failed to parse EML string. No subject header found")
+				}
+				if len(gotSubject) != 1 {
+					t.Fatalf("failed to parse EML string, more than one subject header found")
+				}
+				if !strings.EqualFold(gotSubject[0], tt.wantSubject) {
+					t.Errorf("failed to parse EML string: want subject %s, got %s", tt.wantSubject,
+						gotSubject[0])
+				}
+			})
+		}
+	})
+	t.Run("EMLToMsgFromReader fails on reader", func(t *testing.T) {
+		emlReader := bytes.NewBufferString("invalid")
+		if _, err := EMLToMsgFromReader(emlReader); err == nil {
+			t.Errorf("EML parsing with invalid EML string should fail")
+		}
+	})
+	t.Run("EMLToMsgFromReader fails on parseEML", func(t *testing.T) {
+		emlReader := bytes.NewBufferString(exampleMailRFC5322A11InvalidFrom)
+		if _, err := EMLToMsgFromReader(emlReader); err == nil {
+			t.Errorf("EML parsing with invalid EML string should fail")
+		}
+	})
+	t.Run("EMLToMsgFromReader via EMLToMsgFromString on different examples", func(t *testing.T) {
+		tests := []struct {
+			name       string
+			emlString  string
+			shouldFail bool
+		}{
+			{
+				name:       "Valid RFC 5322 Example",
+				emlString:  exampleMailRFC5322A11,
+				shouldFail: false,
+			},
+			{
+				name:       "Invalid From Header (RFC 5322)",
+				emlString:  exampleMailRFC5322A11InvalidFrom,
+				shouldFail: true,
+			},
+			{
+				name:       "Invalid Header",
+				emlString:  exampleMailInvalidHeader,
+				shouldFail: true,
+			},
+			{
+				name:       "Plain broken Content-Type",
+				emlString:  exampleMailInvalidContentType,
+				shouldFail: true,
+			},
+			{
+				name:       "Plain No Encoding",
+				emlString:  exampleMailPlainNoEnc,
+				shouldFail: false,
+			},
+			{
+				name:       "Plain invalid CTE",
+				emlString:  exampleMailPlainInvalidCTE,
+				shouldFail: true,
+			},
+			{
+				name:       "Plain 7bit",
+				emlString:  exampleMailPlain7Bit,
+				shouldFail: false,
+			},
+			{
+				name:       "Broken Body Base64",
+				emlString:  exampleMailPlainBrokenBody,
+				shouldFail: true,
+			},
+			{
+				name:       "Unknown Content Type",
+				emlString:  exampleMailPlainUnknownContentType,
+				shouldFail: true,
+			},
+			{
+				name:       "Broken Header",
+				emlString:  exampleMailPlainBrokenHeader,
+				shouldFail: true,
+			},
+			{
+				name:       "Broken From Header",
+				emlString:  exampleMailPlainBrokenFrom,
+				shouldFail: true,
+			},
+			{
+				name:       "Broken To Header",
+				emlString:  exampleMailPlainBrokenTo,
+				shouldFail: true,
+			},
+			{
+				name:       "Invalid Date",
+				emlString:  exampleMailPlainNoEncInvalidDate,
+				shouldFail: true,
+			},
+			{
+				name:       "No Date Header",
+				emlString:  exampleMailPlainNoEncNoDate,
+				shouldFail: false,
+			},
+			{
+				name:       "Quoted Printable Encoding",
+				emlString:  exampleMailPlainQP,
+				shouldFail: false,
+			},
+			{
+				name:       "Unsupported Transfer Encoding",
+				emlString:  exampleMailPlainUnsupportedTransferEnc,
+				shouldFail: true,
+			},
+			{
+				name:       "Base64 Encoding",
+				emlString:  exampleMailPlainB64,
+				shouldFail: false,
+			},
+			{
+				name:       "Base64 with Attachment",
+				emlString:  exampleMailPlainB64WithAttachment,
+				shouldFail: false,
+			},
+			{
+				name:       "Base64 with Attachment no content types",
+				emlString:  exampleMailPlainB64WithAttachmentNoContentType,
+				shouldFail: true,
+			},
+			{
+				name:       "Multipart Base64 with Attachment broken Base64",
+				emlString:  exampleMailPlainB64WithAttachmentBrokenB64,
+				shouldFail: true,
+			},
+			{
+				name:       "Base64 with Attachment with invalid content type in attachment",
+				emlString:  exampleMailPlainB64WithAttachmentInvalidContentType,
+				shouldFail: true,
+			},
+			{
+				name:       "Base64 with Attachment with invalid CTE in attachment",
+				emlString:  exampleMailPlainB64WithAttachmentInvalidCTE,
+				shouldFail: true,
+			},
+			{
+				name:       "Base64 with Attachment No Boundary",
+				emlString:  exampleMailPlainB64WithAttachmentNoBoundary,
+				shouldFail: true,
+			},
+			{
+				name:       "Broken Body Base64",
+				emlString:  exampleMailPlainB64BrokenBody,
+				shouldFail: true,
+			},
+			{
+				name:       "Base64 with Embedded Image",
+				emlString:  exampleMailPlainB64WithEmbed,
+				shouldFail: false,
+			},
+			{
+				name:       "Base64 with Embed No Content-ID",
+				emlString:  exampleMailPlainB64WithEmbedNoContentID,
+				shouldFail: false,
+			},
+			{
+				name:       "Multipart Mixed with Attachment, Embed, and Alternative Part",
+				emlString:  exampleMailMultipartMixedAlternativeRelated,
+				shouldFail: false,
+			},
+			{
+				name:       "Multipart 7bit Base64",
+				emlString:  exampleMultiPart7BitBase64,
+				shouldFail: false,
+			},
+			{
+				name:       "Multipart 7bit Base64 with broken Base64",
+				emlString:  exampleMultiPart7BitBase64BrokenB64,
+				shouldFail: true,
+			},
+			{
+				name:       "Multipart 8bit Base64",
+				emlString:  exampleMultiPart8BitBase64,
+				shouldFail: false,
+			},
+			{
+				name:       "Multipart with inline embed",
+				emlString:  exampleMailWithInlineEmbed,
+				shouldFail: false,
+			},
+			{
+				name:       "Multipart with inline embed disposition broken",
+				emlString:  exampleMailWithInlineEmbedWrongDisposition,
+				shouldFail: true,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				_, err := EMLToMsgFromString(tt.emlString)
+				if tt.shouldFail && err == nil {
+					t.Errorf("parsing of EML was supposed to fail, but it did not")
+				}
+				if !tt.shouldFail && err != nil {
+					t.Errorf("parsing of EML failed: %s", err)
+				}
+			})
+		}
+	})
+}
+
+func TestEMLToMsgFromFile(t *testing.T) {
+	t.Run("EMLToMsgFromFile succeeds", func(t *testing.T) {
+		parsed, err := EMLToMsgFromFile("testdata/RFC5322-A1-1.eml")
+		if err != nil {
+			t.Fatalf("EMLToMsgFromFile failed: %s ", err)
+		}
+		if parsed.Encoding() != EncodingUSASCII.String() {
+			t.Errorf("EMLToMsgFromFile failed: want encoding %s, got %s", EncodingUSASCII,
+				parsed.Encoding())
+		}
+		gotSubject, ok := parsed.genHeader[HeaderSubject]
+		if !ok {
+			t.Fatalf("failed to parse EML string. No subject header found")
+		}
+		if len(gotSubject) != 1 {
+			t.Fatalf("failed to parse EML string, more than one subject header found")
+		}
+		if !strings.EqualFold(gotSubject[0], "Saying Hello") {
+			t.Errorf("failed to parse EML string: want subject %s, got %s", "Saying Hello",
+				gotSubject[0])
+		}
+	})
+	t.Run("EMLToMsgFromFile fails on file not found", func(t *testing.T) {
+		if _, err := EMLToMsgFromFile("testdata/not-existing.eml"); err == nil {
+			t.Errorf("EMLToMsgFromFile with invalid file should fail")
+		}
+	})
+	t.Run("EMLToMsgFromFile fails on parseEML", func(t *testing.T) {
+		if _, err := EMLToMsgFromFile("testdata/RFC5322-A1-1-invalid-from.eml"); err == nil {
+			t.Errorf("EMLToMsgFromFile with invalid EML message should fail")
+		}
+	})
+}
+
+/*
 func TestEMLToMsgFromString(t *testing.T) {
 	tests := []struct {
 		name string
@@ -621,26 +1180,6 @@ func TestEMLToMsgFromString(t *testing.T) {
 		enc  string
 		sub  string
 	}{
-		{
-			"RFC5322 A1.1", exampleMailRFC5322A11, "7bit",
-			"Saying Hello",
-		},
-		{
-			"Plain text no encoding (7bit)", exampleMailPlain7Bit, "7bit",
-			"Example mail // plain text without encoding",
-		},
-		{
-			"Plain text no encoding", exampleMailPlainNoEnc, "8bit",
-			"Example mail // plain text without encoding",
-		},
-		{
-			"Plain text quoted-printable", exampleMailPlainQP, "quoted-printable",
-			"Example mail // plain text quoted-printable",
-		},
-		{
-			"Plain text base64", exampleMailPlainB64, "base64",
-			"Example mail // plain text base64",
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1009,3 +1548,6 @@ func stringToTempFile(data, name string) (string, string, error) {
 	}
 	return tempDir, filePath, nil
 }
+
+
+*/
