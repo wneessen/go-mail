@@ -3379,6 +3379,47 @@ func TestSignWithSMime_ValidECDSAKeyPair(t *testing.T) {
 	}
 }
 
+// TestSignWithTLSCertificate tests SignWithTLSCertificate with given *tls.Certificate
+func TestSignWithTLSCertificate(t *testing.T) {
+	keyPairTLS, err := getDummyKeyPairTLS()
+	if err != nil {
+		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
+	}
+	m := NewMsg()
+	if err := m.SignWithTLSCertificate(keyPairTLS); err != nil {
+		t.Errorf("failed to set sMime. Cause: %v", err)
+	}
+	if m.sMime.privateKey.ecdsa == nil {
+		t.Errorf("SignWithTLSCertificate() - no private key is given")
+	}
+	if m.sMime.certificate == nil {
+		t.Errorf("SignWithTLSCertificate() - no certificate is given")
+	}
+}
+
+// TestSignWithTLSCertificate tests SignWithTLSCertificate with given *tls.Certificate and nil leaf certificate
+// PLEASE NOTE: Before Go 1.23 Certificate.Leaf was left nil, and the parsed certificate was
+// discarded. This behavior can be re-enabled by setting "x509keypairleaf=0"
+// in the GODEBUG environment variable.
+func TestSignWithTLSCertificate_WithKeyPairLeafNil(t *testing.T) {
+	t.Setenv("GODEBUG", "x509keypairleaf=0")
+
+	keyPairTLS, err := getDummyKeyPairTLS()
+	if err != nil {
+		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
+	}
+	m := NewMsg()
+	if err := m.SignWithTLSCertificate(keyPairTLS); err != nil {
+		t.Errorf("failed to set sMime. Cause: %v", err)
+	}
+	if m.sMime.privateKey.ecdsa == nil {
+		t.Errorf("SignWithTLSCertificate() - no private key is given")
+	}
+	if m.sMime.certificate == nil {
+		t.Errorf("SignWithTLSCertificate() - no certificate is given")
+	}
+}
+
 // TestSignWithSMime_InvalidPrivateKey tests WithSMimeSinging with given invalid private key
 func TestSignWithSMime_InvalidPrivateKey(t *testing.T) {
 	m := NewMsg()
@@ -3509,5 +3550,21 @@ func TestMsg_signMessage(t *testing.T) {
 	}
 	if content, err := signaturePart.GetContent(); err != nil || len(content) == len(body) {
 		t.Errorf("createSignaturePart() method failed. Expected content should not be equal: %s, got: %s", body, signaturePart.GetEncoding())
+	}
+}
+
+// TestGetLeafCertificate tests the Msg.getLeafCertificate method
+func TestGetLeafCertificate(t *testing.T) {
+	keyPairTLS, err := getDummyKeyPairTLS()
+	if err != nil {
+		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
+	}
+
+	leafCertificate, err := getLeafCertificate(keyPairTLS)
+	if err != nil {
+		t.Errorf("failed to get leaf certificate. Cause: %v", err)
+	}
+	if leafCertificate == nil {
+		t.Errorf("failed to get leaf certificate")
 	}
 }

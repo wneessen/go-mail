@@ -19,7 +19,7 @@ const (
 	keyECDSAFilePath  = "dummy-child-key-ecdsa.pem"
 )
 
-// getDummyRSACryptoMaterial loads a certificate (RSA) and the associated private key (ECDSA) form local disk for testing purposes
+// getDummyRSACryptoMaterial loads a certificate (RSA), the associated private key and certificate (RSA) is loaded from local disk for testing purposes
 func getDummyRSACryptoMaterial() (*rsa.PrivateKey, *x509.Certificate, *x509.Certificate, error) {
 	keyPair, err := tls.LoadX509KeyPair(certRSAFilePath, keyRSAFilePath)
 	if err != nil {
@@ -41,7 +41,7 @@ func getDummyRSACryptoMaterial() (*rsa.PrivateKey, *x509.Certificate, *x509.Cert
 	return privateKey, certificate, intermediateCertificate, nil
 }
 
-// getDummyECDSACryptoMaterial loads a certificate (ECDSA) and the associated private key (ECDSA) form local disk for testing purposes
+// getDummyECDSACryptoMaterial loads a certificate (ECDSA), the associated private key and certificate (ECDSA) is loaded from local disk for testing purposes
 func getDummyECDSACryptoMaterial() (*ecdsa.PrivateKey, *x509.Certificate, *x509.Certificate, error) {
 	keyPair, err := tls.LoadX509KeyPair(certECDSAFilePath, keyECDSAFilePath)
 	if err != nil {
@@ -61,4 +61,13 @@ func getDummyECDSACryptoMaterial() (*ecdsa.PrivateKey, *x509.Certificate, *x509.
 	}
 
 	return privateKey, certificate, intermediateCertificate, nil
+}
+
+// getDummyKeyPairTLS loads a certificate (ECDSA) as *tls.Certificate, the associated private key and certificate (ECDSA) is loaded from local disk for testing purposes
+func getDummyKeyPairTLS() (*tls.Certificate, error) {
+	keyPair, err := tls.LoadX509KeyPair(certECDSAFilePath, keyECDSAFilePath)
+	if err != nil {
+		return nil, err
+	}
+	return &keyPair, err
 }

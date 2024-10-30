@@ -367,21 +367,43 @@ func (m *Msg) SignWithTLSCertificate(keyPairTlS *tls.Certificate) error {
 		return fmt.Errorf("failed to parse intermediate certificate: %w", err)
 	}
 
+	leafCertificate, err := getLeafCertificate(keyPairTlS)
+	if err != nil {
+		return fmt.Errorf("failed to get leaf certificate: %w", err)
+	}
+
 	switch keyPairTlS.PrivateKey.(type) {
 	case *rsa.PrivateKey:
 		if intermediateCertificate == nil {
-			return m.SignWithSMimeRSA(keyPairTlS.PrivateKey.(*rsa.PrivateKey), keyPairTlS.Leaf, nil)
+			return m.SignWithSMimeRSA(keyPairTlS.PrivateKey.(*rsa.PrivateKey), leafCertificate, nil)
 		}
-		return m.SignWithSMimeRSA(keyPairTlS.PrivateKey.(*rsa.PrivateKey), keyPairTlS.Leaf, intermediateCertificate)
+		return m.SignWithSMimeRSA(keyPairTlS.PrivateKey.(*rsa.PrivateKey), leafCertificate, intermediateCertificate)
 
 	case *ecdsa.PrivateKey:
 		if intermediateCertificate == nil {
-			return m.SignWithSMimeECDSA(keyPairTlS.PrivateKey.(*ecdsa.PrivateKey), keyPairTlS.Leaf, nil)
+			return m.SignWithSMimeECDSA(keyPairTlS.PrivateKey.(*ecdsa.PrivateKey), leafCertificate, nil)
 		}
-		return m.SignWithSMimeECDSA(keyPairTlS.PrivateKey.(*ecdsa.PrivateKey), keyPairTlS.Leaf, intermediateCertificate)
+		return m.SignWithSMimeECDSA(keyPairTlS.PrivateKey.(*ecdsa.PrivateKey), leafCertificate, intermediateCertificate)
 	default:
 		return fmt.Errorf("unsupported private key type: %T", keyPairTlS.PrivateKey)
 	}
+}
+
+// getLeafCertificate returns the leaf certificate from a tls.Certificate.
+// PLEASE NOTE: Before Go 1.23 Certificate.Leaf was left nil, and the parsed certificate was
+// discarded. This behavior can be re-enabled by setting "x509keypairleaf=0"
+// in the GODEBUG environment variable.
+func getLeafCertificate(keyPairTlS *tls.Certificate) (*x509.Certificate, error) {
+	if keyPairTlS.Leaf != nil {
+		return keyPairTlS.Leaf, nil
+	}
+
+	cert, err := x509.ParseCertificate(keyPairTlS.Certificate[0])
+	if err != nil {
+		return nil, err
+	}
+
+	return cert, nil
 }
 
 // This method allows you to specify a character set for the email message. The charset is
