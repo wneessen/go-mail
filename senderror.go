@@ -81,7 +81,7 @@ type SendErrReason int
 // Returns:
 //   - A string representing the error message.
 func (e *SendError) Error() string {
-	if e.Reason > 10 {
+	if e.Reason > ErrAmbiguous {
 		return "unknown reason"
 	}
 
@@ -93,7 +93,7 @@ func (e *SendError) Error() string {
 			errMessage.WriteRune(' ')
 			errMessage.WriteString(e.errlist[i].Error())
 			if i != len(e.errlist)-1 {
-				errMessage.WriteString(", ")
+				errMessage.WriteString(",")
 			}
 		}
 	}

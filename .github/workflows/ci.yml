@@ -50,7 +50,7 @@ jobs:
                   check-latest: true
             - name: Install sendmail
               run: |
-                sudo apt-get -y update >/dev/null && sudo apt-get -y upgrade >/dev/null && sudo DEBIAN_FRONTEND=noninteractive apt-get -y install nullmailer >/dev/null && which sendmail
+                sudo apt-get -y update && sudo DEBIAN_FRONTEND=noninteractive apt-get -y install nullmailer && which sendmail
             - name: Run go test
               if: success()
               run: |
