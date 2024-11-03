@@ -304,47 +304,103 @@ func TestPlainAuth(t *testing.T) {
 	})
 }
 
-/*
-
-func TestAuthPlainNoEnc(t *testing.T) {
+func TestPlainAuth_noEnc(t *testing.T) {
 	tests := []struct {
-		authName string
-		server   *ServerInfo
-		err      string
+		name       string
+		authName   string
+		server     *ServerInfo
+		shouldFail bool
+		wantErr    error
 	}{
 		{
-			authName: "servername",
-			server:   &ServerInfo{Name: "servername", TLS: true},
+			name:       "PLAIN-NOENC auth succeeds",
+			authName:   "servername",
+			server:     &ServerInfo{Name: "servername", TLS: true},
+			shouldFail: false,
 		},
 		{
 			// OK to use PlainAuth on localhost without TLS
-			authName: "localhost",
-			server:   &ServerInfo{Name: "localhost", TLS: false},
+			name:       "PLAIN-NOENC on localhost is allowed to go unencrypted",
+			authName:   "localhost",
+			server:     &ServerInfo{Name: "localhost", TLS: false},
+			shouldFail: false,
 		},
 		{
-			// Also OK on non-TLS secured connections. The NoEnc mechanism is meant to allow
-			// non-encrypted connections.
-			authName: "servername",
-			server:   &ServerInfo{Name: "servername", Auth: []string{"PLAIN"}},
+			// ALSO OK on non-localhost. This auth mode is specificly for that.
+			name:       "PLAIN-NOENC on non-localhost is allowed to go unencrypted",
+			authName:   "servername",
+			server:     &ServerInfo{Name: "servername", Auth: []string{"PLAIN"}},
+			shouldFail: false,
 		},
 		{
-			authName: "servername",
-			server:   &ServerInfo{Name: "attacker", TLS: true},
-			err:      "wrong host name",
+			name:       "PLAIN-NOENC on non-localhost with no PLAIN announcement, is allowed to go unencrypted",
+			authName:   "servername",
+			server:     &ServerInfo{Name: "servername", Auth: []string{"CRAM-MD5"}},
+			shouldFail: false,
+		},
+		{
+			name:       "PLAIN-NOENC with wrong hostname",
+			authName:   "servername",
+			server:     &ServerInfo{Name: "attacker", TLS: true},
+			shouldFail: true,
+			wantErr:    ErrWrongHostname,
 		},
 	}
-	for i, tt := range tests {
-		auth := PlainAuth("foo", "bar", "baz", tt.authName, true)
-		_, _, err := auth.Start(tt.server)
-		got := ""
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			identity := "foo"
+			user := "toni.tester@example.com"
+			pass := "v3ryS3Cur3P4ssw0rd"
+			auth := PlainAuth(identity, user, pass, tt.authName, true)
+			method, resp, err := auth.Start(tt.server)
+			if err != nil && !tt.shouldFail {
+				t.Errorf("plain authentication failed: %s", err)
+			}
+			if err == nil && tt.shouldFail {
+				t.Error("plain authentication was expected to fail")
+			}
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Errorf("expected error to be: %s, got: %s", tt.wantErr, err)
+				}
+				return
+			}
+			if method != "PLAIN" {
+				t.Errorf("expected method return to be: %q, got: %q", "PLAIN", method)
+			}
+			if !bytes.Equal([]byte(identity+"\x00"+user+"\x00"+pass), resp) {
+				t.Errorf("expected response to be: %q, got: %q", identity+"\x00"+user+"\x00"+pass, resp)
+			}
+		})
+	}
+	t.Run("PLAIN-NOENC sends second server response should fail", func(t *testing.T) {
+		identity := "foo"
+		user := "toni.tester@example.com"
+		pass := "v3ryS3Cur3P4ssw0rd"
+		server := &ServerInfo{Name: "servername", TLS: true}
+		auth := PlainAuth(identity, user, pass, "servername", true)
+		method, resp, err := auth.Start(server)
 		if err != nil {
-			got = err.Error()
+			t.Fatalf("plain authentication failed: %s", err)
 		}
-		if got != tt.err {
-			t.Errorf("%d. got error = %q; want %q", i, got, tt.err)
+		if method != "PLAIN" {
+			t.Errorf("expected method return to be: %q, got: %q", "PLAIN", method)
 		}
-	}
+		if !bytes.Equal([]byte(identity+"\x00"+user+"\x00"+pass), resp) {
+			t.Errorf("expected response to be: %q, got: %q", identity+"\x00"+user+"\x00"+pass, resp)
+		}
+		_, err = auth.Next([]byte("nonsense"), true)
+		if err == nil {
+			t.Fatal("expected second server challange to fail")
+		}
+		if !errors.Is(err, ErrUnexpectedServerChallange) {
+			t.Errorf("expected error to be: %s, got: %s", ErrUnexpectedServerChallange, err)
+		}
+	})
 }
+
+/*
+
 
 func TestAuthLogin(t *testing.T) {
 	tests := []struct {
