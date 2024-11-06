@@ -996,7 +996,7 @@ func (c *Client) DialWithContext(dialCtx context.Context) error {
 // Returns:
 //   - An error if the disconnection fails; otherwise, returns nil.
 func (c *Client) Close() error {
-	if !c.smtpClient.HasConnection() {
+	if c.smtpClient == nil || !c.smtpClient.HasConnection() {
 		return nil
 	}
 	if err := c.smtpClient.Quit(); err != nil {
