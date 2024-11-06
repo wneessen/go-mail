@@ -1647,6 +1647,15 @@ func TestClient_Close(t *testing.T) {
 			t.Errorf("close was supposed to fail, but didn't")
 		}
 	})
+	t.Run("close on a nil smtpclient should return nil", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.Close(); err != nil {
+			t.Errorf("failed to close the client: %s", err)
+		}
+	})
 }
 
 func TestClient_DialWithContext(t *testing.T) {
