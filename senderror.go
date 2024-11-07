@@ -133,6 +133,10 @@ func (e *SendError) Is(errType error) bool {
 	return false
 }
 
+func (e *SendError) Unwrap() []error {
+	return e.errlist
+}
+
 // IsTemp returns true if the delivery error is of a temporary nature and can be retried.
 //
 // This function checks whether the SendError indicates a temporary error, which suggests
@@ -224,3 +228,5 @@ func (r SendErrReason) String() string {
 func isTempError(err error) bool {
 	return err.Error()[0] == '4'
 }
+
+var _ interface{ Unwrap() []error } = &SendError{}
