@@ -451,10 +451,98 @@ func TestLoginAuth(t *testing.T) {
 			auth := LoginAuth(user, pass, tt.authName, false)
 			method, _, err := auth.Start(tt.server)
 			if err != nil && !tt.shouldFail {
-				t.Errorf("plain authentication failed: %s", err)
+				t.Errorf("login authentication failed: %s", err)
 			}
 			if err == nil && tt.shouldFail {
-				t.Error("plain authentication was expected to fail")
+				t.Error("login authentication was expected to fail")
+			}
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Errorf("expected error to be: %s, got: %s", tt.wantErr, err)
+				}
+				return
+			}
+			if method != "LOGIN" {
+				t.Errorf("expected method return to be: %q, got: %q", "LOGIN", method)
+			}
+			resp, err := auth.Next([]byte(user), true)
+			if err != nil {
+				t.Errorf("failed on first server challange: %s", err)
+			}
+			if !bytes.Equal([]byte(user), resp) {
+				t.Errorf("expected response to first challange to be: %q, got: %q", user, resp)
+			}
+			resp, err = auth.Next([]byte(pass), true)
+			if err != nil {
+				t.Errorf("failed on second server challange: %s", err)
+			}
+			if !bytes.Equal([]byte(pass), resp) {
+				t.Errorf("expected response to second challange to be: %q, got: %q", pass, resp)
+			}
+			resp, err = auth.Next([]byte("nonsense"), true)
+			if err == nil {
+				t.Error("expected third server challange to fail, but didn't")
+			}
+			if !errors.Is(err, ErrUnexpectedServerResponse) {
+				t.Errorf("expected error to be: %s, got: %s", ErrUnexpectedServerResponse, err)
+			}
+		})
+	}
+}
+
+func TestLoginAuth_noEnc(t *testing.T) {
+	tests := []struct {
+		name       string
+		authName   string
+		server     *ServerInfo
+		shouldFail bool
+		wantErr    error
+	}{
+		{
+			name:       "LOGIN-NOENC auth succeeds",
+			authName:   "servername",
+			server:     &ServerInfo{Name: "servername", TLS: true},
+			shouldFail: false,
+		},
+		{
+			// OK to use PlainAuth on localhost without TLS
+			name:       "LOGIN-NOENC on localhost is allowed to go unencrypted",
+			authName:   "localhost",
+			server:     &ServerInfo{Name: "localhost", TLS: false},
+			shouldFail: false,
+		},
+		{
+			// ALSO OK on non-localhost. This auth mode is specificly for that.
+			name:       "LOGIN-NOENC on non-localhost is allowed to go unencrypted",
+			authName:   "servername",
+			server:     &ServerInfo{Name: "servername", Auth: []string{"LOGIN"}},
+			shouldFail: false,
+		},
+		{
+			name:       "LOGIN-NOENC on non-localhost with no LOGIN announcement, is not allowed to go unencrypted",
+			authName:   "servername",
+			server:     &ServerInfo{Name: "servername", Auth: []string{"CRAM-MD5"}},
+			shouldFail: false,
+		},
+		{
+			name:       "LOGIN-NOENC with wrong hostname",
+			authName:   "servername",
+			server:     &ServerInfo{Name: "attacker", TLS: true},
+			shouldFail: true,
+			wantErr:    ErrWrongHostname,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			user := "toni.tester@example.com"
+			pass := "v3ryS3Cur3P4ssw0rd"
+			auth := LoginAuth(user, pass, tt.authName, true)
+			method, _, err := auth.Start(tt.server)
+			if err != nil && !tt.shouldFail {
+				t.Errorf("login authentication failed: %s", err)
+			}
+			if err == nil && tt.shouldFail {
+				t.Error("login authentication was expected to fail")
 			}
 			if tt.wantErr != nil {
 				if !errors.Is(err, tt.wantErr) {
@@ -493,91 +581,7 @@ func TestLoginAuth(t *testing.T) {
 /*
 
 
-func TestAuthLogin(t *testing.T) {
-	tests := []struct {
-		authName string
-		server   *ServerInfo
-		err      string
-	}{
-		{
-			// OK to use LoginAuth on localhost without TLS
-			authName: "localhost",
-			server:   &ServerInfo{Name: "localhost", TLS: false},
-		},
-		{
-			// NOT OK on non-localhost, even if server says PLAIN is OK.
-			// (We don't know that the server is the real server.)
-			authName: "servername",
-			server:   &ServerInfo{Name: "servername", Auth: []string{"LOGIN"}},
-			err:      "unencrypted connection",
-		},
-		{
-			authName: "servername",
-			server:   &ServerInfo{Name: "servername", Auth: []string{"CRAM-MD5"}},
-			err:      "unencrypted connection",
-		},
-		{
-			authName: "servername",
-			server:   &ServerInfo{Name: "attacker", TLS: true},
-			err:      "wrong host name",
-		},
-	}
-	for i, tt := range tests {
-		auth := LoginAuth("foo", "bar", tt.authName, false)
-		_, _, err := auth.Start(tt.server)
-		got := ""
-		if err != nil {
-			got = err.Error()
-		}
-		if got != tt.err {
-			t.Errorf("%d. got error = %q; want %q", i, got, tt.err)
-		}
-	}
-}
 
-func TestAuthLoginNoEnc(t *testing.T) {
-	tests := []struct {
-		authName string
-		server   *ServerInfo
-		err      string
-	}{
-		{
-			authName: "servername",
-			server:   &ServerInfo{Name: "servername", TLS: true},
-		},
-		{
-			// OK to use LoginAuth on localhost without TLS
-			authName: "localhost",
-			server:   &ServerInfo{Name: "localhost", TLS: false},
-		},
-		{
-			// Also OK on non-TLS secured connections. The NoEnc mechanism is meant to allow
-			// non-encrypted connections.
-			authName: "servername",
-			server:   &ServerInfo{Name: "servername", Auth: []string{"LOGIN"}},
-		},
-		{
-			authName: "servername",
-			server:   &ServerInfo{Name: "servername", Auth: []string{"CRAM-MD5"}},
-		},
-		{
-			authName: "servername",
-			server:   &ServerInfo{Name: "attacker", TLS: true},
-			err:      "wrong host name",
-		},
-	}
-	for i, tt := range tests {
-		auth := LoginAuth("foo", "bar", tt.authName, true)
-		_, _, err := auth.Start(tt.server)
-		got := ""
-		if err != nil {
-			got = err.Error()
-		}
-		if got != tt.err {
-			t.Errorf("%d. got error = %q; want %q", i, got, tt.err)
-		}
-	}
-}
 
 func TestXOAuth2OK(t *testing.T) {
 	server := []string{
