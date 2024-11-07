@@ -28,8 +28,8 @@ type plainAuth struct {
 // PlainAuth will only send the credentials if the connection is using TLS
 // or is connected to localhost. Otherwise authentication will fail with an
 // error, without sending the credentials.
-func PlainAuth(identity, username, password, host string, allowUnEnc bool) Auth {
-	return &plainAuth{identity, username, password, host, allowUnEnc}
+func PlainAuth(identity, username, password, host string, allowUnenc bool) Auth {
+	return &plainAuth{identity, username, password, host, allowUnenc}
 }
 
 func (a *plainAuth) Start(server *ServerInfo) (string, []byte, error) {
