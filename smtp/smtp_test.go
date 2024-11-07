@@ -14,10 +14,68 @@
 package smtp
 
 import (
+	"bufio"
 	"bytes"
+	"context"
+	"crypto/tls"
 	"errors"
+	"fmt"
+	"net"
+	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 )
+
+const (
+	// TestServerProto is the protocol used for the simple SMTP test server
+	TestServerProto = "tcp"
+	// TestServerAddr is the address the simple SMTP test server listens on
+	TestServerAddr = "127.0.0.1"
+	// TestServerPortBase is the base port for the simple SMTP test server
+	TestServerPortBase = 12025
+)
+
+// PortAdder is an atomic counter used to increment port numbers for the test SMTP server instances.
+var PortAdder atomic.Int32
+
+// localhostCert is a PEM-encoded TLS cert generated from src/crypto/tls:
+//
+//	go run generate_cert.go --rsa-bits 1024 --host 127.0.0.1,::1,example.com \
+//		--ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
+var localhostCert = []byte(`
+-----BEGIN CERTIFICATE-----
+MIICFDCCAX2gAwIBAgIRAK0xjnaPuNDSreeXb+z+0u4wDQYJKoZIhvcNAQELBQAw
+EjEQMA4GA1UEChMHQWNtZSBDbzAgFw03MDAxMDEwMDAwMDBaGA8yMDg0MDEyOTE2
+MDAwMFowEjEQMA4GA1UEChMHQWNtZSBDbzCBnzANBgkqhkiG9w0BAQEFAAOBjQAw
+gYkCgYEA0nFbQQuOWsjbGtejcpWz153OlziZM4bVjJ9jYruNw5n2Ry6uYQAffhqa
+JOInCmmcVe2siJglsyH9aRh6vKiobBbIUXXUU1ABd56ebAzlt0LobLlx7pZEMy30
+LqIi9E6zmL3YvdGzpYlkFRnRrqwEtWYbGBf3znO250S56CCWH2UCAwEAAaNoMGYw
+DgYDVR0PAQH/BAQDAgKkMBMGA1UdJQQMMAoGCCsGAQUFBwMBMA8GA1UdEwEB/wQF
+MAMBAf8wLgYDVR0RBCcwJYILZXhhbXBsZS5jb22HBH8AAAGHEAAAAAAAAAAAAAAA
+AAAAAAEwDQYJKoZIhvcNAQELBQADgYEAbZtDS2dVuBYvb+MnolWnCNqvw1w5Gtgi
+NmvQQPOMgM3m+oQSCPRTNGSg25e1Qbo7bgQDv8ZTnq8FgOJ/rbkyERw2JckkHpD4
+n4qcK27WkEDBtQFlPihIM8hLIuzWoi/9wygiElTy/tVL3y7fGCvY2/k1KBthtZGF
+tN8URjVmyEo=
+-----END CERTIFICATE-----`)
+
+// localhostKey is the private key for localhostCert.
+var localhostKey = []byte(testingKey(`
+-----BEGIN RSA TESTING KEY-----
+MIICXgIBAAKBgQDScVtBC45ayNsa16NylbPXnc6XOJkzhtWMn2Niu43DmfZHLq5h
+AB9+Gpok4icKaZxV7ayImCWzIf1pGHq8qKhsFshRddRTUAF3np5sDOW3QuhsuXHu
+lkQzLfQuoiL0TrOYvdi90bOliWQVGdGurAS1ZhsYF/fOc7bnRLnoIJYfZQIDAQAB
+AoGBAMst7OgpKyFV6c3JwyI/jWqxDySL3caU+RuTTBaodKAUx2ZEmNJIlx9eudLA
+kucHvoxsM/eRxlxkhdFxdBcwU6J+zqooTnhu/FE3jhrT1lPrbhfGhyKnUrB0KKMM
+VY3IQZyiehpxaeXAwoAou6TbWoTpl9t8ImAqAMY8hlULCUqlAkEA+9+Ry5FSYK/m
+542LujIcCaIGoG1/Te6Sxr3hsPagKC2rH20rDLqXwEedSFOpSS0vpzlPAzy/6Rbb
+PHTJUhNdwwJBANXkA+TkMdbJI5do9/mn//U0LfrCR9NkcoYohxfKz8JuhgRQxzF2
+6jpo3q7CdTuuRixLWVfeJzcrAyNrVcBq87cCQFkTCtOMNC7fZnCTPUv+9q1tcJyB
+vNjJu3yvoEZeIeuzouX9TJE21/33FaeDdsXbRhQEj23cqR38qFHsF1qAYNMCQQDP
+QXLEiJoClkR2orAmqjPLVhR3t2oB3INcnEjLNSq8LHyQEfXyaFfu4U9l5+fRPL2i
+jiC0k/9L5dHUsF0XZothAkEA23ddgRs+Id/HxtojqqUT27B8MT/IGNrYsp4DvS/c
+qgkeluku4GjxRlDMBuXk94xOBEinUs+p/hwP1Alll80Tpg==
+-----END RSA TESTING KEY-----`))
 
 type authTest struct {
 	auth       Auth
@@ -302,6 +360,59 @@ func TestPlainAuth(t *testing.T) {
 			t.Errorf("expected error to be: %s, got: %s", ErrUnexpectedServerChallange, err)
 		}
 	})
+	t.Run("PLAIN authentication on test server", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		auth := PlainAuth("", "user", "pass", TestServerAddr, false)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		if err = client.Auth(auth); err != nil {
+			t.Errorf("failed to authenticate to test server: %s", err)
+		}
+	})
+	t.Run("PLAIN authentication on test server should fail", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnAuth: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		auth := PlainAuth("", "user", "pass", TestServerAddr, false)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		if err = client.Auth(auth); err == nil {
+			t.Errorf("expected authentication to fail")
+		}
+	})
 }
 
 func TestPlainAuth_noEnc(t *testing.T) {
@@ -397,6 +508,59 @@ func TestPlainAuth_noEnc(t *testing.T) {
 			t.Errorf("expected error to be: %s, got: %s", ErrUnexpectedServerChallange, err)
 		}
 	})
+	t.Run("PLAIN-NOENC authentication on test server", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		auth := PlainAuth("", "user", "pass", TestServerAddr, true)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		if err = client.Auth(auth); err != nil {
+			t.Errorf("failed to authenticate to test server: %s", err)
+		}
+	})
+	t.Run("PLAIN-NOENC authentication on test server should fail", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnAuth: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		auth := PlainAuth("", "user", "pass", TestServerAddr, true)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		if err = client.Auth(auth); err == nil {
+			t.Errorf("expected authentication to fail")
+		}
+	})
 }
 
 func TestLoginAuth(t *testing.T) {
@@ -488,6 +652,59 @@ func TestLoginAuth(t *testing.T) {
 			}
 		})
 	}
+	t.Run("LOGIN authentication on test server", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		auth := LoginAuth("user", "pass", TestServerAddr, false)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		if err = client.Auth(auth); err != nil {
+			t.Errorf("failed to authenticate to test server: %s", err)
+		}
+	})
+	t.Run("LOGIN authentication on test server should fail", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnAuth: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		auth := LoginAuth("user", "pass", TestServerAddr, false)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		if err = client.Auth(auth); err == nil {
+			t.Errorf("expected authentication to fail")
+		}
+	})
 }
 
 func TestLoginAuth_noEnc(t *testing.T) {
@@ -576,6 +793,59 @@ func TestLoginAuth_noEnc(t *testing.T) {
 			}
 		})
 	}
+	t.Run("LOGIN-NOENC authentication on test server", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		auth := LoginAuth("user", "pass", TestServerAddr, true)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		if err = client.Auth(auth); err != nil {
+			t.Errorf("failed to authenticate to test server: %s", err)
+		}
+	})
+	t.Run("LOGIN-NOENC authentication on test server should fail", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnAuth: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		auth := LoginAuth("user", "pass", TestServerAddr, true)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		if err = client.Auth(auth); err == nil {
+			t.Errorf("expected authentication to fail")
+		}
+	})
 }
 
 /*
@@ -2746,3 +3016,229 @@ func startSMTPServer(tlsServer bool, hostname, port string, h func() hash.Hash) 
 
 
 */
+// testingKey replaces the substring "TESTING KEY" with "PRIVATE KEY" in the given string s.
+func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
+
+// serverProps represents the configuration properties for the SMTP server.
+type serverProps struct {
+	FailOnAuth      bool
+	FailOnDataInit  bool
+	FailOnDataClose bool
+	FailOnHelo      bool
+	FailOnMailFrom  bool
+	FailOnNoop      bool
+	FailOnQuit      bool
+	FailOnReset     bool
+	FailOnSTARTTLS  bool
+	FailTemp        bool
+	FeatureSet      string
+	ListenPort      int
+	SSLListener     bool
+	IsTLS           bool
+	SupportDSN      bool
+}
+
+// simpleSMTPServer starts a simple TCP server that resonds to SMTP commands.
+// The provided featureSet represents in what the server responds to EHLO command
+// failReset controls if a RSET succeeds
+func simpleSMTPServer(ctx context.Context, t *testing.T, props *serverProps) error {
+	t.Helper()
+	if props == nil {
+		return fmt.Errorf("no server properties provided")
+	}
+
+	var listener net.Listener
+	var err error
+	if props.SSLListener {
+		keypair, err := tls.X509KeyPair(localhostCert, localhostKey)
+		if err != nil {
+			return fmt.Errorf("failed to read TLS keypair: %w", err)
+		}
+		tlsConfig := &tls.Config{Certificates: []tls.Certificate{keypair}}
+		listener, err = tls.Listen(TestServerProto, fmt.Sprintf("%s:%d", TestServerAddr, props.ListenPort),
+			tlsConfig)
+		if err != nil {
+			t.Fatalf("failed to create TLS listener: %s", err)
+		}
+	} else {
+		listener, err = net.Listen(TestServerProto, fmt.Sprintf("%s:%d", TestServerAddr, props.ListenPort))
+	}
+	if err != nil {
+		return fmt.Errorf("unable to listen on %s://%s: %w (SSL: %t)", TestServerProto, TestServerAddr, err,
+			props.SSLListener)
+	}
+
+	defer func() {
+		if err := listener.Close(); err != nil {
+			t.Logf("failed to close listener: %s", err)
+		}
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			connection, err := listener.Accept()
+			var opErr *net.OpError
+			if err != nil {
+				if errors.As(err, &opErr) && opErr.Temporary() {
+					continue
+				}
+				return fmt.Errorf("unable to accept connection: %w", err)
+			}
+			handleTestServerConnection(connection, t, props)
+		}
+	}
+}
+
+func handleTestServerConnection(connection net.Conn, t *testing.T, props *serverProps) {
+	t.Helper()
+	if !props.IsTLS {
+		t.Cleanup(func() {
+			if err := connection.Close(); err != nil {
+				t.Logf("failed to close connection: %s", err)
+			}
+		})
+	}
+
+	reader := bufio.NewReader(connection)
+	writer := bufio.NewWriter(connection)
+
+	writeLine := func(data string) {
+		_, err := writer.WriteString(data + "\r\n")
+		if err != nil {
+			t.Logf("failed to write line: %s", err)
+		}
+		_ = writer.Flush()
+	}
+	writeOK := func() {
+		writeLine("250 2.0.0 OK")
+	}
+
+	if !props.IsTLS {
+		writeLine("220 go-mail test server ready ESMTP")
+	}
+
+	for {
+		data, err := reader.ReadString('\n')
+		if err != nil {
+			break
+		}
+		time.Sleep(time.Millisecond)
+
+		var datastring string
+		data = strings.TrimSpace(data)
+		switch {
+		case strings.HasPrefix(data, "EHLO"), strings.HasPrefix(data, "HELO"):
+			if len(strings.Split(data, " ")) != 2 {
+				writeLine("501 Syntax: EHLO hostname")
+				break
+			}
+			if props.FailOnHelo {
+				writeLine("500 5.5.2 Error: fail on HELO")
+				break
+			}
+			writeLine("250-localhost.localdomain\r\n" + props.FeatureSet)
+		case strings.HasPrefix(data, "MAIL FROM:"):
+			if props.FailOnMailFrom {
+				writeLine("500 5.5.2 Error: fail on MAIL FROM")
+				break
+			}
+			from := strings.TrimPrefix(data, "MAIL FROM:")
+			from = strings.ReplaceAll(from, "BODY=8BITMIME", "")
+			from = strings.ReplaceAll(from, "SMTPUTF8", "")
+			if props.SupportDSN {
+				from = strings.ReplaceAll(from, "RET=FULL", "")
+			}
+			from = strings.TrimSpace(from)
+			if !strings.EqualFold(from, "<valid-from@domain.tld>") {
+				writeLine(fmt.Sprintf("503 5.1.2 Invalid from: %s", from))
+				break
+			}
+			writeOK()
+		case strings.HasPrefix(data, "RCPT TO:"):
+			to := strings.TrimPrefix(data, "RCPT TO:")
+			if props.SupportDSN {
+				to = strings.ReplaceAll(to, "NOTIFY=FAILURE,SUCCESS", "")
+			}
+			to = strings.TrimSpace(to)
+			if !strings.EqualFold(to, "<valid-to@domain.tld>") {
+				writeLine(fmt.Sprintf("500 5.1.2 Invalid to: %s", to))
+				break
+			}
+			writeOK()
+		case strings.HasPrefix(data, "AUTH"):
+			if props.FailOnAuth {
+				writeLine("535 5.7.8 Error: authentication failed")
+				break
+			}
+			writeLine("235 2.7.0 Authentication successful")
+		case strings.EqualFold(data, "DATA"):
+			if props.FailOnDataInit {
+				writeLine("503 5.5.1 Error: fail on DATA init")
+				break
+			}
+			writeLine("354 End data with <CR><LF>.<CR><LF>")
+			for {
+				ddata, derr := reader.ReadString('\n')
+				if derr != nil {
+					t.Logf("failed to read data from connection: %s", derr)
+					break
+				}
+				ddata = strings.TrimSpace(ddata)
+				if ddata == "." {
+					if props.FailOnDataClose {
+						writeLine("500 5.0.0 Error during DATA transmission")
+						break
+					}
+					if props.FailTemp {
+						writeLine("451 4.3.0 Error: fail on DATA close")
+						break
+					}
+					writeLine("250 2.0.0 Ok: queued as 1234567890")
+					break
+				}
+				datastring += ddata + "\n"
+			}
+		case strings.EqualFold(data, "noop"):
+			if props.FailOnNoop {
+				writeLine("500 5.0.0 Error: fail on NOOP")
+				break
+			}
+			writeOK()
+		case strings.EqualFold(data, "vrfy"):
+			writeOK()
+		case strings.EqualFold(data, "rset"):
+			if props.FailOnReset {
+				writeLine("500 5.1.2 Error: reset failed")
+				break
+			}
+			writeOK()
+		case strings.EqualFold(data, "quit"):
+			if props.FailOnQuit {
+				writeLine("500 5.1.2 Error: quit failed")
+				break
+			}
+			writeLine("221 2.0.0 Bye")
+			return
+		case strings.EqualFold(data, "starttls"):
+			if props.FailOnSTARTTLS {
+				writeLine("500 5.1.2 Error: starttls failed")
+				break
+			}
+			keypair, err := tls.X509KeyPair(localhostCert, localhostKey)
+			if err != nil {
+				writeLine("500 5.1.2 Error: starttls failed - " + err.Error())
+				break
+			}
+			writeLine("220 Ready to start TLS")
+			tlsConfig := &tls.Config{Certificates: []tls.Certificate{keypair}}
+			connection = tls.Server(connection, tlsConfig)
+			props.IsTLS = true
+			handleTestServerConnection(connection, t, props)
+		default:
+			writeLine("500 5.5.2 Error: bad syntax")
+		}
+	}
+}
