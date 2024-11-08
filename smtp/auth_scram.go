@@ -308,7 +308,7 @@ func (a *scramAuth) normalizeUsername() (string, error) {
 func (a *scramAuth) normalizeString(s string) (string, error) {
 	s, err := precis.OpaqueString.String(s)
 	if err != nil {
-		return "", fmt.Errorf("failled to normalize string: %w", err)
+		return "", fmt.Errorf("failed to normalize string: %w", err)
 	}
 	if s == "" {
 		return "", errors.New("normalized string is empty")
