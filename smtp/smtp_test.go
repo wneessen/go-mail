@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/tls"
@@ -1215,6 +1216,182 @@ func TestScramAuth(t *testing.T) {
 			t.Errorf("expected ErrUnexpectedServerResponse, got %s", err)
 		}
 	})
+}
+
+func TestScramAuth_normalizeString(t *testing.T) {
+	t.Run("normalizeString with invalid input should fail", func(t *testing.T) {
+		auth := scramAuth{}
+		value := "\u0000example\uFFFEstring\u001F"
+		_, err := auth.normalizeString(value)
+		if err == nil {
+			t.Fatal("normalizeString should fail on disallowed runes")
+		}
+		if !strings.Contains(err.Error(), "precis: disallowed rune encountered") {
+			t.Errorf("expected error to be %q, got %q", "precis: disallowed rune encountered", err)
+		}
+	})
+	t.Run("normalizeString on empty string should fail", func(t *testing.T) {
+		auth := scramAuth{}
+		_, err := auth.normalizeString("")
+		if err == nil {
+			t.Error("normalizeString should fail on disallowed runes")
+		}
+		if !strings.Contains(err.Error(), "precis: transformation resulted in empty string") {
+			t.Errorf("expected error to be %q, got %q", "precis: transformation resulted in empty string", err)
+		}
+	})
+	t.Run("normalizeUsername with invalid input should fail", func(t *testing.T) {
+		auth := scramAuth{username: "\u0000example\uFFFEstring\u001F"}
+		_, err := auth.normalizeUsername()
+		if err == nil {
+			t.Error("normalizeUsername should fail on disallowed runes")
+		}
+		if !strings.Contains(err.Error(), "precis: disallowed rune encountered") {
+			t.Errorf("expected error to be %q, got %q", "precis: disallowed rune encountered", err)
+		}
+	})
+	t.Run("normalizeUsername with empty input should fail", func(t *testing.T) {
+		auth := scramAuth{username: ""}
+		_, err := auth.normalizeUsername()
+		if err == nil {
+			t.Error("normalizeUsername should fail on empty input")
+		}
+		if !strings.Contains(err.Error(), "precis: transformation resulted in empty string") {
+			t.Errorf("expected error to be %q, got %q", "precis: transformation resulted in empty string", err)
+		}
+	})
+}
+
+func TestScramAuth_initialClientMessage(t *testing.T) {
+	t.Run("initialClientMessage with invalid username should fail", func(t *testing.T) {
+		auth := scramAuth{username: "\u0000example\uFFFEstring\u001F"}
+		_, err := auth.initialClientMessage()
+		if err == nil {
+			t.Error("initialClientMessage should fail on disallowed runes")
+		}
+		if !strings.Contains(err.Error(), "precis: disallowed rune encountered") {
+			t.Errorf("expected error to be %q, got %q", "precis: disallowed rune encountered", err)
+		}
+	})
+	t.Run("initialClientMessage with empty username should fail", func(t *testing.T) {
+		auth := scramAuth{username: ""}
+		_, err := auth.initialClientMessage()
+		if err == nil {
+			t.Error("initialClientMessage should fail on empty username")
+		}
+		if !strings.Contains(err.Error(), "precis: transformation resulted in empty string") {
+			t.Errorf("expected error to be %q, got %q", "precis: transformation resulted in empty string", err)
+		}
+	})
+	t.Run("initialClientMessage fails on broken rand.Reader", func(t *testing.T) {
+		defaultRandReader := rand.Reader
+		t.Cleanup(func() { rand.Reader = defaultRandReader })
+		rand.Reader = &randReader{}
+		auth := scramAuth{username: "username"}
+		_, err := auth.initialClientMessage()
+		if err == nil {
+			t.Error("initialClientMessage should fail with broken rand.Reader")
+		}
+		if !strings.Contains(err.Error(), "unable to generate client secret: broken reader") {
+			t.Errorf("expected error to be %q, got %q", "unable to generate client secret: broken reader", err)
+		}
+	})
+}
+
+func TestScramAuth_handleServerFirstResponse(t *testing.T) {
+	t.Run("handleServerFirstResponse fails if not at least 3 parts", func(t *testing.T) {
+		auth := scramAuth{}
+		_, err := auth.handleServerFirstResponse([]byte("r=0"))
+		if err == nil {
+			t.Error("handleServerFirstResponse should fail on invalid response")
+		}
+		expectedErr := "not enough fields in the first server response"
+		if !strings.EqualFold(err.Error(), expectedErr) {
+			t.Errorf("expected error to be %q, got %q", expectedErr, err)
+		}
+	})
+	t.Run("handleServerFirstResponse fails with first part does not start with r=", func(t *testing.T) {
+		auth := scramAuth{}
+		_, err := auth.handleServerFirstResponse([]byte("x=0,y=0,z=0,r=0"))
+		if err == nil {
+			t.Error("handleServerFirstResponse should fail on invalid response")
+		}
+		expectedErr := "first part of the server response does not start with r="
+		if !strings.EqualFold(err.Error(), expectedErr) {
+			t.Errorf("expected error to be %q, got %q", expectedErr, err)
+		}
+	})
+	t.Run("handleServerFirstResponse fails with second part does not start with s=", func(t *testing.T) {
+		auth := scramAuth{}
+		_, err := auth.handleServerFirstResponse([]byte("r=0,x=0,y=0,z=0"))
+		if err == nil {
+			t.Error("handleServerFirstResponse should fail on invalid response")
+		}
+		expectedErr := "second part of the server response does not start with s="
+		if !strings.EqualFold(err.Error(), expectedErr) {
+			t.Errorf("expected error to be %q, got %q", expectedErr, err)
+		}
+	})
+	t.Run("handleServerFirstResponse fails with third part does not start with i=", func(t *testing.T) {
+		auth := scramAuth{}
+		_, err := auth.handleServerFirstResponse([]byte("r=0,s=0,y=0,z=0"))
+		if err == nil {
+			t.Error("handleServerFirstResponse should fail on invalid response")
+		}
+		expectedErr := "third part of the server response does not start with i="
+		if !strings.EqualFold(err.Error(), expectedErr) {
+			t.Errorf("expected error to be %q, got %q", expectedErr, err)
+		}
+	})
+	t.Run("handleServerFirstResponse fails with empty nonce", func(t *testing.T) {
+		auth := scramAuth{}
+		_, err := auth.handleServerFirstResponse([]byte("r=,s=0,i=0"))
+		if err == nil {
+			t.Error("handleServerFirstResponse should fail on invalid response")
+		}
+		expectedErr := "server nonce does not start with our nonce"
+		if !strings.EqualFold(err.Error(), expectedErr) {
+			t.Errorf("expected error to be %q, got %q", expectedErr, err)
+		}
+	})
+	t.Run("handleServerFirstResponse fails with non-base64 nonce", func(t *testing.T) {
+		auth := scramAuth{nonce: []byte("Test123")}
+		_, err := auth.handleServerFirstResponse([]byte("r=Test123,s=0,i=0"))
+		if err == nil {
+			t.Error("handleServerFirstResponse should fail on invalid response")
+		}
+		expectedErr := "illegal base64 data at input byte 0"
+		if !strings.Contains(err.Error(), expectedErr) {
+			t.Errorf("expected error to be %q, got %q", expectedErr, err)
+		}
+	})
+	t.Run("handleServerFirstResponse fails with non-number iterations", func(t *testing.T) {
+		auth := scramAuth{nonce: []byte("VGVzdDEyMw==")}
+		_, err := auth.handleServerFirstResponse([]byte("r=VGVzdDEyMw==,s=VGVzdDEyMw==,i=abc"))
+		if err == nil {
+			t.Error("handleServerFirstResponse should fail on invalid response")
+		}
+		expectedErr := `invalid iterations: strconv.Atoi: parsing "abc": invalid syntax`
+		if !strings.Contains(err.Error(), expectedErr) {
+			t.Errorf("expected error to be %q, got %q", expectedErr, err)
+		}
+	})
+	t.Run("handleServerFirstResponse fails with invalid password runes", func(t *testing.T) {
+		auth := scramAuth{
+			nonce:    []byte("VGVzdDEyMw=="),
+			username: "username",
+			password: "\u0000example\uFFFEstring\u001F",
+		}
+		_, err := auth.handleServerFirstResponse([]byte("r=VGVzdDEyMw==,s=VGVzdDEyMw==,i=0"))
+		if err == nil {
+			t.Error("handleServerFirstResponse should fail on invalid response")
+		}
+		expectedErr := `unable to normalize password: failed to normalize string: precis: disallowed rune encountered`
+		if !strings.Contains(err.Error(), expectedErr) {
+			t.Errorf("expected error to be %q, got %q", expectedErr, err)
+		}
+	})
+
 }
 
 /*
@@ -3699,4 +3876,13 @@ func (s *testSCRAMSMTP) extractNonce(message string) string {
 		}
 	}
 	return ""
+}
+
+// randReader is type that satisfies the io.Reader interface. It can fail on a specific read
+// operations and is therefore useful to test consecutive reads with errors
+type randReader struct{}
+
+// Read implements the io.Reader interface for the randReader type
+func (r *randReader) Read([]byte) (int, error) {
+	return 0, errors.New("broken reader")
 }
