@@ -310,8 +310,5 @@ func (a *scramAuth) normalizeString(s string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to normalize string: %w", err)
 	}
-	if s == "" {
-		return "", errors.New("normalized string is empty")
-	}
 	return s, nil
 }
