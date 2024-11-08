@@ -154,7 +154,7 @@ func (a *scramAuth) initialClientMessage() ([]byte, error) {
 		connState := a.tlsConnState
 		bindData := connState.TLSUnique
 
-		// crypto/tl: no tls-unique channel binding value for this tls connection, possibly due to missing
+		// crypto/tls: no tls-unique channel binding value for this tls connection, possibly due to missing
 		// extended master key support and/or resumed connection
 		// RFC9266:122 tls-unique not defined for tls 1.3 and later
 		if bindData == nil || connState.Version >= tls.VersionTLS13 {
