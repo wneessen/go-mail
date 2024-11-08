@@ -20,6 +20,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 	"sync/atomic"
@@ -382,6 +383,11 @@ func TestPlainAuth(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client connection: %s", err)
+			}
+		})
 		if err = client.Auth(auth); err != nil {
 			t.Errorf("failed to authenticate to test server: %s", err)
 		}
@@ -530,6 +536,11 @@ func TestPlainAuth_noEnc(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client connection: %s", err)
+			}
+		})
 		if err = client.Auth(auth); err != nil {
 			t.Errorf("failed to authenticate to test server: %s", err)
 		}
@@ -674,6 +685,11 @@ func TestLoginAuth(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client connection: %s", err)
+			}
+		})
 		if err = client.Auth(auth); err != nil {
 			t.Errorf("failed to authenticate to test server: %s", err)
 		}
@@ -815,6 +831,11 @@ func TestLoginAuth_noEnc(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client connection: %s", err)
+			}
+		})
 		if err = client.Auth(auth); err != nil {
 			t.Errorf("failed to authenticate to test server: %s", err)
 		}
@@ -848,98 +869,123 @@ func TestLoginAuth_noEnc(t *testing.T) {
 	})
 }
 
+func TestXOAuth2Auth(t *testing.T) {
+	t.Run("XOAuth2 authentication all steps", func(t *testing.T) {
+		auth := XOAuth2Auth("user", "token")
+		proto, toserver, err := auth.Start(&ServerInfo{Name: "servername", TLS: true})
+		if err != nil {
+			t.Fatalf("failed to start XOAuth2 authentication: %s", err)
+		}
+		if proto != "XOAUTH2" {
+			t.Errorf("expected protocol to be XOAUTH2, got: %q", proto)
+		}
+		expected := []byte("user=user\x01auth=Bearer token\x01\x01")
+		if !bytes.Equal(expected, toserver) {
+			t.Errorf("expected server response to be: %q, got: %q", expected, toserver)
+		}
+		resp, err := auth.Next([]byte("nonsense"), true)
+		if err != nil {
+			t.Errorf("failed on first server challange: %s", err)
+		}
+		if !bytes.Equal([]byte(""), resp) {
+			t.Errorf("expected server response to be empty, got: %q", resp)
+		}
+		resp, err = auth.Next([]byte("nonsense"), false)
+		if err != nil {
+			t.Errorf("failed on first server challange: %s", err)
+		}
+	})
+	t.Run("XOAuth2 succeeds with faker", func(t *testing.T) {
+		server := []string{
+			"220 Fake server ready ESMTP",
+			"250-fake.server",
+			"250-AUTH XOAUTH2",
+			"250 8BITMIME",
+			"235 2.7.0 Accepted",
+		}
+		var wrote strings.Builder
+		var fake faker
+		fake.ReadWriter = struct {
+			io.Reader
+			io.Writer
+		}{
+			strings.NewReader(strings.Join(server, "\r\n")),
+			&wrote,
+		}
+		client, err := NewClient(fake, "fake.host")
+		if err != nil {
+			t.Fatalf("failed to create client on faker server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client connection: %s", err)
+			}
+		})
+
+		auth := XOAuth2Auth("user", "token")
+		if err = client.Auth(auth); err != nil {
+			t.Errorf("failed to authenticate to faker server: %s", err)
+		}
+
+		// the Next method returns a nil response. It must not be sent.
+		// The client request must end with the authentication.
+		if !strings.HasSuffix(wrote.String(), "AUTH XOAUTH2 dXNlcj11c2VyAWF1dGg9QmVhcmVyIHRva2VuAQE=\r\n") {
+			t.Fatalf("got %q; want AUTH XOAUTH2 dXNlcj11c2VyAWF1dGg9QmVhcmVyIHRva2VuAQE=\r\n", wrote.String())
+		}
+	})
+	t.Run("XOAuth2 fails with faker", func(t *testing.T) {
+		serverResp := []string{
+			"220 Fake server ready ESMTP",
+			"250-fake.server",
+			"250-AUTH XOAUTH2",
+			"250 8BITMIME",
+			"334 eyJzdGF0dXMiOiI0MDAiLCJzY2hlbWVzIjoiQmVhcmVyIiwic2NvcGUiOiJodHRwczovL21haWwuZ29vZ2xlLmNvbS8ifQ==",
+			"535 5.7.8 Username and Password not accepted",
+			"221 2.0.0 closing connection",
+		}
+		var wrote strings.Builder
+		var fake faker
+		fake.ReadWriter = struct {
+			io.Reader
+			io.Writer
+		}{
+			strings.NewReader(strings.Join(serverResp, "\r\n")),
+			&wrote,
+		}
+		client, err := NewClient(fake, "fake.host")
+		if err != nil {
+			t.Fatalf("failed to create client on faker server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client connection: %s", err)
+			}
+		})
+
+		auth := XOAuth2Auth("user", "token")
+		if err = client.Auth(auth); err == nil {
+			t.Errorf("expected authentication to fail")
+		}
+		resp := strings.Split(wrote.String(), "\r\n")
+		if len(resp) != 5 {
+			t.Fatalf("unexpected number of client requests got %d; want 5", len(resp))
+		}
+		if resp[1] != "AUTH XOAUTH2 dXNlcj11c2VyAWF1dGg9QmVhcmVyIHRva2VuAQE=" {
+			t.Fatalf("got %q; want AUTH XOAUTH2 dXNlcj11c2VyAWF1dGg9QmVhcmVyIHRva2VuAQE=", resp[1])
+		}
+		// the Next method returns an empty response. It must be sent
+		if resp[2] != "" {
+			t.Fatalf("got %q; want empty response", resp[2])
+		}
+	})
+}
+
 /*
 
 
 
 
-func TestXOAuth2OK(t *testing.T) {
-	server := []string{
-		"220 Fake server ready ESMTP",
-		"250-fake.server",
-		"250-AUTH XOAUTH2",
-		"250 8BITMIME",
-		"235 2.7.0 Accepted",
-	}
-	var wrote strings.Builder
-	var fake faker
-	fake.ReadWriter = struct {
-		io.Reader
-		io.Writer
-	}{
-		strings.NewReader(strings.Join(server, "\r\n")),
-		&wrote,
-	}
 
-	c, err := NewClient(fake, "fake.host")
-	if err != nil {
-		t.Fatalf("NewClient: %v", err)
-	}
-	defer func() {
-		if err := c.Close(); err != nil {
-			t.Errorf("failed to close client: %s", err)
-		}
-	}()
-
-	auth := XOAuth2Auth("user", "token")
-	err = c.Auth(auth)
-	if err != nil {
-		t.Fatalf("XOAuth2 error: %v", err)
-	}
-	// the Next method returns a nil response. It must not be sent.
-	// The client request must end with the authentication.
-	if !strings.HasSuffix(wrote.String(), "AUTH XOAUTH2 dXNlcj11c2VyAWF1dGg9QmVhcmVyIHRva2VuAQE=\r\n") {
-		t.Fatalf("got %q; want AUTH XOAUTH2 dXNlcj11c2VyAWF1dGg9QmVhcmVyIHRva2VuAQE=\r\n", wrote.String())
-	}
-}
-
-func TestXOAuth2Error(t *testing.T) {
-	serverResp := []string{
-		"220 Fake server ready ESMTP",
-		"250-fake.server",
-		"250-AUTH XOAUTH2",
-		"250 8BITMIME",
-		"334 eyJzdGF0dXMiOiI0MDAiLCJzY2hlbWVzIjoiQmVhcmVyIiwic2NvcGUiOiJodHRwczovL21haWwuZ29vZ2xlLmNvbS8ifQ==",
-		"535 5.7.8 Username and Password not accepted",
-		"221 2.0.0 closing connection",
-	}
-	var wrote strings.Builder
-	var fake faker
-	fake.ReadWriter = struct {
-		io.Reader
-		io.Writer
-	}{
-		strings.NewReader(strings.Join(serverResp, "\r\n")),
-		&wrote,
-	}
-
-	c, err := NewClient(fake, "fake.host")
-	if err != nil {
-		t.Fatalf("NewClient: %v", err)
-	}
-	defer func() {
-		if err := c.Close(); err != nil {
-			t.Errorf("failed to close client: %s", err)
-		}
-	}()
-
-	auth := XOAuth2Auth("user", "token")
-	err = c.Auth(auth)
-	if err == nil {
-		t.Fatal("expected auth error, got nil")
-	}
-	client := strings.Split(wrote.String(), "\r\n")
-	if len(client) != 5 {
-		t.Fatalf("unexpected number of client requests got %d; want 5", len(client))
-	}
-	if client[1] != "AUTH XOAUTH2 dXNlcj11c2VyAWF1dGg9QmVhcmVyIHRva2VuAQE=" {
-		t.Fatalf("got %q; want AUTH XOAUTH2 dXNlcj11c2VyAWF1dGg9QmVhcmVyIHRva2VuAQE=", client[1])
-	}
-	// the Next method returns an empty response. It must be sent
-	if client[2] != "" {
-		t.Fatalf("got %q; want empty response", client[2])
-	}
-}
 
 func TestAuthSCRAMSHA1_OK(t *testing.T) {
 	hostname := "127.0.0.1"
@@ -1216,17 +1262,6 @@ func (toServerEmptyAuth) Start(_ *ServerInfo) (proto string, toServer []byte, er
 func (toServerEmptyAuth) Next(_ []byte, _ bool) (toServer []byte, err error) {
 	panic("unexpected call")
 }
-
-type faker struct {
-	io.ReadWriter
-}
-
-func (f faker) Close() error                     { return nil }
-func (f faker) LocalAddr() net.Addr              { return nil }
-func (f faker) RemoteAddr() net.Addr             { return nil }
-func (f faker) SetDeadline(time.Time) error      { return nil }
-func (f faker) SetReadDeadline(time.Time) error  { return nil }
-func (f faker) SetWriteDeadline(time.Time) error { return nil }
 
 func TestBasic(t *testing.T) {
 	server := strings.Join(strings.Split(basicServer, "\n"), "\r\n")
@@ -3016,6 +3051,19 @@ func startSMTPServer(tlsServer bool, hostname, port string, h func() hash.Hash) 
 
 
 */
+
+// faker is a struct embedding io.ReadWriter to simulate network connections for testing purposes.
+type faker struct {
+	io.ReadWriter
+}
+
+func (f faker) Close() error                     { return nil }
+func (f faker) LocalAddr() net.Addr              { return nil }
+func (f faker) RemoteAddr() net.Addr             { return nil }
+func (f faker) SetDeadline(time.Time) error      { return nil }
+func (f faker) SetReadDeadline(time.Time) error  { return nil }
+func (f faker) SetWriteDeadline(time.Time) error { return nil }
+
 // testingKey replaces the substring "TESTING KEY" with "PRIVATE KEY" in the given string s.
 func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
 
