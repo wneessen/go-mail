@@ -978,6 +978,64 @@ func TestXOAuth2Auth(t *testing.T) {
 			t.Fatalf("got %q; want empty response", resp[2])
 		}
 	})
+	t.Run("XOAuth2 authentication on test server succeeds", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH XOAUTH2\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		auth := XOAuth2Auth("user", "token")
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client connection: %s", err)
+			}
+		})
+		if err = client.Auth(auth); err != nil {
+			t.Errorf("failed to authenticate to test server: %s", err)
+		}
+	})
+	t.Run("XOAuth2 authentication on test server fails", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH XOAUTH2\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnAuth: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		auth := XOAuth2Auth("user", "token")
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		if err = client.Auth(auth); err == nil {
+			t.Errorf("expected authentication to fail")
+		}
+	})
 }
 
 /*
