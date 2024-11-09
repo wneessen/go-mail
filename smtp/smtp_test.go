@@ -1668,6 +1668,29 @@ func TestClient_Hello(t *testing.T) {
 	})
 }
 
+func TestClient_cmd(t *testing.T) {
+	t.Run("cmd fails on textproto cmd", func(t *testing.T) {
+		server := "220 server ready\r\n"
+		var fake faker
+		fake.failOnClose = true
+		fake.ReadWriter = struct {
+			io.Reader
+			io.Writer
+		}{
+			strings.NewReader(server),
+			&failWriter{},
+		}
+		client, err := NewClient(fake, "faker.host")
+		if err != nil {
+			t.Errorf("failed to create client: %s", err)
+		}
+		_, _, err = client.cmd(250, "HELO faker.host")
+		if err == nil {
+			t.Error("cmd should fail on textproto cmd with broken writer")
+		}
+	})
+}
+
 // Issue 17794: don't send a trailing space on AUTH command when there's no password.
 func TestClient_Auth_trimSpace(t *testing.T) {
 	server := "220 hello world\r\n" +
@@ -3655,4 +3678,11 @@ func (toServerEmptyAuth) Start(_ *ServerInfo) (proto string, toServer []byte, er
 
 func (toServerEmptyAuth) Next(_ []byte, _ bool) (toServer []byte, err error) {
 	return nil, fmt.Errorf("unexpected call")
+}
+
+// failWriter is a struct type that implements the io.Writer interface, but always returns an error on Write.
+type failWriter struct{}
+
+func (w *failWriter) Write([]byte) (int, error) {
+	return 0, errors.New("broken writer")
 }
