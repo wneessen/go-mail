@@ -1691,6 +1691,108 @@ func TestClient_cmd(t *testing.T) {
 	})
 }
 
+func TestClient_StartTLS(t *testing.T) {
+	t.Run("normal STARTTLS should succeed", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Errorf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		tlsConfig := &tls.Config{InsecureSkipVerify: true}
+		if err = client.StartTLS(tlsConfig); err != nil {
+			t.Errorf("failed to initialize STARTTLS session: %s", err)
+		}
+	})
+	t.Run("STARTTLS fails on EHLO/HELO", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnEhlo: true,
+				FailOnHelo: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Errorf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		tlsConfig := &tls.Config{InsecureSkipVerify: true}
+		if err = client.StartTLS(tlsConfig); err == nil {
+			t.Error("STARTTLS should fail on EHLO")
+		}
+	})
+	t.Run("STARTTLS fails on server not supporting STARTTLS", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnSTARTTLS: true,
+				FeatureSet:     featureSet,
+				ListenPort:     serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Errorf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		tlsConfig := &tls.Config{InsecureSkipVerify: true}
+		if err = client.StartTLS(tlsConfig); err == nil {
+			t.Error("STARTTLS should fail for server not supporting it")
+		}
+	})
+}
+
 // Issue 17794: don't send a trailing space on AUTH command when there's no password.
 func TestClient_Auth_trimSpace(t *testing.T) {
 	server := "220 hello world\r\n" +
