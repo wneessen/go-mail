@@ -1585,6 +1585,87 @@ func TestClient_Hello(t *testing.T) {
 			t.Errorf("failed to send HELO/EHLO to test server: %s", err)
 		}
 	})
+	t.Run("client HELO/EHLO with empty name should fail", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Errorf("failed to dial to test server: %s", err)
+		}
+		if err = client.Hello(""); err == nil {
+			t.Error("HELO/EHLO with empty name should fail")
+		}
+	})
+	t.Run("client HELO/EHLO with newline in name should fail", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Errorf("failed to dial to test server: %s", err)
+		}
+		if err = client.Hello(TestServerAddr + "\r\n"); err == nil {
+			t.Error("HELO/EHLO with newline should fail")
+		}
+	})
+	t.Run("client double HELO/EHLO should fail", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Errorf("failed to dial to test server: %s", err)
+		}
+		if err = client.Hello(TestServerAddr); err != nil {
+			t.Errorf("failed to send HELO/EHLO to test server: %s", err)
+		}
+		if err = client.Hello(TestServerAddr); err == nil {
+			t.Error("double HELO/EHLO should fail")
+		}
+	})
 }
 
 // Issue 17794: don't send a trailing space on AUTH command when there's no password.
