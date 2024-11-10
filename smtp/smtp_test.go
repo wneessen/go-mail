@@ -1867,44 +1867,408 @@ func TestClient_TLSConnectionState(t *testing.T) {
 	})
 }
 
-// Issue 17794: don't send a trailing space on AUTH command when there's no password.
-func TestClient_Auth_trimSpace(t *testing.T) {
-	server := "220 hello world\r\n" +
-		"200 some more"
-	var wrote strings.Builder
-	var fake faker
-	fake.ReadWriter = struct {
-		io.Reader
-		io.Writer
-	}{
-		strings.NewReader(server),
-		&wrote,
-	}
-	c, err := NewClient(fake, "fake.host")
-	if err != nil {
-		t.Fatalf("NewClient: %v", err)
-	}
-	c.tls = true
-	c.didHello = true
-	_ = c.Auth(toServerEmptyAuth{})
-	if err = c.Close(); err != nil {
-		t.Errorf("close failed: %s", err)
-	}
-	if got, want := wrote.String(), "AUTH FOOAUTH\r\n*\r\nQUIT\r\n"; got != want {
-		t.Errorf("wrote %q; want %q", got, want)
-	}
+func TestClient_Verify(t *testing.T) {
+	t.Run("Verify on existing user succeeds", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Errorf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.Verify("toni.tester@example.com"); err != nil {
+			t.Errorf("failed to verify user: %s", err)
+		}
+	})
+	t.Run("Verify on non-existing user fails", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet:      featureSet,
+				ListenPort:      serverPort,
+				VRFYUserUnknown: true,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Errorf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.Verify("toni.tester@example.com"); err == nil {
+			t.Error("verify on non-existing user should fail")
+		}
+	})
+	t.Run("Verify with newlines should fails", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Errorf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.Verify("toni.tester@example.com\r\n"); err == nil {
+			t.Error("verify with new lines should fail")
+		}
+	})
+	t.Run("Verify should fail on HELO/EHLO", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnEhlo: true,
+				FailOnHelo: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Errorf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.Verify("toni.tester@example.com"); err == nil {
+			t.Error("verify with new lines should fail")
+		}
+	})
+}
+
+func TestClient_Auth(t *testing.T) {
+	t.Run("Auth fails on EHLO/HELO", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnEhlo: true,
+				FailOnHelo: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Errorf("failed to dial to test server: %s", err)
+		}
+		auth := LoginAuth("username", "password", TestServerAddr, false)
+		if err = client.Auth(auth); err == nil {
+			t.Error("auth should fail on EHLO/HELO")
+		}
+	})
+	t.Run("Auth fails on auth-start", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnAuth: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Errorf("failed to dial to test server: %s", err)
+		}
+		auth := LoginAuth("username", "password", "not.localhost.com", false)
+		if err = client.Auth(auth); err == nil {
+			t.Error("auth should fail on auth-start, then on quit")
+		}
+		expErr := "wrong host name"
+		if !strings.EqualFold(expErr, err.Error()) {
+			t.Errorf("expected error: %q, got: %q", expErr, err.Error())
+		}
+	})
+	t.Run("Auth fails on auth-start and then on quit", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnAuth: true,
+				FailOnQuit: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Errorf("failed to dial to test server: %s", err)
+		}
+		auth := LoginAuth("username", "password", "not.localhost.com", false)
+		if err = client.Auth(auth); err == nil {
+			t.Error("auth should fail on auth-start, then on quit")
+		}
+		expErr := "wrong host name, 500 5.1.2 Error: quit failed"
+		if !strings.EqualFold(expErr, err.Error()) {
+			t.Errorf("expected error: %q, got: %q", expErr, err.Error())
+		}
+	})
+	// Issue 17794: don't send a trailing space on AUTH command when there's no password.
+	t.Run("No trailing space on AUTH when there is no password (Issue 17794)", func(t *testing.T) {
+		server := "220 hello world\r\n" +
+			"200 some more"
+		var wrote strings.Builder
+		var fake faker
+		fake.ReadWriter = struct {
+			io.Reader
+			io.Writer
+		}{
+			strings.NewReader(server),
+			&wrote,
+		}
+		c, err := NewClient(fake, "fake.host")
+		if err != nil {
+			t.Fatalf("NewClient: %v", err)
+		}
+		c.tls = true
+		c.didHello = true
+		_ = c.Auth(toServerEmptyAuth{})
+		if err = c.Close(); err != nil {
+			t.Errorf("close failed: %s", err)
+		}
+		if got, want := wrote.String(), "AUTH FOOAUTH\r\n*\r\nQUIT\r\n"; got != want {
+			t.Errorf("wrote %q; want %q", got, want)
+		}
+	})
+}
+
+func TestClient_Mail(t *testing.T) {
+	t.Run("normal from address succeeds", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Errorf("failed to dial to test server: %s", err)
+		}
+		if err = client.Mail("valid-from@domain.tld"); err != nil {
+			t.Errorf("failed to set mail from address: %s", err)
+		}
+	})
+	t.Run("from address with new lines fails", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Errorf("failed to dial to test server: %s", err)
+		}
+		if err = client.Mail("valid-from@domain.tld\r\n"); err == nil {
+			t.Error("mail from address with new lines should fail")
+		}
+	})
+	t.Run("from address fails on EHLO/HELO", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnEhlo: true,
+				FailOnHelo: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Errorf("failed to dial to test server: %s", err)
+		}
+		if err = client.Mail("valid-from@domain.tld"); err == nil {
+			t.Error("mail from address should fail on EHLO/HELO")
+		}
+	})
+	t.Run("from address and server supports 8BITMIME", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				EchoCommandAsError: "MAIL FROM:",
+				FeatureSet:         featureSet,
+				ListenPort:         serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Errorf("failed to dial to test server: %s", err)
+		}
+		if err = client.Mail("valid-from@domain.tld"); err == nil {
+			t.Error("server should echo the command as error but didn't")
+		}
+		sent := strings.Replace(err.Error(), "500 ", "", -1)
+		expected := "MAIL FROM:<valid-from@domain.tld> BODY=8BITMIME"
+		if !strings.EqualFold(sent, expected) {
+			t.Errorf("expected mail from command to be %q, but sent %q", expected, sent)
+		}
+	})
+	t.Run("from address and server supports SMTPUTF8", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-SMTPUTF8\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				EchoCommandAsError: "MAIL FROM:",
+				FeatureSet:         featureSet,
+				ListenPort:         serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Errorf("failed to dial to test server: %s", err)
+		}
+		if err = client.Mail("valid-from@domain.tld"); err == nil {
+			t.Error("server should echo the command as error but didn't")
+		}
+		sent := strings.Replace(err.Error(), "500 ", "", -1)
+		expected := "MAIL FROM:<valid-from@domain.tld> SMTPUTF8"
+		if !strings.EqualFold(sent, expected) {
+			t.Errorf("expected mail from command to be %q, but sent %q", expected, sent)
+		}
+	})
 }
 
 /*
-
-
-
-
-
-
-
-
-
 func TestBasic(t *testing.T) {
 	server := strings.Join(strings.Split(basicServer, "\n"), "\r\n")
 	client := strings.Join(strings.Split(basicClient, "\n"), "\r\n")
@@ -3422,26 +3786,28 @@ func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "
 
 // serverProps represents the configuration properties for the SMTP server.
 type serverProps struct {
-	FailOnAuth      bool
-	FailOnDataInit  bool
-	FailOnDataClose bool
-	FailOnDial      bool
-	FailOnEhlo      bool
-	FailOnHelo      bool
-	FailOnMailFrom  bool
-	FailOnNoop      bool
-	FailOnQuit      bool
-	FailOnReset     bool
-	FailOnSTARTTLS  bool
-	FailTemp        bool
-	FeatureSet      string
-	ListenPort      int
-	SSLListener     bool
-	IsSCRAMPlus     bool
-	IsTLS           bool
-	SupportDSN      bool
-	TestSCRAM       bool
-	HashFunc        func() hash.Hash
+	EchoCommandAsError string
+	FailOnAuth         bool
+	FailOnDataInit     bool
+	FailOnDataClose    bool
+	FailOnDial         bool
+	FailOnEhlo         bool
+	FailOnHelo         bool
+	FailOnMailFrom     bool
+	FailOnNoop         bool
+	FailOnQuit         bool
+	FailOnReset        bool
+	FailOnSTARTTLS     bool
+	FailTemp           bool
+	FeatureSet         string
+	ListenPort         int
+	HashFunc           func() hash.Hash
+	IsSCRAMPlus        bool
+	IsTLS              bool
+	SupportDSN         bool
+	SSLListener        bool
+	TestSCRAM          bool
+	VRFYUserUnknown    bool
 }
 
 // simpleSMTPServer starts a simple TCP server that resonds to SMTP commands.
@@ -3540,6 +3906,9 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 		var datastring string
 		data = strings.TrimSpace(data)
 		switch {
+		case props.EchoCommandAsError != "" && strings.HasPrefix(data, props.EchoCommandAsError):
+			writeLine("500 " + data)
+			break
 		case strings.HasPrefix(data, "HELO"):
 			if len(strings.Split(data, " ")) != 2 {
 				writeLine("501 Syntax: HELO hostname")
@@ -3643,8 +4012,17 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 				break
 			}
 			writeOK()
-		case strings.EqualFold(data, "vrfy"):
-			writeOK()
+		case strings.HasPrefix(data, "VRFY"):
+			if props.VRFYUserUnknown {
+				writeLine("550 5.1.1 User unknown")
+				break
+			}
+			parts := strings.SplitN(data, " ", 2)
+			if len(parts) != 2 {
+				writeLine("500 5.0.0 Error: invalid syntax for VRFY")
+				break
+			}
+			writeLine(fmt.Sprintf("250 2.0.0 Ok: %s OK", parts[1]))
 		case strings.EqualFold(data, "rset"):
 			if props.FailOnReset {
 				writeLine("500 5.1.2 Error: reset failed")
@@ -3674,7 +4052,7 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 			props.IsTLS = true
 			handleTestServerConnection(connection, t, props)
 		default:
-			writeLine("500 5.5.2 Error: bad syntax")
+			writeLine("500 5.5.2 Error: bad syntax - " + data)
 		}
 	}
 }
