@@ -2142,8 +2142,13 @@ func TestClient_Mail(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
 		if err = client.Mail("valid-from@domain.tld"); err != nil {
 			t.Errorf("failed to set mail from address: %s", err)
 		}
@@ -2168,8 +2173,13 @@ func TestClient_Mail(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
 		if err = client.Mail("valid-from@domain.tld\r\n"); err == nil {
 			t.Error("mail from address with new lines should fail")
 		}
@@ -2196,8 +2206,13 @@ func TestClient_Mail(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
 		if err = client.Mail("valid-from@domain.tld"); err == nil {
 			t.Error("mail from address should fail on EHLO/HELO")
 		}
@@ -2223,8 +2238,13 @@ func TestClient_Mail(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
 		if err = client.Mail("valid-from@domain.tld"); err == nil {
 			t.Error("server should echo the command as error but didn't")
 		}
@@ -2255,8 +2275,13 @@ func TestClient_Mail(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
 		if err = client.Mail("valid-from@domain.tld"); err == nil {
 			t.Error("server should echo the command as error but didn't")
 		}
@@ -2287,8 +2312,13 @@ func TestClient_Mail(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
 		client.dsnmrtype = "FULL"
 		if err = client.Mail("valid-from@domain.tld"); err == nil {
 			t.Error("server should echo the command as error but didn't")
@@ -2320,8 +2350,13 @@ func TestClient_Mail(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
 		client.dsnmrtype = "FULL"
 		if err = client.Mail("valid-from@domain.tld"); err == nil {
 			t.Error("server should echo the command as error but didn't")
@@ -2330,6 +2365,109 @@ func TestClient_Mail(t *testing.T) {
 		expected := "MAIL FROM:<valid-from@domain.tld> BODY=8BITMIME SMTPUTF8 RET=FULL"
 		if !strings.EqualFold(sent, expected) {
 			t.Errorf("expected mail from command to be %q, but sent %q", expected, sent)
+		}
+	})
+}
+
+func TestClient_Rcpt(t *testing.T) {
+	t.Run("normal recipient address succeeds", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-DSN\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.Rcpt("valid-to@domain.tld"); err != nil {
+			t.Errorf("failed to set recipient address: %s", err)
+		}
+	})
+	t.Run("recipient address with newlines fails", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.Rcpt("valid-to@domain.tld\r\n"); err == nil {
+			t.Error("recpient address with newlines should fail")
+		}
+	})
+	t.Run("recipient address with DSN", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-DSN\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				EchoCommandAsError: "RCPT TO:",
+				FeatureSet:         featureSet,
+				ListenPort:         serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.Hello(TestServerAddr); err != nil {
+			t.Fatalf("failed to send hello to test server: %s", err)
+		}
+		client.dsnrntype = "SUCCESS"
+		if err = client.Rcpt("valid-to@domain.tld"); err == nil {
+			t.Error("recpient address with newlines should fail")
+		}
+		sent := strings.Replace(err.Error(), "500 ", "", -1)
+		expected := "RCPT TO:<valid-to@domain.tld> NOTIFY=SUCCESS"
+		if !strings.EqualFold(sent, expected) {
+			t.Errorf("expected rcpt to command to be %q, but sent %q", expected, sent)
 		}
 	})
 }
