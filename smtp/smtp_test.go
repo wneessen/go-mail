@@ -2266,6 +2266,72 @@ func TestClient_Mail(t *testing.T) {
 			t.Errorf("expected mail from command to be %q, but sent %q", expected, sent)
 		}
 	})
+	t.Run("from address and server supports DSN", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-DSN\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				EchoCommandAsError: "MAIL FROM:",
+				FeatureSet:         featureSet,
+				ListenPort:         serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Errorf("failed to dial to test server: %s", err)
+		}
+		client.dsnmrtype = "FULL"
+		if err = client.Mail("valid-from@domain.tld"); err == nil {
+			t.Error("server should echo the command as error but didn't")
+		}
+		sent := strings.Replace(err.Error(), "500 ", "", -1)
+		expected := "MAIL FROM:<valid-from@domain.tld> RET=FULL"
+		if !strings.EqualFold(sent, expected) {
+			t.Errorf("expected mail from command to be %q, but sent %q", expected, sent)
+		}
+	})
+	t.Run("from address and server supports DSN, SMTPUTF8 and 8BITMIME", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-DSN\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				EchoCommandAsError: "MAIL FROM:",
+				FeatureSet:         featureSet,
+				ListenPort:         serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Errorf("failed to dial to test server: %s", err)
+		}
+		client.dsnmrtype = "FULL"
+		if err = client.Mail("valid-from@domain.tld"); err == nil {
+			t.Error("server should echo the command as error but didn't")
+		}
+		sent := strings.Replace(err.Error(), "500 ", "", -1)
+		expected := "MAIL FROM:<valid-from@domain.tld> BODY=8BITMIME SMTPUTF8 RET=FULL"
+		if !strings.EqualFold(sent, expected) {
+			t.Errorf("expected mail from command to be %q, but sent %q", expected, sent)
+		}
+	})
 }
 
 /*
