@@ -379,7 +379,8 @@ func TestPlainAuth(t *testing.T) {
 		go func() {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
 				FeatureSet: featureSet,
-				ListenPort: serverPort},
+				ListenPort: serverPort,
+			},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -411,7 +412,8 @@ func TestPlainAuth(t *testing.T) {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
 				FailOnAuth: true,
 				FeatureSet: featureSet,
-				ListenPort: serverPort},
+				ListenPort: serverPort,
+			},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -532,7 +534,8 @@ func TestPlainAuth_noEnc(t *testing.T) {
 		go func() {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
 				FeatureSet: featureSet,
-				ListenPort: serverPort},
+				ListenPort: serverPort,
+			},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -564,7 +567,8 @@ func TestPlainAuth_noEnc(t *testing.T) {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
 				FailOnAuth: true,
 				FeatureSet: featureSet,
-				ListenPort: serverPort},
+				ListenPort: serverPort,
+			},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -681,7 +685,8 @@ func TestLoginAuth(t *testing.T) {
 		go func() {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
 				FeatureSet: featureSet,
-				ListenPort: serverPort},
+				ListenPort: serverPort,
+			},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -713,7 +718,8 @@ func TestLoginAuth(t *testing.T) {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
 				FailOnAuth: true,
 				FeatureSet: featureSet,
-				ListenPort: serverPort},
+				ListenPort: serverPort,
+			},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -827,7 +833,8 @@ func TestLoginAuth_noEnc(t *testing.T) {
 		go func() {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
 				FeatureSet: featureSet,
-				ListenPort: serverPort},
+				ListenPort: serverPort,
+			},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -859,7 +866,8 @@ func TestLoginAuth_noEnc(t *testing.T) {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
 				FailOnAuth: true,
 				FeatureSet: featureSet,
-				ListenPort: serverPort},
+				ListenPort: serverPort,
+			},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -996,7 +1004,8 @@ func TestXOAuth2Auth(t *testing.T) {
 		go func() {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
 				FeatureSet: featureSet,
-				ListenPort: serverPort},
+				ListenPort: serverPort,
+			},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -1028,7 +1037,8 @@ func TestXOAuth2Auth(t *testing.T) {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
 				FailOnAuth: true,
 				FeatureSet: featureSet,
-				ListenPort: serverPort},
+				ListenPort: serverPort,
+			},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -2544,6 +2554,34 @@ func TestClient_Data(t *testing.T) {
 
 func TestSendMail(t *testing.T) {
 	t.Run("full SendMail transaction with TLS and auth", func(t *testing.T) {
+		want := []string{
+			"220 go-mail test server ready ESMTP",
+			"EHLO localhost",
+			"250-localhost.localdomain",
+			"250-AUTH LOGIN",
+			"250-DSN",
+			"250 STARTTLS",
+			"STARTTLS",
+			"220 Ready to start TLS",
+			"EHLO localhost",
+			"250-localhost.localdomain",
+			"250-AUTH LOGIN",
+			"250-DSN",
+			"250 STARTTLS",
+			"AUTH LOGIN",
+			"235 2.7.0 Authentication successful",
+			"MAIL FROM:<valid-from@domain.tld>",
+			"250 2.0.0 OK",
+			"RCPT TO:<valid-to@domain.tld>",
+			"250 2.0.0 OK",
+			"DATA",
+			"354 End data with <CR><LF>.<CR><LF>",
+			"test message",
+			".",
+			"250 2.0.0 Ok: queued as 1234567890",
+			"QUIT",
+			"221 2.0.0 Bye",
+		}
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		PortAdder.Add(1)
@@ -2575,8 +2613,211 @@ func TestSendMail(t *testing.T) {
 			t.Fatalf("failed to send mail: %s", err)
 		}
 		resp := strings.Split(echoBuffer.String(), "\r\n")
-		for i, line := range resp {
-			t.Logf("response line %d: %q", i, line)
+		if len(resp)-1 != len(want) {
+			t.Fatalf("expected %d lines, but got %d", len(want), len(resp))
+		}
+		for i := 0; i < len(want); i++ {
+			if !strings.EqualFold(resp[i], want[i]) {
+				t.Errorf("expected line %d to be %q, but got %q", i, resp[i], want[i])
+			}
+		}
+	})
+	t.Run("SendMail newline in from should fail", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH LOGIN\r\n250-DSN\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		addr := fmt.Sprintf("%s:%d", TestServerAddr, serverPort)
+		testHookStartTLS = func(config *tls.Config) {
+			testConfig := getTLSConfig(t)
+			config.ServerName = testConfig.ServerName
+			config.RootCAs = testConfig.RootCAs
+			config.Certificates = testConfig.Certificates
+		}
+		auth := LoginAuth("username", "password", TestServerAddr, false)
+		if err := SendMail(addr, auth, "valid-from@domain.tld\r\n", []string{"valid-to@domain.tld"},
+			[]byte("test message")); err == nil {
+			t.Error("expected SendMail to fail with newlines in from address")
+		}
+	})
+	t.Run("SendMail newline in to should fail", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH LOGIN\r\n250-DSN\r\n250 STARTTLS"
+		echoBuffer := bytes.NewBuffer(nil)
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				EchoBuffer: echoBuffer,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		addr := fmt.Sprintf("%s:%d", TestServerAddr, serverPort)
+		testHookStartTLS = func(config *tls.Config) {
+			testConfig := getTLSConfig(t)
+			config.ServerName = testConfig.ServerName
+			config.RootCAs = testConfig.RootCAs
+			config.Certificates = testConfig.Certificates
+		}
+		auth := LoginAuth("username", "password", TestServerAddr, false)
+		if err := SendMail(addr, auth, "valid-from@domain.tld", []string{"valid-to@domain.tld\r\n"},
+			[]byte("test message")); err == nil {
+			t.Error("expected SendMail to fail with newlines in to address")
+		}
+	})
+	t.Run("SendMail with invalid hostname should fail", func(t *testing.T) {
+		addr := "invalid.invalid-hostname.tld:1234"
+		testHookStartTLS = func(config *tls.Config) {
+			testConfig := getTLSConfig(t)
+			config.ServerName = testConfig.ServerName
+			config.RootCAs = testConfig.RootCAs
+			config.Certificates = testConfig.Certificates
+		}
+		auth := LoginAuth("username", "password", TestServerAddr, false)
+		if err := SendMail(addr, auth, "valid-from@domain.tld", []string{"valid-to@domain.tld"},
+			[]byte("test message")); err == nil {
+			t.Error("expected SendMail to fail with invalid server address")
+		}
+	})
+	t.Run("SendMail should fail on EHLO/HELO", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH LOGIN\r\n250-DSN\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnEhlo: true,
+				FailOnHelo: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		addr := fmt.Sprintf("%s:%d", TestServerAddr, serverPort)
+		testHookStartTLS = func(config *tls.Config) {
+			testConfig := getTLSConfig(t)
+			config.ServerName = testConfig.ServerName
+			config.RootCAs = testConfig.RootCAs
+			config.Certificates = testConfig.Certificates
+		}
+		auth := LoginAuth("username", "password", TestServerAddr, false)
+		if err := SendMail(addr, auth, "valid-from@domain.tld", []string{"valid-to@domain.tld"},
+			[]byte("test message")); err == nil {
+			t.Error("expected SendMail to fail on EHLO/HELO")
+		}
+	})
+	t.Run("SendMail should fail on STARTTLS", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH LOGIN\r\n250-DSN\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		testHookStartTLS = func(config *tls.Config) {
+			config.ServerName = "invalid.invalid-hostname.tld"
+			config.RootCAs = nil
+			config.Certificates = nil
+		}
+		time.Sleep(time.Millisecond * 30)
+		addr := fmt.Sprintf("%s:%d", TestServerAddr, serverPort)
+		auth := LoginAuth("username", "password", TestServerAddr, false)
+		if err := SendMail(addr, auth, "valid-from@domain.tld", []string{"valid-to@domain.tld"},
+			[]byte("test message")); err == nil {
+			t.Error("expected SendMail to fail on STARTTLS")
+		}
+	})
+	t.Run("SendMail should fail on no auth support", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-DSN\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		addr := fmt.Sprintf("%s:%d", TestServerAddr, serverPort)
+		testHookStartTLS = func(config *tls.Config) {
+			testConfig := getTLSConfig(t)
+			config.ServerName = testConfig.ServerName
+			config.RootCAs = testConfig.RootCAs
+			config.Certificates = testConfig.Certificates
+		}
+		auth := LoginAuth("username", "password", TestServerAddr, false)
+		if err := SendMail(addr, auth, "valid-from@domain.tld", []string{"valid-to@domain.tld"},
+			[]byte("test message")); err == nil {
+			t.Error("expected SendMail to fail on no auth support")
+		}
+	})
+	t.Run("SendMail should fail on auth", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH LOGIN\r\n250-DSN\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnAuth: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		addr := fmt.Sprintf("%s:%d", TestServerAddr, serverPort)
+		testHookStartTLS = func(config *tls.Config) {
+			testConfig := getTLSConfig(t)
+			config.ServerName = testConfig.ServerName
+			config.RootCAs = testConfig.RootCAs
+			config.Certificates = testConfig.Certificates
+		}
+		auth := LoginAuth("username", "password", TestServerAddr, false)
+		if err := SendMail(addr, auth, "valid-from@domain.tld", []string{"valid-to@domain.tld"},
+			[]byte("test message")); err == nil {
+			t.Error("expected SendMail to fail on auth")
 		}
 	})
 }
