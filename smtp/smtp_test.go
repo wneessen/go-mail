@@ -31,6 +31,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -3592,6 +3593,7 @@ type serverProps struct {
 	SSLListener     bool
 	TestSCRAM       bool
 	VRFYUserUnknown bool
+	mutex           sync.Mutex
 }
 
 // simpleSMTPServer starts a simple TCP server that resonds to SMTP commands.
@@ -3643,7 +3645,9 @@ func simpleSMTPServer(ctx context.Context, t *testing.T, props *serverProps) err
 				}
 				return fmt.Errorf("unable to accept connection: %w", err)
 			}
+			props.mutex.Lock()
 			handleTestServerConnection(connection, t, props)
+			props.mutex.Unlock()
 		}
 	}
 }
