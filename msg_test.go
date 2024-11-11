@@ -126,8 +126,8 @@ var (
 		{`" "@domain.tld`, true},             // Still valid, since quoted
 		{`"<\"@\".!#%$@domain.tld"`, false},  // Quoting with illegal characters is not allowed
 		{`<\"@\\".!#%$@domain.tld`, false},   // Still a bunch of random illegal characters
-		{`hi"@"there@domain.tld`, false},     // Quotes must be dot-seperated
-		{`"<\"@\\".!.#%$@domain.tld`, false}, // Quote is escaped and dot-seperated which would be RFC822 compliant, but not RFC5322 compliant
+		{`hi"@"there@domain.tld`, false},     // Quotes must be dot-separated
+		{`"<\"@\\".!.#%$@domain.tld`, false}, // Quote is escaped and dot-separated which would be RFC822 compliant, but not RFC5322 compliant
 		{`hi\ there@domain.tld`, false},      // Spaces must be quoted
 		{"hello@tld", true},                  // TLD is enough
 		{`你好@域名.顶级域名`, true},                 // We speak RFC6532
