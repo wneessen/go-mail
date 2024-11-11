@@ -3193,6 +3193,209 @@ func TestClient_SetLogger(t *testing.T) {
 	})
 }
 
+func TestClient_SetLogAuthData(t *testing.T) {
+	t.Run("set log auth data to true", func(t *testing.T) {
+		client := &Client{}
+		client.SetLogAuthData()
+		if !client.logAuthData {
+			t.Fatalf("expected log auth data to be true")
+		}
+	})
+}
+
+func TestClient_SetDSNRcptNotifyOption(t *testing.T) {
+	tests := []string{"NEVER", "SUCCESS", "FAILURE", "DELAY"}
+	for _, test := range tests {
+		t.Run("set dsn rcpt notify option to "+test, func(t *testing.T) {
+			client := &Client{}
+			client.SetDSNRcptNotifyOption(test)
+			if !strings.EqualFold(client.dsnrntype, test) {
+				t.Errorf("expected dsn rcpt notify option to be %s, got %s", test, client.dsnrntype)
+			}
+		})
+	}
+}
+
+func TestClient_SetDSNMailReturnOption(t *testing.T) {
+	tests := []string{"HDRS", "FULL"}
+	for _, test := range tests {
+		t.Run("set dsn mail return option to "+test, func(t *testing.T) {
+			client := &Client{}
+			client.SetDSNMailReturnOption(test)
+			if !strings.EqualFold(client.dsnmrtype, test) {
+				t.Errorf("expected dsn mail return option to be %s, got %s", test, client.dsnmrtype)
+			}
+		})
+	}
+}
+
+func TestClient_HasConnection(t *testing.T) {
+	t.Run("client has connection", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-DSN\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if !client.HasConnection() {
+			t.Error("expected client to have a connection")
+		}
+	})
+	t.Run("client has no connection", func(t *testing.T) {
+		client := &Client{}
+		if client.HasConnection() {
+			t.Error("expected client to have no connection")
+		}
+	})
+	t.Run("client has no connection after close", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-DSN\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		if err = client.Close(); err != nil {
+			t.Errorf("failed to close client: %s", err)
+		}
+		if client.HasConnection() {
+			t.Error("expected client to have no connection after close")
+		}
+	})
+	t.Run("client has no connection after quit", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-DSN\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		if err = client.Quit(); err != nil {
+			t.Errorf("failed to quit client: %s", err)
+		}
+		if client.HasConnection() {
+			t.Error("expected client to have no connection after quit")
+		}
+	})
+}
+
+func TestClient_UpdateDeadline(t *testing.T) {
+	t.Run("update deadline on sane client succeeds", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-DSN\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.UpdateDeadline(time.Millisecond * 500); err != nil {
+			t.Errorf("failed to update connection deadline: %s", err)
+		}
+	})
+	t.Run("update deadline on no connection should fail", func(t *testing.T) {
+		client := &Client{}
+		var err error
+		if err = client.UpdateDeadline(time.Millisecond * 500); err == nil {
+			t.Error("expected client deadline update to fail on no connection")
+		}
+		expError := "smtp: client has no connection"
+		if !strings.EqualFold(err.Error(), expError) {
+			t.Errorf("expected error to be %q, got: %q", expError, err)
+		}
+	})
+	t.Run("update deadline on closed client should fail", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-DSN\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		if err = client.Close(); err != nil {
+			t.Errorf("failed to close client: %s", err)
+		}
+		if err = client.UpdateDeadline(time.Millisecond * 500); err == nil {
+			t.Error("expected client deadline update to fail on closed client")
+		}
+	})
+}
+
 // faker is a struct embedding io.ReadWriter to simulate network connections for testing purposes.
 type faker struct {
 	io.ReadWriter
