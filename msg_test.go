@@ -126,8 +126,8 @@ var (
 		{`" "@domain.tld`, true},             // Still valid, since quoted
 		{`"<\"@\".!#%$@domain.tld"`, false},  // Quoting with illegal characters is not allowed
 		{`<\"@\\".!#%$@domain.tld`, false},   // Still a bunch of random illegal characters
-		{`hi"@"there@domain.tld`, false},     // Quotes must be dot-seperated
-		{`"<\"@\\".!.#%$@domain.tld`, false}, // Quote is escaped and dot-seperated which would be RFC822 compliant, but not RFC5322 compliant
+		{`hi"@"there@domain.tld`, false},     // Quotes must be dot-separated
+		{`"<\"@\\".!.#%$@domain.tld`, false}, // Quote is escaped and dot-separated which would be RFC822 compliant, but not RFC5322 compliant
 		{`hi\ there@domain.tld`, false},      // Spaces must be quoted
 		{"hello@tld", true},                  // TLD is enough
 		{`你好@域名.顶级域名`, true},                 // We speak RFC6532
@@ -4527,12 +4527,12 @@ func TestMsg_AttachFile(t *testing.T) {
 			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment", got)
 		}
 	})
-	t.Run("AttachFile with non-existant file", func(t *testing.T) {
+	t.Run("AttachFile with non-existent file", func(t *testing.T) {
 		message := NewMsg()
 		if message == nil {
 			t.Fatal("message is nil")
 		}
-		message.AttachFile("testdata/non-existant-file.txt")
+		message.AttachFile("testdata/non-existent-file.txt")
 		attachments := message.GetAttachments()
 		if len(attachments) != 0 {
 			t.Fatalf("failed to retrieve attachments list")
@@ -4997,12 +4997,12 @@ func TestMsg_EmbedFile(t *testing.T) {
 			t.Errorf("expected message body to be %s, got: %s", "This is a test embed", got)
 		}
 	})
-	t.Run("EmbedFile with non-existant file", func(t *testing.T) {
+	t.Run("EmbedFile with non-existent file", func(t *testing.T) {
 		message := NewMsg()
 		if message == nil {
 			t.Fatal("message is nil")
 		}
-		message.EmbedFile("testdata/non-existant-file.txt")
+		message.EmbedFile("testdata/non-existent-file.txt")
 		embeds := message.GetEmbeds()
 		if len(embeds) != 0 {
 			t.Fatalf("failed to retrieve attachments list")

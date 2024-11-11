@@ -2803,7 +2803,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 			t.Errorf("expected ErrGetSender, got %s", sendErr.Reason)
 		}
 	})
-	t.Run("fail with no recepient addresses", func(t *testing.T) {
+	t.Run("fail with no recipient addresses", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		PortAdder.Add(1)
