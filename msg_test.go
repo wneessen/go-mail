@@ -4527,12 +4527,12 @@ func TestMsg_AttachFile(t *testing.T) {
 			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment", got)
 		}
 	})
-	t.Run("AttachFile with non-existant file", func(t *testing.T) {
+	t.Run("AttachFile with non-existent file", func(t *testing.T) {
 		message := NewMsg()
 		if message == nil {
 			t.Fatal("message is nil")
 		}
-		message.AttachFile("testdata/non-existant-file.txt")
+		message.AttachFile("testdata/non-existent-file.txt")
 		attachments := message.GetAttachments()
 		if len(attachments) != 0 {
 			t.Fatalf("failed to retrieve attachments list")
@@ -4997,12 +4997,12 @@ func TestMsg_EmbedFile(t *testing.T) {
 			t.Errorf("expected message body to be %s, got: %s", "This is a test embed", got)
 		}
 	})
-	t.Run("EmbedFile with non-existant file", func(t *testing.T) {
+	t.Run("EmbedFile with non-existent file", func(t *testing.T) {
 		message := NewMsg()
 		if message == nil {
 			t.Fatal("message is nil")
 		}
-		message.EmbedFile("testdata/non-existant-file.txt")
+		message.EmbedFile("testdata/non-existent-file.txt")
 		embeds := message.GetEmbeds()
 		if len(embeds) != 0 {
 			t.Fatalf("failed to retrieve attachments list")

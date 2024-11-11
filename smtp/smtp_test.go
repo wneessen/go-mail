@@ -1492,7 +1492,7 @@ func TestNewClient(t *testing.T) {
 	t.Run("new client via Dial fails on server not started", func(t *testing.T) {
 		_, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, 64000))
 		if err == nil {
-			t.Error("dial on non-existant server should fail")
+			t.Error("dial on non-existent server should fail")
 		}
 	})
 	t.Run("new client fails on server not available", func(t *testing.T) {
