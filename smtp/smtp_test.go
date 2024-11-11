@@ -2215,11 +2215,12 @@ func TestClient_Mail(t *testing.T) {
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250 STARTTLS"
+		echoBuffer := bytes.NewBuffer(nil)
 		go func() {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
-				EchoCommandAsError: "MAIL FROM:",
-				FeatureSet:         featureSet,
-				ListenPort:         serverPort,
+				EchoBuffer: echoBuffer,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
 			},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
@@ -2237,13 +2238,13 @@ func TestClient_Mail(t *testing.T) {
 				t.Errorf("failed to close client: %s", err)
 			}
 		})
-		if err = client.Mail("valid-from@domain.tld"); err == nil {
-			t.Error("server should echo the command as error but didn't")
+		if err = client.Mail("valid-from@domain.tld"); err != nil {
+			t.Errorf("failed to set mail from address: %s", err)
 		}
-		sent := strings.Replace(err.Error(), "500 ", "", -1)
 		expected := "MAIL FROM:<valid-from@domain.tld> BODY=8BITMIME"
-		if !strings.EqualFold(sent, expected) {
-			t.Errorf("expected mail from command to be %q, but sent %q", expected, sent)
+		resp := strings.Split(echoBuffer.String(), "\r\n")
+		if !strings.EqualFold(resp[5], expected) {
+			t.Errorf("expected mail from command to be %q, but sent %q", expected, resp[5])
 		}
 	})
 	t.Run("from address and server supports SMTPUTF8", func(t *testing.T) {
@@ -2252,11 +2253,12 @@ func TestClient_Mail(t *testing.T) {
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-SMTPUTF8\r\n250 STARTTLS"
+		echoBuffer := bytes.NewBuffer(nil)
 		go func() {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
-				EchoCommandAsError: "MAIL FROM:",
-				FeatureSet:         featureSet,
-				ListenPort:         serverPort,
+				EchoBuffer: echoBuffer,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
 			},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
@@ -2274,13 +2276,13 @@ func TestClient_Mail(t *testing.T) {
 				t.Errorf("failed to close client: %s", err)
 			}
 		})
-		if err = client.Mail("valid-from@domain.tld"); err == nil {
-			t.Error("server should echo the command as error but didn't")
+		if err = client.Mail("valid-from@domain.tld"); err != nil {
+			t.Errorf("failed to set mail from address: %s", err)
 		}
-		sent := strings.Replace(err.Error(), "500 ", "", -1)
 		expected := "MAIL FROM:<valid-from@domain.tld> SMTPUTF8"
-		if !strings.EqualFold(sent, expected) {
-			t.Errorf("expected mail from command to be %q, but sent %q", expected, sent)
+		resp := strings.Split(echoBuffer.String(), "\r\n")
+		if !strings.EqualFold(resp[5], expected) {
+			t.Errorf("expected mail from command to be %q, but sent %q", expected, resp[5])
 		}
 	})
 	t.Run("from address and server supports DSN", func(t *testing.T) {
@@ -2289,11 +2291,12 @@ func TestClient_Mail(t *testing.T) {
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
+		echoBuffer := bytes.NewBuffer(nil)
 		go func() {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
-				EchoCommandAsError: "MAIL FROM:",
-				FeatureSet:         featureSet,
-				ListenPort:         serverPort,
+				EchoBuffer: echoBuffer,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
 			},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
@@ -2315,10 +2318,10 @@ func TestClient_Mail(t *testing.T) {
 		if err = client.Mail("valid-from@domain.tld"); err == nil {
 			t.Error("server should echo the command as error but didn't")
 		}
-		sent := strings.Replace(err.Error(), "500 ", "", -1)
 		expected := "MAIL FROM:<valid-from@domain.tld> RET=FULL"
-		if !strings.EqualFold(sent, expected) {
-			t.Errorf("expected mail from command to be %q, but sent %q", expected, sent)
+		resp := strings.Split(echoBuffer.String(), "\r\n")
+		if !strings.EqualFold(resp[5], expected) {
+			t.Errorf("expected mail from command to be %q, but sent %q", expected, resp[5])
 		}
 	})
 	t.Run("from address and server supports DSN, SMTPUTF8 and 8BITMIME", func(t *testing.T) {
@@ -2327,11 +2330,12 @@ func TestClient_Mail(t *testing.T) {
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250 STARTTLS"
+		echoBuffer := bytes.NewBuffer(nil)
 		go func() {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
-				EchoCommandAsError: "MAIL FROM:",
-				FeatureSet:         featureSet,
-				ListenPort:         serverPort,
+				EchoBuffer: echoBuffer,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
 			},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
@@ -2353,10 +2357,10 @@ func TestClient_Mail(t *testing.T) {
 		if err = client.Mail("valid-from@domain.tld"); err == nil {
 			t.Error("server should echo the command as error but didn't")
 		}
-		sent := strings.Replace(err.Error(), "500 ", "", -1)
 		expected := "MAIL FROM:<valid-from@domain.tld> BODY=8BITMIME SMTPUTF8 RET=FULL"
-		if !strings.EqualFold(sent, expected) {
-			t.Errorf("expected mail from command to be %q, but sent %q", expected, sent)
+		resp := strings.Split(echoBuffer.String(), "\r\n")
+		if !strings.EqualFold(resp[7], expected) {
+			t.Errorf("expected mail from command to be %q, but sent %q", expected, resp[7])
 		}
 	})
 }
@@ -2428,11 +2432,12 @@ func TestClient_Rcpt(t *testing.T) {
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
+		echoBuffer := bytes.NewBuffer(nil)
 		go func() {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
-				EchoCommandAsError: "RCPT TO:",
-				FeatureSet:         featureSet,
-				ListenPort:         serverPort,
+				EchoBuffer: echoBuffer,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
 			},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
@@ -2456,10 +2461,10 @@ func TestClient_Rcpt(t *testing.T) {
 		if err = client.Rcpt("valid-to@domain.tld"); err == nil {
 			t.Error("recpient address with newlines should fail")
 		}
-		sent := strings.Replace(err.Error(), "500 ", "", -1)
 		expected := "RCPT TO:<valid-to@domain.tld> NOTIFY=SUCCESS"
-		if !strings.EqualFold(sent, expected) {
-			t.Errorf("expected rcpt to command to be %q, but sent %q", expected, sent)
+		resp := strings.Split(echoBuffer.String(), "\r\n")
+		if !strings.EqualFold(resp[5], expected) {
+			t.Errorf("expected rcpt to command to be %q, but sent %q", expected, resp[5])
 		}
 	})
 }
@@ -2533,6 +2538,45 @@ func TestClient_Data(t *testing.T) {
 		})
 		if _, err = client.Data(); err == nil {
 			t.Error("expected data writer to fail")
+		}
+	})
+}
+
+func TestSendMail(t *testing.T) {
+	t.Run("full SendMail transaction with TLS and auth", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH LOGIN\r\n250-DSN\r\n250 STARTTLS"
+		echoBuffer := bytes.NewBuffer(nil)
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				EchoBuffer: echoBuffer,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		addr := fmt.Sprintf("%s:%d", TestServerAddr, serverPort)
+		testHookStartTLS = func(config *tls.Config) {
+			testConfig := getTLSConfig(t)
+			config.ServerName = testConfig.ServerName
+			config.RootCAs = testConfig.RootCAs
+			config.Certificates = testConfig.Certificates
+		}
+		auth := LoginAuth("username", "password", TestServerAddr, false)
+		if err := SendMail(addr, auth, "valid-from@domain.tld", []string{"valid-to@domain.tld"},
+			[]byte("test message")); err != nil {
+			t.Fatalf("failed to send mail: %s", err)
+		}
+		resp := strings.Split(echoBuffer.String(), "\r\n")
+		for i, line := range resp {
+			t.Logf("response line %d: %q", i, line)
 		}
 	})
 }
@@ -4055,28 +4099,28 @@ func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "
 
 // serverProps represents the configuration properties for the SMTP server.
 type serverProps struct {
-	EchoCommandAsError string
-	FailOnAuth         bool
-	FailOnDataInit     bool
-	FailOnDataClose    bool
-	FailOnDial         bool
-	FailOnEhlo         bool
-	FailOnHelo         bool
-	FailOnMailFrom     bool
-	FailOnNoop         bool
-	FailOnQuit         bool
-	FailOnReset        bool
-	FailOnSTARTTLS     bool
-	FailTemp           bool
-	FeatureSet         string
-	ListenPort         int
-	HashFunc           func() hash.Hash
-	IsSCRAMPlus        bool
-	IsTLS              bool
-	SupportDSN         bool
-	SSLListener        bool
-	TestSCRAM          bool
-	VRFYUserUnknown    bool
+	EchoBuffer      io.Writer
+	FailOnAuth      bool
+	FailOnDataInit  bool
+	FailOnDataClose bool
+	FailOnDial      bool
+	FailOnEhlo      bool
+	FailOnHelo      bool
+	FailOnMailFrom  bool
+	FailOnNoop      bool
+	FailOnQuit      bool
+	FailOnReset     bool
+	FailOnSTARTTLS  bool
+	FailTemp        bool
+	FeatureSet      string
+	ListenPort      int
+	HashFunc        func() hash.Hash
+	IsSCRAMPlus     bool
+	IsTLS           bool
+	SupportDSN      bool
+	SSLListener     bool
+	TestSCRAM       bool
+	VRFYUserUnknown bool
 }
 
 // simpleSMTPServer starts a simple TCP server that resonds to SMTP commands.
@@ -4151,6 +4195,11 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 		if err != nil {
 			t.Logf("failed to write line: %s", err)
 		}
+		if props.EchoBuffer != nil {
+			if _, err := props.EchoBuffer.Write([]byte(data + "\r\n")); err != nil {
+				t.Errorf("failed write to echo buffer: %s", err)
+			}
+		}
 		_ = writer.Flush()
 	}
 	writeOK := func() {
@@ -4171,13 +4220,15 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 			break
 		}
 		time.Sleep(time.Millisecond)
+		if props.EchoBuffer != nil {
+			if _, err = props.EchoBuffer.Write([]byte(data)); err != nil {
+				t.Errorf("failed write to echo buffer: %s", err)
+			}
+		}
 
 		var datastring string
 		data = strings.TrimSpace(data)
 		switch {
-		case props.EchoCommandAsError != "" && strings.HasPrefix(data, props.EchoCommandAsError):
-			writeLine("500 " + data)
-			break
 		case strings.HasPrefix(data, "HELO"):
 			if len(strings.Split(data, " ")) != 2 {
 				writeLine("501 Syntax: HELO hostname")
@@ -4259,6 +4310,11 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 				if derr != nil {
 					t.Logf("failed to read data from connection: %s", derr)
 					break
+				}
+				if props.EchoBuffer != nil {
+					if _, err = props.EchoBuffer.Write([]byte(ddata)); err != nil {
+						t.Errorf("failed write to echo buffer: %s", err)
+					}
 				}
 				ddata = strings.TrimSpace(ddata)
 				if ddata == "." {
