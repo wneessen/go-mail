@@ -587,7 +587,9 @@ func (c *Client) SetLogger(l log.Logger) {
 	if l == nil {
 		return
 	}
+	c.mutex.Lock()
 	c.logger = l
+	c.mutex.Unlock()
 }
 
 // SetLogAuthData enables logging of authentication data in the Client.
