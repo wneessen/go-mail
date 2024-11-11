@@ -29,12 +29,15 @@ import (
 	"hash"
 	"io"
 	"net"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"golang.org/x/crypto/pbkdf2"
+
+	"github.com/wneessen/go-mail/log"
 )
 
 const (
@@ -3113,6 +3116,55 @@ func TestClient_Noop(t *testing.T) {
 		})
 		if err = client.Noop(); err == nil {
 			t.Error("expected client no-operation to fail")
+		}
+	})
+}
+
+func TestClient_SetDebugLog(t *testing.T) {
+	t.Run("set debug loggging to on with no logger defined", func(t *testing.T) {
+		client := &Client{}
+		client.SetDebugLog(true)
+		if !client.debug {
+			t.Fatalf("expected debug log to be true")
+		}
+		if client.logger == nil {
+			t.Fatalf("expected logger to be defined")
+		}
+		if !strings.EqualFold(fmt.Sprintf("%T", client.logger), "*log.Stdlog") {
+			t.Errorf("expected logger to be of type *log.Stdlog, got: %T", client.logger)
+		}
+	})
+	t.Run("set debug loggging to on should not override logger", func(t *testing.T) {
+		client := &Client{logger: log.NewJSON(os.Stderr, log.LevelDebug)}
+		client.SetDebugLog(true)
+		if !client.debug {
+			t.Fatalf("expected debug log to be true")
+		}
+		if client.logger == nil {
+			t.Fatalf("expected logger to be defined")
+		}
+		if !strings.EqualFold(fmt.Sprintf("%T", client.logger), "*log.JSONlog") {
+			t.Errorf("expected logger to be of type *log.JSONlog, got: %T", client.logger)
+		}
+	})
+	t.Run("set debug logggin to off with no logger defined", func(t *testing.T) {
+		client := &Client{}
+		client.SetDebugLog(false)
+		if client.debug {
+			t.Fatalf("expected debug log to be false")
+		}
+		if client.logger != nil {
+			t.Fatalf("expected logger to be nil")
+		}
+	})
+	t.Run("set active logging to off should cancel out logger", func(t *testing.T) {
+		client := &Client{debug: true, logger: log.New(os.Stderr, log.LevelDebug)}
+		client.SetDebugLog(false)
+		if client.debug {
+			t.Fatalf("expected debug log to be false")
+		}
+		if client.logger != nil {
+			t.Fatalf("expected logger to be nil")
 		}
 	})
 }
