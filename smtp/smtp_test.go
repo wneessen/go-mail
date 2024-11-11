@@ -31,7 +31,6 @@ import (
 	"net"
 	"os"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -2236,9 +2235,9 @@ func TestClient_Mail(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250 STARTTLS"
 		echoBuffer := bytes.NewBuffer(nil)
-		go func() {
+		go func(buf *bytes.Buffer) {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
-				EchoBuffer: echoBuffer,
+				EchoBuffer: buf,
 				FeatureSet: featureSet,
 				ListenPort: serverPort,
 			},
@@ -2246,7 +2245,7 @@ func TestClient_Mail(t *testing.T) {
 				t.Errorf("failed to start test server: %s", err)
 				return
 			}
-		}()
+		}(echoBuffer)
 		time.Sleep(time.Millisecond * 30)
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
@@ -2274,9 +2273,9 @@ func TestClient_Mail(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-SMTPUTF8\r\n250 STARTTLS"
 		echoBuffer := bytes.NewBuffer(nil)
-		go func() {
+		go func(buf *bytes.Buffer) {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
-				EchoBuffer: echoBuffer,
+				EchoBuffer: buf,
 				FeatureSet: featureSet,
 				ListenPort: serverPort,
 			},
@@ -2284,7 +2283,7 @@ func TestClient_Mail(t *testing.T) {
 				t.Errorf("failed to start test server: %s", err)
 				return
 			}
-		}()
+		}(echoBuffer)
 		time.Sleep(time.Millisecond * 30)
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
@@ -2312,9 +2311,9 @@ func TestClient_Mail(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-SMTPUTF8\r\n250 STARTTLS"
 		echoBuffer := bytes.NewBuffer(nil)
-		go func() {
+		go func(buf *bytes.Buffer) {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
-				EchoBuffer: echoBuffer,
+				EchoBuffer: buf,
 				FeatureSet: featureSet,
 				ListenPort: serverPort,
 			},
@@ -2322,7 +2321,7 @@ func TestClient_Mail(t *testing.T) {
 				t.Errorf("failed to start test server: %s", err)
 				return
 			}
-		}()
+		}(echoBuffer)
 		time.Sleep(time.Millisecond * 30)
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
@@ -2350,9 +2349,9 @@ func TestClient_Mail(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
 		echoBuffer := bytes.NewBuffer(nil)
-		go func() {
+		go func(buf *bytes.Buffer) {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
-				EchoBuffer: echoBuffer,
+				EchoBuffer: buf,
 				FeatureSet: featureSet,
 				ListenPort: serverPort,
 			},
@@ -2360,7 +2359,7 @@ func TestClient_Mail(t *testing.T) {
 				t.Errorf("failed to start test server: %s", err)
 				return
 			}
-		}()
+		}(echoBuffer)
 		time.Sleep(time.Millisecond * 30)
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
@@ -2389,9 +2388,9 @@ func TestClient_Mail(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250 STARTTLS"
 		echoBuffer := bytes.NewBuffer(nil)
-		go func() {
+		go func(buf *bytes.Buffer) {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
-				EchoBuffer: echoBuffer,
+				EchoBuffer: buf,
 				FeatureSet: featureSet,
 				ListenPort: serverPort,
 			},
@@ -2399,7 +2398,7 @@ func TestClient_Mail(t *testing.T) {
 				t.Errorf("failed to start test server: %s", err)
 				return
 			}
-		}()
+		}(echoBuffer)
 		time.Sleep(time.Millisecond * 30)
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
@@ -2491,9 +2490,9 @@ func TestClient_Rcpt(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
 		echoBuffer := bytes.NewBuffer(nil)
-		go func() {
+		go func(buf *bytes.Buffer) {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
-				EchoBuffer: echoBuffer,
+				EchoBuffer: buf,
 				FeatureSet: featureSet,
 				ListenPort: serverPort,
 			},
@@ -2501,7 +2500,7 @@ func TestClient_Rcpt(t *testing.T) {
 				t.Errorf("failed to start test server: %s", err)
 				return
 			}
-		}()
+		}(echoBuffer)
 		time.Sleep(time.Millisecond * 30)
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
@@ -2783,9 +2782,9 @@ func TestSendMail(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH LOGIN\r\n250-DSN\r\n250 STARTTLS"
 		echoBuffer := bytes.NewBuffer(nil)
-		go func() {
+		go func(buf *bytes.Buffer) {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
-				EchoBuffer: echoBuffer,
+				EchoBuffer: buf,
 				FeatureSet: featureSet,
 				ListenPort: serverPort,
 			},
@@ -2793,7 +2792,7 @@ func TestSendMail(t *testing.T) {
 				t.Errorf("failed to start test server: %s", err)
 				return
 			}
-		}()
+		}(echoBuffer)
 		time.Sleep(time.Millisecond * 30)
 		addr := fmt.Sprintf("%s:%d", TestServerAddr, serverPort)
 		testHookStartTLS = func(config *tls.Config) {
@@ -2858,9 +2857,9 @@ func TestSendMail(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH LOGIN\r\n250-DSN\r\n250 STARTTLS"
 		echoBuffer := bytes.NewBuffer(nil)
-		go func() {
+		go func(buf *bytes.Buffer) {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
-				EchoBuffer: echoBuffer,
+				EchoBuffer: buf,
 				FeatureSet: featureSet,
 				ListenPort: serverPort,
 			},
@@ -2868,7 +2867,7 @@ func TestSendMail(t *testing.T) {
 				t.Errorf("failed to start test server: %s", err)
 				return
 			}
-		}()
+		}(echoBuffer)
 		time.Sleep(time.Millisecond * 30)
 		addr := fmt.Sprintf("%s:%d", TestServerAddr, serverPort)
 		testHookStartTLS = func(config *tls.Config) {
@@ -3593,7 +3592,6 @@ type serverProps struct {
 	SSLListener     bool
 	TestSCRAM       bool
 	VRFYUserUnknown bool
-	mutex           sync.Mutex
 }
 
 // simpleSMTPServer starts a simple TCP server that resonds to SMTP commands.
@@ -3645,9 +3643,7 @@ func simpleSMTPServer(ctx context.Context, t *testing.T, props *serverProps) err
 				}
 				return fmt.Errorf("unable to accept connection: %w", err)
 			}
-			props.mutex.Lock()
 			handleTestServerConnection(connection, t, props)
-			props.mutex.Unlock()
 		}
 	}
 }
