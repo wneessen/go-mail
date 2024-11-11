@@ -622,6 +622,9 @@ func (c *Client) HasConnection() bool {
 func (c *Client) UpdateDeadline(timeout time.Duration) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
+	if c.conn == nil {
+		return errors.New("smtp: client has no connection")
+	}
 	if err := c.conn.SetDeadline(time.Now().Add(timeout)); err != nil {
 		return fmt.Errorf("smtp: failed to update deadline: %w", err)
 	}
