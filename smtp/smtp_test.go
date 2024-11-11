@@ -3512,6 +3512,34 @@ func TestClient_GetTLSConnectionState(t *testing.T) {
 	})
 }
 
+func TestClient_debugLog(t *testing.T) {
+	t.Run("debug log is enabled", func(t *testing.T) {
+		buffer := bytes.NewBuffer(nil)
+		logger := log.New(buffer, log.LevelDebug)
+		client := &Client{logger: logger, debug: true}
+		client.debugLog(log.DirClientToServer, "%s", "simple string")
+		client.debugLog(log.DirServerToClient, "%d", 1234)
+		want := "DEBUG: C --> S: simple string"
+		if !strings.Contains(buffer.String(), want) {
+			t.Errorf("expected debug log to contain %q, got: %q", want, buffer.String())
+		}
+		want = "DEBUG: C <-- S: 1234"
+		if !strings.Contains(buffer.String(), want) {
+			t.Errorf("expected debug log to contain %q, got: %q", want, buffer.String())
+		}
+	})
+	t.Run("debug log is disable", func(t *testing.T) {
+		buffer := bytes.NewBuffer(nil)
+		logger := log.New(buffer, log.LevelDebug)
+		client := &Client{logger: logger, debug: false}
+		client.debugLog(log.DirClientToServer, "%s", "simple string")
+		client.debugLog(log.DirServerToClient, "%d", 1234)
+		if buffer.Len() > 0 {
+			t.Errorf("expected debug log to be empty, got: %q", buffer.String())
+		}
+	})
+}
+
 // faker is a struct embedding io.ReadWriter to simulate network connections for testing purposes.
 type faker struct {
 	io.ReadWriter
