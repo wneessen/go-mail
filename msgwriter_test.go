@@ -324,7 +324,7 @@ func TestMsgWriter_addFiles(t *testing.T) {
 			}
 		}
 		if !strings.Contains(buffer.String(), `Content-Disposition: attachment; filename="attachment.txt"`) {
-			t.Errorf("Content-Dispositon header not found for attachment. Mail: %s", buffer.String())
+			t.Errorf("Content-Disposition header not found for attachment. Mail: %s", buffer.String())
 		}
 		switch runtime.GOOS {
 		case "freebsd":
@@ -357,7 +357,7 @@ func TestMsgWriter_addFiles(t *testing.T) {
 			}
 		}
 		if !strings.Contains(buffer.String(), `Content-Disposition: attachment; filename="attachment"`) {
-			t.Errorf("Content-Dispositon header not found for attachment. Mail: %s", buffer.String())
+			t.Errorf("Content-Disposition header not found for attachment. Mail: %s", buffer.String())
 		}
 		if !strings.Contains(buffer.String(), `Content-Type: application/octet-stream; name="attachment"`) {
 			t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
@@ -383,7 +383,7 @@ func TestMsgWriter_addFiles(t *testing.T) {
 			}
 		}
 		if !strings.Contains(buffer.String(), `Content-Disposition: attachment; filename="attachment.txt"`) {
-			t.Errorf("Content-Dispositon header not found for attachment. Mail: %s", buffer.String())
+			t.Errorf("Content-Disposition header not found for attachment. Mail: %s", buffer.String())
 		}
 		if !strings.Contains(buffer.String(), `Content-Type: application/octet-stream; name="attachment.txt"`) {
 			t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
@@ -402,7 +402,7 @@ func TestMsgWriter_addFiles(t *testing.T) {
 			t.Errorf("attachment not found in mail message. Mail: %s", buffer.String())
 		}
 		if !strings.Contains(buffer.String(), `Content-Disposition: attachment; filename="attachment.txt"`) {
-			t.Errorf("Content-Dispositon header not found for attachment. Mail: %s", buffer.String())
+			t.Errorf("Content-Disposition header not found for attachment. Mail: %s", buffer.String())
 		}
 		switch runtime.GOOS {
 		case "freebsd":
@@ -438,7 +438,7 @@ func TestMsgWriter_addFiles(t *testing.T) {
 			}
 		}
 		if !strings.Contains(buffer.String(), `Content-Disposition: attachment; filename="attachment.txt"`) {
-			t.Errorf("Content-Dispositon header not found for attachment. Mail: %s", buffer.String())
+			t.Errorf("Content-Disposition header not found for attachment. Mail: %s", buffer.String())
 		}
 		switch runtime.GOOS {
 		case "freebsd":
@@ -478,7 +478,7 @@ func TestMsgWriter_addFiles(t *testing.T) {
 			}
 		}
 		if !strings.Contains(buffer.String(), `Content-Disposition: attachment; filename="attachment.txt"`) {
-			t.Errorf("Content-Dispositon header not found for attachment. Mail: %s", buffer.String())
+			t.Errorf("Content-Disposition header not found for attachment. Mail: %s", buffer.String())
 		}
 		switch runtime.GOOS {
 		case "freebsd":
