@@ -174,6 +174,12 @@ func TestSendError_MessageID(t *testing.T) {
 			t.Errorf("sendError expected empty message-id, got: %s", sendErr.MessageID())
 		}
 	})
+	t.Run("TestSendError_MessageID on nil error should return empty", func(t *testing.T) {
+		var sendErr *SendError
+		if sendErr.MessageID() != "" {
+			t.Error("expected empty message-id on nil-senderror")
+		}
+	})
 }
 
 func TestSendError_Msg(t *testing.T) {
