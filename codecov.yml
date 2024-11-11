@@ -1,19 +1,19 @@
 # SPDX-FileCopyrightText: 2022-2023 The go-mail Authors
 #
-# SPDX-License-Identifier: CC0-1.0
+# SPDX-License-Identifier: MIT
 
 coverage:
   status:
     project:
       default:
-        target: 90%
+        target: 95%
         threshold: 2%
         base: auto 
         if_ci_failed: error
         only_pulls: false
     patch:
       default:
-        target: 90%
+        target: 95%
         base: auto
         if_ci_failed: error
         threshold: 2%

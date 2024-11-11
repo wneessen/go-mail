@@ -1,7 +1,7 @@
 <!--
 SPDX-FileCopyrightText: 2022-2023 The go-mail Authors
 
-SPDX-License-Identifier: CC0-1.0
+SPDX-License-Identifier: MIT
 -->
 
 # go-mail - Easy to use, yet comprehensive library for sending mails with Go
