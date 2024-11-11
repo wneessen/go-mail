@@ -1472,7 +1472,7 @@ func TestNewClient(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to create client: %s", err)
+			t.Fatalf("failed to create client: %s", err)
 		}
 		if err := client.Close(); err != nil {
 			t.Errorf("failed to close client: %s", err)
@@ -1550,7 +1550,7 @@ func TestClient_hello(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
 		if err = client.hello(); err == nil {
 			t.Error("helo should fail on test server")
@@ -1579,7 +1579,7 @@ func TestClient_Hello(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
 		if err = client.Hello(TestServerAddr); err != nil {
 			t.Errorf("failed to send HELO/EHLO to test server: %s", err)
@@ -1605,7 +1605,7 @@ func TestClient_Hello(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
 		if err = client.Hello(""); err == nil {
 			t.Error("HELO/EHLO with empty name should fail")
@@ -1657,7 +1657,7 @@ func TestClient_Hello(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
 		if err = client.Hello(TestServerAddr); err != nil {
 			t.Errorf("failed to send HELO/EHLO to test server: %s", err)
@@ -1712,7 +1712,7 @@ func TestClient_StartTLS(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
 		t.Cleanup(func() {
 			if err = client.Close(); err != nil {
@@ -1746,7 +1746,7 @@ func TestClient_StartTLS(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
 		t.Cleanup(func() {
 			if err = client.Close(); err != nil {
@@ -1779,7 +1779,7 @@ func TestClient_StartTLS(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
 		t.Cleanup(func() {
 			if err = client.Close(); err != nil {
@@ -1814,7 +1814,7 @@ func TestClient_TLSConnectionState(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
 		t.Cleanup(func() {
 			if err = client.Close(); err != nil {
@@ -1853,7 +1853,7 @@ func TestClient_TLSConnectionState(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
 		t.Cleanup(func() {
 			if err = client.Close(); err != nil {
@@ -1888,7 +1888,7 @@ func TestClient_Verify(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
 		t.Cleanup(func() {
 			if err = client.Close(); err != nil {
@@ -1920,7 +1920,7 @@ func TestClient_Verify(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
 		t.Cleanup(func() {
 			if err = client.Close(); err != nil {
@@ -1951,7 +1951,7 @@ func TestClient_Verify(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
 		t.Cleanup(func() {
 			if err = client.Close(); err != nil {
@@ -1984,7 +1984,7 @@ func TestClient_Verify(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
 		t.Cleanup(func() {
 			if err = client.Close(); err != nil {
@@ -2020,7 +2020,7 @@ func TestClient_Auth(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
 		auth := LoginAuth("username", "password", TestServerAddr, false)
 		if err = client.Auth(auth); err == nil {
@@ -2048,7 +2048,7 @@ func TestClient_Auth(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
 		auth := LoginAuth("username", "password", "not.localhost.com", false)
 		if err = client.Auth(auth); err == nil {
@@ -2081,7 +2081,7 @@ func TestClient_Auth(t *testing.T) {
 
 		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
 		if err != nil {
-			t.Errorf("failed to dial to test server: %s", err)
+			t.Fatalf("failed to dial to test server: %s", err)
 		}
 		auth := LoginAuth("username", "password", "not.localhost.com", false)
 		if err = client.Auth(auth); err == nil {
