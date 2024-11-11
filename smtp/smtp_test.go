@@ -670,7 +670,7 @@ func TestLoginAuth(t *testing.T) {
 			if !bytes.Equal([]byte(pass), resp) {
 				t.Errorf("expected response to second challange to be: %q, got: %q", pass, resp)
 			}
-			resp, err = auth.Next([]byte("nonsense"), true)
+			_, err = auth.Next([]byte("nonsense"), true)
 			if err == nil {
 				t.Error("expected third server challange to fail, but didn't")
 			}
@@ -818,7 +818,7 @@ func TestLoginAuth_noEnc(t *testing.T) {
 			if !bytes.Equal([]byte(pass), resp) {
 				t.Errorf("expected response to second challange to be: %q, got: %q", pass, resp)
 			}
-			resp, err = auth.Next([]byte("nonsense"), true)
+			_, err = auth.Next([]byte("nonsense"), true)
 			if err == nil {
 				t.Error("expected third server challange to fail, but didn't")
 			}
@@ -910,7 +910,7 @@ func TestXOAuth2Auth(t *testing.T) {
 		if !bytes.Equal([]byte(""), resp) {
 			t.Errorf("expected server response to be empty, got: %q", resp)
 		}
-		resp, err = auth.Next([]byte("nonsense"), false)
+		_, err = auth.Next([]byte("nonsense"), false)
 		if err != nil {
 			t.Errorf("failed on first server challange: %s", err)
 		}
@@ -1107,6 +1107,9 @@ func TestScramAuth(t *testing.T) {
 					t.Fatalf("failed to dial TLS server: %v", err)
 				}
 				client, err = NewClient(conn, TestServerAddr)
+				if err != nil {
+					t.Fatalf("failed to connect to test server: %s", err)
+				}
 			case false:
 				var err error
 				client, err = Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
@@ -1176,6 +1179,9 @@ func TestScramAuth(t *testing.T) {
 					t.Fatalf("failed to dial TLS server: %v", err)
 				}
 				client, err = NewClient(conn, TestServerAddr)
+				if err != nil {
+					t.Fatalf("failed to connect to test server: %s", err)
+				}
 			case false:
 				var err error
 				client, err = Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
@@ -3434,7 +3440,7 @@ func TestClient_GetTLSConnectionState(t *testing.T) {
 			t.Fatalf("failed to get TLS connection state: %s", err)
 		}
 		if state == nil {
-			t.Error("expected TLS connection state to be non-nil")
+			t.Fatal("expected TLS connection state to be non-nil")
 		}
 		if state.Version != tls.VersionTLS12 {
 			t.Errorf("expected TLS connection state version to be %d, got: %d", tls.VersionTLS12, state.Version)
@@ -3543,7 +3549,6 @@ func TestClient_debugLog(t *testing.T) {
 // faker is a struct embedding io.ReadWriter to simulate network connections for testing purposes.
 type faker struct {
 	io.ReadWriter
-	failOnRead  bool
 	failOnClose bool
 }
 
@@ -3865,10 +3870,9 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 // fields are present. We have actual real authentication tests for all SCRAM modes in the
 // go-mail client_test.go
 type testSCRAMSMTP struct {
-	authMechanism string
-	nonce         string
-	h             func() hash.Hash
-	tlsServer     bool
+	nonce     string
+	h         func() hash.Hash
+	tlsServer bool
 }
 
 func (s *testSCRAMSMTP) handleSCRAMAuth(conn net.Conn) {
