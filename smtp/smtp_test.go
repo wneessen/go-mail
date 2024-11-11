@@ -2890,6 +2890,233 @@ Goodbye.`)
 	})
 }
 
+func TestClient_Extension(t *testing.T) {
+	t.Run("extension check fails on EHLO/HELO", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-DSN\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnEhlo: true,
+				FailOnHelo: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if ok, _ := client.Extension("DSN"); ok {
+			t.Error("expected client extension check to fail on EHLO/HELO")
+		}
+	})
+}
+
+func TestClient_Reset(t *testing.T) {
+	t.Run("reset on functioning client conneciton", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-DSN\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.Reset(); err != nil {
+			t.Errorf("failed to reset client: %s", err)
+		}
+	})
+	t.Run("reset fails on RSET", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-DSN\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnReset: true,
+				FeatureSet:  featureSet,
+				ListenPort:  serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.Reset(); err == nil {
+			t.Error("expected client reset to fail")
+		}
+	})
+	t.Run("reset fails on EHLO/HELO", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-DSN\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnEhlo: true,
+				FailOnHelo: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.Reset(); err == nil {
+			t.Error("expected client reset to fail")
+		}
+	})
+}
+
+func TestClient_Noop(t *testing.T) {
+	t.Run("noop on functioning client conneciton", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-DSN\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.Noop(); err != nil {
+			t.Errorf("failed client no-operation: %s", err)
+		}
+	})
+	t.Run("noop fails on EHLO/HELO", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-DSN\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnEhlo: true,
+				FailOnHelo: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.Noop(); err == nil {
+			t.Error("expected client no-operation to fail")
+		}
+	})
+	t.Run("noop fails on NOOP", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-DSN\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnNoop: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.Noop(); err == nil {
+			t.Error("expected client no-operation to fail")
+		}
+	})
+}
+
 /*
 
 
@@ -4391,7 +4618,11 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 				writeLine("500 5.5.2 Error: fail on HELO")
 				break
 			}
-			writeLine("250-localhost.localdomain\r\n" + props.FeatureSet)
+			if props.FeatureSet != "" {
+				writeLine("250-localhost.localdomain\r\n" + props.FeatureSet)
+				break
+			}
+			writeLine("250 localhost.localdomain\r\n")
 		case strings.HasPrefix(data, "EHLO"):
 			if len(strings.Split(data, " ")) != 2 {
 				writeLine("501 Syntax: EHLO hostname")
@@ -4401,7 +4632,11 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 				writeLine("500 5.5.2 Error: fail on EHLO")
 				break
 			}
-			writeLine("250-localhost.localdomain\r\n" + props.FeatureSet)
+			if props.FeatureSet != "" {
+				writeLine("250-localhost.localdomain\r\n" + props.FeatureSet)
+				break
+			}
+			writeLine("250 localhost.localdomain\r\n")
 		case strings.HasPrefix(data, "MAIL FROM:"):
 			if props.FailOnMailFrom {
 				writeLine("500 5.5.2 Error: fail on MAIL FROM")
