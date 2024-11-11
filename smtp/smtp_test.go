@@ -3665,8 +3665,8 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 		}
 		time.Sleep(time.Millisecond)
 		if props.EchoBuffer != nil {
-			if _, err := props.EchoBuffer.Write([]byte(data)); err != nil {
-				t.Errorf("failed write to echo buffer: %s", err)
+			if _, berr := props.EchoBuffer.Write([]byte(data)); berr != nil {
+				t.Errorf("failed write to echo buffer: %s", berr)
 			}
 		}
 
