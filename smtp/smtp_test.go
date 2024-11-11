@@ -3169,6 +3169,30 @@ func TestClient_SetDebugLog(t *testing.T) {
 	})
 }
 
+func TestClient_SetLogger(t *testing.T) {
+	t.Run("set logger to Stdlog logger", func(t *testing.T) {
+		client := &Client{}
+		client.SetLogger(log.New(os.Stderr, log.LevelDebug))
+		if !strings.EqualFold(fmt.Sprintf("%T", client.logger), "*log.Stdlog") {
+			t.Errorf("expected logger to be of type *log.Stdlog, got: %T", client.logger)
+		}
+	})
+	t.Run("set logger to JSONlog logger", func(t *testing.T) {
+		client := &Client{}
+		client.SetLogger(log.NewJSON(os.Stderr, log.LevelDebug))
+		if !strings.EqualFold(fmt.Sprintf("%T", client.logger), "*log.JSONlog") {
+			t.Errorf("expected logger to be of type *log.JSONlog, got: %T", client.logger)
+		}
+	})
+	t.Run("nil logger should just return and not set/override", func(t *testing.T) {
+		client := &Client{logger: log.NewJSON(os.Stderr, log.LevelDebug)}
+		client.SetLogger(nil)
+		if !strings.EqualFold(fmt.Sprintf("%T", client.logger), "*log.JSONlog") {
+			t.Errorf("expected logger to be of type *log.JSONlog, got: %T", client.logger)
+		}
+	})
+}
+
 // faker is a struct embedding io.ReadWriter to simulate network connections for testing purposes.
 type faker struct {
 	io.ReadWriter
