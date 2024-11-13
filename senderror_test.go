@@ -218,6 +218,78 @@ func TestSendError_Msg(t *testing.T) {
 	})
 }
 
+func TestSendError_EnhancedStatusCode(t *testing.T) {
+	t.Run("SendError with no enhanced status code", func(t *testing.T) {
+		err := &SendError{
+			errlist: []error{ErrNoRcptAddresses},
+			rcpt:    []string{"<toni.tester@domain.tld>", "<tina.tester@domain.tld>"},
+			Reason:  ErrAmbiguous,
+		}
+		if err.EnhancedStatusCode() != "" {
+			t.Errorf("expected empty enhanced status code, got: %s", err.EnhancedStatusCode())
+		}
+	})
+	t.Run("SendError with enhanced status code", func(t *testing.T) {
+		err := &SendError{
+			errlist:            []error{ErrNoRcptAddresses},
+			rcpt:               []string{"<toni.tester@domain.tld>", "<tina.tester@domain.tld>"},
+			Reason:             ErrAmbiguous,
+			enhancedStatusCode: "5.7.1",
+		}
+		if err.EnhancedStatusCode() != "5.7.1" {
+			t.Errorf("expected enhanced status code: %s, got: %s", "5.7.1", err.EnhancedStatusCode())
+		}
+	})
+	t.Run("enhanced status code on nil error should return empty string", func(t *testing.T) {
+		var err *SendError
+		if err.EnhancedStatusCode() != "" {
+			t.Error("expected empty enhanced status code on nil-senderror")
+		}
+	})
+}
+
+func TestSendError_ErrorCode(t *testing.T) {
+	t.Run("ErrorCode with a go-mail error should return 0", func(t *testing.T) {
+		err := &SendError{
+			errlist: []error{ErrNoRcptAddresses},
+			rcpt:    []string{"<toni.tester@domain.tld>", "<tina.tester@domain.tld>"},
+			Reason:  ErrAmbiguous,
+			errcode: getErrorCode(ErrNoRcptAddresses),
+		}
+		if err.ErrorCode() != 0 {
+			t.Errorf("expected error code: %d, got: %d", 0, err.ErrorCode())
+		}
+	})
+	t.Run("SendError with permanent error", func(t *testing.T) {
+		err := &SendError{
+			errlist: []error{ErrNoRcptAddresses},
+			rcpt:    []string{"<toni.tester@domain.tld>", "<tina.tester@domain.tld>"},
+			Reason:  ErrAmbiguous,
+			errcode: getErrorCode(errors.New("535 5.7.8 Error: authentication failed")),
+		}
+		if err.ErrorCode() != 535 {
+			t.Errorf("expected error code: %d, got: %d", 535, err.ErrorCode())
+		}
+	})
+	t.Run("SendError with temporary error", func(t *testing.T) {
+		err := &SendError{
+			errlist: []error{ErrNoRcptAddresses},
+			rcpt:    []string{"<toni.tester@domain.tld>", "<tina.tester@domain.tld>"},
+			Reason:  ErrAmbiguous,
+			errcode: getErrorCode(errors.New("441 4.1.0 Server currently unavailable")),
+		}
+		if err.ErrorCode() != 441 {
+			t.Errorf("expected error code: %d, got: %d", 441, err.ErrorCode())
+		}
+	})
+	t.Run("error code on nil error should return 0", func(t *testing.T) {
+		var err *SendError
+		if err.ErrorCode() != 0 {
+			t.Error("expected 0 error code on nil-senderror")
+		}
+	})
+}
+
 // returnSendError is a helper method to retunr a SendError with a specific reason
 func returnSendError(r SendErrReason, t bool) error {
 	message := NewMsg()
