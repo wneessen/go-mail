@@ -55,9 +55,11 @@ func (c *Client) Send(messages ...*Msg) error {
 				returnErr.rcpt = append(returnErr.rcpt, errs[i].rcpt...)
 			}
 
-			// We assume that the isTemp flag from the last error we received should be the
+			// We assume that the error codes and flags from the last error we received should be the
 			// indicator for the returned isTemp flag as well
 			returnErr.isTemp = errs[len(errs)-1].isTemp
+			returnErr.errcode = errs[len(errs)-1].errcode
+			returnErr.enhancedStatusCode = errs[len(errs)-1].enhancedStatusCode
 
 			return returnErr
 		}
