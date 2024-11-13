@@ -6,6 +6,7 @@ package mail
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -286,6 +287,45 @@ func TestSendError_ErrorCode(t *testing.T) {
 		var err *SendError
 		if err.ErrorCode() != 0 {
 			t.Error("expected 0 error code on nil-senderror")
+		}
+	})
+}
+
+func TestSendError_getErrorCode(t *testing.T) {
+	t.Run("getErrorCode with a go-mail error should return 0", func(t *testing.T) {
+		code := getErrorCode(ErrNoRcptAddresses)
+		if code != 0 {
+			t.Errorf("expected error code: %d, got: %d", 0, code)
+		}
+	})
+	t.Run("getErrorCode with permanent error", func(t *testing.T) {
+		code := getErrorCode(errors.New("535 5.7.8 Error: authentication failed"))
+		if code != 535 {
+			t.Errorf("expected error code: %d, got: %d", 535, code)
+		}
+	})
+	t.Run("getErrorCode with temporary error", func(t *testing.T) {
+		code := getErrorCode(errors.New("443 4.1.0 Server currently unavailable"))
+		if code != 443 {
+			t.Errorf("expected error code: %d, got: %d", 443, code)
+		}
+	})
+	t.Run("getErrorCode with wrapper error", func(t *testing.T) {
+		code := getErrorCode(fmt.Errorf("an error occured: %w", errors.New("443 4.1.0 Server currently unavailable")))
+		if code != 443 {
+			t.Errorf("expected error code: %d, got: %d", 443, code)
+		}
+	})
+	t.Run("getErrorCode with non-4xx and non-5xx error", func(t *testing.T) {
+		code := getErrorCode(errors.New("220 2.1.0 This is not an error"))
+		if code != 0 {
+			t.Errorf("expected error code: %d, got: %d", 0, code)
+		}
+	})
+	t.Run("getErrorCode with non 3-digit code", func(t *testing.T) {
+		code := getErrorCode(errors.New("4xx 4.1.0 The status code is invalid"))
+		if code != 0 {
+			t.Errorf("expected error code: %d, got: %d", 0, code)
 		}
 	})
 }
