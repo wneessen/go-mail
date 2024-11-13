@@ -35,7 +35,7 @@ const (
 	// TestServerAddr is the address the simple SMTP test server listens on
 	TestServerAddr = "127.0.0.1"
 	// TestServerPortBase is the base port for the simple SMTP test server
-	TestServerPortBase = 12025
+	TestServerPortBase = 30025
 	// TestSenderValid is a test sender email address considered valid for sending test emails.
 	TestSenderValid = "valid-from@domain.tld"
 	// TestRcptValid is a test recipient email address considered valid for sending test emails.
