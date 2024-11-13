@@ -6,6 +6,8 @@ package mail
 
 import (
 	"errors"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -60,11 +62,13 @@ const (
 // details about the affected message, a list of errors, the recipient list, and whether
 // the error is temporary or permanent. It also includes a reason code for the error.
 type SendError struct {
-	affectedMsg *Msg
-	errlist     []error
-	isTemp      bool
-	rcpt        []string
-	Reason      SendErrReason
+	affectedMsg        *Msg
+	errcode            int
+	enhancedStatusCode string
+	errlist            []error
+	isTemp             bool
+	rcpt               []string
+	Reason             SendErrReason
 }
 
 // SendErrReason represents a comparable reason on why the delivery failed
@@ -175,6 +179,27 @@ func (e *SendError) Msg() *Msg {
 	return e.affectedMsg
 }
 
+// EnhancedStatusCode returns the enhanced status code of the server response if the
+// server supports it, as described in RFC 2034.
+//
+// This function retrieves the enhanced status code of an error returned by the server. This
+// requires that the receiving server supports this SMTP extension as described in RFC 2034.
+// Since this is the SendError interface, we only collect status codes for error responses,
+// meaning 4xx or 5xx. If the server does not support the ENHANCEDSTATUSCODES extension or
+// the error did not include an enhanced status code, it will return an empty string.
+//
+// Returns:
+//   - The enhanced status code as returned by the server, or an empty string is not supported.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2034
+func (e *SendError) EnhancedStatusCode() string {
+	if e == nil {
+		return ""
+	}
+	return e.enhancedStatusCode
+}
+
 // String satisfies the fmt.Stringer interface for the SendErrReason type.
 //
 // This function converts the SendErrReason into a human-readable string representation based
@@ -223,4 +248,40 @@ func (r SendErrReason) String() string {
 //   - true if the error is temporary, false otherwise.
 func isTempError(err error) bool {
 	return err.Error()[0] == '4'
+}
+
+func getErrorCode(err error) int {
+	rootErr := errors.Unwrap(err)
+	if rootErr != nil {
+		err = rootErr
+	}
+	firstrune := err.Error()[0]
+	if firstrune < 52 || firstrune > 53 {
+		return 0
+	}
+	code := err.Error()[0:3]
+	errcode, cerr := strconv.Atoi(code)
+	if cerr != nil {
+		return 0
+	}
+	return errcode
+}
+
+func getEnhancedStatusCode(err error, supported bool) string {
+	if err == nil || !supported {
+		return ""
+	}
+	rootErr := errors.Unwrap(err)
+	if rootErr != nil {
+		err = rootErr
+	}
+	firstrune := err.Error()[0]
+	if firstrune != 50 && firstrune != 52 && firstrune != 53 {
+		return ""
+	}
+	re, rerr := regexp.Compile(`\b([245])\.\d{1,3}\.\d{1,3}\b`)
+	if rerr != nil {
+		return ""
+	}
+	return re.FindString(err.Error())
 }
