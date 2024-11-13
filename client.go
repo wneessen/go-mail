@@ -1201,16 +1201,16 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 	if err != nil {
 		return &SendError{
 			Reason: ErrGetSender, errlist: []error{err}, isTemp: isTempError(err),
-			affectedMsg: message, errcode: getErrorCode(err),
-			enhancedStatusCode: getEnhancedStatusCode(err, escSupport),
+			affectedMsg: message, errcode: errorCode(err),
+			enhancedStatusCode: enhancedStatusCode(err, escSupport),
 		}
 	}
 	rcpts, err := message.GetRecipients()
 	if err != nil {
 		return &SendError{
 			Reason: ErrGetRcpts, errlist: []error{err}, isTemp: isTempError(err),
-			affectedMsg: message, errcode: getErrorCode(err),
-			enhancedStatusCode: getEnhancedStatusCode(err, escSupport),
+			affectedMsg: message, errcode: errorCode(err),
+			enhancedStatusCode: enhancedStatusCode(err, escSupport),
 		}
 	}
 
@@ -1222,8 +1222,8 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 	if err = c.smtpClient.Mail(from); err != nil {
 		retError := &SendError{
 			Reason: ErrSMTPMailFrom, errlist: []error{err}, isTemp: isTempError(err),
-			affectedMsg: message, errcode: getErrorCode(err),
-			enhancedStatusCode: getEnhancedStatusCode(err, escSupport),
+			affectedMsg: message, errcode: errorCode(err),
+			enhancedStatusCode: enhancedStatusCode(err, escSupport),
 		}
 		if resetSendErr := c.smtpClient.Reset(); resetSendErr != nil {
 			retError.errlist = append(retError.errlist, resetSendErr)
@@ -1242,8 +1242,8 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 			rcptSendErr.errlist = append(rcptSendErr.errlist, err)
 			rcptSendErr.rcpt = append(rcptSendErr.rcpt, rcpt)
 			rcptSendErr.isTemp = isTempError(err)
-			rcptSendErr.errcode = getErrorCode(err)
-			rcptSendErr.enhancedStatusCode = getEnhancedStatusCode(err, escSupport)
+			rcptSendErr.errcode = errorCode(err)
+			rcptSendErr.enhancedStatusCode = enhancedStatusCode(err, escSupport)
 			hasError = true
 		}
 	}
@@ -1257,23 +1257,23 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 	if err != nil {
 		return &SendError{
 			Reason: ErrSMTPData, errlist: []error{err}, isTemp: isTempError(err),
-			affectedMsg: message, errcode: getErrorCode(err),
-			enhancedStatusCode: getEnhancedStatusCode(err, escSupport),
+			affectedMsg: message, errcode: errorCode(err),
+			enhancedStatusCode: enhancedStatusCode(err, escSupport),
 		}
 	}
 	_, err = message.WriteTo(writer)
 	if err != nil {
 		return &SendError{
 			Reason: ErrWriteContent, errlist: []error{err}, isTemp: isTempError(err),
-			affectedMsg: message, errcode: getErrorCode(err),
-			enhancedStatusCode: getEnhancedStatusCode(err, escSupport),
+			affectedMsg: message, errcode: errorCode(err),
+			enhancedStatusCode: enhancedStatusCode(err, escSupport),
 		}
 	}
 	if err = writer.Close(); err != nil {
 		return &SendError{
 			Reason: ErrSMTPDataClose, errlist: []error{err}, isTemp: isTempError(err),
-			affectedMsg: message, errcode: getErrorCode(err),
-			enhancedStatusCode: getEnhancedStatusCode(err, escSupport),
+			affectedMsg: message, errcode: errorCode(err),
+			enhancedStatusCode: enhancedStatusCode(err, escSupport),
 		}
 	}
 	message.isDelivered = true
@@ -1281,8 +1281,8 @@ func (c *Client) sendSingleMsg(message *Msg) error {
 	if err = c.Reset(); err != nil {
 		return &SendError{
 			Reason: ErrSMTPReset, errlist: []error{err}, isTemp: isTempError(err),
-			affectedMsg: message, errcode: getErrorCode(err),
-			enhancedStatusCode: getEnhancedStatusCode(err, escSupport),
+			affectedMsg: message, errcode: errorCode(err),
+			enhancedStatusCode: enhancedStatusCode(err, escSupport),
 		}
 	}
 	return nil

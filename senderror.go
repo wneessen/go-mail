@@ -265,7 +265,7 @@ func isTempError(err error) bool {
 	return err.Error()[0] == '4'
 }
 
-func getErrorCode(err error) int {
+func errorCode(err error) int {
 	rootErr := errors.Unwrap(err)
 	if rootErr != nil {
 		err = rootErr
@@ -282,7 +282,7 @@ func getErrorCode(err error) int {
 	return errcode
 }
 
-func getEnhancedStatusCode(err error, supported bool) string {
+func enhancedStatusCode(err error, supported bool) string {
 	if err == nil || !supported {
 		return ""
 	}
