@@ -30,6 +30,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -46,12 +47,13 @@ const (
 	TestServerProto = "tcp"
 	// TestServerAddr is the address the simple SMTP test server listens on
 	TestServerAddr = "127.0.0.1"
-	// TestServerPortBase is the base port for the simple SMTP test server
-	TestServerPortBase = 30025
 )
 
 // PortAdder is an atomic counter used to increment port numbers for the test SMTP server instances.
 var PortAdder atomic.Int32
+
+// TestServerPortBase is the base port for the simple SMTP test server
+var TestServerPortBase int32 = 30025
 
 // localhostCert is a PEM-encoded TLS cert generated from src/crypto/tls:
 //
@@ -229,6 +231,18 @@ var authTests = []authTest{
 		[]bool{true},
 		true,
 	},
+}
+
+func init() {
+	testPort := os.Getenv("TEST_BASEPORT")
+	if testPort == "" {
+		return
+	}
+	if port, err := strconv.Atoi(testPort); err == nil {
+		if port <= 65000 && port > 1023 {
+			TestServerPortBase = int32(port)
+		}
+	}
 }
 
 func TestAuth(t *testing.T) {
