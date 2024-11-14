@@ -32,8 +32,10 @@ func (c *Client) Send(messages ...*Msg) (returnErr error) {
 		escSupport, _ = c.smtpClient.Extension("ENHANCEDSTATUSCODES")
 	}
 	if err := c.checkConn(); err != nil {
-		returnErr = &SendError{Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err),
-			errcode: errorCode(err), enhancedStatusCode: enhancedStatusCode(err, escSupport)}
+		returnErr = &SendError{
+			Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err),
+			errcode: errorCode(err), enhancedStatusCode: enhancedStatusCode(err, escSupport),
+		}
 		return
 	}
 
