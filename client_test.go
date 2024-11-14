@@ -17,6 +17,7 @@ import (
 	"net/mail"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -34,13 +35,14 @@ const (
 	TestServerProto = "tcp"
 	// TestServerAddr is the address the simple SMTP test server listens on
 	TestServerAddr = "127.0.0.1"
-	// TestServerPortBase is the base port for the simple SMTP test server
-	TestServerPortBase = 12025
 	// TestSenderValid is a test sender email address considered valid for sending test emails.
 	TestSenderValid = "valid-from@domain.tld"
 	// TestRcptValid is a test recipient email address considered valid for sending test emails.
 	TestRcptValid = "valid-to@domain.tld"
 )
+
+// TestServerPortBase is the base port for the simple SMTP test server
+var TestServerPortBase int32 = 30025
 
 // PortAdder is an atomic counter used to increment port numbers for the test SMTP server instances.
 var PortAdder atomic.Int32
@@ -96,6 +98,18 @@ type logLine struct {
 
 type logData struct {
 	Lines []logLine `json:"lines"`
+}
+
+func init() {
+	testPort := os.Getenv("TEST_BASEPORT")
+	if testPort == "" {
+		return
+	}
+	if port, err := strconv.Atoi(testPort); err == nil {
+		if port <= 65000 && port > 1023 {
+			TestServerPortBase = int32(port)
+		}
+	}
 }
 
 func TestNewClient(t *testing.T) {
@@ -3146,6 +3160,59 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 		if sendErr.Reason != ErrSMTPDataClose {
 			t.Errorf("expected ErrSMTPDataClose, got %s", sendErr.Reason)
+		}
+	})
+	t.Run("error code and enhanced status code support", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-ENHANCEDSTATUSCODES\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnMailFrom: true,
+				FeatureSet:     featureSet,
+				ListenPort:     serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		message := testMessage(t)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.sendSingleMsg(message); err == nil {
+			t.Error("expected mail delivery to fail")
+		}
+		var sendErr *SendError
+		if !errors.As(err, &sendErr) {
+			t.Fatalf("expected SendError, got %s", err)
+		}
+		if sendErr.errcode != 500 {
+			t.Errorf("expected error code 500, got %d", sendErr.errcode)
+		}
+		if !strings.EqualFold(sendErr.enhancedStatusCode, "5.5.2") {
+			t.Errorf("expected enhanced status code 5.5.2, got %s", sendErr.enhancedStatusCode)
 		}
 	})
 }

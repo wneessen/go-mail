@@ -27,8 +27,15 @@ import "errors"
 //   - An error that represents the sending result, which may include multiple SendErrors if
 //     any occurred; otherwise, returns nil.
 func (c *Client) Send(messages ...*Msg) error {
+	escSupport := false
+	if c.smtpClient != nil {
+		escSupport, _ = c.smtpClient.Extension("ENHANCEDSTATUSCODES")
+	}
 	if err := c.checkConn(); err != nil {
-		return &SendError{Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err)}
+		return &SendError{
+			Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err),
+			errcode: errorCode(err), enhancedStatusCode: enhancedStatusCode(err, escSupport),
+		}
 	}
 	var errs []*SendError
 	for id, message := range messages {
@@ -50,9 +57,11 @@ func (c *Client) Send(messages ...*Msg) error {
 				returnErr.rcpt = append(returnErr.rcpt, errs[i].rcpt...)
 			}
 
-			// We assume that the isTemp flag from the last error we received should be the
+			// We assume that the error codes and flags from the last error we received should be the
 			// indicator for the returned isTemp flag as well
 			returnErr.isTemp = errs[len(errs)-1].isTemp
+			returnErr.errcode = errs[len(errs)-1].errcode
+			returnErr.enhancedStatusCode = errs[len(errs)-1].enhancedStatusCode
 
 			return returnErr
 		}
