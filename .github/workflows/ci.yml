@@ -33,6 +33,7 @@ jobs:
             PERFORM_ONLINE_TEST: ${{ vars.PERFORM_ONLINE_TEST }}
             PERFORM_UNIX_OPEN_WRITE_TESTS: ${{ vars.PERFORM_UNIX_OPEN_WRITE_TESTS }}
             PERFORM_SENDMAIL_TESTS: ${{ vars.PERFORM_SENDMAIL_TESTS }}
+            TEST_BASEPORT: ${{ vars.TEST_BASEPORT }}
             TEST_HOST: ${{ secrets.TEST_HOST }}
             TEST_USER: ${{ secrets.TEST_USER }}
             TEST_PASS: ${{ secrets.TEST_PASS }}
@@ -126,6 +127,8 @@ jobs:
             matrix:
                 os: [ubuntu-latest, macos-latest, windows-latest]
                 go: ['1.19', '1.20', '1.21', '1.22', '1.23']
+        env:
+            TEST_BASEPORT: ${{ vars.TEST_BASEPORT }}
         steps:
             - name: Harden Runner
               uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
@@ -149,6 +152,8 @@ jobs:
         strategy:
             matrix:
                 osver: ['14.1', '14.0', 13.4']
+        env:
+            TEST_BASEPORT: ${{ vars.TEST_BASEPORT }}
         steps:
             - name: Checkout Code
               uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
@@ -189,6 +194,7 @@ jobs:
                 go: ['1.23']
         env:
             PERFORM_ONLINE_TEST: ${{ vars.PERFORM_ONLINE_TEST }}
+            TEST_BASEPORT: ${{ vars.TEST_BASEPORT }}
             TEST_HOST: ${{ secrets.TEST_HOST }}
             TEST_USER: ${{ secrets.TEST_USER }}
             TEST_PASS: ${{ secrets.TEST_PASS }}
