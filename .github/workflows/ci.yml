@@ -184,7 +184,7 @@ jobs:
             - name: Checkout Code
               uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
             - name: REUSE Compliance Check
-              uses: fsfe/reuse-action@3ae3c6bdf1257ab19397fab11fd3312144692083 # v4.0.0
+              uses: fsfe/reuse-action@bb774aa972c2a89ff34781233d275075cbddf542 # v5.0.0
     sonarqube:
         name: Test with SonarQube review (${{ matrix.os }} / ${{ matrix.go }})
         runs-on: ${{ matrix.os }}
