@@ -53,7 +53,7 @@ const (
 var PortAdder atomic.Int32
 
 // TestServerPortBase is the base port for the simple SMTP test server
-var TestServerPortBase int32 = 30025
+var TestServerPortBase int32 = 20025
 
 // localhostCert is a PEM-encoded TLS cert generated from src/crypto/tls:
 //
@@ -234,7 +234,7 @@ var authTests = []authTest{
 }
 
 func init() {
-	testPort := os.Getenv("TEST_BASEPORT")
+	testPort := os.Getenv("TEST_BASEPORT_SMTP")
 	if testPort == "" {
 		return
 	}
