@@ -9,4 +9,66 @@ exclude-dirs = ["examples"]
 
 [linters]
 enable = ["stylecheck", "whitespace", "containedctx", "contextcheck", "decorder",
-    "errname", "errorlint", "gofmt", "gofumpt"]
+    "errname", "errorlint", "gofmt", "gofumpt", "gosec"]
+
+[issues]
+
+## An overflow is impossible here
+[[issues.exclude-rules]]
+linters = ["gosec"]
+path = "random.go"
+text = "G115:"
+
+## These are tests which intentionally do not need any TLS settings
+[[issues.exclude-rules]]
+linters = ["gosec"]
+path = "client_test.go"
+text = "G402:"
+
+## These are tests which intentionally do not need any TLS settings
+[[issues.exclude-rules]]
+linters = ["gosec"]
+path = "smtp/smtp_test.go"
+text = "G402:"
+
+## We do not dictate a TLS minimum version in the smtp package. go-mail
+## itself does set sane defaults
+[[issues.exclude-rules]]
+linters = ["gosec"]
+path = "smtp/smtp.go"
+text = "G402:"
+
+## The chance that we write +2 million tests is very low, I think we can
+## ignore this for the time being
+[[issues.exclude-rules]]
+linters = ["gosec"]
+path = "client_test.go"
+text = "G109:"
+
+## The chance that we write +2 million tests is very low, I think we can
+## ignore this for the time being
+[[issues.exclude-rules]]
+linters = ["gosec"]
+path = "smtp/smtp_test.go"
+text = "G109:"
+
+## We inform the user about the deprecated status of CRAM-MD5 and suggest
+## to use SCRAM-SHA instead
+[[issues.exclude-rules]]
+linters = ["gosec"]
+path = "smtp/auth_cram_md5.go"
+text = "G501:"
+
+## Yes, SHA1 is weak, but in the context of SCRAM it is still considered
+## secure for specific applications. The user is information about this
+## in the documentation
+[[issues.exclude-rules]]
+linters = ["gosec"]
+path = "smtp/auth_scram.go"
+text = "G505:"
+
+## Test code for SCRAM-SHA1. Can be ignored.
+[[issues.exclude-rules]]
+linters = ["gosec"]
+path = "smtp/smtp_test.go"
+text = "G505:"
