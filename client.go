@@ -1100,7 +1100,7 @@ func (c *Client) auth() error {
 			return fmt.Errorf("server does not support SMTP AUTH")
 		}
 
-		var authType SMTPAuthType
+		authType := c.smtpAuthType
 		if c.smtpAuthType == SMTPAuthAutoDiscover {
 			discoveredType, err := c.authTypeAutoDiscover(smtpAuthType)
 			if err != nil {
