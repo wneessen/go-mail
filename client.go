@@ -1185,8 +1185,10 @@ func (c *Client) authTypeAutoDiscover(supported string) (SMTPAuthType, error) {
 	if supported == "" {
 		return "", ErrNoSupportedAuthDiscovered
 	}
-	preferList := []SMTPAuthType{SMTPAuthSCRAMSHA256PLUS, SMTPAuthSCRAMSHA256, SMTPAuthSCRAMSHA1PLUS, SMTPAuthSCRAMSHA1,
-		SMTPAuthXOAUTH2, SMTPAuthCramMD5, SMTPAuthPlain, SMTPAuthLogin}
+	preferList := []SMTPAuthType{
+		SMTPAuthSCRAMSHA256PLUS, SMTPAuthSCRAMSHA256, SMTPAuthSCRAMSHA1PLUS, SMTPAuthSCRAMSHA1,
+		SMTPAuthXOAUTH2, SMTPAuthCramMD5, SMTPAuthPlain, SMTPAuthLogin,
+	}
 	if !c.isEncrypted {
 		preferList = []SMTPAuthType{SMTPAuthSCRAMSHA256, SMTPAuthSCRAMSHA1, SMTPAuthXOAUTH2, SMTPAuthCramMD5}
 	}
