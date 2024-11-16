@@ -1100,7 +1100,16 @@ func (c *Client) auth() error {
 			return fmt.Errorf("server does not support SMTP AUTH")
 		}
 
-		switch c.smtpAuthType {
+		authType := c.smtpAuthType
+		if c.smtpAuthType == SMTPAuthAutoDiscover {
+			discoveredType, err := c.authTypeAutoDiscover(smtpAuthType)
+			if err != nil {
+				return err
+			}
+			authType = discoveredType
+		}
+
+		switch authType {
 		case SMTPAuthPlain:
 			if !strings.Contains(smtpAuthType, string(SMTPAuthPlain)) {
 				return ErrPlainAuthNotSupported
@@ -1170,6 +1179,36 @@ func (c *Client) auth() error {
 		}
 	}
 	return nil
+}
+
+func (c *Client) authTypeAutoDiscover(supported string) (SMTPAuthType, error) {
+	if supported == "" {
+		return "", ErrNoSupportedAuthDiscovered
+	}
+	preferList := []SMTPAuthType{
+		SMTPAuthSCRAMSHA256PLUS, SMTPAuthSCRAMSHA256, SMTPAuthSCRAMSHA1PLUS, SMTPAuthSCRAMSHA1,
+		SMTPAuthXOAUTH2, SMTPAuthCramMD5, SMTPAuthPlain, SMTPAuthLogin,
+	}
+	if !c.isEncrypted {
+		preferList = []SMTPAuthType{SMTPAuthSCRAMSHA256, SMTPAuthSCRAMSHA1, SMTPAuthXOAUTH2, SMTPAuthCramMD5}
+	}
+	mechs := strings.Split(supported, " ")
+
+	for _, item := range preferList {
+		if sliceContains(mechs, string(item)) {
+			return item, nil
+		}
+	}
+	return "", ErrNoSupportedAuthDiscovered
+}
+
+func sliceContains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
 }
 
 // sendSingleMsg sends out a single message and returns an error if the transmission or
