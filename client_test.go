@@ -2514,6 +2514,42 @@ func TestClient_auth(t *testing.T) {
 	})
 }
 
+func TestClient_authTypeAutoDiscover(t *testing.T) {
+	tests := []struct {
+		supported  string
+		tls        bool
+		expect     SMTPAuthType
+		shouldFail bool
+	}{
+		{"LOGIN SCRAM-SHA-256 SCRAM-SHA-1 SCRAM-SHA-256-PLUS SCRAM-SHA-1-PLUS", true, SMTPAuthSCRAMSHA256PLUS, false},
+		{"LOGIN SCRAM-SHA-256 SCRAM-SHA-1 SCRAM-SHA-256-PLUS SCRAM-SHA-1-PLUS", false, SMTPAuthSCRAMSHA256, false},
+		{"LOGIN PLAIN SCRAM-SHA-1 SCRAM-SHA-1-PLUS", true, SMTPAuthSCRAMSHA1PLUS, false},
+		{"LOGIN PLAIN SCRAM-SHA-1 SCRAM-SHA-1-PLUS", false, SMTPAuthSCRAMSHA1, false},
+		{"LOGIN XOAUTH2 SCRAM-SHA-1-PLUS", false, SMTPAuthXOAUTH2, false},
+		{"PLAIN LOGIN CRAM-MD5", false, SMTPAuthCramMD5, false},
+		{"CRAM-MD5", false, SMTPAuthCramMD5, false},
+		{"PLAIN", true, SMTPAuthPlain, false},
+		{"LOGIN PLAIN", true, SMTPAuthPlain, false},
+		{"LOGIN PLAIN", false, "no secure mechanism", true},
+		{"", false, "supported list empty", true},
+	}
+	for _, tt := range tests {
+		t.Run("AutoDiscover selects the strongest auth type: "+string(tt.expect), func(t *testing.T) {
+			client := &Client{smtpAuthType: SMTPAuthAutoDiscover, isEncrypted: tt.tls}
+			authType, err := client.authTypeAutoDiscover(tt.supported)
+			if err != nil && !tt.shouldFail {
+				t.Fatalf("failed to auto discover auth type: %s", err)
+			}
+			if tt.shouldFail && err == nil {
+				t.Fatal("expected auto discover to fail")
+			}
+			if !tt.shouldFail && authType != tt.expect {
+				t.Errorf("expected strongest auth type: %s, got: %s", tt.expect, authType)
+			}
+		})
+	}
+}
+
 func TestClient_Send(t *testing.T) {
 	message := testMessage(t)
 	t.Run("connect and send email", func(t *testing.T) {

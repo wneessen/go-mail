@@ -1100,7 +1100,7 @@ func (c *Client) auth() error {
 			return fmt.Errorf("server does not support SMTP AUTH")
 		}
 
-		authType := c.smtpAuthType
+		var authType SMTPAuthType
 		if c.smtpAuthType == SMTPAuthAutoDiscover {
 			discoveredType, err := c.authTypeAutoDiscover(smtpAuthType)
 			if err != nil {
@@ -1182,6 +1182,9 @@ func (c *Client) auth() error {
 }
 
 func (c *Client) authTypeAutoDiscover(supported string) (SMTPAuthType, error) {
+	if supported == "" {
+		return "", ErrNoSupportedAuthDiscovered
+	}
 	preferList := []SMTPAuthType{SMTPAuthSCRAMSHA256PLUS, SMTPAuthSCRAMSHA256, SMTPAuthSCRAMSHA1PLUS, SMTPAuthSCRAMSHA1,
 		SMTPAuthXOAUTH2, SMTPAuthCramMD5, SMTPAuthPlain, SMTPAuthLogin}
 	if !c.isEncrypted {
