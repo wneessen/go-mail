@@ -196,6 +196,8 @@ var (
 // https://pkg.go.dev/github.com/kkyr/fig#StringUnmarshaler
 func (sa *SMTPAuthType) UnmarshalString(value string) error {
 	switch strings.ToLower(value) {
+	case "auto", "autodiscover", "autodiscovery":
+		*sa = SMTPAuthAutoDiscover
 	case "cram-md5", "crammd5", "cram":
 		*sa = SMTPAuthCramMD5
 	case "custom":
