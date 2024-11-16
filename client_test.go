@@ -2304,6 +2304,11 @@ func TestClient_auth(t *testing.T) {
 		name     string
 		authType SMTPAuthType
 	}{
+		{"LOGIN via AUTODISCOVER", SMTPAuthAutoDiscover},
+		{"PLAIN via AUTODISCOVER", SMTPAuthAutoDiscover},
+		{"SCRAM-SHA-1 via AUTODISCOVER", SMTPAuthAutoDiscover},
+		{"SCRAM-SHA-256 via AUTODISCOVER", SMTPAuthAutoDiscover},
+		{"XOAUTH2 via AUTODISCOVER", SMTPAuthAutoDiscover},
 		{"CRAM-MD5", SMTPAuthCramMD5},
 		{"LOGIN", SMTPAuthLogin},
 		{"LOGIN-NOENC", SMTPAuthLoginNoEnc},

@@ -136,6 +136,21 @@ const (
 	//
 	// https://datatracker.ietf.org/doc/html/rfc7677
 	SMTPAuthSCRAMSHA256PLUS SMTPAuthType = "SCRAM-SHA-256-PLUS"
+
+	// SMTPAuthAutoDiscover is a mechanism that dynamically discovers all authentication mechanisms
+	// supported by the SMTP server and selects the strongest available one.
+	//
+	// This type simplifies authentication by automatically negotiating the most secure mechanism
+	// offered by the server, based on a predefined security ranking. For instance, mechanisms like
+	// SCRAM-SHA-256(-PLUS) or XOAUTH2 are prioritized over weaker mechanisms such as CRAM-MD5 or PLAIN.
+	//
+	// The negotiation process ensures that mechanisms requiring additional capabilities (e.g.,
+	// SCRAM-SHA-X-PLUS with TLS channel binding) are only selected when the necessary prerequisites
+	// are in place, such as an active TLS-secured connection.
+	//
+	// By automating mechanism selection, SMTPAuthAutoDiscover minimizes configuration effort while
+	// maximizing security and compatibility with a wide range of SMTP servers.
+	SMTPAuthAutoDiscover SMTPAuthType = "AUTODISCOVER"
 )
 
 // SMTP Auth related static errors
@@ -170,6 +185,11 @@ var (
 	// ErrSCRAMSHA256PLUSAuthNotSupported is returned when the server does not support the "SCRAM-SHA-256-PLUS" SMTP
 	// authentication type.
 	ErrSCRAMSHA256PLUSAuthNotSupported = errors.New("server does not support SMTP AUTH type: SCRAM-SHA-256-PLUS")
+
+	// ErrNoSupportedAuthDiscovered is returned when the SMTP Auth AutoDiscover process fails to identify
+	// any supported authentication mechanisms offered by the server.
+	ErrNoSupportedAuthDiscovered = errors.New("SMTP Auth autodiscover was not able to detect a supported " +
+		"authentication mechanism")
 )
 
 // UnmarshalString satisfies the fig.StringUnmarshaler interface for the SMTPAuthType type
