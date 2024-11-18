@@ -12,6 +12,7 @@ import (
 	"fmt"
 	ht "html/template"
 	"io"
+	"io/fs"
 	"mime"
 	"net/mail"
 	"os"
@@ -1964,7 +1965,7 @@ func (m *Msg) AttachFromEmbedFS(name string, fs *embed.FS, opts ...FileOption) e
 	if fs == nil {
 		return fmt.Errorf("embed.FS must not be nil")
 	}
-	file, err := fileFromEmbedFS(name, fs)
+	file, err := fileFromIOFS(name, fs)
 	if err != nil {
 		return err
 	}
@@ -2110,7 +2111,7 @@ func (m *Msg) EmbedFromEmbedFS(name string, fs *embed.FS, opts ...FileOption) er
 	if fs == nil {
 		return fmt.Errorf("embed.FS must not be nil")
 	}
-	file, err := fileFromEmbedFS(name, fs)
+	file, err := fileFromIOFS(name, fs)
 	if err != nil {
 		return err
 	}
@@ -2666,15 +2667,15 @@ func (m *Msg) addDefaultHeader() {
 	m.SetGenHeader(HeaderMIMEVersion, string(m.mimever))
 }
 
-// fileFromEmbedFS returns a File pointer from a given file in the provided embed.FS.
+// fileFromIOFS returns a File pointer from a given file in the provided fs.FS.
 //
-// This method retrieves a file from the embedded filesystem (embed.FS) and returns a File structure
+// This method retrieves a file from the provided io/fs (fs.FS) and returns a File structure
 // that can be used as an attachment or embed in the email message. The file's content is read when
 // writing to an io.Writer, and the file is identified by its base name.
 //
 // Parameters:
 //   - name: The name of the file to retrieve from the embedded filesystem.
-//   - fs: A pointer to the embed.FS from which the file will be opened.
+//   - fs: An instance that satisfies the fs.FS interface
 //
 // Returns:
 //   - A pointer to the File structure representing the embedded file.
@@ -2682,8 +2683,8 @@ func (m *Msg) addDefaultHeader() {
 //
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2183
-func fileFromEmbedFS(name string, fs *embed.FS) (*File, error) {
-	_, err := fs.Open(name)
+func fileFromIOFS(name string, iofs fs.FS) (*File, error) {
+	_, err := iofs.Open(name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file from embed.FS: %w", err)
 	}
@@ -2691,7 +2692,7 @@ func fileFromEmbedFS(name string, fs *embed.FS) (*File, error) {
 		Name:   filepath.Base(name),
 		Header: make(map[string][]string),
 		Writer: func(writer io.Writer) (int64, error) {
-			file, err := fs.Open(name)
+			file, err := iofs.Open(name)
 			if err != nil {
 				return 0, err
 			}
