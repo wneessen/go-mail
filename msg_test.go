@@ -4970,6 +4970,75 @@ func TestMsg_AttachFromEmbedFS(t *testing.T) {
 	})
 }
 
+func TestMsg_AttachFromIOFS(t *testing.T) {
+	t.Run("AttachFromIOFS successful", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.AttachFromIOFS("testdata/attachment.txt", efs,
+			WithFileName("attachment.txt")); err != nil {
+			t.Fatalf("failed to attach from embed FS: %s", err)
+		}
+		attachments := message.GetAttachments()
+		if len(attachments) != 1 {
+			t.Fatalf("failed to retrieve attachments list")
+		}
+		if attachments[0] == nil {
+			t.Fatal("expected attachment to be not nil")
+		}
+		if attachments[0].Name != "attachment.txt" {
+			t.Errorf("expected attachment name to be %s, got: %s", "attachment.txt", attachments[0].Name)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err := attachments[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("writer func failed: %s", err)
+		}
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "This is a test attachment") {
+			t.Errorf("expected message body to be %s, got: %s", "This is a test attachment", got)
+		}
+	})
+	t.Run("AttachFromIOFS with invalid path", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		err := message.AttachFromIOFS("testdata/invalid.txt", efs, WithFileName("attachment.txt"))
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
+	t.Run("AttachFromIOFS with nil embed FS", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		err := message.AttachFromIOFS("testdata/invalid.txt", nil, WithFileName("attachment.txt"))
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
+	t.Run("AttachFromIOFS with fs.FS fails on copy", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.AttachFromIOFS("testdata/attachment.txt", efs); err != nil {
+			t.Fatalf("failed to attach file from fs.FS: %s", err)
+		}
+		attachments := message.GetAttachments()
+		if len(attachments) != 1 {
+			t.Fatalf("failed to get attachments, expected 1, got: %d", len(attachments))
+		}
+		_, err := attachments[0].Writer(failReadWriteSeekCloser{})
+		if err == nil {
+			t.Error("writer func expected to fail, but didn't")
+		}
+	})
+}
+
 func TestMsg_EmbedFile(t *testing.T) {
 	t.Run("EmbedFile with file", func(t *testing.T) {
 		message := NewMsg()
@@ -5429,6 +5498,58 @@ func TestMsg_EmbedFromEmbedFS(t *testing.T) {
 			t.Fatal("message is nil")
 		}
 		err := message.EmbedFromEmbedFS("testdata/invalid.txt", nil, WithFileName("embed.txt"))
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
+}
+
+func TestMsg_EmbedFromIOFS(t *testing.T) {
+	t.Run("EmbedFromIOFS successful", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.EmbedFromIOFS("testdata/embed.txt", efs,
+			WithFileName("embed.txt")); err != nil {
+			t.Fatalf("failed to embed from embed FS: %s", err)
+		}
+		embeds := message.GetEmbeds()
+		if len(embeds) != 1 {
+			t.Fatalf("failed to retrieve embeds list")
+		}
+		if embeds[0] == nil {
+			t.Fatal("expected embed to be not nil")
+		}
+		if embeds[0].Name != "embed.txt" {
+			t.Errorf("expected embed name to be %s, got: %s", "embed.txt", embeds[0].Name)
+		}
+		messageBuf := bytes.NewBuffer(nil)
+		_, err := embeds[0].Writer(messageBuf)
+		if err != nil {
+			t.Errorf("writer func failed: %s", err)
+		}
+		got := strings.TrimSpace(messageBuf.String())
+		if !strings.EqualFold(got, "This is a test embed") {
+			t.Errorf("expected message body to be %s, got: %s", "This is a test embed", got)
+		}
+	})
+	t.Run("EmbedFromIOFS with invalid path", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		err := message.EmbedFromIOFS("testdata/invalid.txt", efs, WithFileName("embed.txt"))
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
+	t.Run("EmbedFromIOFS with nil embed FS", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		err := message.EmbedFromIOFS("testdata/invalid.txt", nil, WithFileName("embed.txt"))
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -6436,6 +6557,15 @@ func TestMsg_addDefaultHeader(t *testing.T) {
 		}
 		if _, ok := message.genHeader[HeaderMIMEVersion]; !ok {
 			t.Error("message should now have mime version header")
+		}
+	})
+}
+
+func TestMsg_fileFromIOFS(t *testing.T) {
+	t.Run("file from fs.FS where fs is nil ", func(t *testing.T) {
+		_, err := fileFromIOFS("testfile.txt", nil)
+		if err == nil {
+			t.Fatal("expected error for fs.FS that is nil")
 		}
 	})
 }

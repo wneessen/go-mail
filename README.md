@@ -52,7 +52,7 @@ Here are some highlights of go-mail's featureset:
 * [X] RFC5322 compliant mail address validation
 * [X] Support for common mail header field generation (Message-ID, Date, Bulk-Precedence, Priority, etc.)
 * [X] Concurrency-safe reusing the same SMTP connection to send multiple mails
-* [X] Support for attachments and inline embeds (from file system, `io.Reader` or `embed.FS`)
+* [X] Support for attachments and inline embeds (from file system, `io.Reader`, `embed.FS` or `fs.FS`)
 * [X] Support for different encodings
 * [X] Middleware support for 3rd-party libraries to alter mail messages
 * [X] Support sending mails via a local sendmail command
