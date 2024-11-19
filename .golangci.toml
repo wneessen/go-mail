@@ -72,3 +72,10 @@ text = "G505:"
 linters = ["gosec"]
 path = "smtp/smtp_test.go"
 text = "G505:"
+
+## These are tests which intentionally do not need any TLS settings
+[[issues.exclude-rules]]
+linters = ["gosec"]
+path = "quicksend_test.go"
+text = "G402:"
+

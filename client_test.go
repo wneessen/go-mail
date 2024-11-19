@@ -3665,6 +3665,8 @@ func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "
 
 // serverProps represents the configuration properties for the SMTP server.
 type serverProps struct {
+	BufferMutex     sync.RWMutex
+	EchoBuffer      io.Writer
 	FailOnAuth      bool
 	FailOnDataInit  bool
 	FailOnDataClose bool
@@ -3754,6 +3756,13 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 		if err != nil {
 			t.Logf("failed to write line: %s", err)
 		}
+		if props.EchoBuffer != nil {
+			props.BufferMutex.Lock()
+			if _, berr := props.EchoBuffer.Write([]byte(data + "\r\n")); berr != nil {
+				t.Errorf("failed write to echo buffer: %s", berr)
+			}
+			props.BufferMutex.Unlock()
+		}
 		_ = writer.Flush()
 	}
 	writeOK := func() {
@@ -3770,6 +3779,13 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 			break
 		}
 		time.Sleep(time.Millisecond)
+		if props.EchoBuffer != nil {
+			props.BufferMutex.Lock()
+			if _, berr := props.EchoBuffer.Write([]byte(data)); berr != nil {
+				t.Errorf("failed write to echo buffer: %s", berr)
+			}
+			props.BufferMutex.Unlock()
+		}
 
 		var datastring string
 		data = strings.TrimSpace(data)
@@ -3829,6 +3845,13 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 				if derr != nil {
 					t.Logf("failed to read data from connection: %s", derr)
 					break
+				}
+				if props.EchoBuffer != nil {
+					props.BufferMutex.Lock()
+					if _, berr := props.EchoBuffer.Write([]byte(ddata)); berr != nil {
+						t.Errorf("failed write to echo buffer: %s", berr)
+					}
+					props.BufferMutex.Unlock()
 				}
 				ddata = strings.TrimSpace(ddata)
 				if ddata == "." {
