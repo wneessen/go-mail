@@ -12,6 +12,7 @@ import (
 	"fmt"
 	ht "html/template"
 	"io"
+	"io/fs"
 	"mime"
 	"net/mail"
 	"os"
@@ -1962,9 +1963,28 @@ func (m *Msg) AttachTextTemplate(
 //   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) AttachFromEmbedFS(name string, fs *embed.FS, opts ...FileOption) error {
 	if fs == nil {
-		return fmt.Errorf("embed.FS must not be nil")
+		return errors.New("embed.FS must not be nil")
 	}
-	file, err := fileFromEmbedFS(name, fs)
+	return m.AttachFromIOFS(name, *fs, opts...)
+}
+
+// AttachFromIOFS attaches a file from a generic file system to the message.
+//
+// This function retrieves a file by name from an fs.FS instance, processes it, and appends it to the
+// message's attachment collection. Additional file options can be provided for further customization.
+//
+// Parameters:
+//   - name: The name of the file to retrieve from the file system.
+//   - iofs: The file system (must not be nil).
+//   - opts: Optional file options to customize the attachment process.
+//
+// Returns:
+//   - An error if the file cannot be retrieved, the fs.FS is nil, or any other issue occurs.
+func (m *Msg) AttachFromIOFS(name string, iofs fs.FS, opts ...FileOption) error {
+	if iofs == nil {
+		return errors.New("fs.FS must not be nil")
+	}
+	file, err := fileFromIOFS(name, iofs)
 	if err != nil {
 		return err
 	}
@@ -2108,9 +2128,28 @@ func (m *Msg) EmbedTextTemplate(
 //   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) EmbedFromEmbedFS(name string, fs *embed.FS, opts ...FileOption) error {
 	if fs == nil {
-		return fmt.Errorf("embed.FS must not be nil")
+		return errors.New("embed.FS must not be nil")
 	}
-	file, err := fileFromEmbedFS(name, fs)
+	return m.EmbedFromIOFS(name, *fs, opts...)
+}
+
+// EmbedFromIOFS embeds a file from a generic file system into the message.
+//
+// This function retrieves a file by name from an fs.FS instance, processes it, and appends it to the
+// message's embed collection. Additional file options can be provided for further customization.
+//
+// Parameters:
+//   - name: The name of the file to retrieve from the file system.
+//   - iofs: The file system (must not be nil).
+//   - opts: Optional file options to customize the embedding process.
+//
+// Returns:
+//   - An error if the file cannot be retrieved, the fs.FS is nil, or any other issue occurs.
+func (m *Msg) EmbedFromIOFS(name string, iofs fs.FS, opts ...FileOption) error {
+	if iofs == nil {
+		return errors.New("fs.FS must not be nil")
+	}
+	file, err := fileFromIOFS(name, iofs)
 	if err != nil {
 		return err
 	}
@@ -2666,15 +2705,15 @@ func (m *Msg) addDefaultHeader() {
 	m.SetGenHeader(HeaderMIMEVersion, string(m.mimever))
 }
 
-// fileFromEmbedFS returns a File pointer from a given file in the provided embed.FS.
+// fileFromIOFS returns a File pointer from a given file in the provided fs.FS.
 //
-// This method retrieves a file from the embedded filesystem (embed.FS) and returns a File structure
+// This method retrieves a file from the provided io/fs (fs.FS) and returns a File structure
 // that can be used as an attachment or embed in the email message. The file's content is read when
 // writing to an io.Writer, and the file is identified by its base name.
 //
 // Parameters:
 //   - name: The name of the file to retrieve from the embedded filesystem.
-//   - fs: A pointer to the embed.FS from which the file will be opened.
+//   - fs: An instance that satisfies the fs.FS interface
 //
 // Returns:
 //   - A pointer to the File structure representing the embedded file.
@@ -2682,23 +2721,27 @@ func (m *Msg) addDefaultHeader() {
 //
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2183
-func fileFromEmbedFS(name string, fs *embed.FS) (*File, error) {
-	_, err := fs.Open(name)
+func fileFromIOFS(name string, iofs fs.FS) (*File, error) {
+	if iofs == nil {
+		return nil, errors.New("fs.FS is nil")
+	}
+
+	_, err := iofs.Open(name)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file from embed.FS: %w", err)
+		return nil, fmt.Errorf("failed to open file from fs.FS: %w", err)
 	}
 	return &File{
 		Name:   filepath.Base(name),
 		Header: make(map[string][]string),
 		Writer: func(writer io.Writer) (int64, error) {
-			file, err := fs.Open(name)
-			if err != nil {
-				return 0, err
+			file, ferr := iofs.Open(name)
+			if ferr != nil {
+				return 0, fmt.Errorf("failed to open file from fs.FS: %w", ferr)
 			}
-			numBytes, err := io.Copy(writer, file)
-			if err != nil {
+			numBytes, ferr := io.Copy(writer, file)
+			if ferr != nil {
 				_ = file.Close()
-				return numBytes, fmt.Errorf("failed to copy file to io.Writer: %w", err)
+				return numBytes, fmt.Errorf("failed to copy file from fs.FS to io.Writer: %w", ferr)
 			}
 			return numBytes, file.Close()
 		},
