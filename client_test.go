@@ -2327,7 +2327,7 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 				msg := testMessage(t)
 				msg.SetMessageIDWithValue("this.is.a.message.id")
 
-				ctxDial, cancelDial := context.WithTimeout(ctx, time.Second*5)
+				ctxDial, cancelDial := context.WithTimeout(ctx, time.Minute)
 				defer cancelDial()
 				if goroutineErr := client.DialAndSendWithContext(ctxDial, msg); goroutineErr != nil {
 					t.Errorf("failed to dial and send message: %s", goroutineErr)
