@@ -170,6 +170,9 @@ type (
 		// requestDSN indicates wether we want to request DSN (Delivery Status Notifications).
 		requestDSN bool
 
+		// sendMutex is used to synchronize access to shared resources during the dial and send methods.
+		sendMutex sync.Mutex
+
 		// smtpAuth is the authentication type that is used to authenticate the user with SMTP server. It
 		// satisfies the smtp.Auth interface.
 		//
@@ -1058,6 +1061,8 @@ func (c *Client) DialAndSend(messages ...*Msg) error {
 //   - An error if the connection fails, if sending the messages fails, or if closing the
 //     connection fails; otherwise, returns nil.
 func (c *Client) DialAndSendWithContext(ctx context.Context, messages ...*Msg) error {
+	c.sendMutex.Lock()
+	defer c.sendMutex.Unlock()
 	if err := c.DialWithContext(ctx); err != nil {
 		return fmt.Errorf("dial failed: %w", err)
 	}

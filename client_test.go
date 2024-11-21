@@ -2297,6 +2297,45 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 			t.Errorf("client was supposed to fail on dial")
 		}
 	})
+	t.Run("concurrent sending via DialAndSendWithContext", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+
+		wg := sync.WaitGroup{}
+		for i := 0; i < 50; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				msg := testMessage(t)
+				msg.SetMessageIDWithValue("this.is.a.message.id")
+
+				ctxDial, cancelDial := context.WithTimeout(ctx, time.Minute)
+				defer cancelDial()
+				if goroutineErr := client.DialAndSendWithContext(ctxDial, msg); goroutineErr != nil {
+					t.Errorf("failed to dial and send message: %s", goroutineErr)
+				}
+			}()
+		}
+		wg.Wait()
+	})
 }
 
 func TestClient_auth(t *testing.T) {
