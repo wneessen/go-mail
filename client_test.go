@@ -2816,7 +2816,6 @@ func TestClient_DialToSMTPClientWithContext(t *testing.T) {
 			t.Fatal("expected connection to fake to fail")
 		}
 	})
-
 }
 
 func TestClient_sendSingleMsg(t *testing.T) {
