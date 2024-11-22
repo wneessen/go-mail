@@ -955,12 +955,12 @@ func (c *Client) SetLogAuthData(logAuth bool) {
 // SMTP server.
 //
 // Parameters:
-//   - dialCtx: The context.Context used to control the connection timeout and cancellation.
+//   - ctxDial: The context.Context used to control the connection timeout and cancellation.
 //
 // Returns:
 //   - An error if the connection to the SMTP server fails or any subsequent command fails.
-func (c *Client) DialWithContext(dialCtx context.Context) error {
-	client, err := c.SMTPClientFromDialWithContext(dialCtx)
+func (c *Client) DialWithContext(ctxDial context.Context) error {
+	client, err := c.DialToSMTPClientWithContext(ctxDial)
 	if err != nil {
 		return err
 	}
@@ -970,9 +970,23 @@ func (c *Client) DialWithContext(dialCtx context.Context) error {
 	return nil
 }
 
-// SMTPClientFromDialWithContext is similar to DialWithContext but instead of storing the smtp.Client
-// on the Client it will return the smtp.Client instead.
-func (c *Client) SMTPClientFromDialWithContext(ctxDial context.Context) (*smtp.Client, error) {
+// DialToSMTPClientWithContext establishes and configures a smtp.Client connection using
+// the provided context.
+//
+// This function uses the provided context to manage the connection deadline and cancellation.
+// It dials the SMTP server using the Client's configured DialContextFunc or a default dialer.
+// If SSL is enabled, it uses a TLS connection. After successfully connecting, it initializes
+// an smtp.Client, sends the HELO/EHLO command, and optionally performs STARTTLS and SMTP AUTH
+// based on the Client's configuration. Debug and authentication logging are enabled if
+// configured.
+//
+// Parameters:
+//   - ctxDial: The context used to control the connection timeout and cancellation.
+//
+// Returns:
+//   - A pointer to the initialized smtp.Client.
+//   - An error if the connection fails, the smtp.Client cannot be created, or any subsequent commands fail.
+func (c *Client) DialToSMTPClientWithContext(ctxDial context.Context) (*smtp.Client, error) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
@@ -1137,7 +1151,7 @@ func (c *Client) DialAndSend(messages ...*Msg) error {
 //   - An error if the connection fails, if sending the messages fails, or if closing the
 //     connection fails; otherwise, returns nil.
 func (c *Client) DialAndSendWithContext(ctx context.Context, messages ...*Msg) error {
-	client, err := c.SMTPClientFromDialWithContext(ctx)
+	client, err := c.DialToSMTPClientWithContext(ctx)
 	if err != nil {
 		return fmt.Errorf("dial failed: %w", err)
 	}
