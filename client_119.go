@@ -13,10 +13,10 @@ import (
 	"github.com/wneessen/go-mail/smtp"
 )
 
-// Send attempts to send one or more Msg using the Client connection to the SMTP server.
-// If the Client has no active connection to the server, Send will fail with an error. For each
-// of the provided Msg, it will associate a SendError with the Msg in case of a transmission
-// or delivery error.
+// SendWithSMTPClient attempts to send one or more Msg using a provided smtp.Client with an
+// established connection to the SMTP server. If the smtp.Client has no active connection to
+// the server, SendWithSMTPClient will fail with an error. For each of the provided Msg, it
+// will associate a SendError with the Msg in case of a transmission or delivery error.
 //
 // This method first checks for an active connection to the SMTP server. If the connection is
 // not valid, it returns a SendError. It then iterates over the provided messages, attempting
@@ -25,12 +25,12 @@ import (
 // them into a single SendError to be returned.
 //
 // Parameters:
+//   - client: A pointer to the smtp.Client that holds the connection to the SMTP server
 //   - messages: A variadic list of pointers to Msg objects to be sent.
 //
 // Returns:
 //   - An error that represents the sending result, which may include multiple SendErrors if
 //     any occurred; otherwise, returns nil.
-
 func (c *Client) SendWithSMTPClient(client *smtp.Client, messages ...*Msg) error {
 	escSupport := false
 	if client != nil {

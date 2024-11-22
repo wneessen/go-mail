@@ -803,7 +803,7 @@ func (c *Client) SetSSLPort(ssl bool, fallback bool) {
 }
 
 // SetDebugLog sets or overrides whether the Client is using debug logging. The debug logger will log incoming
-// and outgoing communication between the Client and the server to os.Stderr.
+// and outgoing communication between the client and the server to log.Logger that is defined on the Client.
 //
 // Note: The SMTP communication might include unencrypted authentication data, depending on whether you are using
 // SMTP authentication and the type of authentication mechanism. This could pose a data protection risk. Use
@@ -815,6 +815,17 @@ func (c *Client) SetDebugLog(val bool) {
 	c.SetDebugLogWithSMTPClient(c.smtpClient, val)
 }
 
+// SetDebugLogWithSMTPClient sets or overrides whether the provided smtp.Client is using debug logging.
+// The debug logger will log incoming and outgoing communication between the client and the server to
+// log.Logger that is defined on the Client.
+//
+// Note: The SMTP communication might include unencrypted authentication data, depending on whether you are using
+// SMTP authentication and the type of authentication mechanism. This could pose a data protection risk. Use
+// debug logging with caution.
+//
+// Parameters:
+//   - client: A pointer to the smtp.Client that handles the connection to the server.
+//   - val: A boolean value indicating whether to enable (true) or disable (false) debug logging.
 func (c *Client) SetDebugLogWithSMTPClient(client *smtp.Client, val bool) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -836,6 +847,15 @@ func (c *Client) SetLogger(logger log.Logger) {
 	c.SetLoggerWithSMTPClient(c.smtpClient, logger)
 }
 
+// SetLoggerWithSMTPClient sets or overrides the custom logger currently used by the provided smtp.Client.
+// The logger must satisfy the log.Logger interface and is only utilized when debug logging is enabled on
+// the provided smtp.Client.
+//
+// By default, log.Stdlog is used if no custom logger is provided.
+//
+// Parameters:
+//   - client: A pointer to the smtp.Client that handles the connection to the server.
+//   - logger: A logger that satisfies the log.Logger interface to be set for the Client.
 func (c *Client) SetLoggerWithSMTPClient(client *smtp.Client, logger log.Logger) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -1024,6 +1044,19 @@ func (c *Client) Close() error {
 	return c.CloseWithSMTPClient(c.smtpClient)
 }
 
+// CloseWithSMTPClient terminates the connection of the provided smtp.Client to the SMTP server,
+// returning an error if the disconnection fails. If the connection is already closed, this
+// method is a no-op and disregards any error.
+//
+// This function checks if the smtp.Client connection is active. If not, it simply returns
+// without any action. If the connection is active, it attempts to gracefully close the
+// connection using the Quit method.
+//
+// Parameters:
+//   - client: A pointer to the smtp.Client that handles the connection to the server.
+//
+// Returns:
+//   - An error if the disconnection fails; otherwise, returns nil.
 func (c *Client) CloseWithSMTPClient(client *smtp.Client) error {
 	if client == nil || !client.HasConnection() {
 		return nil
@@ -1042,11 +1075,24 @@ func (c *Client) CloseWithSMTPClient(client *smtp.Client) error {
 // the command fails, an error is returned.
 //
 // Returns:
-//   - An error if the connection check fails or if sending the RSET command fails; otherwise, returns nil.
+//   - An error if the connection check fails or if sending the RSET command fails;
+//     otherwise, returns nil.
 func (c *Client) Reset() error {
 	return c.ResetWithSMTPClient(c.smtpClient)
 }
 
+// ResetWithSMTPClient sends an SMTP RSET command to the provided smtp.Client, to reset
+// the state of the current SMTP session.
+//
+// This method checks the connection to the SMTP server and, if the connection is valid,
+// it sends an RSET command to reset the session state. If the connection is invalid or
+// the command fails, an error is returned.
+//
+// Parameters:
+//   - client: A pointer to the smtp.Client that handles the connection to the server.
+//
+// Returns:
+//   - An error if the connection check fails or if sending the RSET command fails; otherwise, returns nil.
 func (c *Client) ResetWithSMTPClient(client *smtp.Client) error {
 	if err := c.checkConn(client); err != nil {
 		return err
@@ -1108,6 +1154,24 @@ func (c *Client) DialAndSendWithContext(ctx context.Context, messages ...*Msg) e
 	return nil
 }
 
+// Send attempts to send one or more Msg using the SMTP client that is assigned to the Client.
+// If the Client has no active connection to the server, Send will fail with an error. For
+// each of the provided Msg, it will associate a SendError with the Msg in case of a
+// transmission or delivery error.
+//
+// This method first checks for an active connection to the SMTP server. If the connection is
+// not valid, it returns a SendError. It then iterates over the provided messages, attempting
+// to send each one. If an error occurs during sending, the method records the error and
+// associates it with the corresponding Msg. If multiple errors are encountered, it aggregates
+// them into a single SendError to be returned.
+//
+// Parameters:
+//   - client: A pointer to the smtp.Client that holds the connection to the SMTP server
+//   - messages: A variadic list of pointers to Msg objects to be sent.
+//
+// Returns:
+//   - An error that represents the sending result, which may include multiple SendErrors if
+//     any occurred; otherwise, returns nil.
 func (c *Client) Send(messages ...*Msg) (returnErr error) {
 	c.sendMutex.Lock()
 	defer c.sendMutex.Unlock()
