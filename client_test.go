@@ -2742,6 +2742,83 @@ func TestClient_Send(t *testing.T) {
 	})
 }
 
+func TestClient_DialToSMTPClientWithContext(t *testing.T) {
+	t.Run("establish a new client connection", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		smtpClient, err := client.DialToSMTPClientWithContext(ctxDial)
+		if err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.CloseWithSMTPClient(smtpClient); err != nil {
+				var netErr net.Error
+				if errors.As(err, &netErr) && netErr.Timeout() {
+					t.Skip("failed to close the test server connection due to timeout")
+				}
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if smtpClient == nil {
+			t.Fatal("expected SMTP client, got nil")
+		}
+		if !smtpClient.HasConnection() {
+			t.Fatal("expected connection on smtp client")
+		}
+		if ok, _ := smtpClient.Extension("DSN"); !ok {
+			t.Error("expected DSN extension but it was not found")
+		}
+	})
+	t.Run("dial to SMTP server fails on first client writeFile", func(t *testing.T) {
+		var fake faker
+		fake.ReadWriter = struct {
+			io.Reader
+			io.Writer
+		}{
+			failReadWriteSeekCloser{},
+			failReadWriteSeekCloser{},
+		}
+
+		ctxDial, cancelDial := context.WithTimeout(context.Background(), time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithDialContextFunc(getFakeDialFunc(fake)))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		_, err = client.DialToSMTPClientWithContext(ctxDial)
+		if err == nil {
+			t.Fatal("expected connection to fake to fail")
+		}
+	})
+
+}
+
 func TestClient_sendSingleMsg(t *testing.T) {
 	t.Run("connect and send email", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
