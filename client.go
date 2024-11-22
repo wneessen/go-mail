@@ -1017,9 +1017,6 @@ func (c *Client) DialToSMTPClientWithContext(ctxDial context.Context) (*smtp.Cli
 	if err != nil {
 		return nil, err
 	}
-	if client == nil {
-		return nil, fmt.Errorf("SMTP client is nil")
-	}
 
 	if c.logger != nil {
 		client.SetLogger(c.logger)
