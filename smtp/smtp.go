@@ -601,12 +601,16 @@ func (c *Client) SetLogAuthData() {
 
 // SetDSNMailReturnOption sets the DSN mail return option for the Mail method
 func (c *Client) SetDSNMailReturnOption(d string) {
+	c.mutex.Lock()
 	c.dsnmrtype = d
+	c.mutex.Unlock()
 }
 
 // SetDSNRcptNotifyOption sets the DSN recipient notify option for the Mail method
 func (c *Client) SetDSNRcptNotifyOption(d string) {
+	c.mutex.Lock()
 	c.dsnrntype = d
+	c.mutex.Unlock()
 }
 
 // HasConnection checks if the client has an active connection.

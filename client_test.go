@@ -1772,11 +1772,8 @@ func TestClient_DialWithContext(t *testing.T) {
 				t.Errorf("failed to close the client: %s", err)
 			}
 		})
-		if client.smtpClient == nil {
-			t.Errorf("client with invalid HELO should still have a smtp client, got nil")
-		}
-		if !client.smtpClient.HasConnection() {
-			t.Errorf("client with invalid HELO should still have a smtp client connection, got nil")
+		if client.smtpClient != nil {
+			t.Error("client with invalid HELO should not have a smtp client")
 		}
 	})
 	t.Run("fail on base port and fallback", func(t *testing.T) {
@@ -1825,11 +1822,8 @@ func TestClient_DialWithContext(t *testing.T) {
 		if err = client.DialWithContext(ctxDial); err == nil {
 			t.Fatalf("connection was supposed to fail, but didn't")
 		}
-		if client.smtpClient == nil {
-			t.Fatalf("client has no smtp client")
-		}
-		if !client.smtpClient.HasConnection() {
-			t.Errorf("client has no connection")
+		if client.smtpClient != nil {
+			t.Fatalf("client is not supposed to have a smtp client")
 		}
 	})
 	t.Run("connect with failing auth", func(t *testing.T) {
@@ -2297,6 +2291,7 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 			t.Errorf("client was supposed to fail on dial")
 		}
 	})
+	// https://github.com/wneessen/go-mail/issues/380
 	t.Run("concurrent sending via DialAndSendWithContext", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -2331,6 +2326,44 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 				defer cancelDial()
 				if goroutineErr := client.DialAndSendWithContext(ctxDial, msg); goroutineErr != nil {
 					t.Errorf("failed to dial and send message: %s", goroutineErr)
+				}
+			}()
+		}
+		wg.Wait()
+	})
+	// https://github.com/wneessen/go-mail/issues/385
+	t.Run("concurrent sending via DialAndSendWithContext on receiver func", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		sender := testSender{client}
+
+		ctxDial := context.Background()
+		wg := sync.WaitGroup{}
+		for i := 0; i < 5; i++ {
+			wg.Add(1)
+			msg := testMessage(t)
+			go func() {
+				defer wg.Done()
+				if goroutineErr := sender.Send(ctxDial, msg); goroutineErr != nil {
+					t.Errorf("failed to send message: %s", goroutineErr)
 				}
 			}()
 		}
@@ -2574,8 +2607,8 @@ func TestClient_authTypeAutoDiscover(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run("AutoDiscover selects the strongest auth type: "+string(tt.expect), func(t *testing.T) {
-			client := &Client{smtpAuthType: SMTPAuthAutoDiscover, isEncrypted: tt.tls}
-			authType, err := client.authTypeAutoDiscover(tt.supported)
+			client := &Client{smtpAuthType: SMTPAuthAutoDiscover}
+			authType, err := client.authTypeAutoDiscover(tt.supported, tt.tls)
 			if err != nil && !tt.shouldFail {
 				t.Fatalf("failed to auto discover auth type: %s", err)
 			}
@@ -2709,6 +2742,82 @@ func TestClient_Send(t *testing.T) {
 	})
 }
 
+func TestClient_DialToSMTPClientWithContext(t *testing.T) {
+	t.Run("establish a new client connection", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		smtpClient, err := client.DialToSMTPClientWithContext(ctxDial)
+		if err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.CloseWithSMTPClient(smtpClient); err != nil {
+				var netErr net.Error
+				if errors.As(err, &netErr) && netErr.Timeout() {
+					t.Skip("failed to close the test server connection due to timeout")
+				}
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if smtpClient == nil {
+			t.Fatal("expected SMTP client, got nil")
+		}
+		if !smtpClient.HasConnection() {
+			t.Fatal("expected connection on smtp client")
+		}
+		if ok, _ := smtpClient.Extension("DSN"); !ok {
+			t.Error("expected DSN extension but it was not found")
+		}
+	})
+	t.Run("dial to SMTP server fails on first client writeFile", func(t *testing.T) {
+		var fake faker
+		fake.ReadWriter = struct {
+			io.Reader
+			io.Writer
+		}{
+			failReadWriteSeekCloser{},
+			failReadWriteSeekCloser{},
+		}
+
+		ctxDial, cancelDial := context.WithTimeout(context.Background(), time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithDialContextFunc(getFakeDialFunc(fake)))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		_, err = client.DialToSMTPClientWithContext(ctxDial)
+		if err == nil {
+			t.Fatal("expected connection to fake to fail")
+		}
+	})
+}
+
 func TestClient_sendSingleMsg(t *testing.T) {
 	t.Run("connect and send email", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
@@ -2748,7 +2857,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 				t.Errorf("failed to close client: %s", err)
 			}
 		})
-		if err = client.sendSingleMsg(message); err != nil {
+		if err = client.sendSingleMsg(client.smtpClient, message); err != nil {
 			t.Errorf("failed to send message: %s", err)
 		}
 	})
@@ -2791,7 +2900,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 				t.Errorf("failed to close client: %s", err)
 			}
 		})
-		if err = client.sendSingleMsg(message); err == nil {
+		if err = client.sendSingleMsg(client.smtpClient, message); err == nil {
 			t.Errorf("client should have failed to send message")
 		}
 	})
@@ -2836,7 +2945,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 				t.Errorf("failed to close client: %s", err)
 			}
 		})
-		if err = client.sendSingleMsg(message); err == nil {
+		if err = client.sendSingleMsg(client.smtpClient, message); err == nil {
 			t.Errorf("client should have failed to send message")
 		}
 		var sendErr *SendError
@@ -2886,7 +2995,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 				t.Errorf("failed to close client: %s", err)
 			}
 		})
-		if err = client.sendSingleMsg(message); err == nil {
+		if err = client.sendSingleMsg(client.smtpClient, message); err == nil {
 			t.Errorf("client should have failed to send message")
 		}
 		var sendErr *SendError
@@ -2936,7 +3045,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 				t.Errorf("failed to close client: %s", err)
 			}
 		})
-		if err = client.sendSingleMsg(message); err == nil {
+		if err = client.sendSingleMsg(client.smtpClient, message); err == nil {
 			t.Errorf("client should have failed to send message")
 		}
 		var sendErr *SendError
@@ -2986,7 +3095,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 				t.Errorf("failed to close client: %s", err)
 			}
 		})
-		if err = client.sendSingleMsg(message); err != nil {
+		if err = client.sendSingleMsg(client.smtpClient, message); err != nil {
 			t.Errorf("failed to send message: %s", err)
 		}
 	})
@@ -3029,7 +3138,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 				t.Errorf("failed to close client: %s", err)
 			}
 		})
-		if err = client.sendSingleMsg(message); err == nil {
+		if err = client.sendSingleMsg(client.smtpClient, message); err == nil {
 			t.Errorf("client should have failed to send message")
 		}
 		var sendErr *SendError
@@ -3080,7 +3189,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 				t.Errorf("failed to close client: %s", err)
 			}
 		})
-		if err = client.sendSingleMsg(message); err == nil {
+		if err = client.sendSingleMsg(client.smtpClient, message); err == nil {
 			t.Errorf("client should have failed to send message")
 		}
 		var sendErr *SendError
@@ -3131,7 +3240,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 				t.Errorf("failed to close client: %s", err)
 			}
 		})
-		if err = client.sendSingleMsg(message); err == nil {
+		if err = client.sendSingleMsg(client.smtpClient, message); err == nil {
 			t.Errorf("client should have failed to send message")
 		}
 		var sendErr *SendError
@@ -3181,7 +3290,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 				t.Errorf("failed to close client: %s", err)
 			}
 		})
-		if err = client.sendSingleMsg(message); err == nil {
+		if err = client.sendSingleMsg(client.smtpClient, message); err == nil {
 			t.Errorf("client should have failed to send message")
 		}
 		var sendErr *SendError
@@ -3231,7 +3340,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 				t.Errorf("failed to close client: %s", err)
 			}
 		})
-		if err = client.sendSingleMsg(message); err == nil {
+		if err = client.sendSingleMsg(client.smtpClient, message); err == nil {
 			t.Errorf("client should have failed to send message")
 		}
 		var sendErr *SendError
@@ -3281,7 +3390,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 				t.Errorf("failed to close client: %s", err)
 			}
 		})
-		if err = client.sendSingleMsg(message); err == nil {
+		if err = client.sendSingleMsg(client.smtpClient, message); err == nil {
 			t.Error("expected mail delivery to fail")
 		}
 		var sendErr *SendError
@@ -3334,7 +3443,7 @@ func TestClient_checkConn(t *testing.T) {
 				t.Errorf("failed to close client: %s", err)
 			}
 		})
-		if err = client.checkConn(); err != nil {
+		if err = client.checkConn(client.smtpClient); err != nil {
 			t.Errorf("failed to check connection: %s", err)
 		}
 	})
@@ -3375,7 +3484,7 @@ func TestClient_checkConn(t *testing.T) {
 				t.Errorf("failed to close client: %s", err)
 			}
 		})
-		if err = client.checkConn(); err == nil {
+		if err = client.checkConn(client.smtpClient); err == nil {
 			t.Errorf("client should have failed on connection check")
 		}
 		if !errors.Is(err, ErrNoActiveConnection) {
@@ -3387,7 +3496,7 @@ func TestClient_checkConn(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create new client: %s", err)
 		}
-		if err = client.checkConn(); err == nil {
+		if err = client.checkConn(client.smtpClient); err == nil {
 			t.Errorf("client should have failed on connection check")
 		}
 		if !errors.Is(err, ErrNoActiveConnection) {
@@ -3611,23 +3720,19 @@ func TestClient_XOAuth2OnFaker(t *testing.T) {
 		}
 		if err = c.DialWithContext(context.Background()); err == nil {
 			t.Fatal("expected dial error got nil")
-		} else {
-			if !errors.Is(err, ErrXOauth2AuthNotSupported) {
-				t.Fatalf("expected %v; got %v", ErrXOauth2AuthNotSupported, err)
-			}
+		}
+		if !errors.Is(err, ErrXOauth2AuthNotSupported) {
+			t.Fatalf("expected %v; got %v", ErrXOauth2AuthNotSupported, err)
 		}
 		if err = c.Close(); err != nil {
 			t.Fatalf("disconnect from test server failed: %v", err)
 		}
 		client := strings.Split(wrote.String(), "\r\n")
-		if len(client) != 3 {
-			t.Fatalf("unexpected number of client requests got %d; want 3", len(client))
+		if len(client) != 2 {
+			t.Fatalf("unexpected number of client requests got %d; want 2", len(client))
 		}
 		if !strings.HasPrefix(client[0], "EHLO") {
 			t.Fatalf("expected EHLO, got %q", client[0])
-		}
-		if client[1] != "QUIT" {
-			t.Fatalf("expected QUIT, got %q", client[3])
 		}
 	})
 }
@@ -3651,6 +3756,17 @@ func (f faker) RemoteAddr() net.Addr             { return nil }
 func (f faker) SetDeadline(time.Time) error      { return nil }
 func (f faker) SetReadDeadline(time.Time) error  { return nil }
 func (f faker) SetWriteDeadline(time.Time) error { return nil }
+
+type testSender struct {
+	client *Client
+}
+
+func (t *testSender) Send(ctx context.Context, m *Msg) error {
+	if err := t.client.DialAndSendWithContext(ctx, m); err != nil {
+		return fmt.Errorf("failed to dial and send mail: %w", err)
+	}
+	return nil
+}
 
 // parseJSONLog parses a JSON encoded log from the provided buffer and returns a slice of logLine structs.
 // In case of a decode error, it reports the error to the testing framework.

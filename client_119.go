@@ -7,12 +7,16 @@
 
 package mail
 
-import "errors"
+import (
+	"errors"
 
-// Send attempts to send one or more Msg using the Client connection to the SMTP server.
-// If the Client has no active connection to the server, Send will fail with an error. For each
-// of the provided Msg, it will associate a SendError with the Msg in case of a transmission
-// or delivery error.
+	"github.com/wneessen/go-mail/smtp"
+)
+
+// SendWithSMTPClient attempts to send one or more Msg using a provided smtp.Client with an
+// established connection to the SMTP server. If the smtp.Client has no active connection to
+// the server, SendWithSMTPClient will fail with an error. For each of the provided Msg, it
+// will associate a SendError with the Msg in case of a transmission or delivery error.
 //
 // This method first checks for an active connection to the SMTP server. If the connection is
 // not valid, it returns a SendError. It then iterates over the provided messages, attempting
@@ -21,17 +25,18 @@ import "errors"
 // them into a single SendError to be returned.
 //
 // Parameters:
+//   - client: A pointer to the smtp.Client that holds the connection to the SMTP server
 //   - messages: A variadic list of pointers to Msg objects to be sent.
 //
 // Returns:
 //   - An error that represents the sending result, which may include multiple SendErrors if
 //     any occurred; otherwise, returns nil.
-func (c *Client) Send(messages ...*Msg) error {
+func (c *Client) SendWithSMTPClient(client *smtp.Client, messages ...*Msg) error {
 	escSupport := false
-	if c.smtpClient != nil {
-		escSupport, _ = c.smtpClient.Extension("ENHANCEDSTATUSCODES")
+	if client != nil {
+		escSupport, _ = client.Extension("ENHANCEDSTATUSCODES")
 	}
-	if err := c.checkConn(); err != nil {
+	if err := c.checkConn(client); err != nil {
 		return &SendError{
 			Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err),
 			errcode: errorCode(err), enhancedStatusCode: enhancedStatusCode(err, escSupport),
@@ -39,7 +44,7 @@ func (c *Client) Send(messages ...*Msg) error {
 	}
 	var errs []*SendError
 	for id, message := range messages {
-		if sendErr := c.sendSingleMsg(message); sendErr != nil {
+		if sendErr := c.sendSingleMsg(client, message); sendErr != nil {
 			messages[id].sendError = sendErr
 
 			var msgSendErr *SendError
