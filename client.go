@@ -812,9 +812,15 @@ func (c *Client) SetSSLPort(ssl bool, fallback bool) {
 // Parameters:
 //   - val: A boolean value indicating whether to enable (true) or disable (false) debug logging.
 func (c *Client) SetDebugLog(val bool) {
+	c.SetDebugLogWithSMTPClient(c.smtpClient, val)
+}
+
+func (c *Client) SetDebugLogWithSMTPClient(client *smtp.Client, val bool) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	c.useDebugLog = val
-	if c.smtpClient != nil {
-		c.smtpClient.SetDebugLog(val)
+	if client != nil {
+		client.SetDebugLog(val)
 	}
 }
 
@@ -827,9 +833,15 @@ func (c *Client) SetDebugLog(val bool) {
 // Parameters:
 //   - logger: A logger that satisfies the log.Logger interface to be set for the Client.
 func (c *Client) SetLogger(logger log.Logger) {
+	c.SetLoggerWithSMTPClient(c.smtpClient, logger)
+}
+
+func (c *Client) SetLoggerWithSMTPClient(client *smtp.Client, logger log.Logger) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	c.logger = logger
-	if c.smtpClient != nil {
-		c.smtpClient.SetLogger(logger)
+	if client != nil {
+		client.SetLogger(logger)
 	}
 }
 
@@ -935,62 +947,6 @@ func (c *Client) DialWithContext(dialCtx context.Context) error {
 	c.mutex.Lock()
 	c.smtpClient = client
 	c.mutex.Unlock()
-	/*
-		ctx, cancel := context.WithDeadline(dialCtx, time.Now().Add(c.connTimeout))
-		defer cancel()
-
-		isEncrypted := false
-		if c.dialContextFunc == nil {
-			netDialer := net.Dialer{}
-			c.dialContextFunc = netDialer.DialContext
-
-			if c.useSSL {
-				tlsDialer := tls.Dialer{NetDialer: &netDialer, Config: c.tlsconfig}
-				isEncrypted = true
-				c.dialContextFunc = tlsDialer.DialContext
-			}
-		}
-		connection, err := c.dialContextFunc(ctx, "tcp", c.ServerAddr())
-		if err != nil && c.fallbackPort != 0 {
-			// TODO: should we somehow log or append the previous error?
-			connection, err = c.dialContextFunc(ctx, "tcp", c.serverFallbackAddr())
-		}
-		if err != nil {
-			return err
-		}
-
-		client, err := smtp.NewClient(connection, c.host)
-		if err != nil {
-			return err
-		}
-		if client == nil {
-			return fmt.Errorf("SMTP client is nil")
-		}
-		c.smtpClient = client
-
-		if c.logger != nil {
-			c.smtpClient.SetLogger(c.logger)
-		}
-		if c.useDebugLog {
-			c.smtpClient.SetDebugLog(true)
-		}
-		if c.logAuthData {
-			c.smtpClient.SetLogAuthData()
-		}
-		if err = c.smtpClient.Hello(c.helo); err != nil {
-			return err
-		}
-
-		if err = c.tls(c.smtpClient, &isEncrypted); err != nil {
-			return err
-		}
-
-		if err = c.auth(c.smtpClient, isEncrypted); err != nil {
-			return err
-		}
-
-	*/
-
 	return nil
 }
 
@@ -1135,8 +1091,6 @@ func (c *Client) DialAndSend(messages ...*Msg) error {
 //   - An error if the connection fails, if sending the messages fails, or if closing the
 //     connection fails; otherwise, returns nil.
 func (c *Client) DialAndSendWithContext(ctx context.Context, messages ...*Msg) error {
-	//c.sendMutex.Lock()
-	//defer c.sendMutex.Unlock()
 	client, err := c.SMTPClientFromDialWithContext(ctx)
 	if err != nil {
 		return fmt.Errorf("dial failed: %w", err)
@@ -1145,10 +1099,10 @@ func (c *Client) DialAndSendWithContext(ctx context.Context, messages ...*Msg) e
 		_ = c.CloseWithSMTPClient(client)
 	}()
 
-	if err := c.SendWithSMTPClient(client, messages...); err != nil {
+	if err = c.SendWithSMTPClient(client, messages...); err != nil {
 		return fmt.Errorf("send failed: %w", err)
 	}
-	if err := c.CloseWithSMTPClient(client); err != nil {
+	if err = c.CloseWithSMTPClient(client); err != nil {
 		return fmt.Errorf("failed to close connection: %w", err)
 	}
 	return nil
