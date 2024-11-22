@@ -29,6 +29,8 @@ import (
 // Returns:
 //   - An error that aggregates any SendErrors encountered during the sending process; otherwise, returns nil.
 func (c *Client) Send(messages ...*Msg) (returnErr error) {
+	c.sendMutex.Lock()
+	defer c.sendMutex.Unlock()
 	return c.SendWithSMTPClient(c.smtpClient, messages...)
 }
 
