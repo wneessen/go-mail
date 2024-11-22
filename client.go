@@ -1108,6 +1108,12 @@ func (c *Client) DialAndSendWithContext(ctx context.Context, messages ...*Msg) e
 	return nil
 }
 
+func (c *Client) Send(messages ...*Msg) (returnErr error) {
+	c.sendMutex.Lock()
+	defer c.sendMutex.Unlock()
+	return c.SendWithSMTPClient(c.smtpClient, messages...)
+}
+
 // auth attempts to authenticate the client using SMTP AUTH mechanisms. It checks the connection,
 // determines the supported authentication methods, and applies the appropriate authentication
 // type. An error is returned if authentication fails.

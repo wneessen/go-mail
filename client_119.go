@@ -7,7 +7,11 @@
 
 package mail
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/wneessen/go-mail/smtp"
+)
 
 // Send attempts to send one or more Msg using the Client connection to the SMTP server.
 // If the Client has no active connection to the server, Send will fail with an error. For each
@@ -26,12 +30,13 @@ import "errors"
 // Returns:
 //   - An error that represents the sending result, which may include multiple SendErrors if
 //     any occurred; otherwise, returns nil.
-func (c *Client) Send(messages ...*Msg) error {
+
+func (c *Client) SendWithSMTPClient(client *smtp.Client, messages ...*Msg) error {
 	escSupport := false
-	if c.smtpClient != nil {
-		escSupport, _ = c.smtpClient.Extension("ENHANCEDSTATUSCODES")
+	if client != nil {
+		escSupport, _ = client.Extension("ENHANCEDSTATUSCODES")
 	}
-	if err := c.checkConn(); err != nil {
+	if err := c.checkConn(client); err != nil {
 		return &SendError{
 			Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err),
 			errcode: errorCode(err), enhancedStatusCode: enhancedStatusCode(err, escSupport),
@@ -39,7 +44,7 @@ func (c *Client) Send(messages ...*Msg) error {
 	}
 	var errs []*SendError
 	for id, message := range messages {
-		if sendErr := c.sendSingleMsg(message); sendErr != nil {
+		if sendErr := c.sendSingleMsg(client, message); sendErr != nil {
 			messages[id].sendError = sendErr
 
 			var msgSendErr *SendError
