@@ -41,7 +41,6 @@ var testHookTLSConfig func() *tls.Config // nil, except for tests
 //   - rcpts: A slice of strings of receipient addresses.
 //   - subject: The subject line as string.
 //   - content: A byte slice of the mail content
-//   - opts: Optional parameters for customizing the body part.
 //
 // Returns:
 //   - A pointer to the generated Msg.
