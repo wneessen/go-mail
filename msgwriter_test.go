@@ -351,7 +351,7 @@ func TestMsgWriter_addFiles(t *testing.T) {
 			cdExpect := fmt.Sprintf(`Content-Disposition: attachment; filename="%s"`, tt.expect)
 			switch runtime.GOOS {
 			case "freebsd":
-				ctExpect = fmt.Sprintf(`Content-Type: application/octet-stream; charset=utf-8; name="%s"`, tt.expect)
+				ctExpect = fmt.Sprintf(`Content-Type: application/octet-stream; name="%s"`, tt.expect)
 			default:
 				ctExpect = fmt.Sprintf(`Content-Type: text/plain; charset=utf-8; name="%s"`, tt.expect)
 			}
