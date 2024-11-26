@@ -676,3 +676,33 @@ func TestMsgWriter_writeBody(t *testing.T) {
 		}
 	})
 }
+
+func TestMsgWriter_sanitizeFilename(t *testing.T) {
+	tests := []struct {
+		given string
+		want  string
+	}{
+		{"test.txt", "test.txt"},
+		{"test file.txt", "test file.txt"},
+		{"test\\ file.txt", "test_ file.txt"},
+		{`"test" file.txt`, "_test_ file.txt"},
+		{`test	file	.txt`, "test_file_.txt"},
+		{"test\r\nfile.txt", "test__file.txt"},
+		{"test\x22file.txt", "test_file.txt"},
+		{"test\x2ffile.txt", "test_file.txt"},
+		{"test\x3afile.txt", "test_file.txt"},
+		{"test\x3cfile.txt", "test_file.txt"},
+		{"test\x3efile.txt", "test_file.txt"},
+		{"test\x3ffile.txt", "test_file.txt"},
+		{"test\x5cfile.txt", "test_file.txt"},
+		{"test\x7cfile.txt", "test_file.txt"},
+		{"test\x7ffile.txt", "test_file.txt"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.given+"=>"+tt.want, func(t *testing.T) {
+			if got := sanitizeFilename(tt.given); got != tt.want {
+				t.Errorf("sanitizeFilename failed, expected: %q, got: %q", tt.want, got)
+			}
+		})
+	}
+}
