@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"mime"
-	"os"
 	"runtime"
 	"strings"
 	"testing"
@@ -342,30 +341,7 @@ func TestMsgWriter_addFiles(t *testing.T) {
 			buffer := bytes.NewBuffer(nil)
 			msgwriter.writer = buffer
 			message := testMessage(t)
-			tmpfile, err := os.CreateTemp("", "attachment.*.tmp")
-			if err != nil {
-				t.Fatalf("failed to create tempfile: %s", err)
-			}
-			t.Cleanup(func() {
-				if err = os.Remove(tmpfile.Name()); err != nil {
-					t.Errorf("failed to remove tempfile: %s", err)
-				}
-			})
-
-			source, err := os.Open("testdata/attachment.txt")
-			if err != nil {
-				t.Fatalf("failed to open source file: %s", err)
-			}
-			if _, err = io.Copy(tmpfile, source); err != nil {
-				t.Fatalf("failed to copy source file: %s", err)
-			}
-			if err = tmpfile.Close(); err != nil {
-				t.Fatalf("failed to close tempfile: %s", err)
-			}
-			if err = source.Close(); err != nil {
-				t.Fatalf("failed to close source file: %s", err)
-			}
-			message.AttachFile(tmpfile.Name(), WithFileName(tt.filename))
+			message.AttachFile("testdata/attachment.txt", WithFileName(tt.filename))
 			msgwriter.writeMsg(message)
 			if msgwriter.err != nil {
 				t.Errorf("msgWriter failed to write: %s", msgwriter.err)
