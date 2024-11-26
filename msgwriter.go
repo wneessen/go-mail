@@ -273,7 +273,7 @@ func (mw *msgWriter) addFiles(files []*File, isAttachment bool) {
 				mimeType = string(file.ContentType)
 			}
 			file.setHeader(HeaderContentType, fmt.Sprintf(`%s; name="%s"`, mimeType,
-				mw.encoder.Encode(mw.charset.String(), file.Name)))
+				mw.encoder.Encode(mw.charset.String(), sanitizeFilename(file.Name))))
 		}
 
 		if _, ok := file.getHeader(HeaderContentTransferEnc); !ok {
@@ -285,7 +285,7 @@ func (mw *msgWriter) addFiles(files []*File, isAttachment bool) {
 
 		if file.Desc != "" {
 			if _, ok := file.getHeader(HeaderContentDescription); !ok {
-				file.setHeader(HeaderContentDescription, file.Desc)
+				file.setHeader(HeaderContentDescription, mw.encoder.Encode(mw.charset.String(), file.Desc))
 			}
 		}
 
@@ -295,12 +295,12 @@ func (mw *msgWriter) addFiles(files []*File, isAttachment bool) {
 				disposition = "attachment"
 			}
 			file.setHeader(HeaderContentDisposition, fmt.Sprintf(`%s; filename="%s"`,
-				disposition, mw.encoder.Encode(mw.charset.String(), file.Name)))
+				disposition, mw.encoder.Encode(mw.charset.String(), sanitizeFilename(file.Name))))
 		}
 
 		if !isAttachment {
 			if _, ok := file.getHeader(HeaderContentID); !ok {
-				file.setHeader(HeaderContentID, fmt.Sprintf("<%s>", file.Name))
+				file.setHeader(HeaderContentID, fmt.Sprintf("<%s>", sanitizeFilename(file.Name)))
 			}
 		}
 		if mw.depth == 0 {
@@ -497,4 +497,34 @@ func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encodin
 	if mw.depth == 0 {
 		mw.bytesWritten += n
 	}
+}
+
+// sanitizeFilename sanitizes a given filename string by replacing specific unwanted characters with
+// an underscore ('_').
+//
+// This method replaces any control character and any special character that is problematic for
+// MIME headers and file systems with an underscore ('_') character.
+//
+// The following characters are replaced
+// - Any control character (US-ASCII < 32)
+// - ", /, :, <, >, ?, \, |, [DEL]
+//
+// Parameters:
+//   - input: A string of a filename that is supposed to be sanitized
+//
+// Returns:
+//   - A string representing the sanitized version of the filename
+func sanitizeFilename(input string) string {
+	var sanitized strings.Builder
+	for i := 0; i < len(input); i++ {
+		// We do not allow control characters in file names.
+		if input[i] < 32 || input[i] == 34 || input[i] == 47 || input[i] == 58 ||
+			input[i] == 60 || input[i] == 62 || input[i] == 63 || input[i] == 92 ||
+			input[i] == 124 || input[i] == 127 {
+			sanitized.WriteRune('_')
+			continue
+		}
+		sanitized.WriteByte(input[i])
+	}
+	return sanitized.String()
 }
