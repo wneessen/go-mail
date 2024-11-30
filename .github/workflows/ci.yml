@@ -158,10 +158,15 @@ jobs:
             TEST_BASEPORT: ${{ vars.TEST_BASEPORT }}
             TEST_BASEPORT_SMTP: ${{ vars.TEST_BASEPORT_SMTP }}
         steps:
+            - name: Harden Runner
+              uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
+              with:
+                egress-policy: audit
+
             - name: Checkout Code
               uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
             - name: Run go test on FreeBSD
-              uses: vmactions/freebsd-vm@v1
+              uses: vmactions/freebsd-vm@debf37ca7b7fa40e19c542ef7ba30d6054a706a4 # v1.1.5
               with:
                   usesh: true
                   copyback: false
