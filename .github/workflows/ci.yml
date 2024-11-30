@@ -161,7 +161,7 @@ jobs:
             - name: Checkout Code
               uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
             - name: Run go test on FreeBSD
-              uses: vmactions/freebsd-vm@v1
+              uses: vmactions/freebsd-vm@debf37ca7b7fa40e19c542ef7ba30d6054a706a4 # v1.1.5
               with:
                   usesh: true
                   copyback: false
