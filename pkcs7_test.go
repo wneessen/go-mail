@@ -75,7 +75,7 @@ func createTestCertificate() (*certKeyPair, error) {
 }
 
 func createTestCertificateByIssuer(name string, issuer *certKeyPair) (*certKeyPair, error) {
-	priv, err := rsa.GenerateKey(rand.Reader, 1024)
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, err
 	}
