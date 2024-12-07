@@ -65,6 +65,7 @@ Here are some highlights of go-mail's featureset:
 * [X] Custom error types for delivery errors
 * [X] Custom dial-context functions for more control over the connection (proxing, DNS hooking, etc.)
 * [X] Output a go-mail message as EML file and parse EML file into a go-mail message
+* [X] S/MIME singed messages
 
 go-mail works like a programatic email client and provides lots of methods and functionalities you would consider
 standard in a MUA.
