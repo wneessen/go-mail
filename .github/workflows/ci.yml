@@ -33,12 +33,14 @@ jobs:
             PERFORM_ONLINE_TEST: ${{ vars.PERFORM_ONLINE_TEST }}
             PERFORM_UNIX_OPEN_WRITE_TESTS: ${{ vars.PERFORM_UNIX_OPEN_WRITE_TESTS }}
             PERFORM_SENDMAIL_TESTS: ${{ vars.PERFORM_SENDMAIL_TESTS }}
+            TEST_BASEPORT: ${{ vars.TEST_BASEPORT }}
+            TEST_BASEPORT_SMTP: ${{ vars.TEST_BASEPORT_SMTP }}
             TEST_HOST: ${{ secrets.TEST_HOST }}
             TEST_USER: ${{ secrets.TEST_USER }}
             TEST_PASS: ${{ secrets.TEST_PASS }}
         steps:
             - name: Harden Runner
-              uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+              uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
               with:
                   egress-policy: audit
             - name: Checkout Code
@@ -50,14 +52,14 @@ jobs:
                   check-latest: true
             - name: Install sendmail
               run: |
-                sudo apt-get -y update >/dev/null && sudo apt-get -y upgrade >/dev/null && sudo DEBIAN_FRONTEND=noninteractive apt-get -y install nullmailer >/dev/null && which sendmail
+                sudo apt-get -y update && sudo DEBIAN_FRONTEND=noninteractive apt-get -y install nullmailer && which sendmail
             - name: Run go test
               if: success()
               run: |
                 go test -race -shuffle=on --coverprofile=coverage.coverprofile --covermode=atomic ./...
             - name: Upload coverage to Codecov
               if: success()
-              uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4.6.0
+              uses: codecov/codecov-action@7f8b4b4bde536c465e797be725718b88c5d95e0e # v5.1.1
               with:
                   token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
     lint:
@@ -71,7 +73,7 @@ jobs:
                 go: ['1.23']
         steps:
             - name: Harden Runner
-              uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+              uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
               with:
                   egress-policy: audit
             - name: Setup go
@@ -93,13 +95,13 @@ jobs:
             cancel-in-progress: true
         steps:
             - name: Harden Runner
-              uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+              uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
               with:
                   egress-policy: audit
             - name: Checkout Code
               uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
             - name: 'Dependency Review'
-              uses: actions/dependency-review-action@4081bf99e2866ebe428fc0477b69eb4fcda7220a # v4.4.0
+              uses: actions/dependency-review-action@3b139cfc5fae8b618d3eae3675e383bb1769c019 # v4.5.0
               with:
                   base-ref: ${{ github.event.pull_request.base.sha || 'main' }}
                   head-ref: ${{ github.event.pull_request.head.sha || github.ref }}
@@ -111,7 +113,7 @@ jobs:
             cancel-in-progress: true
         steps:
             - name: Harden Runner
-              uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+              uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
               with:
                   egress-policy: audit
             - name: Run govulncheck
@@ -126,9 +128,12 @@ jobs:
             matrix:
                 os: [ubuntu-latest, macos-latest, windows-latest]
                 go: ['1.19', '1.20', '1.21', '1.22', '1.23']
+        env:
+            TEST_BASEPORT: ${{ vars.TEST_BASEPORT }}
+            TEST_BASEPORT_SMTP: ${{ vars.TEST_BASEPORT_SMTP }}
         steps:
             - name: Harden Runner
-              uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+              uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
               with:
                   egress-policy: audit
             - name: Checkout Code
@@ -149,11 +154,14 @@ jobs:
         strategy:
             matrix:
                 osver: ['14.1', '14.0', 13.4']
+        env:
+            TEST_BASEPORT: ${{ vars.TEST_BASEPORT }}
+            TEST_BASEPORT_SMTP: ${{ vars.TEST_BASEPORT_SMTP }}
         steps:
             - name: Checkout Code
               uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
             - name: Run go test on FreeBSD
-              uses: vmactions/freebsd-vm@v1
+              uses: vmactions/freebsd-vm@debf37ca7b7fa40e19c542ef7ba30d6054a706a4 # v1.1.5
               with:
                   usesh: true
                   copyback: false
@@ -170,13 +178,13 @@ jobs:
             cancel-in-progress: true
         steps:
             - name: Harden Runner
-              uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+              uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
               with:
                   egress-policy: audit
             - name: Checkout Code
               uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
             - name: REUSE Compliance Check
-              uses: fsfe/reuse-action@3ae3c6bdf1257ab19397fab11fd3312144692083 # v4.0.0
+              uses: fsfe/reuse-action@bb774aa972c2a89ff34781233d275075cbddf542 # v5.0.0
     sonarqube:
         name: Test with SonarQube review (${{ matrix.os }} / ${{ matrix.go }})
         runs-on: ${{ matrix.os }}
@@ -189,12 +197,14 @@ jobs:
                 go: ['1.23']
         env:
             PERFORM_ONLINE_TEST: ${{ vars.PERFORM_ONLINE_TEST }}
+            TEST_BASEPORT: ${{ vars.TEST_BASEPORT }}
+            TEST_BASEPORT_SMTP: ${{ vars.TEST_BASEPORT_SMTP }}
             TEST_HOST: ${{ secrets.TEST_HOST }}
             TEST_USER: ${{ secrets.TEST_USER }}
             TEST_PASS: ${{ secrets.TEST_PASS }}
         steps:
             - name: Harden Runner
-              uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+              uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
               with:
                   egress-policy: audit
             - name: Checkout Code
@@ -208,7 +218,7 @@ jobs:
               run: |
                 go test -shuffle=on -race --coverprofile=./cov.out ./...
             - name: SonarQube scan
-              uses: sonarsource/sonarqube-scan-action@884b79409bbd464b2a59edc326a4b77dc56b2195 # master
+              uses: sonarsource/sonarqube-scan-action@1b442ee39ac3fa7c2acdd410208dcb2bcfaae6c4 # master
               if: success()
               env:
                   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

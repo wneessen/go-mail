@@ -36,8 +36,8 @@ type loginAuth struct {
 // LoginAuth will only send the credentials if the connection is using TLS
 // or is connected to localhost. Otherwise authentication will fail with an
 // error, without sending the credentials.
-func LoginAuth(username, password, host string, allowUnEnc bool) Auth {
-	return &loginAuth{username, password, host, 0, allowUnEnc}
+func LoginAuth(username, password, host string, allowUnenc bool) Auth {
+	return &loginAuth{username, password, host, 0, allowUnenc}
 }
 
 // Start begins the SMTP authentication process by validating server's TLS status and hostname.

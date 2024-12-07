@@ -1,7 +1,7 @@
 <!--
 SPDX-FileCopyrightText: 2022 Winni Neessen <winni@neessen.dev>
 
-SPDX-License-Identifier: CC0-1.0
+SPDX-License-Identifier: MIT
 -->
 
 # Contributor Covenant Code of Conduct

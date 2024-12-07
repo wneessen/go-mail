@@ -1,7 +1,7 @@
 <!--
 SPDX-FileCopyrightText: 2022-2023 The go-mail Authors
 
-SPDX-License-Identifier: CC0-1.0
+SPDX-License-Identifier: MIT
 -->
 
 # go-mail - Easy to use, yet comprehensive library for sending mails with Go
@@ -39,14 +39,20 @@ Here are some highlights of go-mail's featureset:
 * [X] Very small dependency footprint (mainly Go Stdlib and Go extended packages)
 * [X] Modern, idiomatic Go
 * [X] Sane and secure defaults
-* [X] Explicit SSL/TLS support
-* [X] Implicit StartTLS support with different policies
+* [X] Implicit SSL/TLS support
+* [X] Explicit STARTTLS support with different policies
 * [X] Makes use of contexts for a better control flow and timeout/cancelation handling
-* [X] SMTP Auth support (LOGIN, PLAIN, CRAM-MD, XOAUTH2, SCRAM-SHA-1(-PLUS), SCRAM-SHA-256(-PLUS))
+* [X] SMTP Auth support
+  * [X] CRAM-MD5
+  * [X] LOGIN
+  * [X] PLAIN
+  * [X] SCRAM-SHA-1/SCRAM-SHA-1-PLUS
+  * [X] SCRAM-SHA-256/SCRAM-SHA-256-PLUS
+  * [X] XOAUTH2
 * [X] RFC5322 compliant mail address validation
 * [X] Support for common mail header field generation (Message-ID, Date, Bulk-Precedence, Priority, etc.)
 * [X] Concurrency-safe reusing the same SMTP connection to send multiple mails
-* [X] Support for attachments and inline embeds (from file system, `io.Reader` or `embed.FS`)
+* [X] Support for attachments and inline embeds (from file system, `io.Reader`, `embed.FS` or `fs.FS`)
 * [X] Support for different encodings
 * [X] Middleware support for 3rd-party libraries to alter mail messages
 * [X] Support sending mails via a local sendmail command

@@ -12,6 +12,9 @@ func TestSMTPAuthType_UnmarshalString(t *testing.T) {
 		authString string
 		expected   SMTPAuthType
 	}{
+		{"AUTODISCOVER: auto", "auto", SMTPAuthAutoDiscover},
+		{"AUTODISCOVER: autodiscover", "autodiscover", SMTPAuthAutoDiscover},
+		{"AUTODISCOVER: autodiscovery", "autodiscovery", SMTPAuthAutoDiscover},
 		{"CRAM-MD5: cram-md5", "cram-md5", SMTPAuthCramMD5},
 		{"CRAM-MD5: crammd5", "crammd5", SMTPAuthCramMD5},
 		{"CRAM-MD5: cram", "cram", SMTPAuthCramMD5},

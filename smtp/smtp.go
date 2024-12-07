@@ -587,7 +587,9 @@ func (c *Client) SetLogger(l log.Logger) {
 	if l == nil {
 		return
 	}
+	c.mutex.Lock()
 	c.logger = l
+	c.mutex.Unlock()
 }
 
 // SetLogAuthData enables logging of authentication data in the Client.
@@ -599,12 +601,16 @@ func (c *Client) SetLogAuthData() {
 
 // SetDSNMailReturnOption sets the DSN mail return option for the Mail method
 func (c *Client) SetDSNMailReturnOption(d string) {
+	c.mutex.Lock()
 	c.dsnmrtype = d
+	c.mutex.Unlock()
 }
 
 // SetDSNRcptNotifyOption sets the DSN recipient notify option for the Mail method
 func (c *Client) SetDSNRcptNotifyOption(d string) {
+	c.mutex.Lock()
 	c.dsnrntype = d
+	c.mutex.Unlock()
 }
 
 // HasConnection checks if the client has an active connection.
@@ -620,6 +626,9 @@ func (c *Client) HasConnection() bool {
 func (c *Client) UpdateDeadline(timeout time.Duration) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
+	if c.conn == nil {
+		return errors.New("smtp: client has no connection")
+	}
 	if err := c.conn.SetDeadline(time.Now().Add(timeout)); err != nil {
 		return fmt.Errorf("smtp: failed to update deadline: %w", err)
 	}

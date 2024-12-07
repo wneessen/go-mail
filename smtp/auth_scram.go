@@ -154,7 +154,7 @@ func (a *scramAuth) initialClientMessage() ([]byte, error) {
 		connState := a.tlsConnState
 		bindData := connState.TLSUnique
 
-		// crypto/tl: no tls-unique channel binding value for this tls connection, possibly due to missing
+		// crypto/tls: no tls-unique channel binding value for this tls connection, possibly due to missing
 		// extended master key support and/or resumed connection
 		// RFC9266:122 tls-unique not defined for tls 1.3 and later
 		if bindData == nil || connState.Version >= tls.VersionTLS13 {
@@ -308,10 +308,7 @@ func (a *scramAuth) normalizeUsername() (string, error) {
 func (a *scramAuth) normalizeString(s string) (string, error) {
 	s, err := precis.OpaqueString.String(s)
 	if err != nil {
-		return "", fmt.Errorf("failled to normalize string: %w", err)
-	}
-	if s == "" {
-		return "", errors.New("normalized string is empty")
+		return "", fmt.Errorf("failed to normalize string: %w", err)
 	}
 	return s, nil
 }
