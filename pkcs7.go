@@ -7,6 +7,7 @@ package mail
 import (
 	"bytes"
 	"crypto"
+	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -18,8 +19,24 @@ import (
 	"sort"
 	"time"
 
-	_ "crypto/sha1" // for crypto.SHA1
+	_ "crypto/sha256" // for crypto.SHA256
 )
+
+var (
+	OIDData                   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 7, 1}
+	OIDSignedData             = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 7, 2}
+	OIDAttributeContentType   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 3}
+	OIDAttributeMessageDigest = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 4}
+	OIDAttributeSigningTime   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 5}
+
+	OIDDigestAlgorithmSHA256      = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 2, 1}
+	OIDDigestAlgorithmECDSASHA256 = asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 2}
+
+	OIDEncryptionAlgorithmRSASHA256 = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 11}
+)
+
+// ErrUnsupportedAlgorithm tells you when our quick dev assumptions have failed
+var ErrUnsupportedAlgorithm = errors.New("pkcs7: cannot decrypt data: only RSA, DES, DES-EDE3, AES-256-CBC and AES-128-GCM supported")
 
 // PKCS7 Represents a PKCS7 structure
 type PKCS7 struct {
@@ -30,18 +47,33 @@ type PKCS7 struct {
 	raw          interface{}
 }
 
+// GetOnlySigner returns an x509.Certificate for the first signer of the signed
+// data payload. If there are more or less than one signer, nil is returned
+func (p7 *PKCS7) GetOnlySigner() *x509.Certificate {
+	if len(p7.Signers) != 1 {
+		return nil
+	}
+	signer := p7.Signers[0]
+	return getCertFromCertsByIssuerAndSerial(p7.Certificates, signer.IssuerAndSerialNumber)
+}
+
+// UnmarshalSignedAttribute decodes a single attribute from the signer info
+func (p7 *PKCS7) UnmarshalSignedAttribute(attributeType asn1.ObjectIdentifier, out interface{}) error {
+	sd, ok := p7.raw.(signedData)
+	if !ok {
+		return errors.New("pkcs7: payload is not signedData content")
+	}
+	if len(sd.SignerInfos) < 1 {
+		return errors.New("pkcs7: payload has no signers")
+	}
+	attributes := sd.SignerInfos[0].AuthenticatedAttributes
+	return unmarshalAttribute(attributes, attributeType, out)
+}
+
 type contentInfo struct {
 	ContentType asn1.ObjectIdentifier
 	Content     asn1.RawValue `asn1:"explicit,optional,tag:0"`
 }
-
-var (
-	oidData                   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 7, 1}
-	oidSignedData             = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 7, 2}
-	oidAttributeContentType   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 3}
-	oidAttributeMessageDigest = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 4}
-	oidAttributeSigningTime   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 5}
-)
 
 type signedData struct {
 	Version                    int                        `asn1:"default:1"`
@@ -54,6 +86,19 @@ type signedData struct {
 
 type rawCertificates struct {
 	Raw asn1.RawContent
+}
+
+func (raw rawCertificates) Parse() ([]*x509.Certificate, error) {
+	if len(raw.Raw) == 0 {
+		return nil, nil
+	}
+
+	var val asn1.RawValue
+	if _, err := asn1.Unmarshal(raw.Raw, &val); err != nil {
+		return nil, err
+	}
+
+	return x509.ParseCertificates(val.Bytes)
 }
 
 type attribute struct {
@@ -87,96 +132,6 @@ type signerInfo struct {
 	UnauthenticatedAttributes []attribute `asn1:"optional,tag:1"`
 }
 
-func (raw rawCertificates) Parse() ([]*x509.Certificate, error) {
-	if len(raw.Raw) == 0 {
-		return nil, nil
-	}
-
-	var val asn1.RawValue
-	if _, err := asn1.Unmarshal(raw.Raw, &val); err != nil {
-		return nil, err
-	}
-
-	return x509.ParseCertificates(val.Bytes)
-}
-
-func marshalAttributes(attrs []attribute) ([]byte, error) {
-	encodedAttributes, err := asn1.Marshal(struct {
-		A []attribute `asn1:"set"`
-	}{A: attrs})
-	if err != nil {
-		return nil, err
-	}
-
-	// Remove the leading sequence octets
-	var raw asn1.RawValue
-	if _, err := asn1.Unmarshal(encodedAttributes, &raw); err != nil {
-		return nil, err
-	}
-	return raw.Bytes, nil
-}
-
-var (
-	oidDigestAlgorithmSHA1  = asn1.ObjectIdentifier{1, 3, 14, 3, 2, 26}
-	oidSignatureSHA1WithRSA = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 5}
-)
-
-func getCertFromCertsByIssuerAndSerial(certs []*x509.Certificate, ias issuerAndSerial) *x509.Certificate {
-	for _, cert := range certs {
-		if isCertMatchForIssuerAndSerial(cert, ias) {
-			return cert
-		}
-	}
-	return nil
-}
-
-// GetOnlySigner returns an x509.Certificate for the first signer of the signed
-// data payload. If there are more or less than one signer, nil is returned
-func (p7 *PKCS7) GetOnlySigner() *x509.Certificate {
-	if len(p7.Signers) != 1 {
-		return nil
-	}
-	signer := p7.Signers[0]
-	return getCertFromCertsByIssuerAndSerial(p7.Certificates, signer.IssuerAndSerialNumber)
-}
-
-// ErrUnsupportedAlgorithm tells you when our quick dev assumptions have failed
-var ErrUnsupportedAlgorithm = errors.New("pkcs7: cannot decrypt data: only RSA, DES, DES-EDE3, AES-256-CBC and AES-128-GCM supported")
-
-func isCertMatchForIssuerAndSerial(cert *x509.Certificate, ias issuerAndSerial) bool {
-	return cert.SerialNumber.Cmp(ias.SerialNumber) == 0 && bytes.Equal(cert.RawIssuer, ias.IssuerName.FullBytes)
-}
-
-func unmarshalAttribute(attrs []attribute, attributeType asn1.ObjectIdentifier, out interface{}) error {
-	for _, attr := range attrs {
-		if attr.Type.Equal(attributeType) {
-			_, err := asn1.Unmarshal(attr.Value.Bytes, out)
-			return err
-		}
-	}
-	return errors.New("pkcs7: attribute type not in attributes")
-}
-
-// UnmarshalSignedAttribute decodes a single attribute from the signer info
-func (p7 *PKCS7) UnmarshalSignedAttribute(attributeType asn1.ObjectIdentifier, out interface{}) error {
-	sd, ok := p7.raw.(signedData)
-	if !ok {
-		return errors.New("pkcs7: payload is not signedData content")
-	}
-	if len(sd.SignerInfos) < 1 {
-		return errors.New("pkcs7: payload has no signers")
-	}
-	attributes := sd.SignerInfos[0].AuthenticatedAttributes
-	return unmarshalAttribute(attributes, attributeType, out)
-}
-
-// SignedData is an opaque data structure for creating signed data payloads
-type SignedData struct {
-	sd            signedData
-	certs         []*x509.Certificate
-	messageDigest []byte
-}
-
 // Attribute represents a key value pair attribute. Value must be marshalable byte
 // `encoding/asn1`
 type Attribute struct {
@@ -186,31 +141,8 @@ type Attribute struct {
 
 // SignerInfoConfig are optional values to include when adding a signer
 type SignerInfoConfig struct {
-	ExtraSignedAttributes []Attribute
-}
-
-// newSignedData initializes a SignedData with content
-func newSignedData(data []byte) (*SignedData, error) {
-	content, err := asn1.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-	ci := contentInfo{
-		ContentType: oidData,
-		Content:     asn1.RawValue{Class: 2, Tag: 0, Bytes: content, IsCompound: true},
-	}
-	digAlg := pkix.AlgorithmIdentifier{
-		Algorithm: oidDigestAlgorithmSHA1,
-	}
-	h := crypto.SHA1.New()
-	h.Write(data)
-	md := h.Sum(nil)
-	sd := signedData{
-		ContentInfo:                ci,
-		Version:                    1,
-		DigestAlgorithmIdentifiers: []pkix.AlgorithmIdentifier{digAlg},
-	}
-	return &SignedData{sd: sd, messageDigest: md}, nil
+	ExtraSignedAttributes   []Attribute
+	ExtraUnsignedAttributes []Attribute
 }
 
 type attributes struct {
@@ -219,9 +151,9 @@ type attributes struct {
 }
 
 // Add adds the attribute, maintaining insertion order
-func (attrs *attributes) Add(attrType asn1.ObjectIdentifier, value interface{}) {
-	attrs.types = append(attrs.types, attrType)
-	attrs.values = append(attrs.values, value)
+func (as *attributes) Add(attrType asn1.ObjectIdentifier, value interface{}) {
+	as.types = append(as.types, attrType)
+	as.values = append(as.values, value)
 }
 
 type sortableAttribute struct {
@@ -231,31 +163,31 @@ type sortableAttribute struct {
 
 type attributeSet []sortableAttribute
 
-func (sa attributeSet) Len() int {
-	return len(sa)
+func (as attributeSet) Len() int {
+	return len(as)
 }
 
-func (sa attributeSet) Less(i, j int) bool {
-	return bytes.Compare(sa[i].SortKey, sa[j].SortKey) < 0
+func (as attributeSet) Less(i, j int) bool {
+	return bytes.Compare(as[i].SortKey, as[j].SortKey) < 0
 }
 
-func (sa attributeSet) Swap(i, j int) {
-	sa[i], sa[j] = sa[j], sa[i]
+func (as attributeSet) Swap(i, j int) {
+	as[i], as[j] = as[j], as[i]
 }
 
-func (sa attributeSet) attributes() []attribute {
-	attrs := make([]attribute, len(sa))
-	for i, attr := range sa {
+func (as attributeSet) attributes() []attribute {
+	attrs := make([]attribute, len(as))
+	for i, attr := range as {
 		attrs[i] = attr.Attribute
 	}
 	return attrs
 }
 
-func (attrs *attributes) forMarshaling() ([]attribute, error) {
-	sortables := make(attributeSet, len(attrs.types))
+func (as *attributes) forMarshaling() ([]attribute, error) {
+	sortables := make(attributeSet, len(as.types))
 	for i := range sortables {
-		attrType := attrs.types[i]
-		attrValue := attrs.values[i]
+		attrType := as.types[i]
+		attrValue := as.values[i]
 		asn1Value, err := asn1.Marshal(attrValue)
 		if err != nil {
 			return nil, err
@@ -277,12 +209,78 @@ func (attrs *attributes) forMarshaling() ([]attribute, error) {
 	return sortables.attributes(), nil
 }
 
-// addSigner signs attributes about the content and adds certificate to payload
+// SignedData is an opaque data structure for creating signed data payloads
+type SignedData struct {
+	sd            signedData
+	certs         []*x509.Certificate
+	data          []byte
+	messageDigest []byte
+	digestOid     asn1.ObjectIdentifier
+}
+
+// newSignedData initializes a SignedData with content
+func newSignedData(data []byte) (*SignedData, error) {
+	content, err := asn1.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+	ci := contentInfo{
+		ContentType: OIDData,
+		Content:     asn1.RawValue{Class: 2, Tag: 0, Bytes: content, IsCompound: true},
+	}
+	sd := signedData{
+		ContentInfo: ci,
+		Version:     1,
+	}
+	return &SignedData{sd: sd, data: data, digestOid: OIDDigestAlgorithmSHA256}, nil
+}
+
+// addSigner is a wrapper around AddSignerChain() that adds a signer without any parent.
 func (sd *SignedData) addSigner(cert *x509.Certificate, pkey crypto.PrivateKey, config SignerInfoConfig) error {
+	var parents []*x509.Certificate
+	return sd.addSignerChain(cert, pkey, parents, config)
+}
+
+// addSignerChain signs attributes about the content and adds certificates
+// and signers infos to the Signed Data. The certificate and private key
+// of the end-entity signer are used to issue the signature, and any
+// parent of that end-entity that need to be added to the list of
+// certifications can be specified in the parents slice.
+//
+// The signature algorithm used to hash the data is the one of the end-entity
+// certificate.
+func (sd *SignedData) addSignerChain(ee *x509.Certificate, pkey crypto.PrivateKey, parents []*x509.Certificate, config SignerInfoConfig) error {
+	// Following RFC 2315, 9.2 SignerInfo type, the distinguished name of
+	// the issuer of the end-entity signer is stored in the issuerAndSerialNumber
+	// section of the SignedData.SignerInfo, alongside the serial number of
+	// the end-entity.
+	var ias issuerAndSerial
+	ias.SerialNumber = ee.SerialNumber
+	if len(parents) == 0 {
+		// no parent, the issuer is the end-entity cert itself
+		ias.IssuerName = asn1.RawValue{FullBytes: ee.RawIssuer}
+	} else {
+		err := verifyPartialChain(ee, parents)
+		if err != nil {
+			return err
+		}
+		// the first parent is the issuer
+		ias.IssuerName = asn1.RawValue{FullBytes: parents[0].RawSubject}
+	}
+	sd.sd.DigestAlgorithmIdentifiers = append(sd.sd.DigestAlgorithmIdentifiers,
+		pkix.AlgorithmIdentifier{Algorithm: sd.digestOid},
+	)
+	h := crypto.SHA256.New()
+	h.Write(sd.data)
+	sd.messageDigest = h.Sum(nil)
+	encryptionOid, err := getOIDForEncryptionAlgorithm(pkey, sd.digestOid)
+	if err != nil {
+		return err
+	}
 	attrs := &attributes{}
-	attrs.Add(oidAttributeContentType, sd.sd.ContentInfo.ContentType)
-	attrs.Add(oidAttributeMessageDigest, sd.messageDigest)
-	attrs.Add(oidAttributeSigningTime, time.Now())
+	attrs.Add(OIDAttributeContentType, sd.sd.ContentInfo.ContentType)
+	attrs.Add(OIDAttributeMessageDigest, sd.messageDigest)
+	attrs.Add(OIDAttributeSigningTime, time.Now().UTC())
 	for _, attr := range config.ExtraSignedAttributes {
 		attrs.Add(attr.Type, attr.Value)
 	}
@@ -290,26 +288,32 @@ func (sd *SignedData) addSigner(cert *x509.Certificate, pkey crypto.PrivateKey, 
 	if err != nil {
 		return err
 	}
-	signature, err := signAttributes(finalAttrs, pkey, crypto.SHA1)
+	unsignedAttrs := &attributes{}
+	for _, attr := range config.ExtraUnsignedAttributes {
+		unsignedAttrs.Add(attr.Type, attr.Value)
+	}
+	finalUnsignedAttrs, err := unsignedAttrs.forMarshaling()
 	if err != nil {
 		return err
 	}
-
-	ias, err := cert2issuerAndSerial(cert)
+	// create signature of signed attributes
+	signature, err := signAttributes(finalAttrs, pkey, crypto.SHA256)
 	if err != nil {
 		return err
 	}
-
 	signer := signerInfo{
 		AuthenticatedAttributes:   finalAttrs,
-		DigestAlgorithm:           pkix.AlgorithmIdentifier{Algorithm: oidDigestAlgorithmSHA1},
-		DigestEncryptionAlgorithm: pkix.AlgorithmIdentifier{Algorithm: oidSignatureSHA1WithRSA},
+		UnauthenticatedAttributes: finalUnsignedAttrs,
+		DigestAlgorithm:           pkix.AlgorithmIdentifier{Algorithm: sd.digestOid},
+		DigestEncryptionAlgorithm: pkix.AlgorithmIdentifier{Algorithm: encryptionOid},
 		IssuerAndSerialNumber:     ias,
 		EncryptedDigest:           signature,
 		Version:                   1,
 	}
-	// create signature of signed attributes
-	sd.certs = append(sd.certs, cert)
+	sd.certs = append(sd.certs, ee)
+	if len(parents) > 0 {
+		sd.certs = append(sd.certs, parents...)
+	}
 	sd.sd.SignerInfos = append(sd.sd.SignerInfos, signer)
 	return nil
 }
@@ -322,7 +326,7 @@ func (sd *SignedData) addCertificate(cert *x509.Certificate) {
 // detach removes content from the signed data struct to make it a detached signature.
 // This must be called right before Finish()
 func (sd *SignedData) detach() {
-	sd.sd.ContentInfo = contentInfo{ContentType: oidData}
+	sd.sd.ContentInfo = contentInfo{ContentType: OIDData}
 }
 
 // finish marshals the content and its signers
@@ -333,20 +337,41 @@ func (sd *SignedData) finish() ([]byte, error) {
 		return nil, err
 	}
 	outer := contentInfo{
-		ContentType: oidSignedData,
+		ContentType: OIDSignedData,
 		Content:     asn1.RawValue{Class: 2, Tag: 0, Bytes: inner, IsCompound: true},
 	}
 	return asn1.Marshal(outer)
 }
 
-func cert2issuerAndSerial(cert *x509.Certificate) (issuerAndSerial, error) {
-	var ias issuerAndSerial
-	// The issuer RDNSequence has to match exactly the sequence in the certificate
-	// We cannot use cert.Issuer.ToRDNSequence() here since it mangles the sequence
-	ias.IssuerName = asn1.RawValue{FullBytes: cert.RawIssuer}
-	ias.SerialNumber = cert.SerialNumber
+// verifyPartialChain checks that a given cert is issued by the first parent in the list,
+// then continue down the path. It doesn't require the last parent to be a root CA,
+// or to be trusted in any truststore. It simply verifies that the chain provided, albeit
+// partial, makes sense.
+func verifyPartialChain(cert *x509.Certificate, parents []*x509.Certificate) error {
+	if len(parents) == 0 {
+		return fmt.Errorf("pkcs7: zero parents provided to verify the signature of certificate %q", cert.Subject.CommonName)
+	}
+	err := cert.CheckSignatureFrom(parents[0])
+	if err != nil {
+		return fmt.Errorf("pkcs7: certificate signature from parent is invalid: %w", err)
+	}
+	if len(parents) == 1 {
+		// there is no more parent to check, return
+		return nil
+	}
+	return verifyPartialChain(parents[0], parents[1:])
+}
 
-	return ias, nil
+// getOIDForEncryptionAlgorithm takes the private key type of the signer and
+// the OID of a digest algorithm to return the appropriate signerInfo.DigestEncryptionAlgorithm
+func getOIDForEncryptionAlgorithm(pkey crypto.PrivateKey, OIDDigestAlg asn1.ObjectIdentifier) (asn1.ObjectIdentifier, error) {
+	switch pkey.(type) {
+	case *rsa.PrivateKey:
+		return OIDEncryptionAlgorithmRSASHA256, nil
+	case *ecdsa.PrivateKey:
+		return OIDDigestAlgorithmECDSASHA256, nil
+	}
+	return nil, fmt.Errorf("pkcs7: cannot convert encryption algorithm to oid, unknown private key type %T", pkey)
 }
 
 // signs the DER encoded form of the attributes with the private key
@@ -360,12 +385,12 @@ func signAttributes(attrs []attribute, pkey crypto.PrivateKey, hash crypto.Hash)
 	hashed := h.Sum(nil)
 	switch priv := pkey.(type) {
 	case *rsa.PrivateKey:
-		return rsa.SignPKCS1v15(rand.Reader, priv, crypto.SHA1, hashed)
+		return rsa.SignPKCS1v15(rand.Reader, priv, crypto.SHA256, hashed)
 	}
 	return nil, ErrUnsupportedAlgorithm
 }
 
-// concats and wraps the certificates in the RawValue structure
+// concat and wraps the certificates in the RawValue structure
 func marshalCertificates(certs []*x509.Certificate) rawCertificates {
 	var buf bytes.Buffer
 	for _, cert := range certs {
@@ -376,7 +401,7 @@ func marshalCertificates(certs []*x509.Certificate) rawCertificates {
 }
 
 // Even though, the tag & length are stripped out during marshalling the
-// RawContent, we have to encode it into the RawContent. If its missing,
+// RawContent, we have to encode it into the RawContent. If It's missing,
 // then `asn1.Marshal()` will strip out the certificate wrapper instead.
 func marshalCertificateBytes(certs []byte) (rawCertificates, error) {
 	val := asn1.RawValue{Bytes: certs, Class: 2, Tag: 0, IsCompound: true}
@@ -385,4 +410,43 @@ func marshalCertificateBytes(certs []byte) (rawCertificates, error) {
 		return rawCertificates{}, err
 	}
 	return rawCertificates{Raw: b}, nil
+}
+
+func marshalAttributes(attrs []attribute) ([]byte, error) {
+	encodedAttributes, err := asn1.Marshal(struct {
+		A []attribute `asn1:"set"`
+	}{A: attrs})
+	if err != nil {
+		return nil, err
+	}
+
+	// Remove the leading sequence octets
+	var raw asn1.RawValue
+	if _, err := asn1.Unmarshal(encodedAttributes, &raw); err != nil {
+		return nil, err
+	}
+	return raw.Bytes, nil
+}
+
+func getCertFromCertsByIssuerAndSerial(certs []*x509.Certificate, ias issuerAndSerial) *x509.Certificate {
+	for _, cert := range certs {
+		if isCertMatchForIssuerAndSerial(cert, ias) {
+			return cert
+		}
+	}
+	return nil
+}
+
+func isCertMatchForIssuerAndSerial(cert *x509.Certificate, ias issuerAndSerial) bool {
+	return cert.SerialNumber.Cmp(ias.SerialNumber) == 0 && bytes.Equal(cert.RawIssuer, ias.IssuerName.FullBytes)
+}
+
+func unmarshalAttribute(attrs []attribute, attributeType asn1.ObjectIdentifier, out interface{}) error {
+	for _, attr := range attrs {
+		if attr.Type.Equal(attributeType) {
+			_, err := asn1.Unmarshal(attr.Value.Bytes, out)
+			return err
+		}
+	}
+	return errors.New("pkcs7: attribute type not in attributes")
 }
