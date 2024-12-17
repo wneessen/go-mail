@@ -679,7 +679,7 @@ func TestMsgWriter_writeBody(t *testing.T) {
 		buffer := bytes.NewBuffer(nil)
 		msgwriter.writer = buffer
 		message := testMessage(t)
-		msgwriter.writeBody(message.parts[0].writeFunc, NoEncoding)
+		msgwriter.writeBody(message.parts[0].writeFunc, NoEncoding, false)
 		if msgwriter.err != nil {
 			t.Errorf("writeBody failed to write: %s", msgwriter.err)
 		}
@@ -687,7 +687,7 @@ func TestMsgWriter_writeBody(t *testing.T) {
 	t.Run("writeBody on NoEncoding fails on write", func(t *testing.T) {
 		msgwriter.writer = failReadWriteSeekCloser{}
 		message := testMessage(t)
-		msgwriter.writeBody(message.parts[0].writeFunc, NoEncoding)
+		msgwriter.writeBody(message.parts[0].writeFunc, NoEncoding, false)
 		if msgwriter.err == nil {
 			t.Errorf("writeBody succeeded, expected error")
 		}
@@ -701,7 +701,7 @@ func TestMsgWriter_writeBody(t *testing.T) {
 		writeFunc := func(io.Writer) (int64, error) {
 			return 0, errors.New("intentional write failure")
 		}
-		msgwriter.writeBody(writeFunc, NoEncoding)
+		msgwriter.writeBody(writeFunc, NoEncoding, false)
 		if msgwriter.err == nil {
 			t.Errorf("writeBody succeeded, expected error")
 		}
@@ -712,7 +712,7 @@ func TestMsgWriter_writeBody(t *testing.T) {
 	t.Run("writeBody Quoted-Printable fails on write", func(t *testing.T) {
 		msgwriter.writer = failReadWriteSeekCloser{}
 		message := testMessage(t)
-		msgwriter.writeBody(message.parts[0].writeFunc, EncodingQP)
+		msgwriter.writeBody(message.parts[0].writeFunc, EncodingQP, false)
 		if msgwriter.err == nil {
 			t.Errorf("writeBody succeeded, expected error")
 		}
@@ -726,7 +726,7 @@ func TestMsgWriter_writeBody(t *testing.T) {
 		writeFunc := func(io.Writer) (int64, error) {
 			return 0, errors.New("intentional write failure")
 		}
-		msgwriter.writeBody(writeFunc, EncodingQP)
+		msgwriter.writeBody(writeFunc, EncodingQP, false)
 		if msgwriter.err == nil {
 			t.Errorf("writeBody succeeded, expected error")
 		}
@@ -763,5 +763,44 @@ func TestMsgWriter_sanitizeFilename(t *testing.T) {
 				t.Errorf("sanitizeFilename failed, expected: %q, got: %q", tt.want, got)
 			}
 		})
+	}
+}
+
+// TestMsgWriter_writeMsg_SMime tests the writeMsg method of the msgWriter with S/MIME types set
+func TestMsgWriter_writeMsg_SMime(t *testing.T) {
+	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
+	if err != nil {
+		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
+	}
+
+	m := NewMsg()
+	if err := m.SignWithSMimeRSA(privateKey, certificate, intermediateCertificate); err != nil {
+		t.Errorf("failed to init smime configuration")
+	}
+	_ = m.From(`"Toni Tester" <test@example.com>`)
+	_ = m.To(`"Toni Receiver" <receiver@example.com>`)
+	m.Subject("This is a subject")
+	m.SetBodyString(TypeTextPlain, "This is the body")
+	buf := bytes.Buffer{}
+	mw := &msgWriter{writer: &buf, charset: CharsetUTF8, encoder: mime.QEncoding}
+	mw.writeMsg(m)
+	ms := buf.String()
+
+	if !strings.Contains(ms, "MIME-Version: 1.0") {
+		t.Errorf("writeMsg failed. Unable to find MIME-Version")
+	}
+	if !strings.Contains(ms, "Subject: This is a subject") {
+		t.Errorf("writeMsg failed. Unable to find subject")
+	}
+	if !strings.Contains(ms, "From: \"Toni Tester\" <test@example.com>") {
+		t.Errorf("writeMsg failed. Unable to find transmitter")
+	}
+	if !strings.Contains(ms, "To: \"Toni Receiver\" <receiver@example.com>") {
+		t.Errorf("writeMsg failed. Unable to find receiver")
+	}
+
+	boundary := ms[strings.LastIndex(ms, "--")-60 : strings.LastIndex(ms, "--")]
+	if !strings.Contains(ms, fmt.Sprintf("Content-Type: multipart/signed; protocol=\"application/pkcs7-signature\"; micalg=sha-256;\r\n boundary=%s", boundary)) {
+		t.Errorf("writeMsg failed. Unable to find Content-Type")
 	}
 }
