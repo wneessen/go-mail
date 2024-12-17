@@ -218,7 +218,7 @@ jobs:
               run: |
                 go test -shuffle=on -race --coverprofile=./cov.out ./...
             - name: SonarQube scan
-              uses: sonarsource/sonarqube-scan-action@1b442ee39ac3fa7c2acdd410208dcb2bcfaae6c4 # master
+              uses: sonarsource/sonarqube-scan-action@bfd4e558cda28cda6b5defafb9232d191be8c203 # master
               if: success()
               env:
                   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
