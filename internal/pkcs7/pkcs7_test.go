@@ -44,7 +44,6 @@ func TestSign_E2E(t *testing.T) {
 		}
 		if testDetach {
 			toBeSigned.Detach()
-		} else {
 		}
 		signed, serr := toBeSigned.Finish()
 		if serr != nil {
