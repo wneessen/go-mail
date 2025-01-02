@@ -357,7 +357,7 @@ func (mw *msgWriter) writePart(part *Part, charset Charset) {
 	}
 
 	contentType := part.contentType.String()
-	if !part.IsSMimeSigned() {
+	if !part.IsSMIMESigned() {
 		contentType = strings.Join([]string{contentType, "; charset=", partCharset.String()}, "")
 	}
 

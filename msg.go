@@ -2293,7 +2293,7 @@ func (m *Msg) createSignaturePart(encoding Encoding, contentType ContentType, ch
 		return nil, err
 	}
 
-	signaturePart := m.newPart(TypeSMIMESigned, WithPartEncoding(EncodingB64), WithSMimeSinging())
+	signaturePart := m.newPart(TypeSMIMESigned, WithPartEncoding(EncodingB64), WithSMIMESigning())
 	signaturePart.SetContent(*signedMessage)
 
 	return signaturePart, nil

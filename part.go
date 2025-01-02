@@ -95,8 +95,13 @@ func (p *Part) GetDescription() string {
 	return p.description
 }
 
-// IsSMimeSigned returns true if the Part should be singed with S/MIME
-func (p *Part) IsSMimeSigned() bool {
+// IsSMIMESigned determines if the Part should be signed with S/MIME.
+//
+// This function checks whether the Part has been configured to use S/MIME for signing.
+//
+// Returns:
+//   - true if the Part should be signed with S/MIME; otherwise false.
+func (p *Part) IsSMIMESigned() bool {
 	return p.smime
 }
 
@@ -152,8 +157,13 @@ func (p *Part) SetDescription(description string) {
 	p.description = description
 }
 
-// SetIsSMimeSigned sets the flag for signing the Part with S/MIME
-func (p *Part) SetIsSMimeSigned(smime bool) {
+// SetIsSMIMESigned sets the flag for signing the Part with S/MIME.
+//
+// This function updates the S/MIME signing flag for the Part.
+//
+// Parameters:
+//   - smime: A boolean indicating whether the Part should be signed with S/MIME.
+func (p *Part) SetIsSMIMESigned(smime bool) {
 	p.smime = smime
 }
 
@@ -225,8 +235,13 @@ func WithPartContentDescription(description string) PartOption {
 	}
 }
 
-// WithSMimeSinging overrides the flag for signing the Part with S/MIME
-func WithSMimeSinging() PartOption {
+// WithSMIMESigning enables the S/MIME signing flag for a Part.
+//
+// This function provides a PartOption that overrides the S/MIME signing flag to enable signing.
+//
+// Returns:
+//   - A PartOption that sets the S/MIME signing flag to true.
+func WithSMIMESigning() PartOption {
 	return func(p *Part) {
 		p.smime = true
 	}

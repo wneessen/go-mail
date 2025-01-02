@@ -6667,7 +6667,7 @@ func TestMsg_fileFromIOFS(t *testing.T) {
 	})
 }
 
-// TestSignWithSMime_ValidRSAKeyPair tests WithSMimeSinging with given rsa key pair
+// TestSignWithSMime_ValidRSAKeyPair tests WithSMIMESigning with given rsa key pair
 func TestSignWithSMime_ValidRSAKeyPair(t *testing.T) {
 	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
 	if err != nil {
@@ -6678,14 +6678,14 @@ func TestSignWithSMime_ValidRSAKeyPair(t *testing.T) {
 		t.Errorf("failed to set sMIME. Cause: %v", err)
 	}
 	if m.sMIME.privateKey.rsa == nil {
-		t.Errorf("WithSMimeSinging() - no private key is given")
+		t.Errorf("WithSMIMESigning() - no private key is given")
 	}
 	if m.sMIME.certificate == nil {
-		t.Errorf("WithSMimeSinging() - no certificate is given")
+		t.Errorf("WithSMIMESigning() - no certificate is given")
 	}
 }
 
-// TestSignWithSMime_ValidRSAKeyPair tests WithSMimeSinging with given ecdsa key pair
+// TestSignWithSMime_ValidRSAKeyPair tests WithSMIMESigning with given ecdsa key pair
 func TestSignWithSMime_ValidECDSAKeyPair(t *testing.T) {
 	privateKey, certificate, intermediateCertificate, err := getDummyECDSACryptoMaterial()
 	if err != nil {
@@ -6696,10 +6696,10 @@ func TestSignWithSMime_ValidECDSAKeyPair(t *testing.T) {
 		t.Errorf("failed to set sMIME. Cause: %v", err)
 	}
 	if m.sMIME.privateKey.ecdsa == nil {
-		t.Errorf("WithSMimeSinging() - no private key is given")
+		t.Errorf("WithSMIMESigning() - no private key is given")
 	}
 	if m.sMIME.certificate == nil {
-		t.Errorf("WithSMimeSinging() - no certificate is given")
+		t.Errorf("WithSMIMESigning() - no certificate is given")
 	}
 }
 
@@ -6744,7 +6744,7 @@ func TestSignWithTLSCertificate_WithKeyPairLeafNil(t *testing.T) {
 	}
 }
 
-// TestSignWithSMime_InvalidPrivateKey tests WithSMimeSinging with given invalid private key
+// TestSignWithSMime_InvalidPrivateKey tests WithSMIMESigning with given invalid private key
 func TestSignWithSMime_InvalidPrivateKey(t *testing.T) {
 	m := NewMsg()
 
@@ -6754,7 +6754,7 @@ func TestSignWithSMime_InvalidPrivateKey(t *testing.T) {
 	}
 }
 
-// TestSignWithSMime_InvalidCertificate tests WithSMimeSinging with given invalid certificate
+// TestSignWithSMime_InvalidCertificate tests WithSMIMESigning with given invalid certificate
 func TestSignWithSMime_InvalidCertificate(t *testing.T) {
 	privateKey, _, _, err := getDummyRSACryptoMaterial()
 	if err != nil {
