@@ -128,6 +128,10 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 		}
 	}
 
+	if msg.hasSMime() {
+		mw.startMP(MIMESMime, msg.boundary)
+		mw.writeString(DoubleNewLine)
+	}
 	if msg.hasMixed() {
 		mw.startMP(MIMEMixed, msg.boundary)
 		mw.writeString(DoubleNewLine)
@@ -172,6 +176,10 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 	// Add attachments
 	mw.addFiles(msg.attachments, true)
 	if msg.hasMixed() {
+		mw.stopMP()
+	}
+
+	if msg.hasSMime() {
 		mw.stopMP()
 	}
 }
@@ -314,7 +322,7 @@ func (mw *msgWriter) addFiles(files []*File, isAttachment bool) {
 		}
 
 		if mw.err == nil {
-			mw.writeBody(file.Writer, encoding)
+			mw.writeBody(file.Writer, encoding, false)
 		}
 	}
 }
@@ -347,7 +355,12 @@ func (mw *msgWriter) writePart(part *Part, charset Charset) {
 	if partCharset.String() == "" {
 		partCharset = charset
 	}
-	contentType := fmt.Sprintf("%s; charset=%s", part.contentType, partCharset)
+
+	contentType := part.contentType.String()
+	if !part.IsSMimeSigned() {
+		contentType = strings.Join([]string{contentType, "; charset=", partCharset.String()}, "")
+	}
+
 	contentTransferEnc := part.encoding.String()
 	if mw.depth == 0 {
 		mw.writeHeader(HeaderContentType, contentType)
@@ -363,7 +376,7 @@ func (mw *msgWriter) writePart(part *Part, charset Charset) {
 		mimeHeader.Add(string(HeaderContentTransferEnc), contentTransferEnc)
 		mw.newPart(mimeHeader)
 	}
-	mw.writeBody(part.writeFunc, part.encoding)
+	mw.writeBody(part.writeFunc, part.encoding, part.smime)
 }
 
 // writeString writes a string into the msgWriter's io.Writer interface.
@@ -438,7 +451,8 @@ func (mw *msgWriter) writeHeader(key Header, values ...string) {
 // Parameters:
 //   - writeFunc: A function that writes the body content to the given io.Writer.
 //   - encoding: The encoding type to use when writing the content (e.g., base64, quoted-printable).
-func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encoding Encoding) {
+//   - singingWithSMime: Whether the msg should be signed with S/MIME or not.
+func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encoding Encoding, singingWithSMime bool) {
 	var writer io.Writer
 	var encodedWriter io.WriteCloser
 	var n int64
@@ -453,12 +467,11 @@ func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encodin
 	lineBreaker := Base64LineBreaker{}
 	lineBreaker.out = &writeBuffer
 
-	switch encoding {
-	case EncodingQP:
+	if encoding == EncodingQP {
 		encodedWriter = quotedprintable.NewWriter(&writeBuffer)
-	case EncodingB64:
+	} else if encoding == EncodingB64 && !singingWithSMime {
 		encodedWriter = base64.NewEncoder(base64.StdEncoding, &lineBreaker)
-	case NoEncoding:
+	} else if encoding == NoEncoding || singingWithSMime {
 		_, err = writeFunc(&writeBuffer)
 		if err != nil {
 			mw.err = fmt.Errorf("bodyWriter function: %w", err)
@@ -471,7 +484,7 @@ func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encodin
 			mw.bytesWritten += n
 		}
 		return
-	default:
+	} else {
 		encodedWriter = quotedprintable.NewWriter(writer)
 	}
 

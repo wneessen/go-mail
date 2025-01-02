@@ -7,6 +7,10 @@ package mail
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
 	"embed"
 	"errors"
 	"fmt"
@@ -25,7 +29,7 @@ import (
 )
 
 var (
-	// ErrNoFromAddress indicates that the FROM address is not set, which is required.
+	// ErrNoFromAddress should be used when a FROM address is requested but not set
 	ErrNoFromAddress = errors.New("no FROM address set")
 
 	// ErrNoRcptAddresses indicates that no recipient addresses have been set.
@@ -145,6 +149,9 @@ type Msg struct {
 	//
 	// This can be useful in scenarios where headers are conditionally passed based on receipt - i. e. SMTP proxies.
 	noDefaultUserAgent bool
+
+	// SMime represents a middleware used to sign messages with S/MIME
+	sMime *SMime
 }
 
 // SendmailPath is the default system path to the sendmail binary - at least on standard Unix-like OS.
@@ -334,8 +341,72 @@ func WithNoDefaultUserAgent() MsgOption {
 	}
 }
 
-// SetCharset sets or overrides the currently set encoding charset of the Msg.
-//
+// SignWithSMimeRSA configures the Msg to be signed with S/MIME
+func (m *Msg) SignWithSMimeRSA(privateKey *rsa.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) error {
+	sMime, err := newSMimeWithRSA(privateKey, certificate, intermediateCertificate)
+	if err != nil {
+		return err
+	}
+	m.sMime = sMime
+	return nil
+}
+
+// SignWithSMimeECDSA configures the Msg to be signed with S/MIME
+func (m *Msg) SignWithSMimeECDSA(privateKey *ecdsa.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) error {
+	sMime, err := newSMimeWithECDSA(privateKey, certificate, intermediateCertificate)
+	if err != nil {
+		return err
+	}
+	m.sMime = sMime
+	return nil
+}
+
+// SignWithTLSCertificate signs the Msg with the provided *tls.certificate.
+func (m *Msg) SignWithTLSCertificate(keyPairTlS *tls.Certificate) error {
+	intermediateCertificate, err := x509.ParseCertificate(keyPairTlS.Certificate[1])
+	if err != nil {
+		return fmt.Errorf("failed to parse intermediate certificate: %w", err)
+	}
+
+	leafCertificate, err := getLeafCertificate(keyPairTlS)
+	if err != nil {
+		return fmt.Errorf("failed to get leaf certificate: %w", err)
+	}
+
+	switch keyPairTlS.PrivateKey.(type) {
+	case *rsa.PrivateKey:
+		if intermediateCertificate == nil {
+			return m.SignWithSMimeRSA(keyPairTlS.PrivateKey.(*rsa.PrivateKey), leafCertificate, nil)
+		}
+		return m.SignWithSMimeRSA(keyPairTlS.PrivateKey.(*rsa.PrivateKey), leafCertificate, intermediateCertificate)
+
+	case *ecdsa.PrivateKey:
+		if intermediateCertificate == nil {
+			return m.SignWithSMimeECDSA(keyPairTlS.PrivateKey.(*ecdsa.PrivateKey), leafCertificate, nil)
+		}
+		return m.SignWithSMimeECDSA(keyPairTlS.PrivateKey.(*ecdsa.PrivateKey), leafCertificate, intermediateCertificate)
+	default:
+		return fmt.Errorf("unsupported private key type: %T", keyPairTlS.PrivateKey)
+	}
+}
+
+// getLeafCertificate returns the leaf certificate from a tls.Certificate.
+// PLEASE NOTE: Before Go 1.23 Certificate.Leaf was left nil, and the parsed certificate was
+// discarded. This behavior can be re-enabled by setting "x509keypairleaf=0"
+// in the GODEBUG environment variable.
+func getLeafCertificate(keyPairTlS *tls.Certificate) (*x509.Certificate, error) {
+	if keyPairTlS.Leaf != nil {
+		return keyPairTlS.Leaf, nil
+	}
+
+	cert, err := x509.ParseCertificate(keyPairTlS.Certificate[0])
+	if err != nil {
+		return nil, err
+	}
+
+	return cert, nil
+}
+
 // This method allows you to specify a character set for the email message. The charset is
 // important for ensuring that the content of the message is correctly interpreted by
 // mail clients. Common charset values include UTF-8, ISO-8859-1, and others. If a charset
@@ -2191,6 +2262,41 @@ func (m *Msg) applyMiddlewares(msg *Msg) *Msg {
 	return msg
 }
 
+// signMessage sign the Msg with S/MIME
+func (m *Msg) signMessage(msg *Msg) (*Msg, error) {
+	signedPart := msg.GetParts()[0]
+	body, err := signedPart.GetContent()
+	if err != nil {
+		return nil, err
+	}
+
+	signaturePart, err := m.createSignaturePart(signedPart.GetEncoding(), signedPart.GetContentType(), signedPart.GetCharset(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	m.parts = append(m.parts, signaturePart)
+
+	return m, err
+}
+
+// createSignaturePart creates an additional part that be used for storing the S/MIME signature of the given body
+func (m *Msg) createSignaturePart(encoding Encoding, contentType ContentType, charSet Charset, body []byte) (*Part, error) {
+	message, err := m.sMime.prepareMessage(encoding, contentType, charSet, body)
+	if err != nil {
+		return nil, err
+	}
+	signedMessage, err := m.sMime.signMessage(*message)
+	if err != nil {
+		return nil, err
+	}
+
+	signaturePart := m.newPart(typeSMimeSigned, WithPartEncoding(EncodingB64), WithSMimeSinging())
+	signaturePart.SetContent(*signedMessage)
+
+	return signaturePart, nil
+}
+
 // WriteTo writes the formatted Msg into the given io.Writer and satisfies the io.WriterTo interface.
 //
 // This method writes the email message, including its headers, body, and attachments, to the provided
@@ -2208,7 +2314,18 @@ func (m *Msg) applyMiddlewares(msg *Msg) *Msg {
 //   - https://datatracker.ietf.org/doc/html/rfc5322
 func (m *Msg) WriteTo(writer io.Writer) (int64, error) {
 	mw := &msgWriter{writer: writer, charset: m.charset, encoder: m.encoder}
-	mw.writeMsg(m.applyMiddlewares(m))
+	msg := m.applyMiddlewares(m)
+
+	if m.hasSMime() {
+		signedMsg, err := m.signMessage(msg)
+		if err != nil {
+			return 0, err
+		}
+		msg = signedMsg
+	}
+
+	mw.writeMsg(msg)
+
 	return mw.bytesWritten, mw.err
 }
 
@@ -2572,7 +2689,7 @@ func (m *Msg) hasAlt() bool {
 			count++
 		}
 	}
-	return count > 1 && m.pgptype == 0
+	return count > 1 && m.pgptype == 0 && !m.hasSMime()
 }
 
 // hasMixed returns true if the Msg has mixed parts.
@@ -2588,6 +2705,11 @@ func (m *Msg) hasAlt() bool {
 //   - https://datatracker.ietf.org/doc/html/rfc2046#section-5.1.3
 func (m *Msg) hasMixed() bool {
 	return m.pgptype == 0 && ((len(m.parts) > 0 && len(m.attachments) > 0) || len(m.attachments) > 1)
+}
+
+// hasSMime returns true if the Msg has should be signed with S/MIME
+func (m *Msg) hasSMime() bool {
+	return m.sMime != nil
 }
 
 // hasRelated returns true if the Msg has related parts.
