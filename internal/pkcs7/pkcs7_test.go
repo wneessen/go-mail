@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-package mail
+package pkcs7
 
 import (
 	"bytes"
@@ -35,18 +35,18 @@ func TestSign_E2E(t *testing.T) {
 	}
 	content := []byte("Hello World")
 	for _, testDetach := range []bool{false, true} {
-		toBeSigned, serr := newSignedData(content)
+		toBeSigned, serr := NewSignedData(content)
 		if serr != nil {
 			t.Fatalf("Cannot initialize signed data: %s", err)
 		}
-		if serr = toBeSigned.addSigner(cert.Certificate, cert.PrivateKey, SignerInfoConfig{}); serr != nil {
+		if serr = toBeSigned.AddSigner(cert.Certificate, cert.PrivateKey, SignerInfoConfig{}); serr != nil {
 			t.Fatalf("Cannot add signer: %s", err)
 		}
 		if testDetach {
-			toBeSigned.detach()
+			toBeSigned.Detach()
 		} else {
 		}
-		signed, serr := toBeSigned.finish()
+		signed, serr := toBeSigned.Finish()
 		if serr != nil {
 			t.Fatalf("Cannot finish signing data: %s", err)
 		}

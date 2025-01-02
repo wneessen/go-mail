@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-package mail
+package pkcs7
 
 import (
 	"bytes"
@@ -227,8 +227,8 @@ type SignedData struct {
 	digestOid     asn1.ObjectIdentifier
 }
 
-// newSignedData initializes a SignedData with content
-func newSignedData(data []byte) (*SignedData, error) {
+// NewSignedData initializes a SignedData with content
+func NewSignedData(data []byte) (*SignedData, error) {
 	content, err := asn1.Marshal(data)
 	if err != nil {
 		return nil, err
@@ -244,8 +244,8 @@ func newSignedData(data []byte) (*SignedData, error) {
 	return &SignedData{sd: sd, data: data, digestOid: OIDDigestAlgorithmSHA256}, nil
 }
 
-// addSigner is a wrapper around AddSignerChain() that adds a signer without any parent.
-func (sd *SignedData) addSigner(cert *x509.Certificate, pkey crypto.PrivateKey, config SignerInfoConfig) error {
+// AddSigner is a wrapper around AddSignerChain() that adds a signer without any parent.
+func (sd *SignedData) AddSigner(cert *x509.Certificate, pkey crypto.PrivateKey, config SignerInfoConfig) error {
 	var parents []*x509.Certificate
 	return sd.addSignerChain(cert, pkey, parents, config)
 }
@@ -327,19 +327,19 @@ func (sd *SignedData) addSignerChain(ee *x509.Certificate, pkey crypto.PrivateKe
 	return nil
 }
 
-// addCertificate adds the certificate to the payload. Useful for parent certificates
-func (sd *SignedData) addCertificate(cert *x509.Certificate) {
+// AddCertificate adds the certificate to the payload. Useful for parent certificates
+func (sd *SignedData) AddCertificate(cert *x509.Certificate) {
 	sd.certs = append(sd.certs, cert)
 }
 
-// detach removes content from the signed data struct to make it a detached signature.
+// Detach removes content from the signed data struct to make it a detached signature.
 // This must be called right before Finish()
-func (sd *SignedData) detach() {
+func (sd *SignedData) Detach() {
 	sd.sd.ContentInfo = contentInfo{ContentType: OIDData}
 }
 
-// finish marshals the content and its signers
-func (sd *SignedData) finish() ([]byte, error) {
+// Finish marshals the content and its signers
+func (sd *SignedData) Finish() ([]byte, error) {
 	sd.sd.Certificates = marshalCertificates(sd.certs)
 	inner, err := asn1.Marshal(sd.sd)
 	if err != nil {

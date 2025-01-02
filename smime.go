@@ -15,6 +15,8 @@ import (
 	"fmt"
 	"mime/quotedprintable"
 	"strings"
+
+	"github.com/wneessen/go-mail/internal/pkcs7"
 )
 
 var (
@@ -91,22 +93,22 @@ func (sm *SMIME) signMessage(message string) (*string, error) {
 	lines := parseLines([]byte(message))
 	toBeSigned := lines.bytesFromLines([]byte("\r\n"))
 
-	signedData, err := newSignedData(toBeSigned)
+	signedData, err := pkcs7.NewSignedData(toBeSigned)
 	if err != nil || signedData == nil {
 		return nil, fmt.Errorf("could not initialize signed data: %w", err)
 	}
 
-	if err = signedData.addSigner(sm.certificate, sm.privateKey.get(), SignerInfoConfig{}); err != nil {
+	if err = signedData.AddSigner(sm.certificate, sm.privateKey.get(), pkcs7.SignerInfoConfig{}); err != nil {
 		return nil, fmt.Errorf("could not add signer message: %w", err)
 	}
 
 	if sm.intermediateCertificate != nil {
-		signedData.addCertificate(sm.intermediateCertificate)
+		signedData.AddCertificate(sm.intermediateCertificate)
 	}
 
-	signedData.detach()
+	signedData.Detach()
 
-	signatureDER, err := signedData.finish()
+	signatureDER, err := signedData.Finish()
 	if err != nil {
 		return nil, fmt.Errorf("could not finish signing: %w", err)
 	}
