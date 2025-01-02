@@ -172,19 +172,22 @@ const (
 	// TypeTextPlain represents the MIME type for plain text content.
 	TypeTextPlain ContentType = "text/plain"
 
-	// typeSMimeSigned represents the MIME type for S/MIME singed messages.
-	typeSMimeSigned ContentType = `application/pkcs7-signature; name="smime.p7s"`
+	// TypeSMIMESigned represents the MIME type for S/MIME singed messages.
+	TypeSMIMESigned ContentType = `application/pkcs7-signature; name="smime.p7s"`
 )
 
 const (
 	// MIMEAlternative MIMEType represents a MIME multipart/alternative type, used for emails with multiple versions.
 	MIMEAlternative MIMEType = "alternative"
-	// MIMEMixed MIMEType represents a MIME multipart/mixed type used for emails containing different types of content.
+
+	// MIMEMixed MIMEType represents a MIME multipart/mixed type used fork emails containing different types of content.
 	MIMEMixed MIMEType = "mixed"
+
 	// MIMERelated MIMEType represents a MIME multipart/related type, used for emails with related content entities.
 	MIMERelated MIMEType = "related"
-	// MIMESMime MIMEType represents a MIME multipart/signed type, used for siging emails with S/MIME.
-	MIMESMime MIMEType = `signed; protocol="application/pkcs7-signature"; micalg=sha-256`
+
+	// MIMESMIME MIMEType represents a MIME multipart/signed type, used for siging emails with S/MIME.
+	MIMESMIME MIMEType = `signed; protocol="application/pkcs7-signature"; micalg=sha-256`
 )
 
 // String satisfies the fmt.Stringer interface for the Charset type.
@@ -223,7 +226,14 @@ func (e Encoding) String() string {
 	return string(e)
 }
 
-// String is a standard method to convert an MIMEType into a printable format
+// String satisfies the fmt.Stringer interface for the MIMEType type.
+// It converts an MIMEType into a printable format.
+//
+// This method returns the string representation of the MIMEType, which can be used
+// for displaying or logging purposes.
+//
+// Returns:
+//   - A string representation of the MIMEType.
 func (e MIMEType) String() string {
 	return string(e)
 }

@@ -6787,8 +6787,8 @@ func TestMsg_createSignaturePart(t *testing.T) {
 	if part.GetEncoding() != EncodingB64 {
 		t.Errorf("createSignaturePart() method failed. Expected encoding: %s, got: %s", EncodingB64, part.GetEncoding())
 	}
-	if part.GetContentType() != typeSMimeSigned {
-		t.Errorf("createSignaturePart() method failed. Expected content type: %s, got: %s", typeSMimeSigned, part.GetContentType())
+	if part.GetContentType() != TypeSMIMESigned {
+		t.Errorf("createSignaturePart() method failed. Expected content type: %s, got: %s", TypeSMIMESigned, part.GetContentType())
 	}
 	if part.GetCharset() != CharsetUTF8 {
 		t.Errorf("createSignaturePart() method failed. Expected charset: %s, got: %s", CharsetUTF8, part.GetCharset())
@@ -6825,7 +6825,7 @@ func TestMsg_signMessage(t *testing.T) {
 		t.Errorf("createSignaturePart() method failed. Expected encoding: %s, got: %s", EncodingB64, signedPart.GetEncoding())
 	}
 	if signedPart.GetContentType() != TypeTextPlain {
-		t.Errorf("createSignaturePart() method failed. Expected content type: %s, got: %s", typeSMimeSigned, signedPart.GetContentType())
+		t.Errorf("createSignaturePart() method failed. Expected content type: %s, got: %s", TypeSMIMESigned, signedPart.GetContentType())
 	}
 	if signedPart.GetCharset() != CharsetUTF8 {
 		t.Errorf("createSignaturePart() method failed. Expected charset: %s, got: %s", CharsetUTF8, signedPart.GetCharset())
@@ -6838,8 +6838,8 @@ func TestMsg_signMessage(t *testing.T) {
 	if signaturePart.GetEncoding() != EncodingB64 {
 		t.Errorf("createSignaturePart() method failed. Expected encoding: %s, got: %s", EncodingB64, signaturePart.GetEncoding())
 	}
-	if signaturePart.GetContentType() != typeSMimeSigned {
-		t.Errorf("createSignaturePart() method failed. Expected content type: %s, got: %s", typeSMimeSigned, signaturePart.GetContentType())
+	if signaturePart.GetContentType() != TypeSMIMESigned {
+		t.Errorf("createSignaturePart() method failed. Expected content type: %s, got: %s", TypeSMIMESigned, signaturePart.GetContentType())
 	}
 	if signaturePart.GetCharset() != CharsetUTF8 {
 		t.Errorf("createSignaturePart() method failed. Expected charset: %s, got: %s", CharsetUTF8, signaturePart.GetCharset())

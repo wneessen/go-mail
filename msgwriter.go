@@ -129,7 +129,7 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 	}
 
 	if msg.hasSMime() {
-		mw.startMP(MIMESMime, msg.boundary)
+		mw.startMP(MIMESMIME, msg.boundary)
 		mw.writeString(DoubleNewLine)
 	}
 	if msg.hasMixed() {
