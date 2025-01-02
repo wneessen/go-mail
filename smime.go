@@ -39,18 +39,18 @@ func (p privateKeyHolder) get() crypto.PrivateKey {
 	return p.rsa
 }
 
-// SMime is used to sign messages with S/MIME
-type SMime struct {
+// SMIME is used to sign messages with S/MIME
+type SMIME struct {
 	privateKey              privateKeyHolder
 	certificate             *x509.Certificate
 	intermediateCertificate *x509.Certificate
 }
 
-// newSMimeWithRSA construct a new instance of SMime with provided parameters
+// newSMIMEWithRSA construct a new instance of SMIME with provided parameters
 // privateKey as *rsa.PrivateKey
 // certificate as *x509.Certificate
 // intermediateCertificate (optional) as *x509.Certificate
-func newSMimeWithRSA(privateKey *rsa.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) (*SMime, error) {
+func newSMIMEWithRSA(privateKey *rsa.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) (*SMIME, error) {
 	if privateKey == nil {
 		return nil, ErrInvalidPrivateKey
 	}
@@ -59,18 +59,18 @@ func newSMimeWithRSA(privateKey *rsa.PrivateKey, certificate *x509.Certificate, 
 		return nil, ErrInvalidCertificate
 	}
 
-	return &SMime{
+	return &SMIME{
 		privateKey:              privateKeyHolder{rsa: privateKey},
 		certificate:             certificate,
 		intermediateCertificate: intermediateCertificate,
 	}, nil
 }
 
-// newSMimeWithECDSA construct a new instance of SMime with provided parameters
+// newSMIMEWithECDSA construct a new instance of SMIME with provided parameters
 // privateKey as *ecdsa.PrivateKey
 // certificate as *x509.Certificate
 // intermediateCertificate (optional) as *x509.Certificate
-func newSMimeWithECDSA(privateKey *ecdsa.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) (*SMime, error) {
+func newSMIMEWithECDSA(privateKey *ecdsa.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) (*SMIME, error) {
 	if privateKey == nil {
 		return nil, ErrInvalidPrivateKey
 	}
@@ -79,7 +79,7 @@ func newSMimeWithECDSA(privateKey *ecdsa.PrivateKey, certificate *x509.Certifica
 		return nil, ErrInvalidCertificate
 	}
 
-	return &SMime{
+	return &SMIME{
 		privateKey:              privateKeyHolder{ecdsa: privateKey},
 		certificate:             certificate,
 		intermediateCertificate: intermediateCertificate,
@@ -87,7 +87,7 @@ func newSMimeWithECDSA(privateKey *ecdsa.PrivateKey, certificate *x509.Certifica
 }
 
 // signMessage signs the message with S/MIME
-func (sm *SMime) signMessage(message string) (*string, error) {
+func (sm *SMIME) signMessage(message string) (*string, error) {
 	lines := parseLines([]byte(message))
 	toBeSigned := lines.bytesFromLines([]byte("\r\n"))
 
@@ -120,7 +120,7 @@ func (sm *SMime) signMessage(message string) (*string, error) {
 }
 
 // createMessage prepares the message that will be used for the sign method later
-func (sm *SMime) prepareMessage(encoding Encoding, contentType ContentType, charset Charset, body []byte) (*string, error) {
+func (sm *SMIME) prepareMessage(encoding Encoding, contentType ContentType, charset Charset, body []byte) (*string, error) {
 	encodedMessage, err := sm.encodeMessage(encoding, string(body))
 	if err != nil {
 		return nil, err
@@ -130,7 +130,7 @@ func (sm *SMime) prepareMessage(encoding Encoding, contentType ContentType, char
 }
 
 // encodeMessage encodes the message with the given encoding
-func (sm *SMime) encodeMessage(encoding Encoding, message string) (*string, error) {
+func (sm *SMIME) encodeMessage(encoding Encoding, message string) (*string, error) {
 	if encoding != EncodingQP {
 		return &message, nil
 	}

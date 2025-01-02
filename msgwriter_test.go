@@ -774,7 +774,7 @@ func TestMsgWriter_writeMsg_SMime(t *testing.T) {
 	}
 
 	m := NewMsg()
-	if err := m.SignWithSMimeRSA(privateKey, certificate, intermediateCertificate); err != nil {
+	if err := m.SignWithSMIMERSA(privateKey, certificate, intermediateCertificate); err != nil {
 		t.Errorf("failed to init smime configuration")
 	}
 	_ = m.From(`"Toni Tester" <test@example.com>`)

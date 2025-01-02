@@ -8,10 +8,19 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"fmt"
 	"strings"
 	"testing"
+)
+
+const (
+	dummyCertRSAPath   = "testdata/dummy-chain-cert-rsa.pem"
+	dummyKeyRSAPath    = "testdata/dummy-child-key-rsa.pem"
+	dummyCertECDSAPath = "testdata/dummy-chain-cert-ecdsa.pem"
+	dummyKeyECDSAPath  = "testdata/dummy-child-key-ecdsa.pem"
 )
 
 func TestGet_RSA(t *testing.T) {
@@ -43,9 +52,9 @@ func TestNewSMimeWithRSA(t *testing.T) {
 		t.Errorf("Error getting dummy crypto material: %s", err)
 	}
 
-	sMime, err := newSMimeWithRSA(privateKey, certificate, intermediateCertificate)
+	sMime, err := newSMIMEWithRSA(privateKey, certificate, intermediateCertificate)
 	if err != nil {
-		t.Errorf("Error creating new SMime from keyPair: %s", err)
+		t.Errorf("Error creating new SMIME from keyPair: %s", err)
 	}
 
 	if sMime.privateKey.rsa != privateKey {
@@ -66,9 +75,9 @@ func TestNewSMimeWithECDSA(t *testing.T) {
 		t.Errorf("Error getting dummy crypto material: %s", err)
 	}
 
-	sMime, err := newSMimeWithECDSA(privateKey, certificate, intermediateCertificate)
+	sMime, err := newSMIMEWithECDSA(privateKey, certificate, intermediateCertificate)
 	if err != nil {
-		t.Errorf("Error creating new SMime from keyPair: %s", err)
+		t.Errorf("Error creating new SMIME from keyPair: %s", err)
 	}
 
 	if sMime.privateKey.ecdsa != privateKey {
@@ -89,9 +98,9 @@ func TestSign(t *testing.T) {
 		t.Errorf("Error getting dummy crypto material: %s", err)
 	}
 
-	sMime, err := newSMimeWithRSA(privateKey, certificate, intermediateCertificate)
+	sMime, err := newSMIMEWithRSA(privateKey, certificate, intermediateCertificate)
 	if err != nil {
-		t.Errorf("Error creating new SMime from keyPair: %s", err)
+		t.Errorf("Error creating new SMIME from keyPair: %s", err)
 	}
 
 	message := "This is a test message"
@@ -112,9 +121,9 @@ func TestPrepareMessage(t *testing.T) {
 		t.Errorf("Error getting dummy crypto material: %s", err)
 	}
 
-	sMime, err := newSMimeWithRSA(privateKey, certificate, intermediateCertificate)
+	sMime, err := newSMIMEWithRSA(privateKey, certificate, intermediateCertificate)
 	if err != nil {
-		t.Errorf("Error creating new SMime from keyPair: %s", err)
+		t.Errorf("Error creating new SMIME from keyPair: %s", err)
 	}
 
 	encoding := EncodingB64
@@ -147,9 +156,9 @@ func TestPrepareMessage_QuotedPrintable(t *testing.T) {
 		t.Errorf("Error getting dummy crypto material: %s", err)
 	}
 
-	sMime, err := newSMimeWithRSA(privateKey, certificate, intermediateCertificate)
+	sMime, err := newSMIMEWithRSA(privateKey, certificate, intermediateCertificate)
 	if err != nil {
-		t.Errorf("Error creating new SMime from keyPair: %s", err)
+		t.Errorf("Error creating new SMIME from keyPair: %s", err)
 	}
 
 	body := "This is the body with special chars like äöü ÄÖÜ ß!"
@@ -186,9 +195,9 @@ func TestEncodeMessage(t *testing.T) {
 		t.Errorf("Error getting dummy crypto material: %s", err)
 	}
 
-	sMime, err := newSMimeWithRSA(privateKey, certificate, intermediateCertificate)
+	sMime, err := newSMIMEWithRSA(privateKey, certificate, intermediateCertificate)
 	if err != nil {
-		t.Errorf("Error creating new SMime from keyPair: %s", err)
+		t.Errorf("Error creating new SMIME from keyPair: %s", err)
 	}
 
 	result, err := sMime.encodeMessage(encoding, body)
@@ -212,9 +221,9 @@ func TestEncodeMessage_QuotedPrintable(t *testing.T) {
 		t.Errorf("Error getting dummy crypto material: %s", err)
 	}
 
-	sMime, err := newSMimeWithRSA(privateKey, certificate, intermediateCertificate)
+	sMime, err := newSMIMEWithRSA(privateKey, certificate, intermediateCertificate)
 	if err != nil {
-		t.Errorf("Error creating new SMime from keyPair: %s", err)
+		t.Errorf("Error creating new SMIME from keyPair: %s", err)
 	}
 
 	result, err := sMime.encodeMessage(encoding, body)
@@ -331,4 +340,59 @@ func FuzzSplitLine(f *testing.F) {
 		}
 		_ = ls.splitLine(sep)
 	})
+}
+
+// getDummyRSACryptoMaterial loads a certificate (RSA), the associated private key and certificate (RSA) is loaded
+// from local disk for testing purposes
+func getDummyRSACryptoMaterial() (*rsa.PrivateKey, *x509.Certificate, *x509.Certificate, error) {
+	keyPair, err := tls.LoadX509KeyPair(dummyCertRSAPath, dummyKeyRSAPath)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	privateKey := keyPair.PrivateKey.(*rsa.PrivateKey)
+
+	certificate, err := x509.ParseCertificate(keyPair.Certificate[0])
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	intermediateCertificate, err := x509.ParseCertificate(keyPair.Certificate[1])
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return privateKey, certificate, intermediateCertificate, nil
+}
+
+// getDummyECDSACryptoMaterial loads a certificate (ECDSA), the associated private key and certificate (ECDSA) is
+// loaded from local disk for testing purposes
+func getDummyECDSACryptoMaterial() (*ecdsa.PrivateKey, *x509.Certificate, *x509.Certificate, error) {
+	keyPair, err := tls.LoadX509KeyPair(dummyCertECDSAPath, dummyKeyECDSAPath)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	privateKey := keyPair.PrivateKey.(*ecdsa.PrivateKey)
+
+	certificate, err := x509.ParseCertificate(keyPair.Certificate[0])
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	intermediateCertificate, err := x509.ParseCertificate(keyPair.Certificate[1])
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return privateKey, certificate, intermediateCertificate, nil
+}
+
+// getDummyKeyPairTLS loads a certificate (ECDSA) as *tls.Certificate, the associated private key and certificate (ECDSA) is loaded from local disk for testing purposes
+func getDummyKeyPairTLS() (*tls.Certificate, error) {
+	keyPair, err := tls.LoadX509KeyPair(dummyCertECDSAPath, dummyKeyECDSAPath)
+	if err != nil {
+		return nil, err
+	}
+	return &keyPair, err
 }
