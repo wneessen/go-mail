@@ -1,4 +1,14 @@
-// SPDX-FileCopyrightText: 2022-2023 The go-mail Authors
+// SPDX-FileCopyrightText: Copyright (c) 2015 Andrew Smith
+// SPDX-FileCopyrightText: Copyright (c) 2017-2024 The mozilla services project (https://github.com/mozilla-services)
+// SPDX-FileCopyrightText: Copyright (c) 2024-2025 The go-mail Authors
+//
+// Partially forked from https://github.com/mozilla-services/pkcs7, which in turn is also a fork
+// of https://github.com/fullsailor/pkcs7.
+// Use of the forked source code is, same as go-mail, governed by a MIT license.
+//
+// go-mail specific modifications by the go-mail Authors.
+// Licensed under the MIT License.
+// See [PROJECT ROOT]/LICENSES directory for more information.
 //
 // SPDX-License-Identifier: MIT
 
@@ -10,6 +20,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/rsa"
+	_ "crypto/sha256" // for crypto.SHA256
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -18,8 +29,6 @@ import (
 	"math/big"
 	"sort"
 	"time"
-
-	_ "crypto/sha256" // for crypto.SHA256
 )
 
 var (

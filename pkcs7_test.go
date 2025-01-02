@@ -1,19 +1,28 @@
-// SPDX-FileCopyrightText: 2022-2023 The go-mail Authors
+// SPDX-FileCopyrightText: Copyright (c) 2015 Andrew Smith
+// SPDX-FileCopyrightText: Copyright (c) 2017-2024 The mozilla services project (https://github.com/mozilla-services)
+// SPDX-FileCopyrightText: Copyright (c) 2024-2025 The go-mail Authors
+//
+// Partially forked from https://github.com/mozilla-services/pkcs7, which in turn is also a fork
+// of https://github.com/fullsailor/pkcs7.
+// Use of the forked source code is, same as go-mail, governed by a MIT license.
+//
+// go-mail specific modifications by the go-mail Authors.
+// Licensed under the MIT License.
+// See [PROJECT ROOT]/LICENSES directory for more information.
 //
 // SPDX-License-Identifier: MIT
 
 package mail
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"fmt"
 	"math/big"
-	"os"
 	"testing"
 	"time"
 )
@@ -26,54 +35,55 @@ func TestSign_E2E(t *testing.T) {
 	}
 	content := []byte("Hello World")
 	for _, testDetach := range []bool{false, true} {
-		toBeSigned, err := newSignedData(content)
-		if err != nil {
+		toBeSigned, serr := newSignedData(content)
+		if serr != nil {
 			t.Fatalf("Cannot initialize signed data: %s", err)
 		}
-		if err := toBeSigned.addSigner(cert.Certificate, cert.PrivateKey, SignerInfoConfig{}); err != nil {
+		if serr = toBeSigned.addSigner(cert.Certificate, cert.PrivateKey, SignerInfoConfig{}); serr != nil {
 			t.Fatalf("Cannot add signer: %s", err)
 		}
 		if testDetach {
-			t.Log("Testing detached signature")
 			toBeSigned.detach()
 		} else {
-			t.Log("Testing attached signature")
 		}
-		signed, err := toBeSigned.finish()
-		if err != nil {
+		signed, serr := toBeSigned.finish()
+		if serr != nil {
 			t.Fatalf("Cannot finish signing data: %s", err)
 		}
-		if err := pem.Encode(os.Stdout, &pem.Block{Type: "PKCS7", Bytes: signed}); err != nil {
+		buf := bytes.NewBuffer(nil)
+		if serr = pem.Encode(buf, &pem.Block{Type: "PKCS7", Bytes: signed}); serr != nil {
 			t.Fatalf("Cannot write signed data: %s", err)
 		}
 	}
 }
 
+// certKeyPair represents a pair of an x509 certificate and its corresponding RSA private key.
 type certKeyPair struct {
 	Certificate *x509.Certificate
 	PrivateKey  *rsa.PrivateKey
 }
 
+// createTestCertificate generates a test certificate and private key pair.
 func createTestCertificate() (*certKeyPair, error) {
+	buf := bytes.NewBuffer(nil)
 	signer, err := createTestCertificateByIssuer("Eddard Stark", nil)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("Created root cert")
-	if err := pem.Encode(os.Stdout, &pem.Block{Type: "CERTIFICATE", Bytes: signer.Certificate.Raw}); err != nil {
+	if err = pem.Encode(buf, &pem.Block{Type: "CERTIFICATE", Bytes: signer.Certificate.Raw}); err != nil {
 		return nil, err
 	}
 	pair, err := createTestCertificateByIssuer("Jon Snow", signer)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("Created signer cert")
-	if err := pem.Encode(os.Stdout, &pem.Block{Type: "CERTIFICATE", Bytes: pair.Certificate.Raw}); err != nil {
+	if err = pem.Encode(buf, &pem.Block{Type: "CERTIFICATE", Bytes: pair.Certificate.Raw}); err != nil {
 		return nil, err
 	}
 	return pair, nil
 }
 
+// createTestCertificateByIssuer generates a certificate and private key pair, optionally signed by an issuer.
 func createTestCertificateByIssuer(name string, issuer *certKeyPair) (*certKeyPair, error) {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
