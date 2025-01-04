@@ -14,7 +14,6 @@ import (
 	"errors"
 	"fmt"
 	"mime/quotedprintable"
-	"strings"
 
 	"github.com/wneessen/go-mail/internal/pkcs7"
 )
@@ -46,6 +45,7 @@ type SMIME struct {
 	privateKey              privateKeyHolder
 	certificate             *x509.Certificate
 	intermediateCertificate *x509.Certificate
+	isSigned                bool
 }
 
 // newSMIMEWithRSA construct a new instance of SMIME with provided parameters
@@ -89,17 +89,15 @@ func newSMIMEWithECDSA(privateKey *ecdsa.PrivateKey, certificate *x509.Certifica
 }
 
 // signMessage signs the message with S/MIME
-func (sm *SMIME) signMessage(message string) (*string, error) {
-	lines := parseLines([]byte(message))
-	toBeSigned := lines.bytesFromLines([]byte("\r\n"))
-
-	signedData, err := pkcs7.NewSignedData(toBeSigned)
+func (sm *SMIME) signMessage(message string) (string, error) {
+	toBeSigned := bytes.NewBufferString(message)
+	signedData, err := pkcs7.NewSignedData(toBeSigned.Bytes())
 	if err != nil || signedData == nil {
-		return nil, fmt.Errorf("could not initialize signed data: %w", err)
+		return "", fmt.Errorf("failed to initialize signed data: %w", err)
 	}
 
 	if err = signedData.AddSigner(sm.certificate, sm.privateKey.get(), pkcs7.SignerInfoConfig{}); err != nil {
-		return nil, fmt.Errorf("could not add signer message: %w", err)
+		return "", fmt.Errorf("could not add signer message: %w", err)
 	}
 
 	if sm.intermediateCertificate != nil {
@@ -110,110 +108,54 @@ func (sm *SMIME) signMessage(message string) (*string, error) {
 
 	signatureDER, err := signedData.Finish()
 	if err != nil {
-		return nil, fmt.Errorf("could not finish signing: %w", err)
+		return "", fmt.Errorf("failed to finish signature: %w", err)
 	}
 
 	pemMsg, err := encodeToPEM(signatureDER)
 	if err != nil {
-		return nil, fmt.Errorf("could not encode to PEM: %w", err)
+		return "", fmt.Errorf("could not encode to PEM: %w", err)
 	}
 
 	return pemMsg, nil
 }
 
-// createMessage prepares the message that will be used for the sign method later
+// prepareMessage prepares the message that will be used for the sign method later
 func (sm *SMIME) prepareMessage(encoding Encoding, contentType ContentType, charset Charset, body []byte) (*string, error) {
 	encodedMessage, err := sm.encodeMessage(encoding, string(body))
 	if err != nil {
 		return nil, err
 	}
-	preparedMessage := fmt.Sprintf("Content-Transfer-Encoding: %v\r\nContent-Type: %v; charset=%v\r\n\r\n%v", encoding, contentType, charset, *encodedMessage)
+	preparedMessage := fmt.Sprintf("Content-Transfer-Encoding: %s\r\nContent-Type: %s; charset=%s\r\n\r\n%s",
+		encoding, contentType, charset, encodedMessage)
 	return &preparedMessage, nil
 }
 
 // encodeMessage encodes the message with the given encoding
-func (sm *SMIME) encodeMessage(encoding Encoding, message string) (*string, error) {
+func (sm *SMIME) encodeMessage(encoding Encoding, message string) (string, error) {
 	if encoding != EncodingQP {
-		return &message, nil
+		return message, nil
 	}
 
-	buffer := bytes.Buffer{}
-	writer := quotedprintable.NewWriter(&buffer)
+	buffer := bytes.NewBuffer(nil)
+	writer := quotedprintable.NewWriter(buffer)
 	if _, err := writer.Write([]byte(message)); err != nil {
-		return nil, err
+		return "", err
 	}
 	if err := writer.Close(); err != nil {
-		return nil, err
+		return "", err
 	}
 	encodedMessage := buffer.String()
-
-	return &encodedMessage, nil
+	return encodedMessage, nil
 }
 
 // encodeToPEM uses the method pem.Encode from the standard library but cuts the typical PEM preamble
-func encodeToPEM(msg []byte) (*string, error) {
+func encodeToPEM(msg []byte) (string, error) {
 	block := &pem.Block{Bytes: msg}
 
-	var arrayBuffer bytes.Buffer
-	if err := pem.Encode(&arrayBuffer, block); err != nil {
-		return nil, err
+	buf := bytes.NewBuffer(nil)
+	if err := pem.Encode(buf, block); err != nil {
+		return "", err
 	}
 
-	r := arrayBuffer.String()
-	r = strings.TrimPrefix(r, "-----BEGIN -----")
-	r = strings.Trim(r, "\n")
-	r = strings.TrimSuffix(r, "-----END -----")
-	r = strings.Trim(r, "\n")
-
-	return &r, nil
-}
-
-// line is the representation of one line of the message that will be used for signing purposes
-type line struct {
-	line      []byte
-	endOfLine []byte
-}
-
-// lines is the representation of a message that will be used for signing purposes
-type lines []line
-
-// bytesFromLines creates the line representation with the given endOfLine char
-func (ls lines) bytesFromLines(sep []byte) []byte {
-	var raw []byte
-	for i := range ls {
-		raw = append(raw, ls[i].line...)
-		if len(ls[i].endOfLine) != 0 && sep != nil {
-			raw = append(raw, sep...)
-		} else {
-			raw = append(raw, ls[i].endOfLine...)
-		}
-	}
-	return raw
-}
-
-// parseLines constructs the lines representation of a given message
-func parseLines(raw []byte) lines {
-	oneLine := line{raw, nil}
-	lines := lines{oneLine}
-	lines = lines.splitLine([]byte("\r\n"))
-	lines = lines.splitLine([]byte("\r"))
-	lines = lines.splitLine([]byte("\n"))
-	return lines
-}
-
-// splitLine uses the given endOfLine to split the given line
-func (ls lines) splitLine(sep []byte) lines {
-	nl := lines{}
-	for _, l := range ls {
-		split := bytes.Split(l.line, sep)
-		if len(split) > 1 {
-			for i := 0; i < len(split)-1; i++ {
-				nl = append(nl, line{split[i], sep})
-			}
-			nl = append(nl, line{split[len(split)-1], l.endOfLine})
-		} else {
-			nl = append(nl, l)
-		}
-	}
-	return nl
+	return buf.String()[17 : buf.Len()-16], nil
 }
