@@ -7,7 +7,6 @@ package mail
 import (
 	"bytes"
 	"crypto"
-	"crypto/ecdsa"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
@@ -38,25 +37,6 @@ type SMIME struct {
 // certificate as *x509.Certificate
 // intermediateCertificate (optional) as *x509.Certificate
 func newSMIME(privateKey crypto.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) (*SMIME, error) {
-	if privateKey == nil {
-		return nil, ErrPrivateKeyMissing
-	}
-	if certificate == nil {
-		return nil, ErrCertificateMissing
-	}
-
-	return &SMIME{
-		privateKey:              privateKey,
-		certificate:             certificate,
-		intermediateCertificate: intermediateCertificate,
-	}, nil
-}
-
-// newSMIMEWithECDSA construct a new instance of SMIME with provided parameters
-// privateKey as *ecdsa.PrivateKey
-// certificate as *x509.Certificate
-// intermediateCertificate (optional) as *x509.Certificate
-func newSMIMEWithECDSA(privateKey *ecdsa.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) (*SMIME, error) {
 	if privateKey == nil {
 		return nil, ErrPrivateKeyMissing
 	}
@@ -114,7 +94,7 @@ func (s *SMIME) prepareMessage(encoding Encoding, contentType ContentType, chars
 }
 
 // encodeMessage encodes the message with the given encoding
-func (sm *SMIME) encodeMessage(encoding Encoding, message []byte) (string, error) {
+func (s *SMIME) encodeMessage(encoding Encoding, message []byte) (string, error) {
 	if encoding != EncodingQP {
 		return string(message), nil
 	}
