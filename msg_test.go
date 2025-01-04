@@ -6407,7 +6407,7 @@ func TestMsg_hasAltWithSMime(t *testing.T) {
 	m := NewMsg()
 	m.SetBodyString(TypeTextPlain, "Plain")
 	m.AddAlternativeString(TypeTextHTML, "<b>HTML</b>")
-	if err := m.SignWithSMIMERSA(privateKey, certificate, intermediateCertificate); err != nil {
+	if err := m.SignWithKeypair(privateKey, certificate, intermediateCertificate); err != nil {
 		t.Errorf("failed to init smime configuration")
 	}
 	if m.hasAlt() {
@@ -6422,7 +6422,7 @@ func TestMsg_hasSMime(t *testing.T) {
 		t.Fatalf("failed to load dummy crypto material: %s", err)
 	}
 	m := NewMsg()
-	if err := m.SignWithSMIMERSA(privateKey, certificate, intermediateCertificate); err != nil {
+	if err := m.SignWithKeypair(privateKey, certificate, intermediateCertificate); err != nil {
 		t.Errorf("failed to init smime configuration")
 	}
 	m.SetBodyString(TypeTextPlain, "Plain")
@@ -6517,7 +6517,7 @@ func TestMsg_WriteToWithSMIME(t *testing.T) {
 	m := NewMsg()
 	m.Subject("This is a test")
 	m.SetBodyString(TypeTextPlain, "Plain")
-	if err := m.SignWithSMIMERSA(privateKey, certificate, intermediateCertificate); err != nil {
+	if err := m.SignWithKeypair(privateKey, certificate, intermediateCertificate); err != nil {
 		t.Errorf("failed to init smime configuration")
 	}
 
@@ -6674,10 +6674,10 @@ func TestSignWithSMime_ValidRSAKeyPair(t *testing.T) {
 		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
 	}
 	m := NewMsg()
-	if err := m.SignWithSMIMERSA(privateKey, certificate, intermediateCertificate); err != nil {
+	if err := m.SignWithKeypair(privateKey, certificate, intermediateCertificate); err != nil {
 		t.Errorf("failed to set sMIME. Cause: %v", err)
 	}
-	if m.sMIME.privateKey.rsa == nil {
+	if m.sMIME.privateKey == nil {
 		t.Errorf("WithSMIMESigning() - no private key is given")
 	}
 	if m.sMIME.certificate == nil {
@@ -6692,10 +6692,10 @@ func TestSignWithSMime_ValidECDSAKeyPair(t *testing.T) {
 		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
 	}
 	m := NewMsg()
-	if err := m.SignWithSMIMEECDSA(privateKey, certificate, intermediateCertificate); err != nil {
+	if err := m.SignWithKeypair(privateKey, certificate, intermediateCertificate); err != nil {
 		t.Errorf("failed to set sMIME. Cause: %v", err)
 	}
-	if m.sMIME.privateKey.ecdsa == nil {
+	if m.sMIME.privateKey == nil {
 		t.Errorf("WithSMIMESigning() - no private key is given")
 	}
 	if m.sMIME.certificate == nil {
@@ -6713,7 +6713,7 @@ func TestSignWithTLSCertificate(t *testing.T) {
 	if err := m.SignWithTLSCertificate(keyPairTLS); err != nil {
 		t.Errorf("failed to set sMIME. Cause: %v", err)
 	}
-	if m.sMIME.privateKey.ecdsa == nil {
+	if m.sMIME.privateKey == nil {
 		t.Errorf("SignWithTLSCertificate() - no private key is given")
 	}
 	if m.sMIME.certificate == nil {
@@ -6736,7 +6736,7 @@ func TestSignWithTLSCertificate_WithKeyPairLeafNil(t *testing.T) {
 	if err := m.SignWithTLSCertificate(keyPairTLS); err != nil {
 		t.Errorf("failed to set sMIME. Cause: %v", err)
 	}
-	if m.sMIME.privateKey.ecdsa == nil {
+	if m.sMIME.privateKey == nil {
 		t.Errorf("SignWithTLSCertificate() - no private key is given")
 	}
 	if m.sMIME.certificate == nil {
@@ -6748,7 +6748,7 @@ func TestSignWithTLSCertificate_WithKeyPairLeafNil(t *testing.T) {
 func TestSignWithSMime_InvalidPrivateKey(t *testing.T) {
 	m := NewMsg()
 
-	err := m.SignWithSMIMERSA(nil, nil, nil)
+	err := m.SignWithKeypair(nil, nil, nil)
 	if !errors.Is(err, ErrPrivateKeyMissing) {
 		t.Errorf("failed to pre-check SignWithSMime method values correctly: %s", err)
 	}
@@ -6762,7 +6762,7 @@ func TestSignWithSMime_InvalidCertificate(t *testing.T) {
 	}
 	m := NewMsg()
 
-	err = m.SignWithSMIMERSA(privateKey, nil, nil)
+	err = m.SignWithKeypair(privateKey, nil, nil)
 	if !errors.Is(err, ErrCertificateMissing) {
 		t.Errorf("failed to pre-check SignWithSMime method values correctly: %s", err)
 	}
@@ -6775,7 +6775,7 @@ func TestMsg_createSignaturePart(t *testing.T) {
 		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
 	}
 	m := NewMsg()
-	if err = m.SignWithSMIMERSA(privateKey, certificate, intermediateCertificate); err != nil {
+	if err = m.SignWithKeypair(privateKey, certificate, intermediateCertificate); err != nil {
 		t.Errorf("failed to init smime configuration")
 	}
 	body := []byte("This is the body")
@@ -6817,7 +6817,7 @@ func TestMsg_signMessage(t *testing.T) {
 	body := []byte("This is the body")
 	m := NewMsg()
 	m.SetBodyString(TypeTextPlain, string(body))
-	if err := m.SignWithSMIMERSA(privateKey, certificate, intermediateCertificate); err != nil {
+	if err := m.SignWithKeypair(privateKey, certificate, intermediateCertificate); err != nil {
 		t.Errorf("failed to init smime configuration")
 	}
 	msg, err := m.signMessage(m)

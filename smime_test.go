@@ -5,6 +5,7 @@
 package mail
 
 import (
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/tls"
@@ -22,71 +23,37 @@ const (
 	dummyKeyECDSAPath  = "testdata/dummy-child-key-ecdsa.pem"
 )
 
-func TestGet_RSA(t *testing.T) {
-	p := privateKeyHolder{
-		ecdsa: nil,
-		rsa:   &rsa.PrivateKey{},
-	}
-
-	if p.get() == nil {
-		t.Errorf("get() did not return the correct private key")
-	}
-}
-
-func TestGet_ECDSA(t *testing.T) {
-	p := privateKeyHolder{
-		ecdsa: &ecdsa.PrivateKey{},
-		rsa:   nil,
-	}
-
-	if p.get() == nil {
-		t.Errorf("get() did not return the correct private key")
-	}
-}
-
 // TestNewSMimeWithRSA tests the newSMime method with RSA crypto material
-func TestNewSMimeWithRSA(t *testing.T) {
-	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
-	if err != nil {
-		t.Errorf("Error getting dummy crypto material: %s", err)
+func TestNewSMIME(t *testing.T) {
+	tests := []struct {
+		name     string
+		certFunc func() (crypto.PrivateKey, *x509.Certificate, *x509.Certificate, error)
+	}{
+		{"RSA", getDummyRSACryptoMaterial},
+		{"ECDSA", getDummyECDSACryptoMaterial},
 	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			privateKey, certificate, intermediateCertificate, err := tt.certFunc()
+			if err != nil {
+				t.Errorf("Error getting dummy crypto material: %s", err)
+			}
 
-	sMime, err := newSMIMEWithRSA(privateKey, certificate, intermediateCertificate)
-	if err != nil {
-		t.Errorf("Error creating new SMIME from keyPair: %s", err)
-	}
+			sMime, err := newSMIME(privateKey, certificate, intermediateCertificate)
+			if err != nil {
+				t.Errorf("Error creating new SMIME from keyPair: %s", err)
+			}
 
-	if sMime.privateKey.rsa != privateKey {
-		t.Errorf("NewSMime() did not return the same private key")
-	}
-	if sMime.certificate != certificate {
-		t.Errorf("NewSMime() did not return the same certificate")
-	}
-	if sMime.intermediateCertificate != intermediateCertificate {
-		t.Errorf("NewSMime() did not return the same intermedidate certificate")
-	}
-}
-
-// TestNewSMimeWithECDSA tests the newSMime method with ECDSA crypto material
-func TestNewSMimeWithECDSA(t *testing.T) {
-	privateKey, certificate, intermediateCertificate, err := getDummyECDSACryptoMaterial()
-	if err != nil {
-		t.Errorf("Error getting dummy crypto material: %s", err)
-	}
-
-	sMime, err := newSMIMEWithECDSA(privateKey, certificate, intermediateCertificate)
-	if err != nil {
-		t.Errorf("Error creating new SMIME from keyPair: %s", err)
-	}
-
-	if sMime.privateKey.ecdsa != privateKey {
-		t.Errorf("NewSMime() did not return the same private key")
-	}
-	if sMime.certificate != certificate {
-		t.Errorf("NewSMime() did not return the same certificate")
-	}
-	if sMime.intermediateCertificate != intermediateCertificate {
-		t.Errorf("NewSMime() did not return the same intermedidate certificate")
+			if sMime.privateKey != privateKey {
+				t.Errorf("NewSMime() did not return the same private key")
+			}
+			if sMime.certificate != certificate {
+				t.Errorf("NewSMime() did not return the same certificate")
+			}
+			if sMime.intermediateCertificate != intermediateCertificate {
+				t.Errorf("NewSMime() did not return the same intermedidate certificate")
+			}
+		})
 	}
 }
 
@@ -97,7 +64,7 @@ func TestSign(t *testing.T) {
 		t.Errorf("Error getting dummy crypto material: %s", err)
 	}
 
-	sMime, err := newSMIMEWithRSA(privateKey, certificate, intermediateCertificate)
+	sMime, err := newSMIME(privateKey, certificate, intermediateCertificate)
 	if err != nil {
 		t.Errorf("Error creating new SMIME from keyPair: %s", err)
 	}
@@ -120,7 +87,7 @@ func TestPrepareMessage(t *testing.T) {
 		t.Errorf("Error getting dummy crypto material: %s", err)
 	}
 
-	sMime, err := newSMIMEWithRSA(privateKey, certificate, intermediateCertificate)
+	sMime, err := newSMIME(privateKey, certificate, intermediateCertificate)
 	if err != nil {
 		t.Errorf("Error creating new SMIME from keyPair: %s", err)
 	}
@@ -134,16 +101,16 @@ func TestPrepareMessage(t *testing.T) {
 		t.Errorf("Error preparing message: %s", err)
 	}
 
-	if !strings.Contains(*result, encoding.String()) {
+	if !strings.Contains(result, encoding.String()) {
 		t.Errorf("prepareMessage() did not return the correct encoding")
 	}
-	if !strings.Contains(*result, contentType.String()) {
+	if !strings.Contains(result, contentType.String()) {
 		t.Errorf("prepareMessage() did not return the correct contentType")
 	}
-	if !strings.Contains(*result, string(body)) {
+	if !strings.Contains(result, string(body)) {
 		t.Errorf("prepareMessage() did not return the correct body")
 	}
-	if *result != fmt.Sprintf("Content-Transfer-Encoding: %s\r\nContent-Type: %s; charset=%s\r\n\r\n%s", encoding, contentType, charset, string(body)) {
+	if result != fmt.Sprintf("Content-Transfer-Encoding: %s\r\nContent-Type: %s; charset=%s\r\n\r\n%s", encoding, contentType, charset, string(body)) {
 		t.Errorf("prepareMessage() did not sucessfully create the message")
 	}
 }
@@ -155,7 +122,7 @@ func TestPrepareMessage_QuotedPrintable(t *testing.T) {
 		t.Errorf("Error getting dummy crypto material: %s", err)
 	}
 
-	sMime, err := newSMIMEWithRSA(privateKey, certificate, intermediateCertificate)
+	sMime, err := newSMIME(privateKey, certificate, intermediateCertificate)
 	if err != nil {
 		t.Errorf("Error creating new SMIME from keyPair: %s", err)
 	}
@@ -170,16 +137,16 @@ func TestPrepareMessage_QuotedPrintable(t *testing.T) {
 		t.Errorf("Error preparing message: %s", err)
 	}
 
-	if !strings.Contains(*result, encoding.String()) {
+	if !strings.Contains(result, encoding.String()) {
 		t.Errorf("prepareMessage() did not return the correct encoding")
 	}
-	if !strings.Contains(*result, contentType.String()) {
+	if !strings.Contains(result, contentType.String()) {
 		t.Errorf("prepareMessage() did not return the correct contentType")
 	}
-	if !strings.Contains(*result, quotedPrintableBody) {
+	if !strings.Contains(result, quotedPrintableBody) {
 		t.Errorf("prepareMessage() did not return the correct body")
 	}
-	if *result != fmt.Sprintf("Content-Transfer-Encoding: %s\r\nContent-Type: %s; charset=%s\r\n\r\n%s", encoding, contentType, charset, quotedPrintableBody) {
+	if result != fmt.Sprintf("Content-Transfer-Encoding: %s\r\nContent-Type: %s; charset=%s\r\n\r\n%s", encoding, contentType, charset, quotedPrintableBody) {
 		t.Errorf("prepareMessage() did not sucessfully create the message")
 	}
 }
@@ -194,12 +161,12 @@ func TestEncodeMessage(t *testing.T) {
 		t.Errorf("Error getting dummy crypto material: %s", err)
 	}
 
-	sMime, err := newSMIMEWithRSA(privateKey, certificate, intermediateCertificate)
+	sMime, err := newSMIME(privateKey, certificate, intermediateCertificate)
 	if err != nil {
 		t.Errorf("Error creating new SMIME from keyPair: %s", err)
 	}
 
-	result, err := sMime.encodeMessage(encoding, body)
+	result, err := sMime.encodeMessage(encoding, []byte(body))
 	if err != nil {
 		t.Errorf("Error preparing message: %s", err)
 	}
@@ -220,12 +187,12 @@ func TestEncodeMessage_QuotedPrintable(t *testing.T) {
 		t.Errorf("Error getting dummy crypto material: %s", err)
 	}
 
-	sMime, err := newSMIMEWithRSA(privateKey, certificate, intermediateCertificate)
+	sMime, err := newSMIME(privateKey, certificate, intermediateCertificate)
 	if err != nil {
 		t.Errorf("Error creating new SMIME from keyPair: %s", err)
 	}
 
-	result, err := sMime.encodeMessage(encoding, body)
+	result, err := sMime.encodeMessage(encoding, []byte(body))
 	if err != nil {
 		t.Errorf("Error preparing message: %s", err)
 	}
@@ -252,7 +219,7 @@ func TestEncodeToPEM(t *testing.T) {
 
 // getDummyRSACryptoMaterial loads a certificate (RSA), the associated private key and certificate (RSA) is loaded
 // from local disk for testing purposes
-func getDummyRSACryptoMaterial() (*rsa.PrivateKey, *x509.Certificate, *x509.Certificate, error) {
+func getDummyRSACryptoMaterial() (crypto.PrivateKey, *x509.Certificate, *x509.Certificate, error) {
 	keyPair, err := tls.LoadX509KeyPair(dummyCertRSAPath, dummyKeyRSAPath)
 	if err != nil {
 		return nil, nil, nil, err
@@ -275,7 +242,7 @@ func getDummyRSACryptoMaterial() (*rsa.PrivateKey, *x509.Certificate, *x509.Cert
 
 // getDummyECDSACryptoMaterial loads a certificate (ECDSA), the associated private key and certificate (ECDSA) is
 // loaded from local disk for testing purposes
-func getDummyECDSACryptoMaterial() (*ecdsa.PrivateKey, *x509.Certificate, *x509.Certificate, error) {
+func getDummyECDSACryptoMaterial() (crypto.PrivateKey, *x509.Certificate, *x509.Certificate, error) {
 	keyPair, err := tls.LoadX509KeyPair(dummyCertECDSAPath, dummyKeyECDSAPath)
 	if err != nil {
 		return nil, nil, nil, err
