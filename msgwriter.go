@@ -451,8 +451,8 @@ func (mw *msgWriter) writeHeader(key Header, values ...string) {
 // Parameters:
 //   - writeFunc: A function that writes the body content to the given io.Writer.
 //   - encoding: The encoding type to use when writing the content (e.g., base64, quoted-printable).
-//   - singingWithSMime: Whether the msg should be signed with S/MIME or not.
-func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encoding Encoding, SMIMEsigned bool) {
+//   - signSMIME: Whether the msg should be signed with S/MIME.
+func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encoding Encoding, signSMIME bool) {
 	var writer io.Writer
 	var encodedWriter io.WriteCloser
 	var n int64
@@ -467,7 +467,8 @@ func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encodin
 	lineBreaker := Base64LineBreaker{}
 	lineBreaker.out = &writeBuffer
 
-	if SMIMEsigned {
+	// the S/MIME part is already Base64 encoded, we don't want to double-encode
+	if signSMIME {
 		encoding = NoEncoding
 	}
 
