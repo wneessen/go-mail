@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/ecdsa"
-	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
@@ -19,30 +18,16 @@ import (
 )
 
 var (
-	// ErrInvalidPrivateKey should be used if private key is invalid
-	ErrInvalidPrivateKey = errors.New("invalid private key")
+	// ErrPrivateKeyMissing should be used if private key is invalid
+	ErrPrivateKeyMissing = errors.New("private key is missing")
 
-	// ErrInvalidCertificate should be used if the certificate is invalid
-	ErrInvalidCertificate = errors.New("invalid certificate")
+	// ErrCertificateMissing should be used if the certificate is invalid
+	ErrCertificateMissing = errors.New("certificate is missing")
 )
-
-// privateKeyHolder is the representation of a private key
-type privateKeyHolder struct {
-	ecdsa *ecdsa.PrivateKey
-	rsa   *rsa.PrivateKey
-}
-
-// get returns the private key of the privateKeyHolder
-func (p privateKeyHolder) get() crypto.PrivateKey {
-	if p.ecdsa != nil {
-		return p.ecdsa
-	}
-	return p.rsa
-}
 
 // SMIME is used to sign messages with S/MIME
 type SMIME struct {
-	privateKey              privateKeyHolder
+	privateKey              crypto.PrivateKey
 	certificate             *x509.Certificate
 	intermediateCertificate *x509.Certificate
 	isSigned                bool
@@ -52,17 +37,16 @@ type SMIME struct {
 // privateKey as *rsa.PrivateKey
 // certificate as *x509.Certificate
 // intermediateCertificate (optional) as *x509.Certificate
-func newSMIMEWithRSA(privateKey *rsa.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) (*SMIME, error) {
+func newSMIME(privateKey crypto.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) (*SMIME, error) {
 	if privateKey == nil {
-		return nil, ErrInvalidPrivateKey
+		return nil, ErrPrivateKeyMissing
 	}
-
 	if certificate == nil {
-		return nil, ErrInvalidCertificate
+		return nil, ErrCertificateMissing
 	}
 
 	return &SMIME{
-		privateKey:              privateKeyHolder{rsa: privateKey},
+		privateKey:              privateKey,
 		certificate:             certificate,
 		intermediateCertificate: intermediateCertificate,
 	}, nil
@@ -74,34 +58,33 @@ func newSMIMEWithRSA(privateKey *rsa.PrivateKey, certificate *x509.Certificate, 
 // intermediateCertificate (optional) as *x509.Certificate
 func newSMIMEWithECDSA(privateKey *ecdsa.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) (*SMIME, error) {
 	if privateKey == nil {
-		return nil, ErrInvalidPrivateKey
+		return nil, ErrPrivateKeyMissing
 	}
-
 	if certificate == nil {
-		return nil, ErrInvalidCertificate
+		return nil, ErrCertificateMissing
 	}
 
 	return &SMIME{
-		privateKey:              privateKeyHolder{ecdsa: privateKey},
+		privateKey:              privateKey,
 		certificate:             certificate,
 		intermediateCertificate: intermediateCertificate,
 	}, nil
 }
 
 // signMessage signs the message with S/MIME
-func (sm *SMIME) signMessage(message string) (string, error) {
+func (s *SMIME) signMessage(message string) (string, error) {
 	toBeSigned := bytes.NewBufferString(message)
 	signedData, err := pkcs7.NewSignedData(toBeSigned.Bytes())
 	if err != nil || signedData == nil {
 		return "", fmt.Errorf("failed to initialize signed data: %w", err)
 	}
 
-	if err = signedData.AddSigner(sm.certificate, sm.privateKey.get(), pkcs7.SignerInfoConfig{}); err != nil {
+	if err = signedData.AddSigner(s.certificate, s.privateKey, pkcs7.SignerInfoConfig{}); err != nil {
 		return "", fmt.Errorf("could not add signer message: %w", err)
 	}
 
-	if sm.intermediateCertificate != nil {
-		signedData.AddCertificate(sm.intermediateCertificate)
+	if s.intermediateCertificate != nil {
+		signedData.AddCertificate(s.intermediateCertificate)
 	}
 
 	signedData.Detach()
@@ -120,25 +103,25 @@ func (sm *SMIME) signMessage(message string) (string, error) {
 }
 
 // prepareMessage prepares the message that will be used for the sign method later
-func (sm *SMIME) prepareMessage(encoding Encoding, contentType ContentType, charset Charset, body []byte) (*string, error) {
-	encodedMessage, err := sm.encodeMessage(encoding, string(body))
+func (s *SMIME) prepareMessage(encoding Encoding, contentType ContentType, charset Charset, body []byte) (string, error) {
+	encodedMessage, err := s.encodeMessage(encoding, body)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	preparedMessage := fmt.Sprintf("Content-Transfer-Encoding: %s\r\nContent-Type: %s; charset=%s\r\n\r\n%s",
 		encoding, contentType, charset, encodedMessage)
-	return &preparedMessage, nil
+	return preparedMessage, nil
 }
 
 // encodeMessage encodes the message with the given encoding
-func (sm *SMIME) encodeMessage(encoding Encoding, message string) (string, error) {
+func (sm *SMIME) encodeMessage(encoding Encoding, message []byte) (string, error) {
 	if encoding != EncodingQP {
-		return message, nil
+		return string(message), nil
 	}
 
 	buffer := bytes.NewBuffer(nil)
 	writer := quotedprintable.NewWriter(buffer)
-	if _, err := writer.Write([]byte(message)); err != nil {
+	if _, err := writer.Write(message); err != nil {
 		return "", err
 	}
 	if err := writer.Close(); err != nil {
@@ -151,11 +134,9 @@ func (sm *SMIME) encodeMessage(encoding Encoding, message string) (string, error
 // encodeToPEM uses the method pem.Encode from the standard library but cuts the typical PEM preamble
 func encodeToPEM(msg []byte) (string, error) {
 	block := &pem.Block{Bytes: msg}
-
-	buf := bytes.NewBuffer(nil)
-	if err := pem.Encode(buf, block); err != nil {
+	buffer := bytes.NewBuffer(nil)
+	if err := pem.Encode(buffer, block); err != nil {
 		return "", err
 	}
-
-	return buf.String()[17 : buf.Len()-16], nil
+	return buffer.String()[17 : buffer.Len()-16], nil
 }

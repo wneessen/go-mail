@@ -6749,7 +6749,7 @@ func TestSignWithSMime_InvalidPrivateKey(t *testing.T) {
 	m := NewMsg()
 
 	err := m.SignWithSMIMERSA(nil, nil, nil)
-	if !errors.Is(err, ErrInvalidPrivateKey) {
+	if !errors.Is(err, ErrPrivateKeyMissing) {
 		t.Errorf("failed to pre-check SignWithSMime method values correctly: %s", err)
 	}
 }
@@ -6763,7 +6763,7 @@ func TestSignWithSMime_InvalidCertificate(t *testing.T) {
 	m := NewMsg()
 
 	err = m.SignWithSMIMERSA(privateKey, nil, nil)
-	if !errors.Is(err, ErrInvalidCertificate) {
+	if !errors.Is(err, ErrCertificateMissing) {
 		t.Errorf("failed to pre-check SignWithSMime method values correctly: %s", err)
 	}
 }

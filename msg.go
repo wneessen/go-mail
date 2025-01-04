@@ -7,6 +7,7 @@ package mail
 import (
 	"bytes"
 	"context"
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/tls"
@@ -2520,7 +2521,7 @@ func (m *Msg) addAddr(header AddrHeader, addr string) error {
 	return m.SetAddrHeader(header, addresses...)
 }
 
-// SignWithSMIMERSA configures the Msg to be signed with S/MIME using RSA.
+// SignWithKeypair configures the Msg to be signed with S/MIME using RSA or ECDSA public-/private keypair.
 //
 // This function sets up S/MIME signing for the Msg by associating it with the provided private key,
 // certificate, and intermediate certificate.
@@ -2532,29 +2533,8 @@ func (m *Msg) addAddr(header AddrHeader, addr string) error {
 //
 // Returns:
 //   - An error if any issue occurred while configuring S/MIME signing; otherwise nil.
-func (m *Msg) SignWithSMIMERSA(privateKey *rsa.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) error {
-	smime, err := newSMIMEWithRSA(privateKey, certificate, intermediateCertificate)
-	if err != nil {
-		return err
-	}
-	m.sMIME = smime
-	return nil
-}
-
-// SignWithSMIMEECDSA configures the Msg to be signed with S/MIME using ECDSA.
-//
-// This function sets up S/MIME signing for the Msg by associating it with the provided ECDSA private key,
-// certificate, and intermediate certificate.
-//
-// Parameters:
-//   - privateKey: The ECDSA private key used for signing.
-//   - certificate: The x509 certificate associated with the private key.
-//   - intermediateCertificate: An optional intermediate x509 certificate for chain validation.
-//
-// Returns:
-//   - An error if any issue occurred while configuring S/MIME signing; otherwise nil.
-func (m *Msg) SignWithSMIMEECDSA(privateKey *ecdsa.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) error {
-	smime, err := newSMIMEWithECDSA(privateKey, certificate, intermediateCertificate)
+func (m *Msg) SignWithKeypair(privateKey crypto.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) error {
+	smime, err := newSMIME(privateKey, certificate, intermediateCertificate)
 	if err != nil {
 		return err
 	}
@@ -2592,11 +2572,8 @@ func (m *Msg) SignWithTLSCertificate(keyPairTLS *tls.Certificate) error {
 	}
 
 	switch keyPairTLS.PrivateKey.(type) {
-	case *rsa.PrivateKey:
-		return m.SignWithSMIMERSA(keyPairTLS.PrivateKey.(*rsa.PrivateKey), leafCertificate, intermediateCert)
-
-	case *ecdsa.PrivateKey:
-		return m.SignWithSMIMEECDSA(keyPairTLS.PrivateKey.(*ecdsa.PrivateKey), leafCertificate, intermediateCert)
+	case *rsa.PrivateKey, *ecdsa.PrivateKey:
+		return m.SignWithKeypair(keyPairTLS.PrivateKey, leafCertificate, intermediateCert)
 	default:
 		return fmt.Errorf("unsupported private key type: %T", keyPairTLS.PrivateKey)
 	}
@@ -2814,7 +2791,7 @@ func (m *Msg) createSignaturePart(encoding Encoding, contentType ContentType, ch
 	if err != nil {
 		return nil, err
 	}
-	signedMessage, err := m.sMIME.signMessage(*message)
+	signedMessage, err := m.sMIME.signMessage(message)
 	if err != nil {
 		return nil, err
 	}
@@ -3089,10 +3066,16 @@ func getEncoder(enc Encoding) mime.WordEncoder {
 //   - The parsed leaf x509 certificate.
 //   - An error if the certificate could not be parsed.
 func getLeafCertificate(keyPairTlS *tls.Certificate) (*x509.Certificate, error) {
+	if keyPairTlS == nil {
+		return nil, errors.New("provided certificate is nil")
+	}
 	if keyPairTlS.Leaf != nil {
 		return keyPairTlS.Leaf, nil
 	}
 
+	if len(keyPairTlS.Certificate) == 0 {
+		return nil, errors.New("certificate chain is empty")
+	}
 	cert, err := x509.ParseCertificate(keyPairTlS.Certificate[0])
 	if err != nil {
 		return nil, err
@@ -3116,13 +3099,20 @@ func (m *Msg) signMessage(msg *Msg) (*Msg, error) {
 	if msg.sMIME.isSigned {
 		return msg, nil
 	}
-	signedPart := msg.GetParts()[0]
-	body, err := signedPart.GetContent()
-	if err != nil {
-		return nil, err
+
+	parts := msg.GetParts()
+	if len(parts) == 0 {
+		return msg, errors.New("message has no parts")
 	}
 
-	signaturePart, err := m.createSignaturePart(signedPart.GetEncoding(), signedPart.GetContentType(), signedPart.GetCharset(), body)
+	signedPart := parts[0]
+	body, err := signedPart.GetContent()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get message body: %w", err)
+	}
+
+	signaturePart, err := m.createSignaturePart(signedPart.GetEncoding(), signedPart.GetContentType(),
+		signedPart.GetCharset(), body)
 	if err != nil {
 		return nil, err
 	}
