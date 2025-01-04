@@ -2572,31 +2572,33 @@ func (m *Msg) SignWithSMIMEECDSA(privateKey *ecdsa.PrivateKey, certificate *x509
 //
 // Returns:
 //   - An error if any issue occurred during parsing, signing configuration, or unsupported private key type.
-func (m *Msg) SignWithTLSCertificate(keyPairTlS *tls.Certificate) error {
-	intermediateCertificate, err := x509.ParseCertificate(keyPairTlS.Certificate[1])
-	if err != nil {
-		return fmt.Errorf("failed to parse intermediate certificate: %w", err)
+func (m *Msg) SignWithTLSCertificate(keyPairTLS *tls.Certificate) error {
+	if keyPairTLS == nil {
+		return fmt.Errorf("keyPairTLS cannot be nil")
 	}
 
-	leafCertificate, err := getLeafCertificate(keyPairTlS)
+	var intermediateCert *x509.Certificate
+	var err error
+	if len(keyPairTLS.Certificate) > 1 {
+		intermediateCert, err = x509.ParseCertificate(keyPairTLS.Certificate[1])
+		if err != nil {
+			return fmt.Errorf("failed to parse intermediate certificate: %w", err)
+		}
+	}
+
+	leafCertificate, err := getLeafCertificate(keyPairTLS)
 	if err != nil {
 		return fmt.Errorf("failed to get leaf certificate: %w", err)
 	}
 
-	switch keyPairTlS.PrivateKey.(type) {
+	switch keyPairTLS.PrivateKey.(type) {
 	case *rsa.PrivateKey:
-		if intermediateCertificate == nil {
-			return m.SignWithSMIMERSA(keyPairTlS.PrivateKey.(*rsa.PrivateKey), leafCertificate, nil)
-		}
-		return m.SignWithSMIMERSA(keyPairTlS.PrivateKey.(*rsa.PrivateKey), leafCertificate, intermediateCertificate)
+		return m.SignWithSMIMERSA(keyPairTLS.PrivateKey.(*rsa.PrivateKey), leafCertificate, intermediateCert)
 
 	case *ecdsa.PrivateKey:
-		if intermediateCertificate == nil {
-			return m.SignWithSMIMEECDSA(keyPairTlS.PrivateKey.(*ecdsa.PrivateKey), leafCertificate, nil)
-		}
-		return m.SignWithSMIMEECDSA(keyPairTlS.PrivateKey.(*ecdsa.PrivateKey), leafCertificate, intermediateCertificate)
+		return m.SignWithSMIMEECDSA(keyPairTLS.PrivateKey.(*ecdsa.PrivateKey), leafCertificate, intermediateCert)
 	default:
-		return fmt.Errorf("unsupported private key type: %T", keyPairTlS.PrivateKey)
+		return fmt.Errorf("unsupported private key type: %T", keyPairTLS.PrivateKey)
 	}
 }
 
@@ -2818,7 +2820,7 @@ func (m *Msg) createSignaturePart(encoding Encoding, contentType ContentType, ch
 	}
 
 	signaturePart := m.newPart(TypeSMIMESigned, WithPartEncoding(EncodingB64), WithSMIMESigning())
-	signaturePart.SetContent(*signedMessage)
+	signaturePart.SetContent(signedMessage)
 
 	return signaturePart, nil
 }
@@ -3111,6 +3113,9 @@ func getLeafCertificate(keyPairTlS *tls.Certificate) (*x509.Certificate, error) 
 //   - The Msg with the appended S/MIME signature part.
 //   - An error if retrieving content, creating the signature part, or signing fails.
 func (m *Msg) signMessage(msg *Msg) (*Msg, error) {
+	if msg.sMIME.isSigned {
+		return msg, nil
+	}
 	signedPart := msg.GetParts()[0]
 	body, err := signedPart.GetContent()
 	if err != nil {
@@ -3123,6 +3128,7 @@ func (m *Msg) signMessage(msg *Msg) (*Msg, error) {
 	}
 
 	m.parts = append(m.parts, signaturePart)
+	m.sMIME.isSigned = true
 
 	return m, err
 }
