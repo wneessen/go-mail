@@ -186,8 +186,8 @@ const (
 	// MIMERelated MIMEType represents a MIME multipart/related type, used for emails with related content entities.
 	MIMERelated MIMEType = "related"
 
-	// MIMESMIME MIMEType represents a MIME multipart/signed type, used for siging emails with S/MIME.
-	MIMESMIME MIMEType = `signed; protocol="application/pkcs7-signature"; micalg=sha-256`
+	// MIMESMIMESigned MIMEType represents a MIME multipart/signed type, used for siging emails with S/MIME.
+	MIMESMIMESigned MIMEType = `signed; protocol="application/pkcs7-signature"; micalg=sha-256`
 )
 
 // String satisfies the fmt.Stringer interface for the Charset type.

@@ -6415,7 +6415,7 @@ func TestMsg_hasAltWithSMime(t *testing.T) {
 	}
 }
 
-// TestMsg_hasSMime tests the hasSMime() method of the Msg
+// TestMsg_hasSMime tests the hasSMIME() method of the Msg
 func TestMsg_hasSMime(t *testing.T) {
 	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
 	if err != nil {
@@ -6426,8 +6426,8 @@ func TestMsg_hasSMime(t *testing.T) {
 		t.Errorf("failed to init smime configuration")
 	}
 	m.SetBodyString(TypeTextPlain, "Plain")
-	if !m.hasSMime() {
-		t.Errorf("mail has smime configured but hasSMime() returned true")
+	if !m.hasSMIME() {
+		t.Errorf("mail has smime configured but hasSMIME() returned true")
 	}
 }
 

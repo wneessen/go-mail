@@ -128,8 +128,8 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 		}
 	}
 
-	if msg.hasSMime() {
-		mw.startMP(MIMESMIME, msg.boundary)
+	if msg.hasSMIME() {
+		mw.startMP(MIMESMIMESigned, msg.boundary)
 		mw.writeString(DoubleNewLine)
 	}
 	if msg.hasMixed() {
@@ -179,7 +179,7 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 		mw.stopMP()
 	}
 
-	if msg.hasSMime() {
+	if msg.hasSMIME() {
 		mw.stopMP()
 	}
 }

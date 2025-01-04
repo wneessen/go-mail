@@ -136,7 +136,7 @@ func TestMimeType_String(t *testing.T) {
 		{MIMEAlternative, "alternative"},
 		{MIMEMixed, "mixed"},
 		{MIMERelated, "related"},
-		{MIMESMIME, `signed; protocol="application/pkcs7-signature"; micalg=sha-256`},
+		{MIMESMIMESigned, `signed; protocol="application/pkcs7-signature"; micalg=sha-256`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.mt.String(), func(t *testing.T) {
