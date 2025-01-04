@@ -6775,26 +6775,36 @@ func TestMsg_createSignaturePart(t *testing.T) {
 		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
 	}
 	m := NewMsg()
-	if err := m.SignWithSMIMERSA(privateKey, certificate, intermediateCertificate); err != nil {
+	if err = m.SignWithSMIMERSA(privateKey, certificate, intermediateCertificate); err != nil {
 		t.Errorf("failed to init smime configuration")
 	}
 	body := []byte("This is the body")
 	part, err := m.createSignaturePart(EncodingQP, TypeTextPlain, CharsetUTF7, body)
 	if err != nil {
-		t.Errorf("createSignaturePart() method failed.")
+		t.Fatalf("failed to create part signatures: %s", err)
 	}
-
+	if part == nil {
+		t.Fatal("failed to create part signatures, returned part is nil")
+	}
 	if part.GetEncoding() != EncodingB64 {
-		t.Errorf("createSignaturePart() method failed. Expected encoding: %s, got: %s", EncodingB64, part.GetEncoding())
+		t.Errorf("createSignaturePart() failed. Expected encoding: %s, got: %s", EncodingB64,
+			part.GetEncoding())
 	}
 	if part.GetContentType() != TypeSMIMESigned {
-		t.Errorf("createSignaturePart() method failed. Expected content type: %s, got: %s", TypeSMIMESigned, part.GetContentType())
+		t.Errorf("createSignaturePart() failed. Expected content type: %s, got: %s", TypeSMIMESigned,
+			part.GetContentType())
 	}
 	if part.GetCharset() != CharsetUTF8 {
-		t.Errorf("createSignaturePart() method failed. Expected charset: %s, got: %s", CharsetUTF8, part.GetCharset())
+		t.Errorf("createSignaturePart() failed. Expected charset: %s, got: %s", CharsetUTF8,
+			part.GetCharset())
 	}
-	if content, err := part.GetContent(); err != nil || len(content) == len(body) {
-		t.Errorf("createSignaturePart() method failed. Expected content should not be equal: %s, got: %s", body, part.GetEncoding())
+	content, err := part.GetContent()
+	if err != nil {
+		t.Errorf("failed to get content of part: %s", err)
+	}
+	if len(content) == len(body) {
+		t.Errorf("createSignaturePart() failed. Content length should not be equal to body length. Expected %d, "+
+			"got: %d", len(body), len(content))
 	}
 }
 
@@ -6812,7 +6822,7 @@ func TestMsg_signMessage(t *testing.T) {
 	}
 	msg, err := m.signMessage(m)
 	if err != nil {
-		t.Errorf("createSignaturePart() method failed.")
+		t.Fatalf("failed to sign message: %s", err)
 	}
 
 	parts := msg.GetParts()
