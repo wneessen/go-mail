@@ -356,9 +356,9 @@ func (mw *msgWriter) writePart(part *Part, charset Charset) {
 		partCharset = charset
 	}
 
-	contentType := part.contentType.String()
-	if !part.IsSMIMESigned() {
-		contentType = strings.Join([]string{contentType, "; charset=", partCharset.String()}, "")
+	contentType := fmt.Sprintf("%s; charset=%s", part.contentType, partCharset)
+	if part.IsSMIMESigned() {
+		contentType = part.contentType.String()
 	}
 
 	contentTransferEnc := part.encoding.String()
