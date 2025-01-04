@@ -452,7 +452,7 @@ func (mw *msgWriter) writeHeader(key Header, values ...string) {
 //   - writeFunc: A function that writes the body content to the given io.Writer.
 //   - encoding: The encoding type to use when writing the content (e.g., base64, quoted-printable).
 //   - singingWithSMime: Whether the msg should be signed with S/MIME or not.
-func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encoding Encoding, singingWithSMime bool) {
+func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encoding Encoding, SMIMEsigned bool) {
 	var writer io.Writer
 	var encodedWriter io.WriteCloser
 	var n int64
@@ -467,11 +467,16 @@ func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encodin
 	lineBreaker := Base64LineBreaker{}
 	lineBreaker.out = &writeBuffer
 
-	if encoding == EncodingQP {
+	if SMIMEsigned {
+		encoding = NoEncoding
+	}
+
+	switch encoding {
+	case EncodingQP:
 		encodedWriter = quotedprintable.NewWriter(&writeBuffer)
-	} else if encoding == EncodingB64 && !singingWithSMime {
+	case EncodingB64:
 		encodedWriter = base64.NewEncoder(base64.StdEncoding, &lineBreaker)
-	} else if encoding == NoEncoding || singingWithSMime {
+	case NoEncoding:
 		_, err = writeFunc(&writeBuffer)
 		if err != nil {
 			mw.err = fmt.Errorf("bodyWriter function: %w", err)
@@ -484,7 +489,7 @@ func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encodin
 			mw.bytesWritten += n
 		}
 		return
-	} else {
+	default:
 		encodedWriter = quotedprintable.NewWriter(writer)
 	}
 
