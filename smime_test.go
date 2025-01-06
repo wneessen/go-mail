@@ -17,11 +17,10 @@ import (
 )
 
 const (
-	dummyCertRSAPath       = "testdata/dummy-chain-cert-rsa.pem"
-	dummyCertRSABrokenPath = "testdata/dummy-chain-cert-rsa-broken.pem"
-	dummyKeyRSAPath        = "testdata/dummy-child-key-rsa.pem"
-	dummyCertECDSAPath     = "testdata/dummy-chain-cert-ecdsa.pem"
-	dummyKeyECDSAPath      = "testdata/dummy-child-key-ecdsa.pem"
+	dummyCertRSAPath   = "testdata/dummy-chain-cert-rsa.pem"
+	dummyKeyRSAPath    = "testdata/dummy-child-key-rsa.pem"
+	dummyCertECDSAPath = "testdata/dummy-chain-cert-ecdsa.pem"
+	dummyKeyECDSAPath  = "testdata/dummy-child-key-ecdsa.pem"
 )
 
 // TestNewSMimeWithRSA tests the newSMime method with RSA crypto material
