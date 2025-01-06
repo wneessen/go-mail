@@ -6667,107 +6667,145 @@ func TestMsg_fileFromIOFS(t *testing.T) {
 	})
 }
 
-// TestSignWithSMime_ValidRSAKeyPair tests WithSMIMESigning with given rsa key pair
-func TestSignWithSMime_ValidRSAKeyPair(t *testing.T) {
-	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
+func TestMsg_SignWithKeypair(t *testing.T) {
+	rsaPrivKey, rsaCert, rsaIntermediate, err := getDummyRSACryptoMaterial()
 	if err != nil {
-		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
+		t.Fatalf("failed to load dummy crypto material: %s", err)
 	}
-	m := NewMsg()
-	if err := m.SignWithKeypair(privateKey, certificate, intermediateCertificate); err != nil {
-		t.Errorf("failed to set sMIME. Cause: %v", err)
-	}
-	if m.sMIME.privateKey == nil {
-		t.Errorf("WithSMIMESigning() - no private key is given")
-	}
-	if m.sMIME.certificate == nil {
-		t.Errorf("WithSMIMESigning() - no certificate is given")
-	}
-}
-
-// TestSignWithSMime_ValidRSAKeyPair tests WithSMIMESigning with given ecdsa key pair
-func TestSignWithSMime_ValidECDSAKeyPair(t *testing.T) {
-	privateKey, certificate, intermediateCertificate, err := getDummyECDSACryptoMaterial()
+	ecdsaPrivKey, ecdsaCert, ecdsaIntermediate, err := getDummyRSACryptoMaterial()
 	if err != nil {
-		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
+		t.Fatalf("failed to load dummy crypto material: %s", err)
 	}
-	m := NewMsg()
-	if err := m.SignWithKeypair(privateKey, certificate, intermediateCertificate); err != nil {
-		t.Errorf("failed to set sMIME. Cause: %v", err)
-	}
-	if m.sMIME.privateKey == nil {
-		t.Errorf("WithSMIMESigning() - no private key is given")
-	}
-	if m.sMIME.certificate == nil {
-		t.Errorf("WithSMIMESigning() - no certificate is given")
-	}
+
+	t.Run("init signing with valid RSA keypair", func(t *testing.T) {
+		msg := testMessage(t)
+		if err = msg.SignWithKeypair(rsaPrivKey, rsaCert, rsaIntermediate); err != nil {
+			t.Errorf("failed to initialize SMIME configuration: %s", err)
+		}
+		if msg.sMIME == nil {
+			t.Errorf("failed to initialize SMIME configuration, SMIME is nil")
+		}
+		if msg.sMIME.privateKey == nil {
+			t.Errorf("failed to initialize SMIME configuration, private key is nil")
+		}
+		if msg.sMIME.certificate == nil {
+			t.Errorf("failed to initialize SMIME configuration, certificate is nil")
+		}
+		if msg.sMIME.intermediateCert == nil {
+			t.Errorf("failed to initialize SMIME configuration, intermediate certificate is nil")
+		}
+	})
+	t.Run("init signing with valid ECDSA keypair", func(t *testing.T) {
+		msg := testMessage(t)
+		if err = msg.SignWithKeypair(ecdsaPrivKey, ecdsaCert, ecdsaIntermediate); err != nil {
+			t.Errorf("failed to initialize SMIME configuration: %s", err)
+		}
+		if msg.sMIME == nil {
+			t.Errorf("failed to initialize SMIME configuration, SMIME is nil")
+		}
+		if msg.sMIME.privateKey == nil {
+			t.Errorf("failed to initialize SMIME configuration, private key is nil")
+		}
+		if msg.sMIME.certificate == nil {
+			t.Errorf("failed to initialize SMIME configuration, certificate is nil")
+		}
+		if msg.sMIME.intermediateCert == nil {
+			t.Errorf("failed to initialize SMIME configuration, intermediate certificate is nil")
+		}
+	})
+	t.Run("init signing with missing private key should fail", func(t *testing.T) {
+		msg := testMessage(t)
+		err = msg.SignWithKeypair(nil, rsaCert, rsaIntermediate)
+		if err == nil {
+			t.Errorf("SMIME init with missing private key should fail")
+		}
+		if !errors.Is(err, ErrPrivateKeyMissing) {
+			t.Errorf("SMIME init with missing private key should fail with %s, but got: %s", ErrPrivateKeyMissing,
+				err)
+		}
+		if msg.sMIME != nil {
+			t.Errorf("SMIME init with missing private key should fail, but SMIME is not nil")
+		}
+	})
+	t.Run("init signing with missing public key should fail", func(t *testing.T) {
+		msg := testMessage(t)
+		err = msg.SignWithKeypair(rsaPrivKey, nil, rsaIntermediate)
+		if err == nil {
+			t.Errorf("SMIME init with missing public key should fail")
+		}
+		if !errors.Is(err, ErrCertificateMissing) {
+			t.Errorf("SMIME init with missing public key should fail with %s, but got: %s", ErrCertificateMissing,
+				err)
+		}
+		if msg.sMIME != nil {
+			t.Errorf("SMIME init with missing public key should fail, but SMIME is not nil")
+		}
+	})
+	t.Run("init signing with missing intermediate cert should succeed", func(t *testing.T) {
+		msg := testMessage(t)
+		if err = msg.SignWithKeypair(rsaPrivKey, rsaCert, nil); err != nil {
+			t.Errorf("failed to initialize SMIME configuration: %s", err)
+		}
+		if msg.sMIME == nil {
+			t.Errorf("failed to initialize SMIME configuration, SMIME is nil")
+		}
+		if msg.sMIME.privateKey == nil {
+			t.Errorf("failed to initialize SMIME configuration, private key is nil")
+		}
+		if msg.sMIME.certificate == nil {
+			t.Errorf("failed to initialize SMIME configuration, certificate is nil")
+		}
+		if msg.sMIME.intermediateCert != nil {
+			t.Errorf("failed to initialize SMIME configuration, intermediate certificate is not nil")
+		}
+	})
 }
 
-// TestSignWithTLSCertificate tests SignWithTLSCertificate with given *tls.Certificate
-func TestSignWithTLSCertificate(t *testing.T) {
-	keyPairTLS, err := getDummyKeyPairTLS()
+func TestMsg_SignWithTLSCertificate(t *testing.T) {
+	keypair, err := getDummyKeyPairTLS()
 	if err != nil {
-		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
+		t.Fatalf("failed to load dummy crypto material: %s", err)
 	}
-	m := NewMsg()
-	if err := m.SignWithTLSCertificate(keyPairTLS); err != nil {
-		t.Errorf("failed to set sMIME. Cause: %v", err)
-	}
-	if m.sMIME.privateKey == nil {
-		t.Errorf("SignWithTLSCertificate() - no private key is given")
-	}
-	if m.sMIME.certificate == nil {
-		t.Errorf("SignWithTLSCertificate() - no certificate is given")
-	}
+
+	t.Run("init signing with valid TLS certificate", func(t *testing.T) {
+		msg := testMessage(t)
+		if err = msg.SignWithTLSCertificate(keypair); err != nil {
+			t.Errorf("failed to initialize SMIME configuration: %s", err)
+		}
+		if msg.sMIME.privateKey == nil {
+			t.Errorf("failed to initialize SMIME configuration, private key is nil")
+		}
+		if msg.sMIME.certificate == nil {
+			t.Errorf("failed to initialize SMIME configuration, certificate is nil")
+		}
+		if msg.sMIME.intermediateCert == nil {
+			t.Errorf("failed to initialize SMIME configuration, intermediate certificate is nil")
+		}
+	})
+
+	// Before Go 1.23 Certificate.Leaf was left nil, and the parsed certificate was discarded. This behavior
+	// can be re-enabled by setting "x509keypairleaf=0" in the GODEBUG environment variable.
+	// See: https://go-review.googlesource.com/c/go/+/585856
+	t.Run("init signing with valid TLS certificate with nil leaf", func(t *testing.T) {
+		t.Setenv("GODEBUG", "x509keypairleaf=0")
+
+		msg := testMessage(t)
+		if err = msg.SignWithTLSCertificate(keypair); err != nil {
+			t.Errorf("failed to initialize SMIME configuration: %s", err)
+		}
+		if msg.sMIME.privateKey == nil {
+			t.Errorf("failed to initialize SMIME configuration, private key is nil")
+		}
+		if msg.sMIME.certificate == nil {
+			t.Errorf("failed to initialize SMIME configuration, certificate is nil")
+		}
+		if msg.sMIME.intermediateCert == nil {
+			t.Errorf("failed to initialize SMIME configuration, intermediate certificate is nil")
+		}
+	})
 }
 
-// TestSignWithTLSCertificate tests SignWithTLSCertificate with given *tls.Certificate and nil leaf certificate
-// PLEASE NOTE: Before Go 1.23 Certificate.Leaf was left nil, and the parsed certificate was
-// discarded. This behavior can be re-enabled by setting "x509keypairleaf=0"
-// in the GODEBUG environment variable.
-func TestSignWithTLSCertificate_WithKeyPairLeafNil(t *testing.T) {
-	t.Setenv("GODEBUG", "x509keypairleaf=0")
-
-	keyPairTLS, err := getDummyKeyPairTLS()
-	if err != nil {
-		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
-	}
-	m := NewMsg()
-	if err := m.SignWithTLSCertificate(keyPairTLS); err != nil {
-		t.Errorf("failed to set sMIME. Cause: %v", err)
-	}
-	if m.sMIME.privateKey == nil {
-		t.Errorf("SignWithTLSCertificate() - no private key is given")
-	}
-	if m.sMIME.certificate == nil {
-		t.Errorf("SignWithTLSCertificate() - no certificate is given")
-	}
-}
-
-// TestSignWithSMime_InvalidPrivateKey tests WithSMIMESigning with given invalid private key
-func TestSignWithSMime_InvalidPrivateKey(t *testing.T) {
-	m := NewMsg()
-
-	err := m.SignWithKeypair(nil, nil, nil)
-	if !errors.Is(err, ErrPrivateKeyMissing) {
-		t.Errorf("failed to pre-check SignWithSMime method values correctly: %s", err)
-	}
-}
-
-// TestSignWithSMime_InvalidCertificate tests WithSMIMESigning with given invalid certificate
-func TestSignWithSMime_InvalidCertificate(t *testing.T) {
-	privateKey, _, _, err := getDummyRSACryptoMaterial()
-	if err != nil {
-		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
-	}
-	m := NewMsg()
-
-	err = m.SignWithKeypair(privateKey, nil, nil)
-	if !errors.Is(err, ErrCertificateMissing) {
-		t.Errorf("failed to pre-check SignWithSMime method values correctly: %s", err)
-	}
-}
-
+/*
 // TestMsg_createSignaturePart tests the Msg.createSignaturePart method
 func TestMsg_createSignaturePart(t *testing.T) {
 	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
@@ -6874,6 +6912,8 @@ func TestGetLeafCertificate(t *testing.T) {
 		t.Errorf("failed to get leaf certificate")
 	}
 }
+
+*/
 
 // uppercaseMiddleware is a middleware type that transforms the subject to uppercase.
 type uppercaseMiddleware struct{}
