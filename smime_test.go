@@ -50,7 +50,7 @@ func TestNewSMIME(t *testing.T) {
 			if sMime.certificate != certificate {
 				t.Errorf("NewSMime() did not return the same certificate")
 			}
-			if sMime.intermediateCertificate != intermediateCertificate {
+			if sMime.intermediateCert != intermediateCertificate {
 				t.Errorf("NewSMime() did not return the same intermedidate certificate")
 			}
 		})
