@@ -2529,12 +2529,13 @@ func (m *Msg) addAddr(header AddrHeader, addr string) error {
 // Parameters:
 //   - privateKey: The RSA private key used for signing.
 //   - certificate: The x509 certificate associated with the private key.
-//   - intermediateCertificate: An optional intermediate x509 certificate for chain validation.
+//   - intermediateCert: An optional intermediate x509 certificate for chain validation.
 //
 // Returns:
 //   - An error if any issue occurred while configuring S/MIME signing; otherwise nil.
-func (m *Msg) SignWithKeypair(privateKey crypto.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) error {
-	smime, err := newSMIME(privateKey, certificate, intermediateCertificate)
+func (m *Msg) SignWithKeypair(privateKey crypto.PrivateKey, certificate *x509.Certificate,
+	intermediateCert *x509.Certificate) error {
+	smime, err := newSMIME(privateKey, certificate, intermediateCert)
 	if err != nil {
 		return err
 	}
