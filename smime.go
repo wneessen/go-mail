@@ -7,6 +7,7 @@ package mail
 import (
 	"bytes"
 	"crypto"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
@@ -183,4 +184,38 @@ func encodeToPEM(msg []byte) (string, error) {
 		return "", err
 	}
 	return buffer.String()[17 : buffer.Len()-16], nil
+}
+
+// getLeafCertificate retrieves the leaf certificate from a tls.Certificate.
+//
+// This function returns the parsed leaf certificate from the provided TLS certificate. If the Leaf field
+// is nil, it parses and returns the first certificate in the chain.
+//
+// PLEASE NOTE: In Go versions prior to 1.23, the Certificate.Leaf field was left nil, and the parsed
+// certificate was discarded. This behavior can be re-enabled by setting "x509keypairleaf=0" in the
+// GODEBUG environment variable.
+//
+// Parameters:
+//   - keyPairTlS: The *tls.Certificate containing the certificate chain.
+//
+// Returns:
+//   - The parsed leaf x509 certificate.
+//   - An error if the certificate could not be parsed.
+func getLeafCertificate(keyPairTLS *tls.Certificate) (*x509.Certificate, error) {
+	if keyPairTLS == nil {
+		return nil, errors.New("provided certificate is nil")
+	}
+	if keyPairTLS.Leaf != nil {
+		return keyPairTLS.Leaf, nil
+	}
+
+	if len(keyPairTLS.Certificate) == 0 {
+		return nil, errors.New("certificate chain is empty")
+	}
+	cert, err := x509.ParseCertificate(keyPairTLS.Certificate[0])
+	if err != nil {
+		return nil, err
+	}
+
+	return cert, nil
 }

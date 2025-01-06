@@ -3051,40 +3051,6 @@ func getEncoder(enc Encoding) mime.WordEncoder {
 	}
 }
 
-// getLeafCertificate retrieves the leaf certificate from a tls.Certificate.
-//
-// This function returns the parsed leaf certificate from the provided TLS certificate. If the Leaf field
-// is nil, it parses and returns the first certificate in the chain.
-//
-// PLEASE NOTE: In Go versions prior to 1.23, the Certificate.Leaf field was left nil, and the parsed
-// certificate was discarded. This behavior can be re-enabled by setting "x509keypairleaf=0" in the
-// GODEBUG environment variable.
-//
-// Parameters:
-//   - keyPairTlS: The *tls.Certificate containing the certificate chain.
-//
-// Returns:
-//   - The parsed leaf x509 certificate.
-//   - An error if the certificate could not be parsed.
-func getLeafCertificate(keyPairTlS *tls.Certificate) (*x509.Certificate, error) {
-	if keyPairTlS == nil {
-		return nil, errors.New("provided certificate is nil")
-	}
-	if keyPairTlS.Leaf != nil {
-		return keyPairTlS.Leaf, nil
-	}
-
-	if len(keyPairTlS.Certificate) == 0 {
-		return nil, errors.New("certificate chain is empty")
-	}
-	cert, err := x509.ParseCertificate(keyPairTlS.Certificate[0])
-	if err != nil {
-		return nil, err
-	}
-
-	return cert, nil
-}
-
 // signMessage signs the Msg with S/MIME.
 //
 // This function creates an S/MIME signature for the first part of the message and appends the

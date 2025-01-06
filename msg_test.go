@@ -7,6 +7,8 @@ package mail
 import (
 	"bytes"
 	"context"
+	"crypto"
+	"crypto/tls"
 	"embed"
 	"errors"
 	"fmt"
@@ -6803,6 +6805,56 @@ func TestMsg_SignWithTLSCertificate(t *testing.T) {
 			t.Errorf("failed to initialize SMIME configuration, intermediate certificate is nil")
 		}
 	})
+
+	t.Run("init signing with nil TLS certificate should fail", func(t *testing.T) {
+		msg := testMessage(t)
+		if err = msg.SignWithTLSCertificate(nil); err == nil {
+			t.Errorf("SMIME initilization with nil TLS certificate should fail")
+		}
+	})
+	t.Run("init signing with invalid intermediate certificate should fail", func(t *testing.T) {
+		msg := testMessage(t)
+		localpair := &tls.Certificate{
+			Certificate:                  keypair.Certificate,
+			PrivateKey:                   keypair.PrivateKey,
+			Leaf:                         keypair.Leaf,
+			SignedCertificateTimestamps:  keypair.SignedCertificateTimestamps,
+			SupportedSignatureAlgorithms: keypair.SupportedSignatureAlgorithms,
+		}
+		if len(localpair.Certificate) != 2 {
+			t.Fatal("expected certificate with intermediate certificate")
+		}
+		localpair.Certificate[1] = localpair.Certificate[1][:len(localpair.Certificate[1])-16]
+		if err = msg.SignWithTLSCertificate(localpair); err == nil {
+			t.Errorf("SMIME initilization with invalid intermediate certificate should fail")
+		}
+	})
+	t.Run("init signing with empty tls.Certificate should fail on leaf certificate creation", func(t *testing.T) {
+		msg := testMessage(t)
+		localpair := &tls.Certificate{}
+		if err = msg.SignWithTLSCertificate(localpair); err == nil {
+			t.Errorf("SMIME initilization with invalid intermediate certificate should fail")
+		}
+	})
+	t.Run("init signing with unsupported crypto.PrivateKey should fail", func(t *testing.T) {
+		msg := testMessage(t)
+		localpair := &tls.Certificate{
+			Certificate:                  [][]byte{keypair.Certificate[0]},
+			PrivateKey:                   unsupportedPrivKey{},
+			Leaf:                         keypair.Leaf,
+			SignedCertificateTimestamps:  keypair.SignedCertificateTimestamps,
+			SupportedSignatureAlgorithms: keypair.SupportedSignatureAlgorithms,
+		}
+		if err = msg.SignWithTLSCertificate(localpair); err == nil {
+			t.Errorf("SMIME initilization with invalid intermediate certificate should fail")
+		}
+		expErr := "unsupported private key type: mail.unsupportedPrivKey"
+		if !strings.EqualFold(err.Error(), expErr) {
+			t.Errorf("SMIME initilization with invalid intermediate certificate should fail with %s, but got: %s",
+				expErr, err)
+		}
+	})
+
 }
 
 /*
@@ -7007,6 +7059,19 @@ func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, f
 	if addresses[field].Name != wantName {
 		t.Errorf("failed to exec %s, addrHeader name is %s, want: %s", fn, addresses[field].Name, wantName)
 	}
+}
+
+// unsupportedPrivKey is a type that satisfies the crypto.PrivateKey interfaces but is not supported for signing
+type unsupportedPrivKey struct{}
+
+// Public implements the Public method of the crypto.PrivateKey interface for the unsupportedPrivKey type
+func (u unsupportedPrivKey) Public() crypto.PublicKey {
+	return nil
+}
+
+// Equal implements the Equal method of the crypto.PrivateKey interface for the unsupportedPrivKey type
+func (u unsupportedPrivKey) Equal(_ crypto.PrivateKey) bool {
+	return true
 }
 
 // checkGenHeader validates the generated header in an email message, verifying its presence and expected values.

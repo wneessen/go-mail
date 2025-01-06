@@ -17,10 +17,11 @@ import (
 )
 
 const (
-	dummyCertRSAPath   = "testdata/dummy-chain-cert-rsa.pem"
-	dummyKeyRSAPath    = "testdata/dummy-child-key-rsa.pem"
-	dummyCertECDSAPath = "testdata/dummy-chain-cert-ecdsa.pem"
-	dummyKeyECDSAPath  = "testdata/dummy-child-key-ecdsa.pem"
+	dummyCertRSAPath       = "testdata/dummy-chain-cert-rsa.pem"
+	dummyCertRSABrokenPath = "testdata/dummy-chain-cert-rsa-broken.pem"
+	dummyKeyRSAPath        = "testdata/dummy-child-key-rsa.pem"
+	dummyCertECDSAPath     = "testdata/dummy-chain-cert-ecdsa.pem"
+	dummyKeyECDSAPath      = "testdata/dummy-child-key-ecdsa.pem"
 )
 
 // TestNewSMimeWithRSA tests the newSMime method with RSA crypto material
@@ -265,7 +266,7 @@ func getDummyECDSACryptoMaterial() (crypto.PrivateKey, *x509.Certificate, *x509.
 
 // getDummyKeyPairTLS loads a certificate (ECDSA) as *tls.Certificate, the associated private key and certificate (ECDSA) is loaded from local disk for testing purposes
 func getDummyKeyPairTLS() (*tls.Certificate, error) {
-	keyPair, err := tls.LoadX509KeyPair(dummyCertECDSAPath, dummyKeyECDSAPath)
+	keyPair, err := tls.LoadX509KeyPair(dummyCertRSAPath, dummyKeyRSAPath)
 	if err != nil {
 		return nil, err
 	}
