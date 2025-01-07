@@ -56,29 +56,6 @@ type PKCS7 struct {
 	raw          interface{}
 }
 
-// GetOnlySigner returns an x509.Certificate for the first signer of the signed
-// data payload. If there are more or less than one signer, nil is returned
-func (p7 *PKCS7) GetOnlySigner() *x509.Certificate {
-	if len(p7.Signers) != 1 {
-		return nil
-	}
-	signer := p7.Signers[0]
-	return getCertFromCertsByIssuerAndSerial(p7.Certificates, signer.IssuerAndSerialNumber)
-}
-
-// UnmarshalSignedAttribute decodes a single attribute from the signer info
-func (p7 *PKCS7) UnmarshalSignedAttribute(attributeType asn1.ObjectIdentifier, out interface{}) error {
-	sd, ok := p7.raw.(signedData)
-	if !ok {
-		return errors.New("pkcs7: payload is not signedData content")
-	}
-	if len(sd.SignerInfos) < 1 {
-		return errors.New("pkcs7: payload has no signers")
-	}
-	attributes := sd.SignerInfos[0].AuthenticatedAttributes
-	return unmarshalAttribute(attributes, attributeType, out)
-}
-
 type contentInfo struct {
 	ContentType asn1.ObjectIdentifier
 	Content     asn1.RawValue `asn1:"explicit,optional,tag:0"`
