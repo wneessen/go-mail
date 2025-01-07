@@ -2219,14 +2219,16 @@ func (m *Msg) WriteTo(writer io.Writer) (int64, error) {
 	msg := m.applyMiddlewares(m)
 
 	if m.hasSMIME() {
-		signedMsg, err := m.signMessage(msg)
-		if err != nil {
+		if err := m.signMessage(); err != nil {
 			return 0, err
 		}
-		msg = signedMsg
 	}
 
 	mw.writeMsg(msg)
+
+	if m.hasSMIME() {
+		m.sMIME.isSigned = true
+	}
 
 	return mw.bytesWritten, mw.err
 }
@@ -2646,11 +2648,11 @@ func (m *Msg) encodeString(str string) string {
 func (m *Msg) hasAlt() bool {
 	count := 0
 	for _, part := range m.parts {
-		if !part.isDeleted {
+		if !part.isDeleted && !part.smime {
 			count++
 		}
 	}
-	return count > 1 && m.pgptype == 0 && !m.hasSMIME()
+	return count > 1 && m.pgptype == 0
 }
 
 // hasMixed returns true if the Msg has mixed parts.
@@ -2675,7 +2677,11 @@ func (m *Msg) hasMixed() bool {
 // Returns:
 //   - true if the Msg has SMIME type assigned and should be signed with S/MIME; otherwise false.
 func (m *Msg) hasSMIME() bool {
-	return m.sMIME != nil
+	return m.sMIME != nil && !m.sMIME.isSigned
+}
+
+func (m *Msg) isSMIMEInProgress() bool {
+	return m.sMIME != nil && m.sMIME.inProgress
 }
 
 // hasRelated returns true if the Msg has related parts.
@@ -2771,36 +2777,6 @@ func (m *Msg) checkUserAgent() {
 		m.SetUserAgent(fmt.Sprintf("go-mail v%s // https://github.com/wneessen/go-mail",
 			VERSION))
 	}
-}
-
-// createSignaturePart creates a Part for storing the S/MIME signature of the given body.
-//
-// This function generates an S/MIME signature for the provided message body and wraps it in a Part
-// object that can be included in the email message.
-//
-// Parameters:
-//   - encoding: The encoding format to use for the signature.
-//   - contentType: The content type of the message body being signed.
-//   - charSet: The character set used in the message body.
-//   - body: The byte array representing the message body to be signed.
-//
-// Returns:
-//   - A Part containing the S/MIME signature.
-//   - An error if the message preparation or signing process fails.
-func (m *Msg) createSignaturePart(encoding Encoding, contentType ContentType, charSet Charset, body []byte) (*Part, error) {
-	message, err := m.sMIME.prepareMessage(encoding, contentType, charSet, body)
-	if err != nil {
-		return nil, err
-	}
-	signedMessage, err := m.sMIME.signMessage(message)
-	if err != nil {
-		return nil, err
-	}
-
-	signaturePart := m.newPart(TypeSMIMESigned, WithPartEncoding(EncodingB64), WithSMIMESigning())
-	signaturePart.SetContent(signedMessage)
-
-	return signaturePart, nil
 }
 
 // addDefaultHeader sets default headers if they haven't been set before.
@@ -3062,32 +3038,31 @@ func getEncoder(enc Encoding) mime.WordEncoder {
 // Returns:
 //   - The Msg with the appended S/MIME signature part.
 //   - An error if retrieving content, creating the signature part, or signing fails.
-func (m *Msg) signMessage(msg *Msg) (*Msg, error) {
-	if msg.sMIME.isSigned {
-		return msg, nil
+func (m *Msg) signMessage() error {
+	if m.sMIME.isSigned {
+		return nil
 	}
 
-	parts := msg.GetParts()
-	if len(parts) == 0 {
-		return msg, errors.New("message has no parts")
-	}
+	buf := bytes.NewBuffer(nil)
+	mw := &msgWriter{writer: buf, charset: m.charset, encoder: m.encoder}
+	m.sMIME.inProgress = true
+	mw.writeMsg(m)
 
-	signedPart := parts[0]
-	body, err := signedPart.GetContent()
+	index := bytes.Index(buf.Bytes(), []byte("Content-Transfer-Encoding:"))
+	if index == -1 {
+		index = 0
+	}
+	signedMessage, err := m.sMIME.signMessage(buf.Bytes()[index:])
 	if err != nil {
-		return nil, fmt.Errorf("failed to get message body: %w", err)
+		return fmt.Errorf("failed to sign message: %w", err)
 	}
 
-	signaturePart, err := m.createSignaturePart(signedPart.GetEncoding(), signedPart.GetContentType(),
-		signedPart.GetCharset(), body)
-	if err != nil {
-		return nil, err
-	}
-
+	signaturePart := m.newPart(TypeSMIMESigned, WithPartEncoding(EncodingB64), WithSMIMESigning())
+	signaturePart.SetContent(signedMessage)
 	m.parts = append(m.parts, signaturePart)
-	m.sMIME.isSigned = true
+	m.sMIME.inProgress = false
 
-	return m, err
+	return nil
 }
 
 // writeFuncFromBuffer converts a byte buffer into a writeFunc, which is commonly required by go-mail.

@@ -6400,23 +6400,6 @@ func TestMsg_hasAlt(t *testing.T) {
 	})
 }
 
-// TestMsg_hasAlt tests the hasAlt() method of the Msg with active S/MIME
-func TestMsg_hasAltWithSMime(t *testing.T) {
-	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
-	if err != nil {
-		t.Fatalf("failed to load dummy crypto material: %s", err)
-	}
-	m := NewMsg()
-	m.SetBodyString(TypeTextPlain, "Plain")
-	m.AddAlternativeString(TypeTextHTML, "<b>HTML</b>")
-	if err := m.SignWithKeypair(privateKey, certificate, intermediateCertificate); err != nil {
-		t.Errorf("failed to init smime configuration")
-	}
-	if m.hasAlt() {
-		t.Errorf("mail has alternative parts and S/MIME is active, but hasAlt() returned true")
-	}
-}
-
 // TestMsg_hasSMime tests the hasSMIME() method of the Msg
 func TestMsg_hasSMime(t *testing.T) {
 	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
@@ -6805,7 +6788,6 @@ func TestMsg_SignWithTLSCertificate(t *testing.T) {
 			t.Errorf("failed to initialize SMIME configuration, intermediate certificate is nil")
 		}
 	})
-
 	t.Run("init signing with nil TLS certificate should fail", func(t *testing.T) {
 		msg := testMessage(t)
 		if err = msg.SignWithTLSCertificate(nil); err == nil {
@@ -6855,6 +6837,66 @@ func TestMsg_SignWithTLSCertificate(t *testing.T) {
 		}
 	})
 
+}
+
+func TestMsg_createSignaturePart(t *testing.T) {
+	/*
+		rsaPrivKey, rsaCert, rsaIntermediate, err := getDummyRSACryptoMaterial()
+		if err != nil {
+			t.Fatalf("failed to load dummy crypto material: %s", err)
+		}
+			ecdsaPrivKey, ecdsaCert, ecdsaIntermediate, err := getDummyRSACryptoMaterial()
+			if err != nil {
+				t.Fatalf("failed to load dummy crypto material: %s", err)
+			}
+
+	*/
+	/*
+		t.Run("create signature with valid RSA certificate", func(t *testing.T) {
+			msg := testMessage(t)
+			if err = msg.SignWithKeypair(rsaPrivKey, rsaCert, rsaIntermediate); err != nil {
+				t.Fatalf("failed to initialize SMIME configuration: %s", err)
+			}
+
+			parts := msg.GetParts()
+			if len(parts) != 1 {
+				t.Fatalf("expected 1 body part, got %d", len(parts))
+			}
+			body, err := parts[0].GetContent()
+			if err != nil {
+				t.Fatalf("failed to get body part content: %s", err)
+			}
+
+			signedPart, err := msg.createSignaturePart(parts[0].GetEncoding(), parts[0].GetContentType(),
+				parts[0].GetCharset(), body)
+			if err != nil {
+				t.Fatalf("failed to create part signatures: %s", err)
+			}
+			if signedPart == nil {
+				t.Fatal("failed to create part signatures, returned part is nil")
+			}
+			if signedPart.GetEncoding() != EncodingB64 {
+				t.Errorf("failed to sign body part, expected encoding: %s, got: %s", EncodingB64, signedPart.GetEncoding())
+			}
+			if signedPart.GetContentType() != TypeSMIMESigned {
+				t.Errorf("failed to sign body part, expected content type: %s, got: %s", TypeSMIMESigned,
+					signedPart.GetContentType())
+			}
+			if signedPart.GetCharset() != CharsetUTF8 {
+				t.Errorf("failed to sign body part, expected charset: %s, got: %s", CharsetUTF8, signedPart.GetCharset())
+			}
+			signedBody, err := signedPart.GetContent()
+			if err != nil {
+				t.Fatalf("failed to get signed body part content: %s", err)
+			}
+			if len(signedBody) == len(body) {
+				t.Errorf("failed to sign body part, expected different length, body: %d, signed: %d", len(body),
+					len(signedBody))
+			}
+			//t.Logf("signed body: %s", signedBody)
+		})
+
+	*/
 }
 
 /*

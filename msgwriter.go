@@ -6,6 +6,7 @@ package mail
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -128,8 +129,8 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 		}
 	}
 
-	if msg.hasSMIME() {
-		mw.startMP(MIMESMIMESigned, msg.boundary)
+	if msg.hasSMIME() && !msg.isSMIMEInProgress() {
+		mw.startMP(MIMESMIMESigned, randomBoundary())
 		mw.writeString(DoubleNewLine)
 	}
 	if msg.hasMixed() {
@@ -179,7 +180,7 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 		mw.stopMP()
 	}
 
-	if msg.hasSMIME() {
+	if msg.hasSMIME() && !msg.isSMIMEInProgress() {
 		mw.stopMP()
 	}
 }
@@ -196,6 +197,7 @@ func (mw *msgWriter) writeGenHeader(msg *Msg) {
 	for key := range msg.genHeader {
 		keys = append(keys, string(key))
 	}
+
 	sort.Strings(keys)
 	for _, key := range keys {
 		mw.writeHeader(Header(key), msg.genHeader[Header(key)]...)
@@ -360,11 +362,11 @@ func (mw *msgWriter) writePart(part *Part, charset Charset) {
 	if part.IsSMIMESigned() {
 		contentType = part.contentType.String()
 	}
-
 	contentTransferEnc := part.encoding.String()
+
 	if mw.depth == 0 {
-		mw.writeHeader(HeaderContentType, contentType)
 		mw.writeHeader(HeaderContentTransferEnc, contentTransferEnc)
+		mw.writeHeader(HeaderContentType, contentType)
 		mw.writeString(SingleNewLine)
 	}
 	if mw.depth > 0 {
@@ -372,8 +374,8 @@ func (mw *msgWriter) writePart(part *Part, charset Charset) {
 		if part.description != "" {
 			mimeHeader.Add(string(HeaderContentDescription), part.description)
 		}
-		mimeHeader.Add(string(HeaderContentType), contentType)
 		mimeHeader.Add(string(HeaderContentTransferEnc), contentTransferEnc)
+		mimeHeader.Add(string(HeaderContentType), contentType)
 		mw.newPart(mimeHeader)
 	}
 	mw.writeBody(part.writeFunc, part.encoding, part.smime)
@@ -469,7 +471,7 @@ func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encodin
 
 	// the S/MIME part is already Base64 encoded, we don't want to double-encode
 	if signSMIME {
-		encoding = NoEncoding
+		//encoding = NoEncoding
 	}
 
 	switch encoding {
@@ -516,6 +518,16 @@ func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encodin
 	if mw.depth == 0 {
 		mw.bytesWritten += n
 	}
+}
+
+// randomBoundary
+func randomBoundary() string {
+	var buf [30]byte
+	_, err := io.ReadFull(rand.Reader, buf[:])
+	if err != nil {
+		panic(err)
+	}
+	return fmt.Sprintf("%x", buf[:])
 }
 
 // sanitizeFilename sanitizes a given filename string by replacing specific unwanted characters with
