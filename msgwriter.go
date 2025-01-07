@@ -116,6 +116,7 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 	}
 	if hasFrom && (len(from) > 0 && from[0] != nil) {
 		mw.writeHeader(Header(HeaderFrom), from[0].String())
+		msg.headerCount++
 	}
 
 	// Set the rest of the address headers
@@ -126,6 +127,7 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 				val = append(val, addr.String())
 			}
 			mw.writeHeader(Header(to), val...)
+			msg.headerCount++
 		}
 	}
 
@@ -201,6 +203,7 @@ func (mw *msgWriter) writeGenHeader(msg *Msg) {
 	sort.Strings(keys)
 	for _, key := range keys {
 		mw.writeHeader(Header(key), msg.genHeader[Header(key)]...)
+		msg.headerCount++
 	}
 }
 
@@ -214,6 +217,7 @@ func (mw *msgWriter) writeGenHeader(msg *Msg) {
 func (mw *msgWriter) writePreformattedGenHeader(msg *Msg) {
 	for key, val := range msg.preformHeader {
 		mw.writeString(fmt.Sprintf("%s: %s%s", key, val, SingleNewLine))
+		msg.headerCount++
 	}
 }
 

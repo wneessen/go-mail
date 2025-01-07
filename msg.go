@@ -152,7 +152,8 @@ type Msg struct {
 	noDefaultUserAgent bool
 
 	// sMIME holds a SMIME type to sign a Msg using S/MIME
-	sMIME *SMIME
+	sMIME       *SMIME
+	headerCount uint
 }
 
 // SendmailPath is the default system path to the sendmail binary - at least on standard Unix-like OS.
@@ -3046,13 +3047,23 @@ func (m *Msg) signMessage() error {
 	buf := bytes.NewBuffer(nil)
 	mw := &msgWriter{writer: buf, charset: m.charset, encoder: m.encoder}
 	m.sMIME.inProgress = true
+	m.SetBoundary(randomBoundary())
 	mw.writeMsg(m)
 
-	index := bytes.Index(buf.Bytes(), []byte("Content-Transfer-Encoding:"))
-	if index == -1 {
-		index = 0
+	fmt.Printf("Header count: %d\n", m.headerCount)
+	var linecount uint = 0
+	pos := 0
+	for linecount < m.headerCount {
+		nextIndex := bytes.Index(buf.Bytes()[pos:], []byte("\r\n"))
+		if nextIndex == -1 {
+			return fmt.Errorf("failed to find next index")
+		}
+		pos += nextIndex + 2
+		linecount++
 	}
-	signedMessage, err := m.sMIME.signMessage(buf.Bytes()[index:])
+	m.headerCount = 0
+	//index := bytes.Index(buf.Bytes(), []byte("\r\n"))
+	signedMessage, err := m.sMIME.signMessage(buf.Bytes()[pos:])
 	if err != nil {
 		return fmt.Errorf("failed to sign message: %w", err)
 	}

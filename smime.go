@@ -82,6 +82,7 @@ func newSMIME(privateKey crypto.PrivateKey, certificate *x509.Certificate, inter
 //   - An error if any step in the signing process fails, such as initializing signed data, adding a signer,
 //     or encoding the signature.
 func (s *SMIME) signMessage(message []byte) (string, error) {
+	fmt.Printf("unsigned data: %s\n", string(message))
 	signedData, err := pkcs7.NewSignedData(message)
 	if err != nil || signedData == nil {
 		return "", fmt.Errorf("failed to initialize signed data: %w", err)
@@ -95,7 +96,7 @@ func (s *SMIME) signMessage(message []byte) (string, error) {
 		signedData.AddCertificate(s.intermediateCert)
 	}
 
-	signedData.Detach()
+	//signedData.Detach()
 
 	signatureDER, err := signedData.Finish()
 	if err != nil {
