@@ -137,15 +137,21 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 	}
 	if msg.hasMixed() {
 		mw.startMP(MIMEMixed, msg.boundary)
-		mw.writeString(DoubleNewLine)
+		if mw.depth == 0 || (msg.hasSMIME() && mw.depth == 1) {
+			mw.writeString(DoubleNewLine)
+		}
 	}
 	if msg.hasRelated() {
 		mw.startMP(MIMERelated, msg.boundary)
-		mw.writeString(DoubleNewLine)
+		if mw.depth == 0 || (msg.hasSMIME() && mw.depth == 1) {
+			mw.writeString(DoubleNewLine)
+		}
 	}
 	if msg.hasAlt() {
 		mw.startMP(MIMEAlternative, msg.boundary)
-		mw.writeString(DoubleNewLine)
+		if mw.depth == 0 || (msg.hasSMIME() && mw.depth == 1) {
+			mw.writeString(DoubleNewLine)
+		}
 	}
 	if msg.hasPGPType() {
 		switch msg.pgptype {
@@ -161,7 +167,7 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 	}
 
 	for _, part := range msg.parts {
-		if !part.isDeleted {
+		if !part.isDeleted && !part.smime {
 			mw.writePart(part, msg.charset)
 		}
 	}
@@ -183,6 +189,11 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 	}
 
 	if msg.hasSMIME() && !msg.isSMIMEInProgress() {
+		for _, part := range msg.parts {
+			if part.smime {
+				mw.writePart(part, msg.charset)
+			}
+		}
 		mw.stopMP()
 	}
 }

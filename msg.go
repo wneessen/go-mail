@@ -116,6 +116,10 @@ type Msg struct {
 	// representing header values.
 	genHeader map[Header][]string
 
+	// headerCount is an indicate for how many headers have been written during the mail rendering process.
+	// This count can be helpful to identify where the mail header ends and the mail body starts
+	headerCount uint
+
 	// isDelivered indicates wether the Msg has been delivered.
 	isDelivered bool
 
@@ -152,8 +156,7 @@ type Msg struct {
 	noDefaultUserAgent bool
 
 	// sMIME holds a SMIME type to sign a Msg using S/MIME
-	sMIME       *SMIME
-	headerCount uint
+	sMIME *SMIME
 }
 
 // SendmailPath is the default system path to the sendmail binary - at least on standard Unix-like OS.
@@ -2226,11 +2229,7 @@ func (m *Msg) WriteTo(writer io.Writer) (int64, error) {
 	}
 
 	mw.writeMsg(msg)
-
-	if m.hasSMIME() {
-		m.sMIME.isSigned = true
-	}
-
+	m.headerCount = 0
 	return mw.bytesWritten, mw.err
 }
 
@@ -2678,7 +2677,7 @@ func (m *Msg) hasMixed() bool {
 // Returns:
 //   - true if the Msg has SMIME type assigned and should be signed with S/MIME; otherwise false.
 func (m *Msg) hasSMIME() bool {
-	return m.sMIME != nil && !m.sMIME.isSigned
+	return m.sMIME != nil
 }
 
 func (m *Msg) isSMIMEInProgress() bool {
@@ -3028,50 +3027,66 @@ func getEncoder(enc Encoding) mime.WordEncoder {
 	}
 }
 
-// signMessage signs the Msg with S/MIME.
+// signMessage signs the message with S/MIME and attaches the signature as a new part.
 //
-// This function creates an S/MIME signature for the first part of the message and appends the
-// signature as an additional part to the Msg.
-//
-// Parameters:
-//   - msg: The Msg to be signed.
+// This function removes any existing S/MIME parts to prevent duplicate signatures, renders an
+// unsigned version of the message, and then signs it. The resulting signature is appended to the
+// message as a new S/MIME signature part.
 //
 // Returns:
-//   - The Msg with the appended S/MIME signature part.
-//   - An error if retrieving content, creating the signature part, or signing fails.
+//   - An error if any step in the signing process fails, such as finding the message body position
+//     or generating the signature.
 func (m *Msg) signMessage() error {
-	if m.sMIME.isSigned {
-		return nil
+	// To avoid attaching double signatures (i. e. if WriteTo is called multiple times)
+	// we remove any present smime part before signing the mail
+	parts := make([]*Part, 0)
+	for _, part := range m.parts {
+		if !part.smime {
+			parts = append(parts, part)
+		}
 	}
+	m.parts = parts
 
+	// We need to indicate that we are in the signing process
+	m.sMIME.inProgress = true
+	defer func() {
+		m.sMIME.inProgress = false
+	}()
+
+	// We render an unsigned version of the mail into a buffer so we can use it for
+	// the S/MIME signature
 	buf := bytes.NewBuffer(nil)
 	mw := &msgWriter{writer: buf, charset: m.charset, encoder: m.encoder}
-	m.sMIME.inProgress = true
-	m.SetBoundary(randomBoundary())
+
+	// If no boundary is set by the user, we set a fixed random boundary, so that
+	// the boundary of the parts is consistant during the different rendering
+	// phases
+	if m.boundary == "" {
+		m.SetBoundary(randomBoundary())
+	}
 	mw.writeMsg(m)
 
-	fmt.Printf("Header count: %d\n", m.headerCount)
+	// Since we only want to sign the message body, we need to find the position within
+	// the mail body from where we start reading.
 	var linecount uint = 0
-	pos := 0
+	var pos = 0
 	for linecount < m.headerCount {
 		nextIndex := bytes.Index(buf.Bytes()[pos:], []byte("\r\n"))
 		if nextIndex == -1 {
-			return fmt.Errorf("failed to find next index")
+			return errors.New("unable to find message body starting index within rendered message")
 		}
 		pos += nextIndex + 2
 		linecount++
 	}
-	m.headerCount = 0
-	//index := bytes.Index(buf.Bytes(), []byte("\r\n"))
+
+	// Sign the message and attach a new smime signature part to the mail
 	signedMessage, err := m.sMIME.signMessage(buf.Bytes()[pos:])
 	if err != nil {
 		return fmt.Errorf("failed to sign message: %w", err)
 	}
-
 	signaturePart := m.newPart(TypeSMIMESigned, WithPartEncoding(EncodingB64), WithSMIMESigning())
 	signaturePart.SetContent(signedMessage)
 	m.parts = append(m.parts, signaturePart)
-	m.sMIME.inProgress = false
 
 	return nil
 }

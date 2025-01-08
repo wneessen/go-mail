@@ -22,22 +22,21 @@ var (
 	ErrCertificateMissing = errors.New("certificate is missing")
 )
 
-// SMIME represents the configuration used to sign messages with S/MIME.
+// SMIME represents the configuration and state for S/MIME signing.
 //
-// This struct encapsulates the private key, certificate, and optional intermediate certificate
-// required for S/MIME signing.
+// This struct encapsulates the private key, certificate, optional intermediate certificate, and
+// a flag indicating whether a signing process is currently in progress.
 //
 // Fields:
 //   - privateKey: The private key used for signing (implements crypto.PrivateKey).
 //   - certificate: The x509 certificate associated with the private key.
 //   - intermediateCert: An optional x509 intermediate certificate for chain validation.
-//   - signatureWritten: A flag indicating whether the S/MIME the signature has already been written
+//   - inProgress: A boolean flag indicating if a signing operation is currently active.
 type SMIME struct {
 	privateKey       crypto.PrivateKey
 	certificate      *x509.Certificate
 	intermediateCert *x509.Certificate
 	inProgress       bool
-	isSigned         bool
 }
 
 // newSMIME constructs a new instance of SMIME with the provided parameters.
@@ -53,7 +52,8 @@ type SMIME struct {
 // Returns:
 //   - An SMIME instance configured with the provided parameters.
 //   - An error if the private key or certificate is missing.
-func newSMIME(privateKey crypto.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) (*SMIME, error) {
+func newSMIME(privateKey crypto.PrivateKey, certificate *x509.Certificate,
+	intermediateCertificate *x509.Certificate) (*SMIME, error) {
 	if privateKey == nil {
 		return nil, ErrPrivateKeyMissing
 	}
@@ -68,21 +68,18 @@ func newSMIME(privateKey crypto.PrivateKey, certificate *x509.Certificate, inter
 	}, nil
 }
 
-// signMessage signs the given message with S/MIME.
+// signMessage signs the provided message with S/MIME and returns the signature in DER format.
 //
-// This function uses the configured private key and certificate to create an S/MIME signature
-// for the provided message. It optionally includes an intermediate certificate for chain validation.
-// The resulting signature is returned in PEM format.
+// This function creates S/MIME signed data using the configured private key and certificate.
+// It optionally includes an intermediate certificate for chain validation and detaches the signature.
 //
 // Parameters:
-//   - message: The string content of the message to be signed.
+//   - message: The byte slice representing the message to be signed.
 //
 // Returns:
-//   - A string containing the S/MIME signature in PEM format.
-//   - An error if any step in the signing process fails, such as initializing signed data, adding a signer,
-//     or encoding the signature.
+//   - A string containing the S/MIME signature in DER format.
+//   - An error if initializing signed data, adding the signer, or finishing the signature fails.
 func (s *SMIME) signMessage(message []byte) (string, error) {
-	fmt.Printf("unsigned data: %s\n", string(message))
 	signedData, err := pkcs7.NewSignedData(message)
 	if err != nil || signedData == nil {
 		return "", fmt.Errorf("failed to initialize signed data: %w", err)
@@ -96,8 +93,7 @@ func (s *SMIME) signMessage(message []byte) (string, error) {
 		signedData.AddCertificate(s.intermediateCert)
 	}
 
-	//signedData.Detach()
-
+	signedData.Detach()
 	signatureDER, err := signedData.Finish()
 	if err != nil {
 		return "", fmt.Errorf("failed to finish signature: %w", err)
