@@ -6,7 +6,6 @@ package mail
 
 import (
 	"bytes"
-	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -132,7 +131,12 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 	}
 
 	if msg.hasSMIME() && !msg.isSMIMEInProgress() {
-		mw.startMP(MIMESMIMESigned, randomBoundary())
+		boundary, err := randomBoundary()
+		if err != nil {
+			mw.err = err
+			return
+		}
+		mw.startMP(MIMESMIMESigned, boundary)
 		mw.writeString(DoubleNewLine)
 	}
 	if msg.hasMixed() {
@@ -527,16 +531,6 @@ func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encodin
 	if mw.depth == 0 {
 		mw.bytesWritten += n
 	}
-}
-
-// randomBoundary
-func randomBoundary() string {
-	var buf [30]byte
-	_, err := io.ReadFull(rand.Reader, buf[:])
-	if err != nil {
-		panic(err)
-	}
-	return fmt.Sprintf("%x", buf[:])
 }
 
 // sanitizeFilename sanitizes a given filename string by replacing specific unwanted characters with
