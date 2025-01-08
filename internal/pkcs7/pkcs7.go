@@ -413,7 +413,3 @@ func marshalAttributes(attrs []attribute) ([]byte, error) {
 	}
 	return raw.Bytes, nil
 }
-
-func isCertMatchForIssuerAndSerial(cert *x509.Certificate, ias issuerAndSerial) bool {
-	return cert.SerialNumber.Cmp(ias.SerialNumber) == 0 && bytes.Equal(cert.RawIssuer, ias.IssuerName.FullBytes)
-}
