@@ -63,7 +63,7 @@ func TestContentType_String(t *testing.T) {
 		},
 
 		{
-			"ContentType: pkcs7-signature", typeSMimeSigned,
+			"ContentType: pkcs7-signature", TypeSMIMESigned,
 			`application/pkcs7-signature; name="smime.p7s"`,
 		},
 	}
@@ -136,7 +136,7 @@ func TestMimeType_String(t *testing.T) {
 		{MIMEAlternative, "alternative"},
 		{MIMEMixed, "mixed"},
 		{MIMERelated, "related"},
-		{MIMESMime, `signed; protocol="application/pkcs7-signature"; micalg=sha-256`},
+		{MIMESMIMESigned, `signed; protocol="application/pkcs7-signature"; micalg=sha-256`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.mt.String(), func(t *testing.T) {

@@ -5,213 +5,134 @@
 package mail
 
 import (
-	"bytes"
 	"crypto"
-	"crypto/ecdsa"
-	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
-	"encoding/pem"
 	"errors"
 	"fmt"
-	"mime/quotedprintable"
-	"strings"
+
+	"github.com/wneessen/go-mail/internal/pkcs7"
 )
 
 var (
-	// ErrInvalidPrivateKey should be used if private key is invalid
-	ErrInvalidPrivateKey = errors.New("invalid private key")
+	// ErrPrivateKeyMissing should be used if private key is invalid
+	ErrPrivateKeyMissing = errors.New("private key is missing")
 
-	// ErrInvalidCertificate should be used if the certificate is invalid
-	ErrInvalidCertificate = errors.New("invalid certificate")
+	// ErrCertificateMissing should be used if the certificate is invalid
+	ErrCertificateMissing = errors.New("certificate is missing")
 )
 
-// privateKeyHolder is the representation of a private key
-type privateKeyHolder struct {
-	ecdsa *ecdsa.PrivateKey
-	rsa   *rsa.PrivateKey
+// SMIME represents the configuration and state for S/MIME signing.
+//
+// This struct encapsulates the private key, certificate, optional intermediate certificate, and
+// a flag indicating whether a signing process is currently in progress.
+//
+// Fields:
+//   - privateKey: The private key used for signing (implements crypto.PrivateKey).
+//   - certificate: The x509 certificate associated with the private key.
+//   - intermediateCert: An optional x509 intermediate certificate for chain validation.
+//   - inProgress: A boolean flag indicating if a signing operation is currently active.
+type SMIME struct {
+	privateKey       crypto.PrivateKey
+	certificate      *x509.Certificate
+	intermediateCert *x509.Certificate
+	inProgress       bool
 }
 
-// get returns the private key of the privateKeyHolder
-func (p privateKeyHolder) get() crypto.PrivateKey {
-	if p.ecdsa != nil {
-		return p.ecdsa
-	}
-	return p.rsa
-}
-
-// SMime is used to sign messages with S/MIME
-type SMime struct {
-	privateKey              privateKeyHolder
-	certificate             *x509.Certificate
-	intermediateCertificate *x509.Certificate
-}
-
-// newSMimeWithRSA construct a new instance of SMime with provided parameters
-// privateKey as *rsa.PrivateKey
-// certificate as *x509.Certificate
-// intermediateCertificate (optional) as *x509.Certificate
-func newSMimeWithRSA(privateKey *rsa.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) (*SMime, error) {
+// newSMIME constructs a new instance of SMIME with the provided parameters.
+//
+// This function initializes an SMIME object with a private key, certificate, and an optional
+// intermediate certificate.
+//
+// Parameters:
+//   - privateKey: The private key used for signing (must implement crypto.PrivateKey).
+//   - certificate: The x509 certificate associated with the private key.
+//   - intermediateCert: An optional x509 intermediate certificate for chain validation.
+//
+// Returns:
+//   - An SMIME instance configured with the provided parameters.
+//   - An error if the private key or certificate is missing.
+func newSMIME(privateKey crypto.PrivateKey, certificate *x509.Certificate,
+	intermediateCertificate *x509.Certificate,
+) (*SMIME, error) {
 	if privateKey == nil {
-		return nil, ErrInvalidPrivateKey
+		return nil, ErrPrivateKeyMissing
 	}
-
 	if certificate == nil {
-		return nil, ErrInvalidCertificate
+		return nil, ErrCertificateMissing
 	}
 
-	return &SMime{
-		privateKey:              privateKeyHolder{rsa: privateKey},
-		certificate:             certificate,
-		intermediateCertificate: intermediateCertificate,
+	return &SMIME{
+		privateKey:       privateKey,
+		certificate:      certificate,
+		intermediateCert: intermediateCertificate,
 	}, nil
 }
 
-// newSMimeWithECDSA construct a new instance of SMime with provided parameters
-// privateKey as *ecdsa.PrivateKey
-// certificate as *x509.Certificate
-// intermediateCertificate (optional) as *x509.Certificate
-func newSMimeWithECDSA(privateKey *ecdsa.PrivateKey, certificate *x509.Certificate, intermediateCertificate *x509.Certificate) (*SMime, error) {
-	if privateKey == nil {
-		return nil, ErrInvalidPrivateKey
-	}
-
-	if certificate == nil {
-		return nil, ErrInvalidCertificate
-	}
-
-	return &SMime{
-		privateKey:              privateKeyHolder{ecdsa: privateKey},
-		certificate:             certificate,
-		intermediateCertificate: intermediateCertificate,
-	}, nil
-}
-
-// signMessage signs the message with S/MIME
-func (sm *SMime) signMessage(message string) (*string, error) {
-	lines := parseLines([]byte(message))
-	toBeSigned := lines.bytesFromLines([]byte("\r\n"))
-
-	signedData, err := newSignedData(toBeSigned)
+// signMessage signs the provided message with S/MIME and returns the signature in DER format.
+//
+// This function creates S/MIME signed data using the configured private key and certificate.
+// It optionally includes an intermediate certificate for chain validation and detaches the signature.
+//
+// Parameters:
+//   - message: The byte slice representing the message to be signed.
+//
+// Returns:
+//   - A string containing the S/MIME signature in DER format.
+//   - An error if initializing signed data, adding the signer, or finishing the signature fails.
+func (s *SMIME) signMessage(message []byte) (string, error) {
+	signedData, err := pkcs7.NewSignedData(message)
 	if err != nil || signedData == nil {
-		return nil, fmt.Errorf("could not initialize signed data: %w", err)
+		return "", fmt.Errorf("failed to initialize signed data: %w", err)
 	}
 
-	if err = signedData.addSigner(sm.certificate, sm.privateKey.get(), SignerInfoConfig{}); err != nil {
-		return nil, fmt.Errorf("could not add signer message: %w", err)
+	if err = signedData.AddSigner(s.certificate, s.privateKey, pkcs7.SignerInfoConfig{}); err != nil {
+		return "", fmt.Errorf("could not add signer message: %w", err)
 	}
 
-	if sm.intermediateCertificate != nil {
-		signedData.addCertificate(sm.intermediateCertificate)
+	if s.intermediateCert != nil {
+		signedData.AddCertificate(s.intermediateCert)
 	}
 
-	signedData.detach()
-
-	signatureDER, err := signedData.finish()
+	signedData.Detach()
+	signatureDER, err := signedData.Finish()
 	if err != nil {
-		return nil, fmt.Errorf("could not finish signing: %w", err)
+		return "", fmt.Errorf("failed to finish signature: %w", err)
 	}
 
-	pemMsg, err := encodeToPEM(signatureDER)
+	return string(signatureDER), nil
+}
+
+// getLeafCertificate retrieves the leaf certificate from a tls.Certificate.
+//
+// This function returns the parsed leaf certificate from the provided TLS certificate. If the Leaf field
+// is nil, it parses and returns the first certificate in the chain.
+//
+// PLEASE NOTE: In Go versions prior to 1.23, the Certificate.Leaf field was left nil, and the parsed
+// certificate was discarded. This behavior can be re-enabled by setting "x509keypairleaf=0" in the
+// GODEBUG environment variable.
+//
+// Parameters:
+//   - keyPairTlS: The *tls.Certificate containing the certificate chain.
+//
+// Returns:
+//   - The parsed leaf x509 certificate.
+//   - An error if the certificate could not be parsed.
+func getLeafCertificate(keyPairTLS *tls.Certificate) (*x509.Certificate, error) {
+	if keyPairTLS == nil {
+		return nil, errors.New("provided certificate is nil")
+	}
+	if keyPairTLS.Leaf != nil {
+		return keyPairTLS.Leaf, nil
+	}
+
+	if len(keyPairTLS.Certificate) == 0 {
+		return nil, errors.New("certificate chain is empty")
+	}
+	cert, err := x509.ParseCertificate(keyPairTLS.Certificate[0])
 	if err != nil {
-		return nil, fmt.Errorf("could not encode to PEM: %w", err)
-	}
-
-	return pemMsg, nil
-}
-
-// createMessage prepares the message that will be used for the sign method later
-func (sm *SMime) prepareMessage(encoding Encoding, contentType ContentType, charset Charset, body []byte) (*string, error) {
-	encodedMessage, err := sm.encodeMessage(encoding, string(body))
-	if err != nil {
-		return nil, err
-	}
-	preparedMessage := fmt.Sprintf("Content-Transfer-Encoding: %v\r\nContent-Type: %v; charset=%v\r\n\r\n%v", encoding, contentType, charset, *encodedMessage)
-	return &preparedMessage, nil
-}
-
-// encodeMessage encodes the message with the given encoding
-func (sm *SMime) encodeMessage(encoding Encoding, message string) (*string, error) {
-	if encoding != EncodingQP {
-		return &message, nil
-	}
-
-	buffer := bytes.Buffer{}
-	writer := quotedprintable.NewWriter(&buffer)
-	if _, err := writer.Write([]byte(message)); err != nil {
-		return nil, err
-	}
-	if err := writer.Close(); err != nil {
-		return nil, err
-	}
-	encodedMessage := buffer.String()
-
-	return &encodedMessage, nil
-}
-
-// encodeToPEM uses the method pem.Encode from the standard library but cuts the typical PEM preamble
-func encodeToPEM(msg []byte) (*string, error) {
-	block := &pem.Block{Bytes: msg}
-
-	var arrayBuffer bytes.Buffer
-	if err := pem.Encode(&arrayBuffer, block); err != nil {
 		return nil, err
 	}
 
-	r := arrayBuffer.String()
-	r = strings.TrimPrefix(r, "-----BEGIN -----")
-	r = strings.Trim(r, "\n")
-	r = strings.TrimSuffix(r, "-----END -----")
-	r = strings.Trim(r, "\n")
-
-	return &r, nil
-}
-
-// line is the representation of one line of the message that will be used for signing purposes
-type line struct {
-	line      []byte
-	endOfLine []byte
-}
-
-// lines is the representation of a message that will be used for signing purposes
-type lines []line
-
-// bytesFromLines creates the line representation with the given endOfLine char
-func (ls lines) bytesFromLines(sep []byte) []byte {
-	var raw []byte
-	for i := range ls {
-		raw = append(raw, ls[i].line...)
-		if len(ls[i].endOfLine) != 0 && sep != nil {
-			raw = append(raw, sep...)
-		} else {
-			raw = append(raw, ls[i].endOfLine...)
-		}
-	}
-	return raw
-}
-
-// parseLines constructs the lines representation of a given message
-func parseLines(raw []byte) lines {
-	oneLine := line{raw, nil}
-	lines := lines{oneLine}
-	lines = lines.splitLine([]byte("\r\n"))
-	lines = lines.splitLine([]byte("\r"))
-	lines = lines.splitLine([]byte("\n"))
-	return lines
-}
-
-// splitLine uses the given endOfLine to split the given line
-func (ls lines) splitLine(sep []byte) lines {
-	nl := lines{}
-	for _, l := range ls {
-		split := bytes.Split(l.line, sep)
-		if len(split) > 1 {
-			for i := 0; i < len(split)-1; i++ {
-				nl = append(nl, line{split[i], sep})
-			}
-			nl = append(nl, line{split[len(split)-1], l.endOfLine})
-		} else {
-			nl = append(nl, l)
-		}
-	}
-	return nl
+	return cert, nil
 }

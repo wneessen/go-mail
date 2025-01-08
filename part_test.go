@@ -102,21 +102,21 @@ func TestPart_WithPartContentDescription(t *testing.T) {
 	}
 }
 
-// TestPart_WithSMimeSinging tests the WithSMimeSinging method
+// TestPart_WithSMimeSinging tests the WithSMIMESigning method
 func TestPart_WithSMimeSinging(t *testing.T) {
 	m := NewMsg()
-	part := m.newPart(TypeTextPlain, WithSMimeSinging())
+	part := m.newPart(TypeTextPlain, WithSMIMESigning())
 	if part == nil {
-		t.Errorf("newPart() WithSMimeSinging() failed: no part returned")
+		t.Errorf("newPart() WithSMIMESigning() failed: no part returned")
 		return
 	}
 	if part.smime != true {
-		t.Errorf("newPart() WithSMimeSinging() failed: expected: %v, got: %v", true, part.smime)
+		t.Errorf("newPart() WithSMIMESigning() failed: expected: %v, got: %v", true, part.smime)
 	}
 	part.smime = true
-	part.SetIsSMimeSigned(false)
+	part.SetIsSMIMESigned(false)
 	if part.smime != false {
-		t.Errorf("newPart() SetIsSMimeSigned() failed: expected: %v, got: %v", false, part.smime)
+		t.Errorf("newPart() SetIsSMIMESigned() failed: expected: %v, got: %v", false, part.smime)
 	}
 }
 
@@ -263,7 +263,7 @@ func TestPart_GetContentBroken(t *testing.T) {
 	}
 }
 
-// TestPart_IsSMimeSigned tests Part.IsSMimeSigned
+// TestPart_IsSMimeSigned tests Part.IsSMIMESigned
 func TestPart_IsSMimeSigned(t *testing.T) {
 	tests := []struct {
 		name string
@@ -281,8 +281,8 @@ func TestPart_IsSMimeSigned(t *testing.T) {
 				t.Errorf("failed: %s", err)
 				return
 			}
-			pl[0].SetIsSMimeSigned(tt.want)
-			smime := pl[0].IsSMimeSigned()
+			pl[0].SetIsSMIMESigned(tt.want)
+			smime := pl[0].smime
 			if smime != tt.want {
 				t.Errorf("SetContentType failed. Got: %v, expected: %v", smime, tt.want)
 			}

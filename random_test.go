@@ -58,6 +58,26 @@ func TestRandomStringSecure(t *testing.T) {
 	})
 }
 
+func TestRandomBoundary(t *testing.T) {
+	t.Run("randomBoundary returning valid values", func(t *testing.T) {
+		boundary, err := randomBoundary()
+		if err != nil {
+			t.Errorf("random boundary generation failed: %s", err)
+		}
+		if len(boundary) < 30 {
+			t.Errorf("random boundary length mismatch. got: %d, expected: %d", len(boundary), 30)
+		}
+	})
+	t.Run("randomBoundary fails on broken rand Reader", func(t *testing.T) {
+		defaultRandReader := rand.Reader
+		t.Cleanup(func() { rand.Reader = defaultRandReader })
+		rand.Reader = &randReader{failon: 1}
+		if _, err := randomBoundary(); err == nil {
+			t.Fatalf("expected random boundary generation to fail on broken rand.Reader")
+		}
+	})
+}
+
 func BenchmarkGenerator_RandomStringSecure(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {

@@ -7,6 +7,8 @@ package mail
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"fmt"
+	"io"
 	"strings"
 )
 
@@ -69,4 +71,21 @@ func randomStringSecure(length int) (string, error) {
 	}
 
 	return randString.String(), nil
+}
+
+// randomBoundary generates a random boundary string for use in MIME messages.
+//
+// This function creates a 30-byte random value using a cryptographic random number generator
+// and formats it as a hexadecimal string.
+//
+// Returns:
+//   - A string containing the generated random boundary.
+//   - An error if reading from the random number generator fails.
+func randomBoundary() (string, error) {
+	var buf [30]byte
+	_, err := io.ReadFull(rand.Reader, buf[:])
+	if err != nil {
+		return "", fmt.Errorf("failed to read from rand.Reader: %w", err)
+	}
+	return fmt.Sprintf("%x", buf[:]), nil
 }

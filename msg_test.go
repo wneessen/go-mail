@@ -7,6 +7,10 @@ package mail
 import (
 	"bytes"
 	"context"
+	"crypto"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
 	"embed"
 	"errors"
 	"fmt"
@@ -5785,6 +5789,156 @@ func TestMsg_WriteTo(t *testing.T) {
 			})
 		}
 	})
+	t.Run("WriteTo with S/MIME signing", func(t *testing.T) {
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Fatalf("failed to get dummy key material: %s", err)
+		}
+		message := testMessage(t)
+		if err = message.SignWithTLSCertificate(keypair); err != nil {
+			t.Fatalf("failed to initialize S/MIME signing: %s", err)
+		}
+		buffer := bytes.NewBuffer(nil)
+		if _, err = message.WriteTo(buffer); err != nil {
+			t.Errorf("failed to write S/MIME signed message to buffer: %s", err)
+		}
+		if !strings.Contains(buffer.String(), TypeSMIMESigned.String()) {
+			t.Error("expected message to be S/MIME signature Content-Type in mail body")
+		}
+		if !strings.Contains(buffer.String(), `application/pkcs7-signature; name="smime.p7s"`) {
+			t.Error("expected message to be S/MIME signature attachment in mail body")
+		}
+	})
+	t.Run("WriteTo with S/MIME signing on multipart/alternative message", func(t *testing.T) {
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Fatalf("failed to get dummy key material: %s", err)
+		}
+		message := testMessage(t)
+		message.AddAlternativeString(TypeTextHTML, "<p>HTML alternative</p>")
+		if err = message.SignWithTLSCertificate(keypair); err != nil {
+			t.Fatalf("failed to initialize S/MIME signing: %s", err)
+		}
+		buffer := bytes.NewBuffer(nil)
+		if _, err = message.WriteTo(buffer); err != nil {
+			t.Errorf("failed to write S/MIME signed message to buffer: %s", err)
+		}
+		if !strings.Contains(buffer.String(), TypeSMIMESigned.String()) {
+			t.Error("expected message to be S/MIME signature Content-Type in mail body")
+		}
+		if !strings.Contains(buffer.String(), `application/pkcs7-signature; name="smime.p7s"`) {
+			t.Error("expected message to be S/MIME signature attachment in mail body")
+		}
+		if !strings.Contains(buffer.String(), TypeTextHTML.String()) {
+			t.Error("expected message to have HTML alternative in mail body")
+		}
+		if !strings.Contains(buffer.String(), TypeMultipartAlternative.String()) {
+			t.Error("expected message to have multipart/alternative in mail body")
+		}
+		if !strings.Contains(buffer.String(), "<p>HTML alternative</p>") {
+			t.Error("expected message to have HTML alternative in mail body")
+		}
+	})
+	t.Run("WriteTo with S/MIME signing on multipart/mixed message", func(t *testing.T) {
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Fatalf("failed to get dummy key material: %s", err)
+		}
+		message := testMessage(t)
+		message.AttachFile("testdata/attachment.txt")
+		if err = message.SignWithTLSCertificate(keypair); err != nil {
+			t.Fatalf("failed to initialize S/MIME signing: %s", err)
+		}
+		buffer := bytes.NewBuffer(nil)
+		if _, err = message.WriteTo(buffer); err != nil {
+			t.Errorf("failed to write S/MIME signed message to buffer: %s", err)
+		}
+		if !strings.Contains(buffer.String(), TypeSMIMESigned.String()) {
+			t.Error("expected message to be S/MIME signature Content-Type in mail body")
+		}
+		if !strings.Contains(buffer.String(), `application/pkcs7-signature; name="smime.p7s"`) {
+			t.Error("expected message to be S/MIME signature attachment in mail body")
+		}
+		if !strings.Contains(buffer.String(), TypeMultipartMixed.String()) {
+			t.Error("expected message to have multipart/mixed in mail body")
+		}
+		if !strings.Contains(buffer.String(), "attachment.txt") {
+			t.Error("expected message to have attachment in mail body")
+		}
+	})
+	t.Run("WriteTo with S/MIME signing on multipart/related message", func(t *testing.T) {
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Fatalf("failed to get dummy key material: %s", err)
+		}
+		message := testMessage(t)
+		message.EmbedFile("testdata/embed.txt")
+		if err = message.SignWithTLSCertificate(keypair); err != nil {
+			t.Fatalf("failed to initialize S/MIME signing: %s", err)
+		}
+		buffer := bytes.NewBuffer(nil)
+		if _, err = message.WriteTo(buffer); err != nil {
+			t.Errorf("failed to write S/MIME signed message to buffer: %s", err)
+		}
+		if !strings.Contains(buffer.String(), TypeSMIMESigned.String()) {
+			t.Error("expected message to be S/MIME signature Content-Type in mail body")
+		}
+		if !strings.Contains(buffer.String(), `application/pkcs7-signature; name="smime.p7s"`) {
+			t.Error("expected message to be S/MIME signature attachment in mail body")
+		}
+		if !strings.Contains(buffer.String(), TypeMultipartRelated.String()) {
+			t.Error("expected message to have multipart/related in mail body")
+		}
+		if !strings.Contains(buffer.String(), "embed.txt") {
+			t.Error("expected message to have embeded file in mail body")
+		}
+	})
+	t.Run("WriteTo with S/MIME signing fails with invalid key", func(t *testing.T) {
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Fatalf("failed to get dummy key material: %s", err)
+		}
+		message := testMessage(t)
+		if err = message.SignWithTLSCertificate(keypair); err != nil {
+			t.Fatalf("failed to initialize S/MIME signing: %s", err)
+		}
+		message.sMIME.privateKey = unsupportedPrivKey{}
+
+		buffer := bytes.NewBuffer(nil)
+		_, err = message.WriteTo(buffer)
+		if err == nil {
+			t.Error("expected WritoTo with invalid S/MIME private key to fail")
+		}
+		expErr := "failed to sign message: could not add signer message: pkcs7: cannot convert encryption algorithm " +
+			"to oid, unknown private key type"
+		if !strings.Contains(err.Error(), expErr) {
+			t.Errorf("expected S/MIME signing error to be: %s, got: %s", expErr, err)
+		}
+	})
+	t.Run("WriteTo with S/MIME signing fails with broken rand.Reader", func(t *testing.T) {
+		defaultRandReader := rand.Reader
+		t.Cleanup(func() { rand.Reader = defaultRandReader })
+		rand.Reader = &randReader{failon: 1}
+
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Fatalf("failed to get dummy key material: %s", err)
+		}
+		message := testMessage(t)
+		if err = message.SignWithTLSCertificate(keypair); err != nil {
+			t.Fatalf("failed to initialize S/MIME signing: %s", err)
+		}
+
+		buffer := bytes.NewBuffer(nil)
+		_, err = message.WriteTo(buffer)
+		if err == nil {
+			t.Error("expected WritoTo with invalid S/MIME private key to fail")
+		}
+		expErr := "failed to generate random boundary: failed to read from rand.Reader: broken reader"
+		if !strings.EqualFold(err.Error(), expErr) {
+			t.Errorf("expected S/MIME signing error to be: %s, got: %s", expErr, err)
+		}
+	})
 }
 
 func TestMsg_WriteToFile(t *testing.T) {
@@ -6398,36 +6552,19 @@ func TestMsg_hasAlt(t *testing.T) {
 	})
 }
 
-// TestMsg_hasAlt tests the hasAlt() method of the Msg with active S/MIME
-func TestMsg_hasAltWithSMime(t *testing.T) {
-	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
-	if err != nil {
-		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
-	}
-	m := NewMsg()
-	m.SetBodyString(TypeTextPlain, "Plain")
-	m.AddAlternativeString(TypeTextHTML, "<b>HTML</b>")
-	if err := m.SignWithSMimeRSA(privateKey, certificate, intermediateCertificate); err != nil {
-		t.Errorf("failed to init smime configuration")
-	}
-	if m.hasAlt() {
-		t.Errorf("mail has alternative parts and S/MIME is active, but hasAlt() returned true")
-	}
-}
-
-// TestMsg_hasSMime tests the hasSMime() method of the Msg
+// TestMsg_hasSMime tests the hasSMIME() method of the Msg
 func TestMsg_hasSMime(t *testing.T) {
 	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
 	if err != nil {
-		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
+		t.Fatalf("failed to load dummy crypto material: %s", err)
 	}
 	m := NewMsg()
-	if err := m.SignWithSMimeRSA(privateKey, certificate, intermediateCertificate); err != nil {
+	if err := m.SignWithKeypair(privateKey, certificate, intermediateCertificate); err != nil {
 		t.Errorf("failed to init smime configuration")
 	}
 	m.SetBodyString(TypeTextPlain, "Plain")
-	if !m.hasSMime() {
-		t.Errorf("mail has smime configured but hasSMime() returned true")
+	if !m.hasSMIME() {
+		t.Errorf("mail has smime configured but hasSMIME() returned true")
 	}
 }
 
@@ -6505,70 +6642,6 @@ func TestMsg_hasRelated(t *testing.T) {
 			t.Error("message with attachment and embed is supposed to be related")
 		}
 	})
-}
-
-// TestMsg_WriteToWithSMIME tests the WriteTo() method of the Msg
-func TestMsg_WriteToWithSMIME(t *testing.T) {
-	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
-	if err != nil {
-		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
-	}
-
-	m := NewMsg()
-	m.Subject("This is a test")
-	m.SetBodyString(TypeTextPlain, "Plain")
-	if err := m.SignWithSMimeRSA(privateKey, certificate, intermediateCertificate); err != nil {
-		t.Errorf("failed to init smime configuration")
-	}
-
-	wbuf := bytes.Buffer{}
-	if _, err = m.WriteTo(&wbuf); err != nil {
-		t.Errorf("WriteTo() failed: %s", err)
-	}
-
-	result := wbuf.String()
-	boundary := result[strings.LastIndex(result, "--")-60 : strings.LastIndex(result, "--")]
-	if strings.Count(result, boundary) != 4 {
-		t.Errorf("WriteTo() failed. False number of boundaries found")
-	}
-
-	parts := strings.Split(result, fmt.Sprintf("--%s", boundary))
-	if len(parts) != 4 {
-		t.Errorf("WriteTo() failed. False number of parts found")
-	}
-
-	preamble := parts[0]
-	if !strings.Contains(preamble, "MIME-Version: 1.0") {
-		t.Errorf("WriteTo() failed. Unable to find MIME-Version")
-	}
-	if !strings.Contains(preamble, "Subject: This is a test") {
-		t.Errorf("WriteTo() failed. Unable to find subject")
-	}
-	if !strings.Contains(preamble, fmt.Sprintf("Content-Type: multipart/signed; protocol=\"application/pkcs7-signature\"; micalg=sha-256;\r\n boundary=%s", boundary)) {
-		t.Errorf("WriteTo() failed. Unable to find Content-Type")
-	}
-
-	signedData := parts[1]
-	if !strings.Contains(signedData, "Content-Transfer-Encoding: quoted-printable") {
-		t.Errorf("WriteTo() failed. Unable to find Content-Transfer-Encoding")
-	}
-	if !strings.Contains(signedData, "Content-Type: text/plain; charset=UTF-8") {
-		t.Errorf("WriteTo() failed. Unable to find Content-Type")
-	}
-	if !strings.Contains(signedData, "Plain") {
-		t.Errorf("WriteTo() failed. Unable to find Content")
-	}
-
-	signature := parts[2]
-	if !strings.Contains(signature, "Content-Transfer-Encoding: base64") {
-		t.Errorf("WriteTo() failed. Unable to find Content-Transfer-Encoding")
-	}
-	if !strings.Contains(signature, `application/pkcs7-signature; name="smime.p7s"`) {
-		t.Errorf("WriteTo() failed. Unable to find Content-Type")
-	}
-	if strings.Contains(signature, "Plain") {
-		t.Errorf("WriteTo() failed. Unable to find signature")
-	}
 }
 
 func TestMsg_hasPGPType(t *testing.T) {
@@ -6667,202 +6740,329 @@ func TestMsg_fileFromIOFS(t *testing.T) {
 	})
 }
 
-// TestSignWithSMime_ValidRSAKeyPair tests WithSMimeSinging with given rsa key pair
-func TestSignWithSMime_ValidRSAKeyPair(t *testing.T) {
-	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
+func TestMsg_SignWithKeypair(t *testing.T) {
+	rsaPrivKey, rsaCert, rsaIntermediate, err := getDummyRSACryptoMaterial()
 	if err != nil {
-		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
+		t.Fatalf("failed to load dummy crypto material: %s", err)
 	}
-	m := NewMsg()
-	if err := m.SignWithSMimeRSA(privateKey, certificate, intermediateCertificate); err != nil {
-		t.Errorf("failed to set sMime. Cause: %v", err)
+	ecdsaPrivKey, ecdsaCert, ecdsaIntermediate, err := getDummyRSACryptoMaterial()
+	if err != nil {
+		t.Fatalf("failed to load dummy crypto material: %s", err)
 	}
-	if m.sMime.privateKey.rsa == nil {
-		t.Errorf("WithSMimeSinging() - no private key is given")
-	}
-	if m.sMime.certificate == nil {
-		t.Errorf("WithSMimeSinging() - no certificate is given")
-	}
+
+	t.Run("init signing with valid RSA keypair", func(t *testing.T) {
+		msg := testMessage(t)
+		if err = msg.SignWithKeypair(rsaPrivKey, rsaCert, rsaIntermediate); err != nil {
+			t.Errorf("failed to initialize SMIME configuration: %s", err)
+		}
+		if msg.sMIME == nil {
+			t.Errorf("failed to initialize SMIME configuration, SMIME is nil")
+		}
+		if msg.sMIME.privateKey == nil {
+			t.Errorf("failed to initialize SMIME configuration, private key is nil")
+		}
+		if msg.sMIME.certificate == nil {
+			t.Errorf("failed to initialize SMIME configuration, certificate is nil")
+		}
+		if msg.sMIME.intermediateCert == nil {
+			t.Errorf("failed to initialize SMIME configuration, intermediate certificate is nil")
+		}
+	})
+	t.Run("init signing with valid ECDSA keypair", func(t *testing.T) {
+		msg := testMessage(t)
+		if err = msg.SignWithKeypair(ecdsaPrivKey, ecdsaCert, ecdsaIntermediate); err != nil {
+			t.Errorf("failed to initialize SMIME configuration: %s", err)
+		}
+		if msg.sMIME == nil {
+			t.Errorf("failed to initialize SMIME configuration, SMIME is nil")
+		}
+		if msg.sMIME.privateKey == nil {
+			t.Errorf("failed to initialize SMIME configuration, private key is nil")
+		}
+		if msg.sMIME.certificate == nil {
+			t.Errorf("failed to initialize SMIME configuration, certificate is nil")
+		}
+		if msg.sMIME.intermediateCert == nil {
+			t.Errorf("failed to initialize SMIME configuration, intermediate certificate is nil")
+		}
+	})
+	t.Run("init signing with missing private key should fail", func(t *testing.T) {
+		msg := testMessage(t)
+		err = msg.SignWithKeypair(nil, rsaCert, rsaIntermediate)
+		if err == nil {
+			t.Errorf("SMIME init with missing private key should fail")
+		}
+		if !errors.Is(err, ErrPrivateKeyMissing) {
+			t.Errorf("SMIME init with missing private key should fail with %s, but got: %s", ErrPrivateKeyMissing,
+				err)
+		}
+		if msg.sMIME != nil {
+			t.Errorf("SMIME init with missing private key should fail, but SMIME is not nil")
+		}
+	})
+	t.Run("init signing with missing public key should fail", func(t *testing.T) {
+		msg := testMessage(t)
+		err = msg.SignWithKeypair(rsaPrivKey, nil, rsaIntermediate)
+		if err == nil {
+			t.Errorf("SMIME init with missing public key should fail")
+		}
+		if !errors.Is(err, ErrCertificateMissing) {
+			t.Errorf("SMIME init with missing public key should fail with %s, but got: %s", ErrCertificateMissing,
+				err)
+		}
+		if msg.sMIME != nil {
+			t.Errorf("SMIME init with missing public key should fail, but SMIME is not nil")
+		}
+	})
+	t.Run("init signing with missing intermediate cert should succeed", func(t *testing.T) {
+		msg := testMessage(t)
+		if err = msg.SignWithKeypair(rsaPrivKey, rsaCert, nil); err != nil {
+			t.Errorf("failed to initialize SMIME configuration: %s", err)
+		}
+		if msg.sMIME == nil {
+			t.Errorf("failed to initialize SMIME configuration, SMIME is nil")
+		}
+		if msg.sMIME.privateKey == nil {
+			t.Errorf("failed to initialize SMIME configuration, private key is nil")
+		}
+		if msg.sMIME.certificate == nil {
+			t.Errorf("failed to initialize SMIME configuration, certificate is nil")
+		}
+		if msg.sMIME.intermediateCert != nil {
+			t.Errorf("failed to initialize SMIME configuration, intermediate certificate is not nil")
+		}
+	})
 }
 
-// TestSignWithSMime_ValidRSAKeyPair tests WithSMimeSinging with given ecdsa key pair
-func TestSignWithSMime_ValidECDSAKeyPair(t *testing.T) {
-	privateKey, certificate, intermediateCertificate, err := getDummyECDSACryptoMaterial()
+func TestMsg_SignWithTLSCertificate(t *testing.T) {
+	keypair, err := getDummyKeyPairTLS()
 	if err != nil {
-		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
-	}
-	m := NewMsg()
-	if err := m.SignWithSMimeECDSA(privateKey, certificate, intermediateCertificate); err != nil {
-		t.Errorf("failed to set sMime. Cause: %v", err)
-	}
-	if m.sMime.privateKey.ecdsa == nil {
-		t.Errorf("WithSMimeSinging() - no private key is given")
-	}
-	if m.sMime.certificate == nil {
-		t.Errorf("WithSMimeSinging() - no certificate is given")
-	}
-}
-
-// TestSignWithTLSCertificate tests SignWithTLSCertificate with given *tls.Certificate
-func TestSignWithTLSCertificate(t *testing.T) {
-	keyPairTLS, err := getDummyKeyPairTLS()
-	if err != nil {
-		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
-	}
-	m := NewMsg()
-	if err := m.SignWithTLSCertificate(keyPairTLS); err != nil {
-		t.Errorf("failed to set sMime. Cause: %v", err)
-	}
-	if m.sMime.privateKey.ecdsa == nil {
-		t.Errorf("SignWithTLSCertificate() - no private key is given")
-	}
-	if m.sMime.certificate == nil {
-		t.Errorf("SignWithTLSCertificate() - no certificate is given")
-	}
-}
-
-// TestSignWithTLSCertificate tests SignWithTLSCertificate with given *tls.Certificate and nil leaf certificate
-// PLEASE NOTE: Before Go 1.23 Certificate.Leaf was left nil, and the parsed certificate was
-// discarded. This behavior can be re-enabled by setting "x509keypairleaf=0"
-// in the GODEBUG environment variable.
-func TestSignWithTLSCertificate_WithKeyPairLeafNil(t *testing.T) {
-	t.Setenv("GODEBUG", "x509keypairleaf=0")
-
-	keyPairTLS, err := getDummyKeyPairTLS()
-	if err != nil {
-		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
-	}
-	m := NewMsg()
-	if err := m.SignWithTLSCertificate(keyPairTLS); err != nil {
-		t.Errorf("failed to set sMime. Cause: %v", err)
-	}
-	if m.sMime.privateKey.ecdsa == nil {
-		t.Errorf("SignWithTLSCertificate() - no private key is given")
-	}
-	if m.sMime.certificate == nil {
-		t.Errorf("SignWithTLSCertificate() - no certificate is given")
-	}
-}
-
-// TestSignWithSMime_InvalidPrivateKey tests WithSMimeSinging with given invalid private key
-func TestSignWithSMime_InvalidPrivateKey(t *testing.T) {
-	m := NewMsg()
-
-	err := m.SignWithSMimeRSA(nil, nil, nil)
-	if !errors.Is(err, ErrInvalidPrivateKey) {
-		t.Errorf("failed to pre-check SignWithSMime method values correctly: %s", err)
-	}
-}
-
-// TestSignWithSMime_InvalidCertificate tests WithSMimeSinging with given invalid certificate
-func TestSignWithSMime_InvalidCertificate(t *testing.T) {
-	privateKey, _, _, err := getDummyRSACryptoMaterial()
-	if err != nil {
-		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
-	}
-	m := NewMsg()
-
-	err = m.SignWithSMimeRSA(privateKey, nil, nil)
-	if !errors.Is(err, ErrInvalidCertificate) {
-		t.Errorf("failed to pre-check SignWithSMime method values correctly: %s", err)
-	}
-}
-
-// TestMsg_createSignaturePart tests the Msg.createSignaturePart method
-func TestMsg_createSignaturePart(t *testing.T) {
-	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
-	if err != nil {
-		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
-	}
-	m := NewMsg()
-	if err := m.SignWithSMimeRSA(privateKey, certificate, intermediateCertificate); err != nil {
-		t.Errorf("failed to init smime configuration")
-	}
-	body := []byte("This is the body")
-	part, err := m.createSignaturePart(EncodingQP, TypeTextPlain, CharsetUTF7, body)
-	if err != nil {
-		t.Errorf("createSignaturePart() method failed.")
+		t.Fatalf("failed to load dummy crypto material: %s", err)
 	}
 
-	if part.GetEncoding() != EncodingB64 {
-		t.Errorf("createSignaturePart() method failed. Expected encoding: %s, got: %s", EncodingB64, part.GetEncoding())
-	}
-	if part.GetContentType() != typeSMimeSigned {
-		t.Errorf("createSignaturePart() method failed. Expected content type: %s, got: %s", typeSMimeSigned, part.GetContentType())
-	}
-	if part.GetCharset() != CharsetUTF8 {
-		t.Errorf("createSignaturePart() method failed. Expected charset: %s, got: %s", CharsetUTF8, part.GetCharset())
-	}
-	if content, err := part.GetContent(); err != nil || len(content) == len(body) {
-		t.Errorf("createSignaturePart() method failed. Expected content should not be equal: %s, got: %s", body, part.GetEncoding())
-	}
+	t.Run("init signing with valid TLS certificate", func(t *testing.T) {
+		msg := testMessage(t)
+		if err = msg.SignWithTLSCertificate(keypair); err != nil {
+			t.Errorf("failed to initialize SMIME configuration: %s", err)
+		}
+		if msg.sMIME.privateKey == nil {
+			t.Errorf("failed to initialize SMIME configuration, private key is nil")
+		}
+		if msg.sMIME.certificate == nil {
+			t.Errorf("failed to initialize SMIME configuration, certificate is nil")
+		}
+		if msg.sMIME.intermediateCert == nil {
+			t.Errorf("failed to initialize SMIME configuration, intermediate certificate is nil")
+		}
+	})
+
+	// Before Go 1.23 Certificate.Leaf was left nil, and the parsed certificate was discarded. This behavior
+	// can be re-enabled by setting "x509keypairleaf=0" in the GODEBUG environment variable.
+	// See: https://go-review.googlesource.com/c/go/+/585856
+	t.Run("init signing with valid TLS certificate with nil leaf", func(t *testing.T) {
+		t.Setenv("GODEBUG", "x509keypairleaf=0")
+
+		msg := testMessage(t)
+		if err = msg.SignWithTLSCertificate(keypair); err != nil {
+			t.Errorf("failed to initialize SMIME configuration: %s", err)
+		}
+		if msg.sMIME.privateKey == nil {
+			t.Errorf("failed to initialize SMIME configuration, private key is nil")
+		}
+		if msg.sMIME.certificate == nil {
+			t.Errorf("failed to initialize SMIME configuration, certificate is nil")
+		}
+		if msg.sMIME.intermediateCert == nil {
+			t.Errorf("failed to initialize SMIME configuration, intermediate certificate is nil")
+		}
+	})
+	t.Run("init signing with nil TLS certificate should fail", func(t *testing.T) {
+		msg := testMessage(t)
+		if err = msg.SignWithTLSCertificate(nil); err == nil {
+			t.Errorf("SMIME initilization with nil TLS certificate should fail")
+		}
+	})
+	t.Run("init signing with invalid intermediate certificate should fail", func(t *testing.T) {
+		msg := testMessage(t)
+		localpair := &tls.Certificate{
+			Certificate:                  keypair.Certificate,
+			PrivateKey:                   keypair.PrivateKey,
+			Leaf:                         keypair.Leaf,
+			SignedCertificateTimestamps:  keypair.SignedCertificateTimestamps,
+			SupportedSignatureAlgorithms: keypair.SupportedSignatureAlgorithms,
+		}
+		if len(localpair.Certificate) != 2 {
+			t.Fatal("expected certificate with intermediate certificate")
+		}
+		localpair.Certificate[1] = localpair.Certificate[1][:len(localpair.Certificate[1])-16]
+		if err = msg.SignWithTLSCertificate(localpair); err == nil {
+			t.Errorf("SMIME initilization with invalid intermediate certificate should fail")
+		}
+	})
+	t.Run("init signing with empty tls.Certificate should fail on leaf certificate creation", func(t *testing.T) {
+		msg := testMessage(t)
+		localpair := &tls.Certificate{}
+		if err = msg.SignWithTLSCertificate(localpair); err == nil {
+			t.Errorf("SMIME initilization with invalid intermediate certificate should fail")
+		}
+	})
+	t.Run("init signing with unsupported crypto.PrivateKey should fail", func(t *testing.T) {
+		msg := testMessage(t)
+		localpair := &tls.Certificate{
+			Certificate:                  [][]byte{keypair.Certificate[0]},
+			PrivateKey:                   unsupportedPrivKey{},
+			Leaf:                         keypair.Leaf,
+			SignedCertificateTimestamps:  keypair.SignedCertificateTimestamps,
+			SupportedSignatureAlgorithms: keypair.SupportedSignatureAlgorithms,
+		}
+		if err = msg.SignWithTLSCertificate(localpair); err == nil {
+			t.Errorf("SMIME initilization with invalid intermediate certificate should fail")
+		}
+		expErr := "unsupported private key type: mail.unsupportedPrivKey"
+		if !strings.EqualFold(err.Error(), expErr) {
+			t.Errorf("SMIME initilization with invalid intermediate certificate should fail with %s, but got: %s",
+				expErr, err)
+		}
+	})
 }
 
 // TestMsg_signMessage tests the Msg.signMessage method
 func TestMsg_signMessage(t *testing.T) {
-	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
-	if err != nil {
-		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
+	tests := []struct {
+		name            string
+		keyMaterialFunc func() (crypto.PrivateKey, *x509.Certificate, *x509.Certificate, error)
+		asnSig          []byte
+	}{
+		{"RSA", getDummyRSACryptoMaterial, []byte{48, 130, 13}},
+		{"ECDSA", getDummyECDSACryptoMaterial, []byte{48, 130, 5}},
 	}
-	body := []byte("This is the body")
-	m := NewMsg()
-	m.SetBodyString(TypeTextPlain, string(body))
-	if err := m.SignWithSMimeRSA(privateKey, certificate, intermediateCertificate); err != nil {
-		t.Errorf("failed to init smime configuration")
-	}
-	msg, err := m.signMessage(m)
-	if err != nil {
-		t.Errorf("createSignaturePart() method failed.")
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("sign message with valid %s keypair", tt.name), func(t *testing.T) {
+			privKey, cert, intermediate, err := tt.keyMaterialFunc()
+			if err != nil {
+				t.Fatalf("failed to load dummy crypto material: %s", err)
+			}
+			msg := testMessage(t)
+			if err = msg.SignWithKeypair(privKey, cert, intermediate); err != nil {
+				t.Errorf("failed to init smime configuration")
+			}
+			if err = msg.signMessage(); err != nil {
+				t.Fatalf("failed to S/MIME sign message: %s", err)
+			}
+
+			parts := msg.GetParts()
+			if len(parts) != 2 {
+				t.Fatalf("failed to get message parts, expected 2 parts, got: %d", len(parts))
+			}
+
+			bodyPart := parts[0]
+			if bodyPart.GetCharset() != CharsetUTF8 {
+				t.Errorf("failed to get signed message bodyPart charset, expected %s, got: %s", CharsetUTF8,
+					bodyPart.GetCharset())
+			}
+			if bodyPart.GetEncoding() != EncodingQP {
+				t.Errorf("failed to get signed message bodyPart encoding, expected %s, got: %s", EncodingQP,
+					bodyPart.GetEncoding())
+			}
+			if bodyPart.smime {
+				t.Errorf("failed to get signed message bodyPart smime status, expected false, got: %t", bodyPart.smime)
+			}
+			body, err := bodyPart.GetContent()
+			if err != nil {
+				t.Fatalf("failed to get signed message body part content: %s", err)
+			}
+			if !bytes.Equal(body, []byte("Testmail")) {
+				t.Errorf("signed body part content does not match, expected %s, got: %s", "Testmail", body)
+			}
+
+			signaturePart := parts[1]
+			if signaturePart.GetCharset() != CharsetUTF8 {
+				t.Errorf("failed to get signed message signaturePart charset, expected %s, got: %s", CharsetUTF8,
+					signaturePart.GetCharset())
+			}
+			if signaturePart.GetEncoding() != EncodingB64 {
+				t.Errorf("failed to get signed message signaturePart encoding, expected %s, got: %s", EncodingB64,
+					signaturePart.GetEncoding())
+			}
+			if signaturePart.GetContentType() != TypeSMIMESigned {
+				t.Errorf("failed to get signed message signaturePart content type, expected %s, got: %s",
+					TypeSMIMESigned, signaturePart.GetContentType())
+			}
+			if !signaturePart.smime {
+				t.Errorf("failed to get signed message signaturePart smime status, expected true, got: %t",
+					signaturePart.smime)
+			}
+			signature, err := signaturePart.GetContent()
+			if err != nil {
+				t.Fatalf("failed to get signature content: %s", err)
+			}
+			if !bytes.Equal(signature[:3], tt.asnSig) {
+				t.Errorf("signature ASN.1 signature does not match, expected: %x, got: %x", tt.asnSig, signature[:3])
+			}
+		})
 	}
 
-	parts := msg.GetParts()
-	if len(parts) != 2 {
-		t.Errorf("createSignaturePart() method failed. Expected 2 parts, got: %d", len(parts))
-	}
+	t.Run("signing fails with invalid crypto.PrivateKey", func(t *testing.T) {
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Fatalf("failed to load dummy crypto material: %s", err)
+		}
+		msg := testMessage(t)
+		if err = msg.SignWithTLSCertificate(keypair); err != nil {
+			t.Fatalf("failed to init SMIME configuration: %s", err)
+		}
+		msg.sMIME.privateKey = unsupportedPrivKey{}
+		err = msg.signMessage()
+		if err == nil {
+			t.Error("SMIME signing with invalid private key is expected to fail")
+		}
+		expErr := "cannot convert encryption algorithm to oid, unknown private key type"
+		if !strings.Contains(err.Error(), expErr) {
+			t.Errorf("SMIME signing with invalid private key is expected to fail with %s, but got: %s", expErr, err)
+		}
+	})
+	t.Run("signing fails with invalid header count", func(t *testing.T) {
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Fatalf("failed to load dummy crypto material: %s", err)
+		}
+		msg := testMessage(t)
+		if err = msg.SignWithTLSCertificate(keypair); err != nil {
+			t.Fatalf("failed to init SMIME configuration: %s", err)
+		}
+		msg.headerCount = 1000
+		err = msg.signMessage()
+		if err == nil {
+			t.Error("SMIME signing with invalid private key is expected to fail")
+		}
+		expErr := "unable to find message body starting index within rendered message"
+		if !strings.EqualFold(err.Error(), expErr) {
+			t.Errorf("SMIME signing with invalid header count is expected to fail with %s, but got: %s", expErr, err)
+		}
+	})
+	t.Run("signing fails with broken rand.Reader", func(t *testing.T) {
+		defaultRandReader := rand.Reader
+		t.Cleanup(func() { rand.Reader = defaultRandReader })
+		rand.Reader = &randReader{failon: 1}
 
-	signedPart := parts[0]
-	if signedPart.GetEncoding() != EncodingQP {
-		t.Errorf("createSignaturePart() method failed. Expected encoding: %s, got: %s", EncodingB64, signedPart.GetEncoding())
-	}
-	if signedPart.GetContentType() != TypeTextPlain {
-		t.Errorf("createSignaturePart() method failed. Expected content type: %s, got: %s", typeSMimeSigned, signedPart.GetContentType())
-	}
-	if signedPart.GetCharset() != CharsetUTF8 {
-		t.Errorf("createSignaturePart() method failed. Expected charset: %s, got: %s", CharsetUTF8, signedPart.GetCharset())
-	}
-	if content, err := signedPart.GetContent(); err != nil || len(content) != len(body) {
-		t.Errorf("createSignaturePart() method failed. Expected content should be equal: %s, got: %s", body, content)
-	}
-
-	signaturePart := parts[1]
-	if signaturePart.GetEncoding() != EncodingB64 {
-		t.Errorf("createSignaturePart() method failed. Expected encoding: %s, got: %s", EncodingB64, signaturePart.GetEncoding())
-	}
-	if signaturePart.GetContentType() != typeSMimeSigned {
-		t.Errorf("createSignaturePart() method failed. Expected content type: %s, got: %s", typeSMimeSigned, signaturePart.GetContentType())
-	}
-	if signaturePart.GetCharset() != CharsetUTF8 {
-		t.Errorf("createSignaturePart() method failed. Expected charset: %s, got: %s", CharsetUTF8, signaturePart.GetCharset())
-	}
-	if content, err := signaturePart.GetContent(); err != nil || len(content) == len(body) {
-		t.Errorf("createSignaturePart() method failed. Expected content should not be equal: %s, got: %s", body, signaturePart.GetEncoding())
-	}
-}
-
-// TestGetLeafCertificate tests the Msg.getLeafCertificate method
-func TestGetLeafCertificate(t *testing.T) {
-	keyPairTLS, err := getDummyKeyPairTLS()
-	if err != nil {
-		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
-	}
-
-	leafCertificate, err := getLeafCertificate(keyPairTLS)
-	if err != nil {
-		t.Errorf("failed to get leaf certificate. Cause: %v", err)
-	}
-	if leafCertificate == nil {
-		t.Errorf("failed to get leaf certificate")
-	}
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Fatalf("failed to load dummy crypto material: %s", err)
+		}
+		msg := testMessage(t)
+		if err = msg.SignWithTLSCertificate(keypair); err != nil {
+			t.Fatalf("failed to init SMIME configuration: %s", err)
+		}
+		msg.headerCount = 1000
+		err = msg.signMessage()
+		if err == nil {
+			t.Error("SMIME signing with broken rand.Reader is expected to fail")
+		}
+		expErr := "failed to generate random boundary: failed to read from rand.Reader: broken reader"
+		if !strings.EqualFold(err.Error(), expErr) {
+			t.Errorf("SMIME signing with broken rand.Reader is expected to fail with %s, but got: %s", expErr, err)
+		}
+	})
 }
 
 // uppercaseMiddleware is a middleware type that transforms the subject to uppercase.
@@ -6957,6 +7157,19 @@ func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, f
 	if addresses[field].Name != wantName {
 		t.Errorf("failed to exec %s, addrHeader name is %s, want: %s", fn, addresses[field].Name, wantName)
 	}
+}
+
+// unsupportedPrivKey is a type that satisfies the crypto.PrivateKey interfaces but is not supported for signing
+type unsupportedPrivKey struct{}
+
+// Public implements the Public method of the crypto.PrivateKey interface for the unsupportedPrivKey type
+func (u unsupportedPrivKey) Public() crypto.PublicKey {
+	return nil
+}
+
+// Equal implements the Equal method of the crypto.PrivateKey interface for the unsupportedPrivKey type
+func (u unsupportedPrivKey) Equal(_ crypto.PrivateKey) bool {
+	return true
 }
 
 // checkGenHeader validates the generated header in an email message, verifying its presence and expected values.

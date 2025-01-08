@@ -6,329 +6,234 @@ package mail
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/rsa"
-	"encoding/base64"
-	"fmt"
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
 	"strings"
 	"testing"
 )
 
-func TestGet_RSA(t *testing.T) {
-	p := privateKeyHolder{
-		ecdsa: nil,
-		rsa:   &rsa.PrivateKey{},
-	}
-
-	if p.get() == nil {
-		t.Errorf("get() did not return the correct private key")
-	}
-}
-
-func TestGet_ECDSA(t *testing.T) {
-	p := privateKeyHolder{
-		ecdsa: &ecdsa.PrivateKey{},
-		rsa:   nil,
-	}
-
-	if p.get() == nil {
-		t.Errorf("get() did not return the correct private key")
-	}
-}
+const (
+	dummyCertRSAPath   = "testdata/dummy-chain-cert-rsa.pem"
+	dummyKeyRSAPath    = "testdata/dummy-child-key-rsa.pem"
+	dummyCertECDSAPath = "testdata/dummy-chain-cert-ecdsa.pem"
+	dummyKeyECDSAPath  = "testdata/dummy-child-key-ecdsa.pem"
+)
 
 // TestNewSMimeWithRSA tests the newSMime method with RSA crypto material
-func TestNewSMimeWithRSA(t *testing.T) {
-	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
-	if err != nil {
-		t.Errorf("Error getting dummy crypto material: %s", err)
+func TestNewSMIME(t *testing.T) {
+	tests := []struct {
+		name     string
+		certFunc func() (crypto.PrivateKey, *x509.Certificate, *x509.Certificate, error)
+	}{
+		{"RSA", getDummyRSACryptoMaterial},
+		{"ECDSA", getDummyECDSACryptoMaterial},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			privkey, certificate, intermediate, err := tt.certFunc()
+			if err != nil {
+				t.Errorf("failed getting dummy crypto material: %s", err)
+			}
+			smime, err := newSMIME(privkey, certificate, intermediate)
+			if err != nil {
+				t.Errorf("failed to initialize SMIME: %s", err)
+			}
+
+			switch key := privkey.(type) {
+			case *rsa.PrivateKey:
+				if !key.Equal(smime.privateKey) {
+					t.Error("SMIME initialization failed. Private keys are not equal")
+				}
+			case *ecdsa.PrivateKey:
+				if !key.Equal(smime.privateKey) {
+					t.Error("SMIME initialization failed. Private keys are not equal")
+				}
+			default:
+				t.Fatal("unsupported private key type")
+			}
+
+			if !bytes.Equal(certificate.Raw, smime.certificate.Raw) {
+				t.Errorf("SMIME initialization failed. Expected public key: %x, got: %x", certificate.Raw,
+					smime.certificate.Raw)
+			}
+			if !bytes.Equal(intermediate.Raw, smime.intermediateCert.Raw) {
+				t.Errorf("SMIME initialization failed. Expected intermediate certificate: %x, got: %x",
+					intermediate.Raw, smime.intermediateCert.Raw)
+			}
+		})
 	}
 
-	sMime, err := newSMimeWithRSA(privateKey, certificate, intermediateCertificate)
-	if err != nil {
-		t.Errorf("Error creating new SMime from keyPair: %s", err)
-	}
-
-	if sMime.privateKey.rsa != privateKey {
-		t.Errorf("NewSMime() did not return the same private key")
-	}
-	if sMime.certificate != certificate {
-		t.Errorf("NewSMime() did not return the same certificate")
-	}
-	if sMime.intermediateCertificate != intermediateCertificate {
-		t.Errorf("NewSMime() did not return the same intermedidate certificate")
-	}
-}
-
-// TestNewSMimeWithECDSA tests the newSMime method with ECDSA crypto material
-func TestNewSMimeWithECDSA(t *testing.T) {
-	privateKey, certificate, intermediateCertificate, err := getDummyECDSACryptoMaterial()
-	if err != nil {
-		t.Errorf("Error getting dummy crypto material: %s", err)
-	}
-
-	sMime, err := newSMimeWithECDSA(privateKey, certificate, intermediateCertificate)
-	if err != nil {
-		t.Errorf("Error creating new SMime from keyPair: %s", err)
-	}
-
-	if sMime.privateKey.ecdsa != privateKey {
-		t.Errorf("NewSMime() did not return the same private key")
-	}
-	if sMime.certificate != certificate {
-		t.Errorf("NewSMime() did not return the same certificate")
-	}
-	if sMime.intermediateCertificate != intermediateCertificate {
-		t.Errorf("NewSMime() did not return the same intermedidate certificate")
-	}
-}
-
-// TestSign tests the sign method
-func TestSign(t *testing.T) {
-	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
-	if err != nil {
-		t.Errorf("Error getting dummy crypto material: %s", err)
-	}
-
-	sMime, err := newSMimeWithRSA(privateKey, certificate, intermediateCertificate)
-	if err != nil {
-		t.Errorf("Error creating new SMime from keyPair: %s", err)
-	}
-
-	message := "This is a test message"
-	singedMessage, err := sMime.signMessage(message)
-	if err != nil {
-		t.Errorf("Error creating singed message: %s", err)
-	}
-
-	if *singedMessage == message {
-		t.Errorf("Sign() did not work")
-	}
-}
-
-// TestPrepareMessage tests the createMessage method
-func TestPrepareMessage(t *testing.T) {
-	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
-	if err != nil {
-		t.Errorf("Error getting dummy crypto material: %s", err)
-	}
-
-	sMime, err := newSMimeWithRSA(privateKey, certificate, intermediateCertificate)
-	if err != nil {
-		t.Errorf("Error creating new SMime from keyPair: %s", err)
-	}
-
-	encoding := EncodingB64
-	contentType := TypeTextPlain
-	charset := CharsetUTF8
-	body := []byte("This is the body!")
-	result, err := sMime.prepareMessage(encoding, contentType, charset, body)
-	if err != nil {
-		t.Errorf("Error preparing message: %s", err)
-	}
-
-	if !strings.Contains(*result, encoding.String()) {
-		t.Errorf("prepareMessage() did not return the correct encoding")
-	}
-	if !strings.Contains(*result, contentType.String()) {
-		t.Errorf("prepareMessage() did not return the correct contentType")
-	}
-	if !strings.Contains(*result, string(body)) {
-		t.Errorf("prepareMessage() did not return the correct body")
-	}
-	if *result != fmt.Sprintf("Content-Transfer-Encoding: %s\r\nContent-Type: %s; charset=%s\r\n\r\n%s", encoding, contentType, charset, string(body)) {
-		t.Errorf("prepareMessage() did not sucessfully create the message")
-	}
-}
-
-// TestPrepareMessage_QuotedPrintable tests the prepareMessage method with quoted printable encoding
-func TestPrepareMessage_QuotedPrintable(t *testing.T) {
-	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
-	if err != nil {
-		t.Errorf("Error getting dummy crypto material: %s", err)
-	}
-
-	sMime, err := newSMimeWithRSA(privateKey, certificate, intermediateCertificate)
-	if err != nil {
-		t.Errorf("Error creating new SMime from keyPair: %s", err)
-	}
-
-	body := "This is the body with special chars like äöü ÄÖÜ ß!"
-	quotedPrintableBody := "This is the body with special chars like =C3=A4=C3=B6=C3=BC =C3=84=C3=96=C3=\r\n=9C =C3=9F!"
-	encoding := EncodingQP
-	contentType := TypeTextPlain
-	charset := CharsetUTF8
-	result, err := sMime.prepareMessage(encoding, contentType, charset, []byte(body))
-	if err != nil {
-		t.Errorf("Error preparing message: %s", err)
-	}
-
-	if !strings.Contains(*result, encoding.String()) {
-		t.Errorf("prepareMessage() did not return the correct encoding")
-	}
-	if !strings.Contains(*result, contentType.String()) {
-		t.Errorf("prepareMessage() did not return the correct contentType")
-	}
-	if !strings.Contains(*result, quotedPrintableBody) {
-		t.Errorf("prepareMessage() did not return the correct body")
-	}
-	if *result != fmt.Sprintf("Content-Transfer-Encoding: %s\r\nContent-Type: %s; charset=%s\r\n\r\n%s", encoding, contentType, charset, quotedPrintableBody) {
-		t.Errorf("prepareMessage() did not sucessfully create the message")
-	}
-}
-
-// TestEncodeMessage tests the TestEncodeMessage method without any encoding
-func TestEncodeMessage(t *testing.T) {
-	body := "This is the body with special chars like äöü ÄÖÜ ß!"
-	encoding := EncodingUSASCII
-
-	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
-	if err != nil {
-		t.Errorf("Error getting dummy crypto material: %s", err)
-	}
-
-	sMime, err := newSMimeWithRSA(privateKey, certificate, intermediateCertificate)
-	if err != nil {
-		t.Errorf("Error creating new SMime from keyPair: %s", err)
-	}
-
-	result, err := sMime.encodeMessage(encoding, body)
-	if err != nil {
-		t.Errorf("Error preparing message: %s", err)
-	}
-
-	if *result != body {
-		t.Errorf("encodeMessage() did not return the correct encoded message: %s", *result)
-	}
-}
-
-// TestEncodeMessage_QuotedPrintable tests the TestEncodeMessage method with quoted printable body
-func TestEncodeMessage_QuotedPrintable(t *testing.T) {
-	body := "This is the body with special chars like äöü ÄÖÜ ß!"
-	quotedPrintableBody := "This is the body with special chars like =C3=A4=C3=B6=C3=BC =C3=84=C3=96=C3=\r\n=9C =C3=9F!"
-	encoding := EncodingQP
-
-	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
-	if err != nil {
-		t.Errorf("Error getting dummy crypto material: %s", err)
-	}
-
-	sMime, err := newSMimeWithRSA(privateKey, certificate, intermediateCertificate)
-	if err != nil {
-		t.Errorf("Error creating new SMime from keyPair: %s", err)
-	}
-
-	result, err := sMime.encodeMessage(encoding, body)
-	if err != nil {
-		t.Errorf("Error preparing message: %s", err)
-	}
-
-	if *result != quotedPrintableBody {
-		t.Errorf("encodeMessage() did not return the correct encoded message: %s", *result)
-	}
-}
-
-// TestEncodeToPEM tests the encodeToPEM method
-func TestEncodeToPEM(t *testing.T) {
-	message := []byte("This is a test message")
-
-	pemMessage, err := encodeToPEM(message)
-	if err != nil {
-		t.Errorf("Error encoding message: %s", err)
-	}
-
-	base64Encoded := base64.StdEncoding.EncodeToString(message)
-	if *pemMessage != base64Encoded {
-		t.Errorf("encodeToPEM() did not work")
-	}
-}
-
-// TestBytesFromLines tests the bytesFromLines method
-func TestBytesFromLines(t *testing.T) {
-	ls := lines{
-		{line: []byte("Hello"), endOfLine: []byte("\n")},
-		{line: []byte("World"), endOfLine: []byte("\n")},
-	}
-	expected := []byte("Hello\nWorld\n")
-
-	result := ls.bytesFromLines([]byte("\n"))
-	if !bytes.Equal(result, expected) {
-		t.Errorf("Expected %s, but got %s", expected, result)
-	}
-}
-
-// FuzzBytesFromLines tests the bytesFromLines method with fuzzing
-func FuzzBytesFromLines(f *testing.F) {
-	f.Add([]byte("Hello"), []byte("\n"))
-	f.Fuzz(func(t *testing.T, lineData, sep []byte) {
-		ls := lines{
-			{line: lineData, endOfLine: sep},
+	t.Run("newSMIME fails with nil private key", func(t *testing.T) {
+		_, certificate, intermediate, err := getDummyRSACryptoMaterial()
+		if err != nil {
+			t.Errorf("failed getting dummy crypto material: %s", err)
 		}
-		_ = ls.bytesFromLines(sep)
+		_, err = newSMIME(nil, certificate, intermediate)
+		if err == nil {
+			t.Error("newSMIME with nil private key is expected to fail")
+		}
+		if !errors.Is(err, ErrPrivateKeyMissing) {
+			t.Errorf("newSMIME with nil private key is expected to fail with ErrPrivateKeyMissing, got: %s", err)
+		}
+	})
+	t.Run("newSMIME fails with nil public key", func(t *testing.T) {
+		privkey, _, intermediate, err := getDummyRSACryptoMaterial()
+		if err != nil {
+			t.Errorf("failed getting dummy crypto material: %s", err)
+		}
+		_, err = newSMIME(privkey, nil, intermediate)
+		if err == nil {
+			t.Error("newSMIME with nil private key is expected to fail")
+		}
+		if !errors.Is(err, ErrCertificateMissing) {
+			t.Errorf("newSMIME with nil public key is expected to fail with ErrCertificateMissing, got: %s", err)
+		}
 	})
 }
 
-// TestParseLines tests the parseLines method
-func TestParseLines(t *testing.T) {
-	input := []byte("Hello\r\nWorld\nHello\rWorld")
-	expected := lines{
-		{line: []byte("Hello"), endOfLine: []byte("\r\n")},
-		{line: []byte("World"), endOfLine: []byte("\n")},
-		{line: []byte("Hello"), endOfLine: []byte("\r")},
-		{line: []byte("World"), endOfLine: []byte("")},
-	}
-
-	result := parseLines(input)
-	if len(result) != len(expected) {
-		t.Errorf("Expected %d lines, but got %d", len(expected), len(result))
-	}
-
-	for i := range result {
-		if !bytes.Equal(result[i].line, expected[i].line) || !bytes.Equal(result[i].endOfLine, expected[i].endOfLine) {
-			t.Errorf("Line %d mismatch. Expected line: %s, endOfLine: %s, got line: %s, endOfLine: %s",
-				i, expected[i].line, expected[i].endOfLine, result[i].line, result[i].endOfLine)
+func TestGetLeafCertificate(t *testing.T) {
+	t.Run("getLeafCertificate works normally", func(t *testing.T) {
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Errorf("failed to load dummy crypto material: %s", err)
 		}
-	}
-}
+		leaf, err := x509.ParseCertificate(keypair.Certificate[0])
+		if err != nil {
+			t.Fatalf("failed to parse leaf certificate: %s", err)
+		}
+		keypair.Leaf = leaf
 
-// FuzzParseLines tests the parseLines method with fuzzing
-func FuzzParseLines(f *testing.F) {
-	f.Add([]byte("Hello\nWorld\r\nAnother\rLine"))
-	f.Fuzz(func(t *testing.T, input []byte) {
-		_ = parseLines(input)
+		leafCert, err := getLeafCertificate(keypair)
+		if err != nil {
+			t.Errorf("failed to get leaf certificate: %s", err)
+		}
+		if leafCert == nil {
+			t.Fatal("failed to get leaf certificate, got nil")
+		}
+		if !bytes.Equal(leafCert.Raw, keypair.Leaf.Raw) {
+			t.Errorf("failed to get leaf certificate, expected cert mismatch, expected: %x, got: %x",
+				keypair.Leaf.Raw, leafCert.Raw)
+		}
+	})
+	t.Run("getLeafCertificate fails with nil", func(t *testing.T) {
+		_, err := getLeafCertificate(nil)
+		if err == nil {
+			t.Error("getLeafCertificate with nil is expected to fail")
+		}
+	})
+	t.Run("getLeafCertificate without leaf should return first certificate in chain", func(t *testing.T) {
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Errorf("failed to load dummy crypto material: %s", err)
+		}
+		keypair.Leaf = nil
+		leafCert, err := getLeafCertificate(keypair)
+		if err != nil {
+			t.Errorf("failed to get leaf certificate: %s", err)
+		}
+		if leafCert == nil {
+			t.Fatal("failed to get leaf certificate, got nil")
+		}
+		if !bytes.Equal(leafCert.Raw, keypair.Certificate[0]) {
+			t.Errorf("failed to get leaf certificate, expected cert mismatch, expected: %x, got: %x",
+				keypair.Leaf.Raw, leafCert.Raw)
+		}
+	})
+	t.Run("getLeafCertificate with empty chain should fail", func(t *testing.T) {
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Errorf("failed to load dummy crypto material: %s", err)
+		}
+		localpair := &tls.Certificate{
+			Certificate:                  nil,
+			PrivateKey:                   keypair.PrivateKey,
+			Leaf:                         nil,
+			SignedCertificateTimestamps:  keypair.SignedCertificateTimestamps,
+			SupportedSignatureAlgorithms: keypair.SupportedSignatureAlgorithms,
+		}
+		_, err = getLeafCertificate(localpair)
+		if err == nil {
+			t.Errorf("expected getLeafCertificate to fail with empty chain, got: %s", err)
+		}
+		expErr := "certificate chain is empty"
+		if !strings.EqualFold(err.Error(), expErr) {
+			t.Errorf("getting leaf certificate was supposed to fail with: %s, got: %s", expErr, err.Error())
+		}
+	})
+	t.Run("getLeafCertificate fails while parsing broken certificate", func(t *testing.T) {
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Errorf("failed to load dummy crypto material: %s", err)
+		}
+		keypair.Leaf = nil
+		keypair.Certificate[0] = []byte("broken certificate")
+
+		_, err = getLeafCertificate(keypair)
+		if err == nil {
+			t.Errorf("expected getLeafCertificate to fail with broken cert, got: %s", err)
+		}
+		expErr := "x509: malformed certificate"
+		if !strings.EqualFold(err.Error(), expErr) {
+			t.Errorf("getting leaf certificate was supposed to fail with: %s, got: %s", expErr, err.Error())
+		}
 	})
 }
 
-// TestSplitLine tests the splitLine method
-func TestSplitLine(t *testing.T) {
-	ls := lines{
-		{line: []byte("Hello\r\nWorld\r\nAnotherLine"), endOfLine: []byte("")},
-	}
-	expected := lines{
-		{line: []byte("Hello"), endOfLine: []byte("\r\n")},
-		{line: []byte("World"), endOfLine: []byte("\r\n")},
-		{line: []byte("AnotherLine"), endOfLine: []byte("")},
+// getDummyRSACryptoMaterial loads a certificate (RSA), the associated private key and certificate (RSA) is loaded
+// from local disk for testing purposes
+func getDummyRSACryptoMaterial() (crypto.PrivateKey, *x509.Certificate, *x509.Certificate, error) {
+	keyPair, err := tls.LoadX509KeyPair(dummyCertRSAPath, dummyKeyRSAPath)
+	if err != nil {
+		return nil, nil, nil, err
 	}
 
-	result := ls.splitLine([]byte("\r\n"))
-	if len(result) != len(expected) {
-		t.Errorf("Expected %d lines, but got %d", len(expected), len(result))
+	privateKey := keyPair.PrivateKey.(*rsa.PrivateKey)
+
+	certificate, err := x509.ParseCertificate(keyPair.Certificate[0])
+	if err != nil {
+		return nil, nil, nil, err
 	}
 
-	for i := range result {
-		if !bytes.Equal(result[i].line, expected[i].line) || !bytes.Equal(result[i].endOfLine, expected[i].endOfLine) {
-			t.Errorf("Line %d mismatch. Expected line: %s, endOfLine: %s, got line: %s, endOfLine: %s",
-				i, expected[i].line, expected[i].endOfLine, result[i].line, result[i].endOfLine)
-		}
+	intermediateCertificate, err := x509.ParseCertificate(keyPair.Certificate[1])
+	if err != nil {
+		return nil, nil, nil, err
 	}
+
+	return privateKey, certificate, intermediateCertificate, nil
 }
 
-// FuzzSplitLine tests the parseLsplitLineines method with fuzzing
-func FuzzSplitLine(f *testing.F) {
-	f.Add([]byte("Hello\r\nWorld"), []byte("\r\n"))
-	f.Fuzz(func(t *testing.T, input, sep []byte) {
-		ls := lines{
-			{line: input, endOfLine: []byte("")},
-		}
-		_ = ls.splitLine(sep)
-	})
+// getDummyECDSACryptoMaterial loads a certificate (ECDSA), the associated private key and certificate (ECDSA) is
+// loaded from local disk for testing purposes
+func getDummyECDSACryptoMaterial() (crypto.PrivateKey, *x509.Certificate, *x509.Certificate, error) {
+	keyPair, err := tls.LoadX509KeyPair(dummyCertECDSAPath, dummyKeyECDSAPath)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	privateKey := keyPair.PrivateKey.(*ecdsa.PrivateKey)
+
+	certificate, err := x509.ParseCertificate(keyPair.Certificate[0])
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	intermediateCertificate, err := x509.ParseCertificate(keyPair.Certificate[1])
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return privateKey, certificate, intermediateCertificate, nil
+}
+
+// getDummyKeyPairTLS loads a certificate (ECDSA) as *tls.Certificate, the associated private key and certificate (ECDSA) is loaded from local disk for testing purposes
+func getDummyKeyPairTLS() (*tls.Certificate, error) {
+	keyPair, err := tls.LoadX509KeyPair(dummyCertRSAPath, dummyKeyRSAPath)
+	if err != nil {
+		return nil, err
+	}
+	return &keyPair, err
 }

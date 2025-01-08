@@ -1,8 +1,18 @@
-// SPDX-FileCopyrightText: 2022-2023 The go-mail Authors
+// SPDX-FileCopyrightText: Copyright (c) 2015 Andrew Smith
+// SPDX-FileCopyrightText: Copyright (c) 2017-2024 The mozilla services project (https://github.com/mozilla-services)
+// SPDX-FileCopyrightText: Copyright (c) 2024-2025 The go-mail Authors
+//
+// Partially forked from https://github.com/mozilla-services/pkcs7, which in turn is also a fork
+// of https://github.com/fullsailor/pkcs7.
+// Use of the forked source code is, same as go-mail, governed by a MIT license.
+//
+// go-mail specific modifications by the go-mail Authors.
+// Licensed under the MIT License.
+// See [PROJECT ROOT]/LICENSES directory for more information.
 //
 // SPDX-License-Identifier: MIT
 
-package mail
+package pkcs7
 
 import (
 	"bytes"
@@ -10,6 +20,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/rsa"
+	_ "crypto/sha256" // for crypto.SHA256
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -18,8 +29,6 @@ import (
 	"math/big"
 	"sort"
 	"time"
-
-	_ "crypto/sha256" // for crypto.SHA256
 )
 
 var (
@@ -35,39 +44,12 @@ var (
 	OIDEncryptionAlgorithmRSASHA256 = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 11}
 )
 
-// ErrUnsupportedAlgorithm tells you when our quick dev assumptions have failed
-var ErrUnsupportedAlgorithm = errors.New("pkcs7: cannot decrypt data: only RSA, DES, DES-EDE3, AES-256-CBC and AES-128-GCM supported")
-
 // PKCS7 Represents a PKCS7 structure
 type PKCS7 struct {
 	Content      []byte
 	Certificates []*x509.Certificate
 	CRLs         []x509.RevocationList
 	Signers      []signerInfo
-	raw          interface{}
-}
-
-// GetOnlySigner returns an x509.Certificate for the first signer of the signed
-// data payload. If there are more or less than one signer, nil is returned
-func (p7 *PKCS7) GetOnlySigner() *x509.Certificate {
-	if len(p7.Signers) != 1 {
-		return nil
-	}
-	signer := p7.Signers[0]
-	return getCertFromCertsByIssuerAndSerial(p7.Certificates, signer.IssuerAndSerialNumber)
-}
-
-// UnmarshalSignedAttribute decodes a single attribute from the signer info
-func (p7 *PKCS7) UnmarshalSignedAttribute(attributeType asn1.ObjectIdentifier, out interface{}) error {
-	sd, ok := p7.raw.(signedData)
-	if !ok {
-		return errors.New("pkcs7: payload is not signedData content")
-	}
-	if len(sd.SignerInfos) < 1 {
-		return errors.New("pkcs7: payload has no signers")
-	}
-	attributes := sd.SignerInfos[0].AuthenticatedAttributes
-	return unmarshalAttribute(attributes, attributeType, out)
 }
 
 type contentInfo struct {
@@ -218,8 +200,8 @@ type SignedData struct {
 	digestOid     asn1.ObjectIdentifier
 }
 
-// newSignedData initializes a SignedData with content
-func newSignedData(data []byte) (*SignedData, error) {
+// NewSignedData initializes a SignedData with content
+func NewSignedData(data []byte) (*SignedData, error) {
 	content, err := asn1.Marshal(data)
 	if err != nil {
 		return nil, err
@@ -235,8 +217,8 @@ func newSignedData(data []byte) (*SignedData, error) {
 	return &SignedData{sd: sd, data: data, digestOid: OIDDigestAlgorithmSHA256}, nil
 }
 
-// addSigner is a wrapper around AddSignerChain() that adds a signer without any parent.
-func (sd *SignedData) addSigner(cert *x509.Certificate, pkey crypto.PrivateKey, config SignerInfoConfig) error {
+// AddSigner is a wrapper around AddSignerChain() that adds a signer without any parent.
+func (sd *SignedData) AddSigner(cert *x509.Certificate, pkey crypto.PrivateKey, config SignerInfoConfig) error {
 	var parents []*x509.Certificate
 	return sd.addSignerChain(cert, pkey, parents, config)
 }
@@ -318,19 +300,19 @@ func (sd *SignedData) addSignerChain(ee *x509.Certificate, pkey crypto.PrivateKe
 	return nil
 }
 
-// addCertificate adds the certificate to the payload. Useful for parent certificates
-func (sd *SignedData) addCertificate(cert *x509.Certificate) {
+// AddCertificate adds the certificate to the payload. Useful for parent certificates
+func (sd *SignedData) AddCertificate(cert *x509.Certificate) {
 	sd.certs = append(sd.certs, cert)
 }
 
-// detach removes content from the signed data struct to make it a detached signature.
+// Detach removes content from the signed data struct to make it a detached signature.
 // This must be called right before Finish()
-func (sd *SignedData) detach() {
+func (sd *SignedData) Detach() {
 	sd.sd.ContentInfo = contentInfo{ContentType: OIDData}
 }
 
-// finish marshals the content and its signers
-func (sd *SignedData) finish() ([]byte, error) {
+// Finish marshals the content and its signers
+func (sd *SignedData) Finish() ([]byte, error) {
 	sd.sd.Certificates = marshalCertificates(sd.certs)
 	inner, err := asn1.Marshal(sd.sd)
 	if err != nil {
@@ -364,7 +346,7 @@ func verifyPartialChain(cert *x509.Certificate, parents []*x509.Certificate) err
 
 // getOIDForEncryptionAlgorithm takes the private key type of the signer and
 // the OID of a digest algorithm to return the appropriate signerInfo.DigestEncryptionAlgorithm
-func getOIDForEncryptionAlgorithm(pkey crypto.PrivateKey, OIDDigestAlg asn1.ObjectIdentifier) (asn1.ObjectIdentifier, error) {
+func getOIDForEncryptionAlgorithm(pkey crypto.PrivateKey, _ asn1.ObjectIdentifier) (asn1.ObjectIdentifier, error) {
 	switch pkey.(type) {
 	case *rsa.PrivateKey:
 		return OIDEncryptionAlgorithmRSASHA256, nil
@@ -383,11 +365,12 @@ func signAttributes(attrs []attribute, pkey crypto.PrivateKey, hash crypto.Hash)
 	h := hash.New()
 	h.Write(attrBytes)
 	hashed := h.Sum(nil)
-	switch priv := pkey.(type) {
-	case *rsa.PrivateKey:
-		return rsa.SignPKCS1v15(rand.Reader, priv, crypto.SHA256, hashed)
+
+	key, ok := pkey.(crypto.Signer)
+	if !ok {
+		return nil, errors.New("pkcs7: private key does not implement crypto.Signer")
 	}
-	return nil, ErrUnsupportedAlgorithm
+	return key.Sign(rand.Reader, hashed, hash)
 }
 
 // concat and wraps the certificates in the RawValue structure
@@ -426,27 +409,4 @@ func marshalAttributes(attrs []attribute) ([]byte, error) {
 		return nil, err
 	}
 	return raw.Bytes, nil
-}
-
-func getCertFromCertsByIssuerAndSerial(certs []*x509.Certificate, ias issuerAndSerial) *x509.Certificate {
-	for _, cert := range certs {
-		if isCertMatchForIssuerAndSerial(cert, ias) {
-			return cert
-		}
-	}
-	return nil
-}
-
-func isCertMatchForIssuerAndSerial(cert *x509.Certificate, ias issuerAndSerial) bool {
-	return cert.SerialNumber.Cmp(ias.SerialNumber) == 0 && bytes.Equal(cert.RawIssuer, ias.IssuerName.FullBytes)
-}
-
-func unmarshalAttribute(attrs []attribute, attributeType asn1.ObjectIdentifier, out interface{}) error {
-	for _, attr := range attrs {
-		if attr.Type.Equal(attributeType) {
-			_, err := asn1.Unmarshal(attr.Value.Bytes, out)
-			return err
-		}
-	}
-	return errors.New("pkcs7: attribute type not in attributes")
 }

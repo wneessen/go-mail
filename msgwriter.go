@@ -115,6 +115,7 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 	}
 	if hasFrom && (len(from) > 0 && from[0] != nil) {
 		mw.writeHeader(Header(HeaderFrom), from[0].String())
+		msg.headerCount++
 	}
 
 	// Set the rest of the address headers
@@ -125,24 +126,36 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 				val = append(val, addr.String())
 			}
 			mw.writeHeader(Header(to), val...)
+			msg.headerCount++
 		}
 	}
 
-	if msg.hasSMime() {
-		mw.startMP(MIMESMime, msg.boundary)
+	if msg.hasSMIME() && !msg.isSMIMEInProgress() {
+		boundary, err := randomBoundary()
+		if err != nil {
+			mw.err = err
+			return
+		}
+		mw.startMP(MIMESMIMESigned, boundary)
 		mw.writeString(DoubleNewLine)
 	}
 	if msg.hasMixed() {
 		mw.startMP(MIMEMixed, msg.boundary)
-		mw.writeString(DoubleNewLine)
+		if mw.depth == 0 || (msg.hasSMIME() && mw.depth == 1) {
+			mw.writeString(DoubleNewLine)
+		}
 	}
 	if msg.hasRelated() {
 		mw.startMP(MIMERelated, msg.boundary)
-		mw.writeString(DoubleNewLine)
+		if mw.depth == 0 || (msg.hasSMIME() && mw.depth == 1) {
+			mw.writeString(DoubleNewLine)
+		}
 	}
 	if msg.hasAlt() {
 		mw.startMP(MIMEAlternative, msg.boundary)
-		mw.writeString(DoubleNewLine)
+		if mw.depth == 0 || (msg.hasSMIME() && mw.depth == 1) {
+			mw.writeString(DoubleNewLine)
+		}
 	}
 	if msg.hasPGPType() {
 		switch msg.pgptype {
@@ -158,7 +171,7 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 	}
 
 	for _, part := range msg.parts {
-		if !part.isDeleted {
+		if !part.isDeleted && !part.smime {
 			mw.writePart(part, msg.charset)
 		}
 	}
@@ -179,7 +192,12 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 		mw.stopMP()
 	}
 
-	if msg.hasSMime() {
+	if msg.hasSMIME() && !msg.isSMIMEInProgress() {
+		for _, part := range msg.parts {
+			if part.smime {
+				mw.writePart(part, msg.charset)
+			}
+		}
 		mw.stopMP()
 	}
 }
@@ -196,9 +214,11 @@ func (mw *msgWriter) writeGenHeader(msg *Msg) {
 	for key := range msg.genHeader {
 		keys = append(keys, string(key))
 	}
+
 	sort.Strings(keys)
 	for _, key := range keys {
 		mw.writeHeader(Header(key), msg.genHeader[Header(key)]...)
+		msg.headerCount++
 	}
 }
 
@@ -212,6 +232,7 @@ func (mw *msgWriter) writeGenHeader(msg *Msg) {
 func (mw *msgWriter) writePreformattedGenHeader(msg *Msg) {
 	for key, val := range msg.preformHeader {
 		mw.writeString(fmt.Sprintf("%s: %s%s", key, val, SingleNewLine))
+		msg.headerCount++
 	}
 }
 
@@ -322,7 +343,7 @@ func (mw *msgWriter) addFiles(files []*File, isAttachment bool) {
 		}
 
 		if mw.err == nil {
-			mw.writeBody(file.Writer, encoding, false)
+			mw.writeBody(file.Writer, encoding)
 		}
 	}
 }
@@ -356,15 +377,15 @@ func (mw *msgWriter) writePart(part *Part, charset Charset) {
 		partCharset = charset
 	}
 
-	contentType := part.contentType.String()
-	if !part.IsSMimeSigned() {
-		contentType = strings.Join([]string{contentType, "; charset=", partCharset.String()}, "")
+	contentType := fmt.Sprintf("%s; charset=%s", part.contentType, partCharset)
+	if part.smime {
+		contentType = part.contentType.String()
 	}
-
 	contentTransferEnc := part.encoding.String()
+
 	if mw.depth == 0 {
-		mw.writeHeader(HeaderContentType, contentType)
 		mw.writeHeader(HeaderContentTransferEnc, contentTransferEnc)
+		mw.writeHeader(HeaderContentType, contentType)
 		mw.writeString(SingleNewLine)
 	}
 	if mw.depth > 0 {
@@ -372,11 +393,11 @@ func (mw *msgWriter) writePart(part *Part, charset Charset) {
 		if part.description != "" {
 			mimeHeader.Add(string(HeaderContentDescription), part.description)
 		}
-		mimeHeader.Add(string(HeaderContentType), contentType)
 		mimeHeader.Add(string(HeaderContentTransferEnc), contentTransferEnc)
+		mimeHeader.Add(string(HeaderContentType), contentType)
 		mw.newPart(mimeHeader)
 	}
-	mw.writeBody(part.writeFunc, part.encoding, part.smime)
+	mw.writeBody(part.writeFunc, part.encoding)
 }
 
 // writeString writes a string into the msgWriter's io.Writer interface.
@@ -451,8 +472,7 @@ func (mw *msgWriter) writeHeader(key Header, values ...string) {
 // Parameters:
 //   - writeFunc: A function that writes the body content to the given io.Writer.
 //   - encoding: The encoding type to use when writing the content (e.g., base64, quoted-printable).
-//   - singingWithSMime: Whether the msg should be signed with S/MIME or not.
-func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encoding Encoding, singingWithSMime bool) {
+func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encoding Encoding) {
 	var writer io.Writer
 	var encodedWriter io.WriteCloser
 	var n int64
@@ -467,11 +487,12 @@ func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encodin
 	lineBreaker := Base64LineBreaker{}
 	lineBreaker.out = &writeBuffer
 
-	if encoding == EncodingQP {
+	switch encoding {
+	case EncodingQP:
 		encodedWriter = quotedprintable.NewWriter(&writeBuffer)
-	} else if encoding == EncodingB64 && !singingWithSMime {
+	case EncodingB64:
 		encodedWriter = base64.NewEncoder(base64.StdEncoding, &lineBreaker)
-	} else if encoding == NoEncoding || singingWithSMime {
+	case NoEncoding:
 		_, err = writeFunc(&writeBuffer)
 		if err != nil {
 			mw.err = fmt.Errorf("bodyWriter function: %w", err)
@@ -484,7 +505,7 @@ func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encodin
 			mw.bytesWritten += n
 		}
 		return
-	} else {
+	default:
 		encodedWriter = quotedprintable.NewWriter(writer)
 	}
 
