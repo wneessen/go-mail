@@ -53,7 +53,6 @@ type PKCS7 struct {
 	Certificates []*x509.Certificate
 	CRLs         []x509.RevocationList
 	Signers      []signerInfo
-	raw          interface{}
 }
 
 type contentInfo struct {

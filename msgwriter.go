@@ -339,7 +339,7 @@ func (mw *msgWriter) addFiles(files []*File, isAttachment bool) {
 		}
 
 		if mw.err == nil {
-			mw.writeBody(file.Writer, encoding, false)
+			mw.writeBody(file.Writer, encoding)
 		}
 	}
 }
@@ -374,7 +374,7 @@ func (mw *msgWriter) writePart(part *Part, charset Charset) {
 	}
 
 	contentType := fmt.Sprintf("%s; charset=%s", part.contentType, partCharset)
-	if part.IsSMIMESigned() {
+	if part.smime {
 		contentType = part.contentType.String()
 	}
 	contentTransferEnc := part.encoding.String()
@@ -393,7 +393,7 @@ func (mw *msgWriter) writePart(part *Part, charset Charset) {
 		mimeHeader.Add(string(HeaderContentType), contentType)
 		mw.newPart(mimeHeader)
 	}
-	mw.writeBody(part.writeFunc, part.encoding, part.smime)
+	mw.writeBody(part.writeFunc, part.encoding)
 }
 
 // writeString writes a string into the msgWriter's io.Writer interface.
@@ -468,8 +468,7 @@ func (mw *msgWriter) writeHeader(key Header, values ...string) {
 // Parameters:
 //   - writeFunc: A function that writes the body content to the given io.Writer.
 //   - encoding: The encoding type to use when writing the content (e.g., base64, quoted-printable).
-//   - signSMIME: Whether the msg should be signed with S/MIME.
-func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encoding Encoding, signSMIME bool) {
+func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encoding Encoding) {
 	var writer io.Writer
 	var encodedWriter io.WriteCloser
 	var n int64
@@ -483,11 +482,6 @@ func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encodin
 	writeBuffer := bytes.Buffer{}
 	lineBreaker := Base64LineBreaker{}
 	lineBreaker.out = &writeBuffer
-
-	// the S/MIME part is already Base64 encoded, we don't want to double-encode
-	if signSMIME {
-		//encoding = NoEncoding
-	}
 
 	switch encoding {
 	case EncodingQP:

@@ -282,7 +282,7 @@ func TestPart_IsSMimeSigned(t *testing.T) {
 				return
 			}
 			pl[0].SetIsSMIMESigned(tt.want)
-			smime := pl[0].IsSMIMESigned()
+			smime := pl[0].smime
 			if smime != tt.want {
 				t.Errorf("SetContentType failed. Got: %v, expected: %v", smime, tt.want)
 			}

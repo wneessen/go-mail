@@ -95,16 +95,6 @@ func (p *Part) GetDescription() string {
 	return p.description
 }
 
-// IsSMIMESigned determines if the Part should be signed with S/MIME.
-//
-// This function checks whether the Part has been configured to use S/MIME for signing.
-//
-// Returns:
-//   - true if the Part should be signed with S/MIME; otherwise false.
-func (p *Part) IsSMIMESigned() bool {
-	return p.smime
-}
-
 // SetContent overrides the content of the Part with the given string.
 //
 // This function sets the content of the Part by creating a new writeFunc that writes the
