@@ -44,9 +44,6 @@ var (
 	OIDEncryptionAlgorithmRSASHA256 = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 11}
 )
 
-// ErrUnsupportedAlgorithm tells you when our quick dev assumptions have failed
-var ErrUnsupportedAlgorithm = errors.New("pkcs7: cannot decrypt data: only RSA, DES, DES-EDE3, AES-256-CBC and AES-128-GCM supported")
-
 // PKCS7 Represents a PKCS7 structure
 type PKCS7 struct {
 	Content      []byte
@@ -368,11 +365,12 @@ func signAttributes(attrs []attribute, pkey crypto.PrivateKey, hash crypto.Hash)
 	h := hash.New()
 	h.Write(attrBytes)
 	hashed := h.Sum(nil)
-	switch priv := pkey.(type) {
-	case *rsa.PrivateKey:
-		return rsa.SignPKCS1v15(rand.Reader, priv, crypto.SHA256, hashed)
+
+	key, ok := pkey.(crypto.Signer)
+	if !ok {
+		return nil, errors.New("pkcs7: private key does not implement crypto.Signer")
 	}
-	return nil, ErrUnsupportedAlgorithm
+	return key.Sign(rand.Reader, hashed, hash)
 }
 
 // concat and wraps the certificates in the RawValue structure
