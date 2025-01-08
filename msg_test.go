@@ -5809,7 +5809,91 @@ func TestMsg_WriteTo(t *testing.T) {
 			t.Error("expected message to be S/MIME signature attachment in mail body")
 		}
 	})
-	t.Run("WriteTo with S/MIME signing fails", func(t *testing.T) {
+	t.Run("WriteTo with S/MIME signing on multipart/alternative message", func(t *testing.T) {
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Fatalf("failed to get dummy key material: %s", err)
+		}
+		message := testMessage(t)
+		message.AddAlternativeString(TypeTextHTML, "<p>HTML alternative</p>")
+		if err = message.SignWithTLSCertificate(keypair); err != nil {
+			t.Fatalf("failed to initialize S/MIME signing: %s", err)
+		}
+		buffer := bytes.NewBuffer(nil)
+		if _, err = message.WriteTo(buffer); err != nil {
+			t.Errorf("failed to write S/MIME signed message to buffer: %s", err)
+		}
+		if !strings.Contains(buffer.String(), TypeSMIMESigned.String()) {
+			t.Error("expected message to be S/MIME signature Content-Type in mail body")
+		}
+		if !strings.Contains(buffer.String(), `application/pkcs7-signature; name="smime.p7s"`) {
+			t.Error("expected message to be S/MIME signature attachment in mail body")
+		}
+		if !strings.Contains(buffer.String(), TypeTextHTML.String()) {
+			t.Error("expected message to have HTML alternative in mail body")
+		}
+		if !strings.Contains(buffer.String(), TypeMultipartAlternative.String()) {
+			t.Error("expected message to have multipart/alternative in mail body")
+		}
+		if !strings.Contains(buffer.String(), "<p>HTML alternative</p>") {
+			t.Error("expected message to have HTML alternative in mail body")
+		}
+	})
+	t.Run("WriteTo with S/MIME signing on multipart/mixed message", func(t *testing.T) {
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Fatalf("failed to get dummy key material: %s", err)
+		}
+		message := testMessage(t)
+		message.AttachFile("testdata/attachment.txt")
+		if err = message.SignWithTLSCertificate(keypair); err != nil {
+			t.Fatalf("failed to initialize S/MIME signing: %s", err)
+		}
+		buffer := bytes.NewBuffer(nil)
+		if _, err = message.WriteTo(buffer); err != nil {
+			t.Errorf("failed to write S/MIME signed message to buffer: %s", err)
+		}
+		if !strings.Contains(buffer.String(), TypeSMIMESigned.String()) {
+			t.Error("expected message to be S/MIME signature Content-Type in mail body")
+		}
+		if !strings.Contains(buffer.String(), `application/pkcs7-signature; name="smime.p7s"`) {
+			t.Error("expected message to be S/MIME signature attachment in mail body")
+		}
+		if !strings.Contains(buffer.String(), TypeMultipartMixed.String()) {
+			t.Error("expected message to have multipart/mixed in mail body")
+		}
+		if !strings.Contains(buffer.String(), "attachment.txt") {
+			t.Error("expected message to have attachment in mail body")
+		}
+	})
+	t.Run("WriteTo with S/MIME signing on multipart/related message", func(t *testing.T) {
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Fatalf("failed to get dummy key material: %s", err)
+		}
+		message := testMessage(t)
+		message.EmbedFile("testdata/embed.txt")
+		if err = message.SignWithTLSCertificate(keypair); err != nil {
+			t.Fatalf("failed to initialize S/MIME signing: %s", err)
+		}
+		buffer := bytes.NewBuffer(nil)
+		if _, err = message.WriteTo(buffer); err != nil {
+			t.Errorf("failed to write S/MIME signed message to buffer: %s", err)
+		}
+		if !strings.Contains(buffer.String(), TypeSMIMESigned.String()) {
+			t.Error("expected message to be S/MIME signature Content-Type in mail body")
+		}
+		if !strings.Contains(buffer.String(), `application/pkcs7-signature; name="smime.p7s"`) {
+			t.Error("expected message to be S/MIME signature attachment in mail body")
+		}
+		if !strings.Contains(buffer.String(), TypeMultipartRelated.String()) {
+			t.Error("expected message to have multipart/related in mail body")
+		}
+		if !strings.Contains(buffer.String(), "embed.txt") {
+			t.Error("expected message to have embeded file in mail body")
+		}
+	})
+	t.Run("WriteTo with S/MIME signing fails with invalid key", func(t *testing.T) {
 		keypair, err := getDummyKeyPairTLS()
 		if err != nil {
 			t.Fatalf("failed to get dummy key material: %s", err)
@@ -5828,6 +5912,30 @@ func TestMsg_WriteTo(t *testing.T) {
 		expErr := "failed to sign message: could not add signer message: pkcs7: cannot convert encryption algorithm " +
 			"to oid, unknown private key type"
 		if !strings.Contains(err.Error(), expErr) {
+			t.Errorf("expected S/MIME signing error to be: %s, got: %s", expErr, err)
+		}
+	})
+	t.Run("WriteTo with S/MIME signing fails with broken rand.Reader", func(t *testing.T) {
+		defaultRandReader := rand.Reader
+		t.Cleanup(func() { rand.Reader = defaultRandReader })
+		rand.Reader = &randReader{failon: 1}
+
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Fatalf("failed to get dummy key material: %s", err)
+		}
+		message := testMessage(t)
+		if err = message.SignWithTLSCertificate(keypair); err != nil {
+			t.Fatalf("failed to initialize S/MIME signing: %s", err)
+		}
+
+		buffer := bytes.NewBuffer(nil)
+		_, err = message.WriteTo(buffer)
+		if err == nil {
+			t.Error("expected WritoTo with invalid S/MIME private key to fail")
+		}
+		expErr := "failed to generate random boundary: failed to read from rand.Reader: broken reader"
+		if !strings.EqualFold(err.Error(), expErr) {
 			t.Errorf("expected S/MIME signing error to be: %s, got: %s", expErr, err)
 		}
 	})

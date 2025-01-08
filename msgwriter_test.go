@@ -6,6 +6,7 @@ package mail
 
 import (
 	"bytes"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
@@ -278,6 +279,30 @@ func TestMsgWriter_writeMsg(t *testing.T) {
 		}
 		if !strings.Contains(buffer.String(), "--testboundary\r\n") {
 			t.Errorf("expected boundary, got: %s", buffer.String())
+		}
+	})
+	t.Run("msgWriter fails on S/MIME signing with broken rand.Reader", func(t *testing.T) {
+		defaultRandReader := rand.Reader
+		t.Cleanup(func() { rand.Reader = defaultRandReader })
+		rand.Reader = &randReader{failon: 1}
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Fatalf("failed to get dummy key material: %s", err)
+		}
+
+		buffer := bytes.NewBuffer(nil)
+		msgwriter.writer = buffer
+		message := testMessage(t)
+		if err = message.SignWithTLSCertificate(keypair); err != nil {
+			t.Fatalf("failed to initialize S/MIME signing: %s", err)
+		}
+		msgwriter.writeMsg(message)
+		if msgwriter.err == nil {
+			t.Errorf("msgWriter should have failed to write with broken rand.Reader")
+		}
+		expErr := "failed to read from rand.Reader: broken reader"
+		if !strings.EqualFold(msgwriter.err.Error(), expErr) {
+			t.Errorf("expected msgWriter to fail with: %s, got: %s", expErr, msgwriter.err)
 		}
 	})
 }
