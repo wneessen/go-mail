@@ -414,25 +414,6 @@ func marshalAttributes(attrs []attribute) ([]byte, error) {
 	return raw.Bytes, nil
 }
 
-func getCertFromCertsByIssuerAndSerial(certs []*x509.Certificate, ias issuerAndSerial) *x509.Certificate {
-	for _, cert := range certs {
-		if isCertMatchForIssuerAndSerial(cert, ias) {
-			return cert
-		}
-	}
-	return nil
-}
-
 func isCertMatchForIssuerAndSerial(cert *x509.Certificate, ias issuerAndSerial) bool {
 	return cert.SerialNumber.Cmp(ias.SerialNumber) == 0 && bytes.Equal(cert.RawIssuer, ias.IssuerName.FullBytes)
-}
-
-func unmarshalAttribute(attrs []attribute, attributeType asn1.ObjectIdentifier, out interface{}) error {
-	for _, attr := range attrs {
-		if attr.Type.Equal(attributeType) {
-			_, err := asn1.Unmarshal(attr.Value.Bytes, out)
-			return err
-		}
-	}
-	return errors.New("pkcs7: attribute type not in attributes")
 }
