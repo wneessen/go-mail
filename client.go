@@ -197,6 +197,9 @@ type (
 		// user represents a username used for the SMTP authentication.
 		user string
 
+		// useUnixSocket indicates that a connection is established via a Unix Domain Socket instead of TCP
+		useUnixSocket bool
+
 		// useSSL indicates whether to use SSL/TLS encryption for network communication.
 		//
 		// https://datatracker.ietf.org/doc/html/rfc8314
@@ -286,6 +289,12 @@ func NewClient(host string, opts ...Option) (*Client, error) {
 		if err := opt(c); err != nil {
 			return c, fmt.Errorf("failed to apply option: %w", err)
 		}
+	}
+
+	// We allow connecting to a UNIX Domain Socket
+	if strings.HasPrefix(c.host, "unix://") {
+		c.useUnixSocket = true
+		c.host = strings.TrimPrefix(c.host, "unix://")
 	}
 
 	// Some settings in a Client cannot be empty/unset
@@ -722,6 +731,9 @@ func (c *Client) TLSPolicy() string {
 // Returns:
 //   - A string representing the server address in the format "host:port".
 func (c *Client) ServerAddr() string {
+	if c.useUnixSocket {
+		return c.host
+	}
 	return fmt.Sprintf("%s:%d", c.host, c.port)
 }
 
@@ -1004,8 +1016,14 @@ func (c *Client) DialToSMTPClientWithContext(ctxDial context.Context) (*smtp.Cli
 			dialContextFunc = tlsDialer.DialContext
 		}
 	}
-	connection, err := dialContextFunc(ctx, "tcp", c.ServerAddr())
-	if err != nil && c.fallbackPort != 0 {
+
+	network := "tcp"
+	if c.useUnixSocket {
+		network = "unix"
+	}
+
+	connection, err := dialContextFunc(ctx, network, c.ServerAddr())
+	if err != nil && !c.useUnixSocket && c.fallbackPort != 0 {
 		// TODO: should we somehow log or append the previous error?
 		connection, err = dialContextFunc(ctx, "tcp", c.serverFallbackAddr())
 	}
