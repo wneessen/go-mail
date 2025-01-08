@@ -16,7 +16,7 @@ SPDX-License-Identifier: MIT
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/wneessen/go-mail/badge)](https://securityscorecards.dev/viewer/?uri=github.com/wneessen/go-mail)
 <a href="https://ko-fi.com/D1D24V9IX"><img src="https://uploads-ssl.webflow.com/5c14e387dab576fe667689cf/5cbed8a4ae2b88347c06c923_BuyMeACoffee_blue.png" height="20" alt="buy ma a coffee"></a>
 
-<p align="center"><img src="./assets/gopher2.svg" width="250" alt="go-mail logo"/></p>
+<p style="text-align: center"><img src="./assets/gopher2.svg" width="250" alt="go-mail logo"/></p>
 
 The main idea of this library was to provide a simple interface for sending mails to
 my [JS-Mailer](https://github.com/wneessen/js-mailer) project. It quickly evolved into a full-fledged mail library.
@@ -113,7 +113,7 @@ contributed ot the project. Big thanks to all of them for improving the go-mail 
 code, reviewing code, writing documenation or helping to translate the website):
 
 <a href="https://github.com/wneessen/go-mail/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=wneessen/go-mail" />
+  <img alt="image of contributors" src="https://contrib.rocks/image?repo=wneessen/go-mail" />
 </a>
 
 A huge thank you also goes to [Maria Letta](https://github.com/MariaLetta) for designing our super cool go-mail logo!
