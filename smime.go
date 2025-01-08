@@ -126,7 +126,7 @@ func getLeafCertificate(keyPairTLS *tls.Certificate) (*x509.Certificate, error) 
 		return keyPairTLS.Leaf, nil
 	}
 
-	if len(keyPairTLS.Certificate) == 0 {
+	if keyPairTLS.Certificate == nil || len(keyPairTLS.Certificate) == 0 {
 		return nil, errors.New("certificate chain is empty")
 	}
 	cert, err := x509.ParseCertificate(keyPairTLS.Certificate[0])
