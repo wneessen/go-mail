@@ -5,11 +5,14 @@
 package mail
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
+	"strings"
 	"testing"
 )
 
@@ -31,50 +34,153 @@ func TestNewSMIME(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			privateKey, certificate, intermediateCertificate, err := tt.certFunc()
+			privkey, certificate, intermediate, err := tt.certFunc()
 			if err != nil {
-				t.Errorf("Error getting dummy crypto material: %s", err)
+				t.Errorf("failed getting dummy crypto material: %s", err)
+			}
+			smime, err := newSMIME(privkey, certificate, intermediate)
+			if err != nil {
+				t.Errorf("failed to initialize SMIME: %s", err)
 			}
 
-			sMime, err := newSMIME(privateKey, certificate, intermediateCertificate)
-			if err != nil {
-				t.Errorf("Error creating new SMIME from keyPair: %s", err)
+			switch key := privkey.(type) {
+			case *rsa.PrivateKey:
+				if !key.Equal(smime.privateKey) {
+					t.Error("SMIME initialization failed. Private keys are not equal")
+				}
+			case *ecdsa.PrivateKey:
+				if !key.Equal(smime.privateKey) {
+					t.Error("SMIME initialization failed. Private keys are not equal")
+				}
+			default:
+				t.Fatal("unsupported private key type")
 			}
 
-			if sMime.privateKey != privateKey {
-				t.Errorf("NewSMime() did not return the same private key")
+			if !bytes.Equal(certificate.Raw, smime.certificate.Raw) {
+				t.Errorf("SMIME initialization failed. Expected public key: %x, got: %x", certificate.Raw,
+					smime.certificate.Raw)
 			}
-			if sMime.certificate != certificate {
-				t.Errorf("NewSMime() did not return the same certificate")
-			}
-			if sMime.intermediateCert != intermediateCertificate {
-				t.Errorf("NewSMime() did not return the same intermedidate certificate")
+			if !bytes.Equal(intermediate.Raw, smime.intermediateCert.Raw) {
+				t.Errorf("SMIME initialization failed. Expected intermediate certificate: %x, got: %x",
+					intermediate.Raw, smime.intermediateCert.Raw)
 			}
 		})
 	}
+
+	t.Run("newSMIME fails with nil private key", func(t *testing.T) {
+		_, certificate, intermediate, err := getDummyRSACryptoMaterial()
+		if err != nil {
+			t.Errorf("failed getting dummy crypto material: %s", err)
+		}
+		_, err = newSMIME(nil, certificate, intermediate)
+		if err == nil {
+			t.Error("newSMIME with nil private key is expected to fail")
+		}
+		if !errors.Is(err, ErrPrivateKeyMissing) {
+			t.Errorf("newSMIME with nil private key is expected to fail with ErrPrivateKeyMissing, got: %s", err)
+		}
+	})
+	t.Run("newSMIME fails with nil public key", func(t *testing.T) {
+		privkey, _, intermediate, err := getDummyRSACryptoMaterial()
+		if err != nil {
+			t.Errorf("failed getting dummy crypto material: %s", err)
+		}
+		_, err = newSMIME(privkey, nil, intermediate)
+		if err == nil {
+			t.Error("newSMIME with nil private key is expected to fail")
+		}
+		if !errors.Is(err, ErrCertificateMissing) {
+			t.Errorf("newSMIME with nil public key is expected to fail with ErrCertificateMissing, got: %s", err)
+		}
+	})
 }
 
-// TestSign tests the sign method
-func TestSign(t *testing.T) {
-	privateKey, certificate, intermediateCertificate, err := getDummyRSACryptoMaterial()
-	if err != nil {
-		t.Errorf("Error getting dummy crypto material: %s", err)
-	}
+func TestGetLeafCertificate(t *testing.T) {
+	t.Run("getLeafCertificate works normally", func(t *testing.T) {
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Errorf("failed to load dummy crypto material: %s", err)
+		}
+		leaf, err := x509.ParseCertificate(keypair.Certificate[0])
+		if err != nil {
+			t.Fatalf("failed to parse leaf certificate: %s", err)
+		}
+		keypair.Leaf = leaf
 
-	sMime, err := newSMIME(privateKey, certificate, intermediateCertificate)
-	if err != nil {
-		t.Errorf("Error creating new SMIME from keyPair: %s", err)
-	}
+		leafCert, err := getLeafCertificate(keypair)
+		if err != nil {
+			t.Errorf("failed to get leaf certificate: %s", err)
+		}
+		if leafCert == nil {
+			t.Fatal("failed to get leaf certificate, got nil")
+		}
+		if !bytes.Equal(leafCert.Raw, keypair.Leaf.Raw) {
+			t.Errorf("failed to get leaf certificate, expected cert mismatch, expected: %x, got: %x",
+				keypair.Leaf.Raw, leafCert.Raw)
+		}
+	})
+	t.Run("getLeafCertificate fails with nil", func(t *testing.T) {
+		_, err := getLeafCertificate(nil)
+		if err == nil {
+			t.Error("getLeafCertificate with nil is expected to fail")
+		}
+	})
+	t.Run("getLeafCertificate without leaf should return first certificate in chain", func(t *testing.T) {
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Errorf("failed to load dummy crypto material: %s", err)
+		}
+		keypair.Leaf = nil
+		leafCert, err := getLeafCertificate(keypair)
+		if err != nil {
+			t.Errorf("failed to get leaf certificate: %s", err)
+		}
+		if leafCert == nil {
+			t.Fatal("failed to get leaf certificate, got nil")
+		}
+		if !bytes.Equal(leafCert.Raw, keypair.Certificate[0]) {
+			t.Errorf("failed to get leaf certificate, expected cert mismatch, expected: %x, got: %x",
+				keypair.Leaf.Raw, leafCert.Raw)
+		}
+	})
+	t.Run("getLeafCertificate with empty chain should fail", func(t *testing.T) {
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Errorf("failed to load dummy crypto material: %s", err)
+		}
+		localpair := &tls.Certificate{
+			Certificate:                  nil,
+			PrivateKey:                   keypair.PrivateKey,
+			Leaf:                         nil,
+			SignedCertificateTimestamps:  keypair.SignedCertificateTimestamps,
+			SupportedSignatureAlgorithms: keypair.SupportedSignatureAlgorithms,
+		}
+		_, err = getLeafCertificate(localpair)
+		if err == nil {
+			t.Errorf("expected getLeafCertificate to fail with empty chain, got: %s", err)
+		}
+		expErr := "certificate chain is empty"
+		if !strings.EqualFold(err.Error(), expErr) {
+			t.Errorf("getting leaf certificate was supposed to fail with: %s, got: %s", expErr, err.Error())
+		}
+	})
+	t.Run("getLeafCertificate fails while parsing broken certificate", func(t *testing.T) {
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Errorf("failed to load dummy crypto material: %s", err)
+		}
+		keypair.Leaf = nil
+		keypair.Certificate[0] = []byte("broken certificate")
 
-	message := "This is a test message"
-	singedMessage, err := sMime.signMessage([]byte(message))
-	if err != nil {
-		t.Errorf("Error creating singed message: %s", err)
-	}
-
-	if singedMessage == message {
-		t.Errorf("Sign() did not work")
-	}
+		_, err = getLeafCertificate(keypair)
+		if err == nil {
+			t.Errorf("expected getLeafCertificate to fail with broken cert, got: %s", err)
+		}
+		expErr := "x509: malformed certificate"
+		if !strings.EqualFold(err.Error(), expErr) {
+			t.Errorf("getting leaf certificate was supposed to fail with: %s, got: %s", expErr, err.Error())
+		}
+	})
 }
 
 // getDummyRSACryptoMaterial loads a certificate (RSA), the associated private key and certificate (RSA) is loaded
