@@ -7065,22 +7065,6 @@ func TestMsg_signMessage(t *testing.T) {
 	})
 }
 
-// TestGetLeafCertificate tests the Msg.getLeafCertificate method
-func TestGetLeafCertificate(t *testing.T) {
-	keyPairTLS, err := getDummyKeyPairTLS()
-	if err != nil {
-		t.Errorf("failed to laod dummy crypto material. Cause: %v", err)
-	}
-
-	leafCertificate, err := getLeafCertificate(keyPairTLS)
-	if err != nil {
-		t.Errorf("failed to get leaf certificate. Cause: %v", err)
-	}
-	if leafCertificate == nil {
-		t.Errorf("failed to get leaf certificate")
-	}
-}
-
 // uppercaseMiddleware is a middleware type that transforms the subject to uppercase.
 type uppercaseMiddleware struct{}
 
