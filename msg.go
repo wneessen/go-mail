@@ -2681,6 +2681,12 @@ func (m *Msg) hasSMIME() bool {
 	return m.sMIME != nil
 }
 
+// isSMIMEInProgress checks whether an S/MIME signing operation is currently in progress.
+//
+// This function verifies if the S/MIME configuration exists and if the signing process is active.
+//
+// Returns:
+//   - true if an S/MIME signing operation is in progress; otherwise false.
 func (m *Msg) isSMIMEInProgress() bool {
 	return m.sMIME != nil && m.sMIME.inProgress
 }
