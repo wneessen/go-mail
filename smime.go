@@ -53,7 +53,8 @@ type SMIME struct {
 //   - An SMIME instance configured with the provided parameters.
 //   - An error if the private key or certificate is missing.
 func newSMIME(privateKey crypto.PrivateKey, certificate *x509.Certificate,
-	intermediateCertificate *x509.Certificate) (*SMIME, error) {
+	intermediateCertificate *x509.Certificate,
+) (*SMIME, error) {
 	if privateKey == nil {
 		return nil, ErrPrivateKeyMissing
 	}

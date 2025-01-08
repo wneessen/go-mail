@@ -2536,7 +2536,8 @@ func (m *Msg) addAddr(header AddrHeader, addr string) error {
 // Returns:
 //   - An error if any issue occurred while configuring S/MIME signing; otherwise nil.
 func (m *Msg) SignWithKeypair(privateKey crypto.PrivateKey, certificate *x509.Certificate,
-	intermediateCert *x509.Certificate) error {
+	intermediateCert *x509.Certificate,
+) error {
 	smime, err := newSMIME(privateKey, certificate, intermediateCert)
 	if err != nil {
 		return err
@@ -3069,7 +3070,7 @@ func (m *Msg) signMessage() error {
 	// Since we only want to sign the message body, we need to find the position within
 	// the mail body from where we start reading.
 	var linecount uint = 0
-	var pos = 0
+	pos := 0
 	for linecount < m.headerCount {
 		nextIndex := bytes.Index(buf.Bytes()[pos:], []byte("\r\n"))
 		if nextIndex == -1 {

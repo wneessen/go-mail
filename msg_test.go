@@ -6836,7 +6836,6 @@ func TestMsg_SignWithTLSCertificate(t *testing.T) {
 				expErr, err)
 		}
 	})
-
 }
 
 func TestMsg_createSignaturePart(t *testing.T) {
