@@ -3069,7 +3069,11 @@ func (m *Msg) signMessage() error {
 	// the boundary of the parts is consistant during the different rendering
 	// phases
 	if m.boundary == "" {
-		m.SetBoundary(randomBoundary())
+		boundary, err := randomBoundary()
+		if err != nil {
+			return fmt.Errorf("failed to generate random boundary: %w", err)
+		}
+		m.SetBoundary(boundary)
 	}
 	mw.writeMsg(m)
 
