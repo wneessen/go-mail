@@ -257,10 +257,12 @@ var (
 //
 // This function initializes a Client with default values, such as connection timeout, port, TLS settings,
 // and the HELO/EHLO hostname. Option functions, if provided, can override the default configuration.
-// It ensures that essential values, like the host, are set. An error is returned if critical defaults are unset.
+// It ensures that essential values, like the host, are set. The function also supports connections to
+// UNIX domain sockets by recognizing a "unix://" prefix in the host string and adjusting the configuration
+// accordingly. An error is returned if critical defaults are unset.
 //
 // Parameters:
-//   - host: The hostname of the SMTP server to connect to.
+//   - host: The hostname of the SMTP server to connect to, or a UNIX domain socket prefixed with "unix://".
 //   - opts: Optional configuration functions to override default settings.
 //
 // Returns:
