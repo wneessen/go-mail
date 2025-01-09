@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2022-2023 The go-mail Authors
+// SPDX-FileCopyrightText: Copyright (c) The go-mail Authors
 //
 // SPDX-License-Identifier: MIT
 

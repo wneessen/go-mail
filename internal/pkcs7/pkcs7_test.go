@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: Copyright (c) 2015 Andrew Smith
 // SPDX-FileCopyrightText: Copyright (c) 2017-2024 The mozilla services project (https://github.com/mozilla-services)
-// SPDX-FileCopyrightText: Copyright (c) 2024-2025 The go-mail Authors
+// SPDX-FileCopyrightText: Copyright (c) The go-mail Authors
 //
 // Partially forked from https://github.com/mozilla-services/pkcs7, which in turn is also a fork
 // of https://github.com/fullsailor/pkcs7.
