@@ -141,19 +141,19 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 	}
 	if msg.hasMixed() {
 		mw.startMP(MIMEMixed, msg.boundary)
-		if mw.depth == 0 || (msg.hasSMIME() && mw.depth == 1) {
+		if mw.depth == 1 {
 			mw.writeString(DoubleNewLine)
 		}
 	}
 	if msg.hasRelated() {
 		mw.startMP(MIMERelated, msg.boundary)
-		if mw.depth == 0 || (msg.hasSMIME() && mw.depth == 1) {
+		if mw.depth == 1 {
 			mw.writeString(DoubleNewLine)
 		}
 	}
 	if msg.hasAlt() {
 		mw.startMP(MIMEAlternative, msg.boundary)
-		if mw.depth == 0 || (msg.hasSMIME() && mw.depth == 1) {
+		if mw.depth == 1 {
 			mw.writeString(DoubleNewLine)
 		}
 	}
