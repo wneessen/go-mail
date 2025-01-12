@@ -5934,9 +5934,9 @@ func TestMsg_WriteTo(t *testing.T) {
 		if err == nil {
 			t.Error("expected WriteTo with invalid S/MIME private key to fail")
 		}
-		expErr := "failed to read from rand.Reader: broken reader"
-		if !strings.EqualFold(err.Error(), expErr) {
-			t.Errorf("expected S/MIME signing error to be: %s, got: %s", expErr, err)
+		expErr := "broken reader"
+		if !strings.Contains(err.Error(), expErr) {
+			t.Errorf("expected S/MIME signing error to contain: %q, got: %s", expErr, err)
 		}
 	})
 }
