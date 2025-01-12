@@ -1323,10 +1323,10 @@ func (c *Client) authTypeAutoDiscover(supported string, isEnc bool) (SMTPAuthTyp
 	}
 	preferList := []SMTPAuthType{
 		SMTPAuthSCRAMSHA256PLUS, SMTPAuthSCRAMSHA256, SMTPAuthSCRAMSHA1PLUS, SMTPAuthSCRAMSHA1,
-		SMTPAuthXOAUTH2, SMTPAuthCramMD5, SMTPAuthPlain, SMTPAuthLogin,
+		SMTPAuthCramMD5, SMTPAuthPlain, SMTPAuthLogin,
 	}
 	if !isEnc {
-		preferList = []SMTPAuthType{SMTPAuthSCRAMSHA256, SMTPAuthSCRAMSHA1, SMTPAuthXOAUTH2, SMTPAuthCramMD5}
+		preferList = []SMTPAuthType{SMTPAuthSCRAMSHA256, SMTPAuthSCRAMSHA1, SMTPAuthCramMD5}
 	}
 	mechs := strings.Split(supported, " ")
 
