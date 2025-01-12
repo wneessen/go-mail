@@ -278,9 +278,10 @@ func WithMIMEVersion(version MIMEVersion) MsgOption {
 // WithBoundary sets the boundary of a Msg to the provided string value during its creation or
 // initialization.
 //
-// Note that by default, random MIME boundaries are created. This option should only be used if
-// a specific boundary is required for the email message. Using a predefined boundary can be
-// helpful when constructing multipart messages with specific formatting or content separation.
+// NOTE: By default, random MIME boundaries are created. This option should only be used if
+// a specific boundary is required for the email message. Using a predefined boundary will only
+// work with messages that hold a single multipart part. Using a predefined boundary with several
+// multipart parts will render the mail unreadable to the mail client.
 //
 // Parameters:
 //   - boundary: The string value that specifies the desired boundary for the Msg.
@@ -383,10 +384,12 @@ func (m *Msg) SetEncoding(encoding Encoding) {
 //
 // This method allows you to specify a custom boundary string for the MIME message. The
 // boundary is used to separate different parts of the message, especially when dealing
-// with multipart messages. By default, the Msg generates random MIME boundaries. This
-// function should only be used if you have a specific boundary requirement for the
-// message. Ensure that the boundary value does not conflict with any content within the
-// message to avoid parsing errors.
+// with multipart messages.
+//
+// NOTE: By default, random MIME boundaries are created. This option should only be used if
+// a specific boundary is required for the email message. Using a predefined boundary will only
+// work with messages that hold a single multipart part. Using a predefined boundary with several
+// multipart parts will render the mail unreadable to the mail client.
 //
 // Parameters:
 //   - boundary: The string value representing the boundary to set for the Msg, used in
@@ -1539,6 +1542,10 @@ func (m *Msg) GetAttachments() []*File {
 // This method retrieves the MIME boundary that is used to separate different parts of the message,
 // particularly in multipart emails. The boundary helps to differentiate between various sections
 // such as plain text, HTML content, and attachments.
+//
+// NOTE: By default, random MIME boundaries are created. Using a predefined boundary will only
+// work with messages that hold a single multipart part. Using a predefined boundary with several
+// multipart parts will render the mail unreadable to the mail client.
 //
 // Returns:
 //   - A string representing the boundary of the message.
