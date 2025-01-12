@@ -120,7 +120,7 @@ type Msg struct {
 	// This count can be helpful to identify where the mail header ends and the mail body starts
 	headerCount uint
 
-	// isDelivered indicates wether the Msg has been delivered.
+	// isDelivered indicates whether the Msg has been delivered.
 	isDelivered bool
 
 	// middlewares is a slice of Middleware used for modifying or handling messages before they are processed.
@@ -130,6 +130,10 @@ type Msg struct {
 
 	// mimever represents the MIME version used in a Msg.
 	mimever MIMEVersion
+
+	// multiPartBoundary holds the rendered boundary strings for consistent boundary rendering
+	// in case a Msg is rendered several times
+	multiPartBoundary map[MIMEType]string
 
 	// parts is a slice that holds pointers to Part structures, which represent different parts of a Msg.
 	parts []*Part
@@ -183,12 +187,13 @@ type MsgOption func(*Msg)
 //   - https://datatracker.ietf.org/doc/html/rfc5321
 func NewMsg(opts ...MsgOption) *Msg {
 	msg := &Msg{
-		addrHeader:    make(map[AddrHeader][]*mail.Address),
-		charset:       CharsetUTF8,
-		encoding:      EncodingQP,
-		genHeader:     make(map[Header][]string),
-		preformHeader: make(map[Header]string),
-		mimever:       MIME10,
+		addrHeader:        make(map[AddrHeader][]*mail.Address),
+		charset:           CharsetUTF8,
+		encoding:          EncodingQP,
+		genHeader:         make(map[Header][]string),
+		preformHeader:     make(map[Header]string),
+		multiPartBoundary: make(map[MIMEType]string),
+		mimever:           MIME10,
 	}
 
 	// Override defaults with optionally provided MsgOption functions.
@@ -3064,17 +3069,6 @@ func (m *Msg) signMessage() error {
 	// the S/MIME signature
 	buf := bytes.NewBuffer(nil)
 	mw := &msgWriter{writer: buf, charset: m.charset, encoder: m.encoder}
-
-	// If no boundary is set by the user, we set a fixed random boundary, so that
-	// the boundary of the parts is consistant during the different rendering
-	// phases
-	if m.boundary == "" {
-		boundary, err := randomBoundary()
-		if err != nil {
-			return fmt.Errorf("failed to generate random boundary: %w", err)
-		}
-		m.SetBoundary(boundary)
-	}
 	mw.writeMsg(m)
 
 	// Since we only want to sign the message body, we need to find the position within
