@@ -5890,7 +5890,7 @@ func TestMsg_WriteTo(t *testing.T) {
 			t.Error("expected message to have multipart/related in mail body")
 		}
 		if !strings.Contains(buffer.String(), "embed.txt") {
-			t.Error("expected message to have embeded file in mail body")
+			t.Error("expected message to have embedded file in mail body")
 		}
 	})
 	t.Run("WriteTo with S/MIME signing fails with invalid key", func(t *testing.T) {

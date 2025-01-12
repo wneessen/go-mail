@@ -311,7 +311,7 @@ func TestSendError_errorCode(t *testing.T) {
 		}
 	})
 	t.Run("errorCode with wrapper error", func(t *testing.T) {
-		code := errorCode(fmt.Errorf("an error occured: %w", errors.New("443 4.1.0 Server currently unavailable")))
+		code := errorCode(fmt.Errorf("an error occurred: %w", errors.New("443 4.1.0 Server currently unavailable")))
 		if code != 443 {
 			t.Errorf("expected error code: %d, got: %d", 443, code)
 		}
