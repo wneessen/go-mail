@@ -382,7 +382,7 @@ func TestPlainAuth(t *testing.T) {
 		}
 		_, err = auth.Next([]byte("nonsense"), true)
 		if err == nil {
-			t.Fatal("expected second server challange to fail")
+			t.Fatal("expected second server challenge to fail")
 		}
 		if !errors.Is(err, ErrUnexpectedServerChallange) {
 			t.Errorf("expected error to be: %s, got: %s", ErrUnexpectedServerChallange, err)
@@ -537,7 +537,7 @@ func TestPlainAuth_noEnc(t *testing.T) {
 		}
 		_, err = auth.Next([]byte("nonsense"), true)
 		if err == nil {
-			t.Fatal("expected second server challange to fail")
+			t.Fatal("expected second server challenge to fail")
 		}
 		if !errors.Is(err, ErrUnexpectedServerChallange) {
 			t.Errorf("expected error to be: %s, got: %s", ErrUnexpectedServerChallange, err)
@@ -673,21 +673,21 @@ func TestLoginAuth(t *testing.T) {
 			}
 			resp, err := auth.Next([]byte(user), true)
 			if err != nil {
-				t.Errorf("failed on first server challange: %s", err)
+				t.Errorf("failed on first server challenge: %s", err)
 			}
 			if !bytes.Equal([]byte(user), resp) {
-				t.Errorf("expected response to first challange to be: %q, got: %q", user, resp)
+				t.Errorf("expected response to first challenge to be: %q, got: %q", user, resp)
 			}
 			resp, err = auth.Next([]byte(pass), true)
 			if err != nil {
-				t.Errorf("failed on second server challange: %s", err)
+				t.Errorf("failed on second server challenge: %s", err)
 			}
 			if !bytes.Equal([]byte(pass), resp) {
-				t.Errorf("expected response to second challange to be: %q, got: %q", pass, resp)
+				t.Errorf("expected response to second challenge to be: %q, got: %q", pass, resp)
 			}
 			_, err = auth.Next([]byte("nonsense"), true)
 			if err == nil {
-				t.Error("expected third server challange to fail, but didn't")
+				t.Error("expected third server challenge to fail, but didn't")
 			}
 			if !errors.Is(err, ErrUnexpectedServerResponse) {
 				t.Errorf("expected error to be: %s, got: %s", ErrUnexpectedServerResponse, err)
@@ -821,21 +821,21 @@ func TestLoginAuth_noEnc(t *testing.T) {
 			}
 			resp, err := auth.Next([]byte(user), true)
 			if err != nil {
-				t.Errorf("failed on first server challange: %s", err)
+				t.Errorf("failed on first server challenge: %s", err)
 			}
 			if !bytes.Equal([]byte(user), resp) {
-				t.Errorf("expected response to first challange to be: %q, got: %q", user, resp)
+				t.Errorf("expected response to first challenge to be: %q, got: %q", user, resp)
 			}
 			resp, err = auth.Next([]byte(pass), true)
 			if err != nil {
-				t.Errorf("failed on second server challange: %s", err)
+				t.Errorf("failed on second server challenge: %s", err)
 			}
 			if !bytes.Equal([]byte(pass), resp) {
-				t.Errorf("expected response to second challange to be: %q, got: %q", pass, resp)
+				t.Errorf("expected response to second challenge to be: %q, got: %q", pass, resp)
 			}
 			_, err = auth.Next([]byte("nonsense"), true)
 			if err == nil {
-				t.Error("expected third server challange to fail, but didn't")
+				t.Error("expected third server challenge to fail, but didn't")
 			}
 			if !errors.Is(err, ErrUnexpectedServerResponse) {
 				t.Errorf("expected error to be: %s, got: %s", ErrUnexpectedServerResponse, err)
@@ -920,14 +920,14 @@ func TestXOAuth2Auth(t *testing.T) {
 		}
 		resp, err := auth.Next([]byte("nonsense"), true)
 		if err != nil {
-			t.Errorf("failed on first server challange: %s", err)
+			t.Errorf("failed on first server challenge: %s", err)
 		}
 		if !bytes.Equal([]byte(""), resp) {
 			t.Errorf("expected server response to be empty, got: %q", resp)
 		}
 		_, err = auth.Next([]byte("nonsense"), false)
 		if err != nil {
-			t.Errorf("failed on first server challange: %s", err)
+			t.Errorf("failed on first server challenge: %s", err)
 		}
 	})
 	t.Run("XOAuth2 succeeds with faker", func(t *testing.T) {
