@@ -57,7 +57,7 @@ type msgWriter struct {
 	depth           int8
 	encoder         mime.WordEncoder
 	err             error
-	multiPartWriter [3]*multipart.Writer
+	multiPartWriter [4]*multipart.Writer
 	partWriter      io.Writer
 	writer          io.Writer
 }
