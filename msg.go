@@ -120,7 +120,7 @@ type Msg struct {
 	// This count can be helpful to identify where the mail header ends and the mail body starts
 	headerCount uint
 
-	// isDelivered indicates wether the Msg has been delivered.
+	// isDelivered indicates whether the Msg has been delivered.
 	isDelivered bool
 
 	// middlewares is a slice of Middleware used for modifying or handling messages before they are processed.
@@ -130,6 +130,10 @@ type Msg struct {
 
 	// mimever represents the MIME version used in a Msg.
 	mimever MIMEVersion
+
+	// multiPartBoundary holds the rendered boundary strings for consistent boundary rendering
+	// in case a Msg is rendered several times
+	multiPartBoundary map[MIMEType]string
 
 	// parts is a slice that holds pointers to Part structures, which represent different parts of a Msg.
 	parts []*Part
@@ -183,12 +187,13 @@ type MsgOption func(*Msg)
 //   - https://datatracker.ietf.org/doc/html/rfc5321
 func NewMsg(opts ...MsgOption) *Msg {
 	msg := &Msg{
-		addrHeader:    make(map[AddrHeader][]*mail.Address),
-		charset:       CharsetUTF8,
-		encoding:      EncodingQP,
-		genHeader:     make(map[Header][]string),
-		preformHeader: make(map[Header]string),
-		mimever:       MIME10,
+		addrHeader:        make(map[AddrHeader][]*mail.Address),
+		charset:           CharsetUTF8,
+		encoding:          EncodingQP,
+		genHeader:         make(map[Header][]string),
+		preformHeader:     make(map[Header]string),
+		multiPartBoundary: make(map[MIMEType]string),
+		mimever:           MIME10,
 	}
 
 	// Override defaults with optionally provided MsgOption functions.
@@ -273,9 +278,10 @@ func WithMIMEVersion(version MIMEVersion) MsgOption {
 // WithBoundary sets the boundary of a Msg to the provided string value during its creation or
 // initialization.
 //
-// Note that by default, random MIME boundaries are created. This option should only be used if
-// a specific boundary is required for the email message. Using a predefined boundary can be
-// helpful when constructing multipart messages with specific formatting or content separation.
+// NOTE: By default, random MIME boundaries are created. This option should only be used if
+// a specific boundary is required for the email message. Using a predefined boundary will only
+// work with messages that hold a single multipart part. Using a predefined boundary with several
+// multipart parts will render the mail unreadable to the mail client.
 //
 // Parameters:
 //   - boundary: The string value that specifies the desired boundary for the Msg.
@@ -378,10 +384,12 @@ func (m *Msg) SetEncoding(encoding Encoding) {
 //
 // This method allows you to specify a custom boundary string for the MIME message. The
 // boundary is used to separate different parts of the message, especially when dealing
-// with multipart messages. By default, the Msg generates random MIME boundaries. This
-// function should only be used if you have a specific boundary requirement for the
-// message. Ensure that the boundary value does not conflict with any content within the
-// message to avoid parsing errors.
+// with multipart messages.
+//
+// NOTE: By default, random MIME boundaries are created. This option should only be used if
+// a specific boundary is required for the email message. Using a predefined boundary will only
+// work with messages that hold a single multipart part. Using a predefined boundary with several
+// multipart parts will render the mail unreadable to the mail client.
 //
 // Parameters:
 //   - boundary: The string value representing the boundary to set for the Msg, used in
@@ -1534,6 +1542,10 @@ func (m *Msg) GetAttachments() []*File {
 // This method retrieves the MIME boundary that is used to separate different parts of the message,
 // particularly in multipart emails. The boundary helps to differentiate between various sections
 // such as plain text, HTML content, and attachments.
+//
+// NOTE: By default, random MIME boundaries are created. Using a predefined boundary will only
+// work with messages that hold a single multipart part. Using a predefined boundary with several
+// multipart parts will render the mail unreadable to the mail client.
 //
 // Returns:
 //   - A string representing the boundary of the message.
@@ -3064,17 +3076,6 @@ func (m *Msg) signMessage() error {
 	// the S/MIME signature
 	buf := bytes.NewBuffer(nil)
 	mw := &msgWriter{writer: buf, charset: m.charset, encoder: m.encoder}
-
-	// If no boundary is set by the user, we set a fixed random boundary, so that
-	// the boundary of the parts is consistant during the different rendering
-	// phases
-	if m.boundary == "" {
-		boundary, err := randomBoundary()
-		if err != nil {
-			return fmt.Errorf("failed to generate random boundary: %w", err)
-		}
-		m.SetBoundary(boundary)
-	}
 	mw.writeMsg(m)
 
 	// Since we only want to sign the message body, we need to find the position within

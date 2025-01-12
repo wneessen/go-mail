@@ -57,7 +57,7 @@ type msgWriter struct {
 	depth           int8
 	encoder         mime.WordEncoder
 	err             error
-	multiPartWriter [3]*multipart.Writer
+	multiPartWriter [4]*multipart.Writer
 	partWriter      io.Writer
 	writer          io.Writer
 }
@@ -140,19 +140,25 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 		mw.writeString(DoubleNewLine)
 	}
 	if msg.hasMixed() {
-		mw.startMP(MIMEMixed, msg.boundary)
+		boundary := mw.getMultipartBoundary(msg, MIMEMixed)
+		boundary = mw.startMP(MIMEMixed, boundary)
+		msg.multiPartBoundary[MIMEMixed] = boundary
 		if mw.depth == 1 {
 			mw.writeString(DoubleNewLine)
 		}
 	}
 	if msg.hasRelated() {
-		mw.startMP(MIMERelated, msg.boundary)
+		boundary := mw.getMultipartBoundary(msg, MIMERelated)
+		boundary = mw.startMP(MIMERelated, boundary)
+		msg.multiPartBoundary[MIMERelated] = boundary
 		if mw.depth == 1 {
 			mw.writeString(DoubleNewLine)
 		}
 	}
 	if msg.hasAlt() {
-		mw.startMP(MIMEAlternative, msg.boundary)
+		boundary := mw.getMultipartBoundary(msg, MIMEAlternative)
+		boundary = mw.startMP(MIMEAlternative, boundary)
+		msg.multiPartBoundary[MIMEAlternative] = boundary
 		if mw.depth == 1 {
 			mw.writeString(DoubleNewLine)
 		}
@@ -247,9 +253,12 @@ func (mw *msgWriter) writePreformattedGenHeader(msg *Msg) {
 //   - mimeType: The MIME type of the multipart content (e.g., "mixed", "alternative").
 //   - boundary: The boundary string separating different parts of the multipart message.
 //
+// Returns:
+//   - The multipart boundary string
+//
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2046
-func (mw *msgWriter) startMP(mimeType MIMEType, boundary string) {
+func (mw *msgWriter) startMP(mimeType MIMEType, boundary string) string {
 	multiPartWriter := multipart.NewWriter(mw)
 	if boundary != "" {
 		mw.err = multiPartWriter.SetBoundary(boundary)
@@ -266,6 +275,7 @@ func (mw *msgWriter) startMP(mimeType MIMEType, boundary string) {
 		mw.newPart(map[string][]string{"Content-Type": {contentType}})
 	}
 	mw.depth++
+	return multiPartWriter.Boundary()
 }
 
 // stopMP closes the multipart.
@@ -277,6 +287,28 @@ func (mw *msgWriter) stopMP() {
 		mw.err = mw.multiPartWriter[mw.depth-1].Close()
 		mw.depth--
 	}
+}
+
+// getMultipartBoundary returns the appropriate multipart boundary for the given MIME type.
+//
+// If the Msg has a predefined boundary, it is returned. Otherwise, the function checks
+// for a MIME type-specific boundary in the Msg's multiPartBoundary map. If no boundary
+// is found, an empty string is returned.
+//
+// Parameters:
+//   - msg: A pointer to the Msg containing the boundary and MIME type-specific mappings.
+//   - mimetype: The MIMEType for which the boundary is being determined.
+//
+// Returns:
+//   - A string representing the multipart boundary, or an empty string if none is found.
+func (mw *msgWriter) getMultipartBoundary(msg *Msg, mimetype MIMEType) string {
+	if msg.boundary != "" {
+		return msg.boundary
+	}
+	if msg.multiPartBoundary[mimetype] != "" {
+		return msg.multiPartBoundary[mimetype]
+	}
+	return ""
 }
 
 // addFiles adds the attachments/embeds file content to the mail body.

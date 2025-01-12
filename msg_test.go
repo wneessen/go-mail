@@ -5932,11 +5932,11 @@ func TestMsg_WriteTo(t *testing.T) {
 		buffer := bytes.NewBuffer(nil)
 		_, err = message.WriteTo(buffer)
 		if err == nil {
-			t.Error("expected WritoTo with invalid S/MIME private key to fail")
+			t.Error("expected WriteTo with invalid S/MIME private key to fail")
 		}
-		expErr := "failed to generate random boundary: failed to read from rand.Reader: broken reader"
-		if !strings.EqualFold(err.Error(), expErr) {
-			t.Errorf("expected S/MIME signing error to be: %s, got: %s", expErr, err)
+		expErr := "broken reader"
+		if !strings.Contains(err.Error(), expErr) {
+			t.Errorf("expected S/MIME signing error to contain: %q, got: %s", expErr, err)
 		}
 	})
 }
@@ -7038,29 +7038,6 @@ func TestMsg_signMessage(t *testing.T) {
 		expErr := "unable to find message body starting index within rendered message"
 		if !strings.EqualFold(err.Error(), expErr) {
 			t.Errorf("SMIME signing with invalid header count is expected to fail with %s, but got: %s", expErr, err)
-		}
-	})
-	t.Run("signing fails with broken rand.Reader", func(t *testing.T) {
-		defaultRandReader := rand.Reader
-		t.Cleanup(func() { rand.Reader = defaultRandReader })
-		rand.Reader = &randReader{failon: 1}
-
-		keypair, err := getDummyKeyPairTLS()
-		if err != nil {
-			t.Fatalf("failed to load dummy crypto material: %s", err)
-		}
-		msg := testMessage(t)
-		if err = msg.SignWithTLSCertificate(keypair); err != nil {
-			t.Fatalf("failed to init SMIME configuration: %s", err)
-		}
-		msg.headerCount = 1000
-		err = msg.signMessage()
-		if err == nil {
-			t.Error("SMIME signing with broken rand.Reader is expected to fail")
-		}
-		expErr := "failed to generate random boundary: failed to read from rand.Reader: broken reader"
-		if !strings.EqualFold(err.Error(), expErr) {
-			t.Errorf("SMIME signing with broken rand.Reader is expected to fail with %s, but got: %s", expErr, err)
 		}
 	})
 }
