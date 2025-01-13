@@ -114,8 +114,7 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 		}
 	}
 	if hasFrom && (len(from) > 0 && from[0] != nil) {
-		mw.writeHeader(Header(HeaderFrom), from[0].String())
-		msg.headerCount++
+		msg.headerCount += mw.writeHeader(Header(HeaderFrom), from[0].String())
 	}
 
 	// Set the rest of the address headers
@@ -125,8 +124,7 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 			for _, addr := range addresses {
 				val = append(val, addr.String())
 			}
-			mw.writeHeader(Header(to), val...)
-			msg.headerCount++
+			msg.headerCount += mw.writeHeader(Header(to), val...)
 		}
 	}
 
@@ -223,8 +221,7 @@ func (mw *msgWriter) writeGenHeader(msg *Msg) {
 
 	sort.Strings(keys)
 	for _, key := range keys {
-		mw.writeHeader(Header(key), msg.genHeader[Header(key)]...)
-		msg.headerCount++
+		msg.headerCount += mw.writeHeader(Header(key), msg.genHeader[Header(key)]...)
 	}
 }
 
@@ -237,8 +234,9 @@ func (mw *msgWriter) writeGenHeader(msg *Msg) {
 //   - msg: The Msg object containing the preformatted headers to be written.
 func (mw *msgWriter) writePreformattedGenHeader(msg *Msg) {
 	for key, val := range msg.preformHeader {
-		mw.writeString(fmt.Sprintf("%s: %s%s", key, val, SingleNewLine))
-		msg.headerCount++
+		line := fmt.Sprintf("%s: %s%s", key, val, SingleNewLine)
+		mw.writeString(line)
+		msg.headerCount += strings.Count(line, SingleNewLine)
 	}
 }
 
@@ -459,14 +457,15 @@ func (mw *msgWriter) writeString(s string) {
 // Parameters:
 //   - key: The Header key to be written.
 //   - values: A variadic parameter representing the values associated with the header.
-func (mw *msgWriter) writeHeader(key Header, values ...string) {
+func (mw *msgWriter) writeHeader(key Header, values ...string) int {
+	lines := 0
 	buffer := strings.Builder{}
 	charLength := MaxHeaderLength - 2
 	buffer.WriteString(string(key))
 	charLength -= len(key)
 	if len(values) == 0 {
 		buffer.WriteString(":\r\n")
-		return
+		return lines + 1
 	}
 	buffer.WriteString(": ")
 	charLength -= 2
@@ -491,6 +490,9 @@ func (mw *msgWriter) writeHeader(key Header, values ...string) {
 		SingleNewLine)
 	mw.writeString(bufferString)
 	mw.writeString("\r\n")
+
+	lines += strings.Count(bufferString, SingleNewLine) + 1
+	return lines
 }
 
 // writeBody writes an io.Reader into an io.Writer using the provided Encoding.

@@ -118,7 +118,7 @@ type Msg struct {
 
 	// headerCount is an indicate for how many headers have been written during the mail rendering process.
 	// This count can be helpful to identify where the mail header ends and the mail body starts
-	headerCount uint
+	headerCount int
 
 	// isDelivered indicates whether the Msg has been delivered.
 	isDelivered bool
@@ -3080,7 +3080,7 @@ func (m *Msg) signMessage() error {
 
 	// Since we only want to sign the message body, we need to find the position within
 	// the mail body from where we start reading.
-	var linecount uint = 0
+	linecount := 0
 	pos := 0
 	for linecount < m.headerCount {
 		nextIndex := bytes.Index(buf.Bytes()[pos:], []byte("\r\n"))
