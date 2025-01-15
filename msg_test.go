@@ -25,6 +25,14 @@ import (
 	"time"
 )
 
+type msgContentTest struct {
+	line         int
+	data         string
+	exact        bool
+	dataIsPrefix bool
+	dataIsSuffix bool
+}
+
 var (
 	charsetTests = []struct {
 		name  string
@@ -5946,14 +5954,7 @@ func TestMsg_WriteTo(t *testing.T) {
 		if _, err := message.WriteTo(buffer); err != nil {
 			t.Fatalf("failed to write message to buffer: %s", err)
 		}
-		lines := strings.Split(buffer.String(), "\r\n")
-		wants := []struct {
-			line         int
-			data         string
-			exact        bool
-			dataIsPrefix bool
-			dataIsSuffix bool
-		}{
+		wants := []msgContentTest{
 			{0, "Date:", false, true, false},
 			{1, "MIME-Version: 1.0", true, true, false},
 			{2, "Message-ID: <", false, true, false},
@@ -5971,33 +5972,40 @@ func TestMsg_WriteTo(t *testing.T) {
 			{18, `Content-Transfer-Encoding: base64`, true, true, false},
 			{19, `Content-Type: text/plain; charset=utf-8; name="attachment.txt"`, true, true, false},
 			{20, "", true, false, false},
+			{21, "VGhpcyBpcyBhIHRlc3Qg", false, true, false},
 			{22, "", true, false, false},
 			{23, "--", false, true, true},
 		}
-		for _, want := range wants {
-			if len(lines) < want.line {
-				t.Errorf("expected line %d to be present, got: %d lines", want.line, len(lines))
-				continue
-			}
-			if !strings.Contains(lines[want.line], want.data) {
-				t.Errorf("expected line %d to contain %q, got: %q", want.line, want.data, lines[want.line])
-			}
-			if want.exact {
-				if !strings.EqualFold(lines[want.line], want.data) {
-					t.Errorf("expected line %d to be exactly %q, got: %q", want.line, want.data, lines[want.line])
-				}
-			}
-			if want.dataIsPrefix {
-				if !strings.HasPrefix(lines[want.line], want.data) {
-					t.Errorf("expected line %d to start with %q, got: %q", want.line, want.data, lines[want.line])
-				}
-			}
-			if want.dataIsSuffix {
-				if !strings.HasSuffix(lines[want.line], want.data) {
-					t.Errorf("expected line %d to end with %q, got: %q", want.line, want.data, lines[want.line])
-				}
-			}
+		checkMessageContent(t, buffer, wants)
+	})
+	t.Run("WriteTo Multipart plain text with alternative", func(t *testing.T) {
+		message := testMessage(t)
+		message.AddAlternativeString(TypeTextHTML, "<p>HTML alternative</p>")
+		buffer := bytes.NewBuffer(nil)
+		if _, err := message.WriteTo(buffer); err != nil {
+			t.Fatalf("failed to write message to buffer: %s", err)
 		}
+		wants := []msgContentTest{
+			{0, "Date:", false, true, false},
+			{1, "MIME-Version: 1.0", true, true, false},
+			{2, "Message-ID: <", false, true, false},
+			{2, ">", false, false, true},
+			{8, "Content-Type: multipart/alternative;", true, true, false},
+			{9, " boundary=", false, true, false},
+			{10, "", true, false, false},
+			{11, "--", false, true, false},
+			{12, "Content-Transfer-Encoding: quoted-printable", true, true, false},
+			{13, "Content-Type: text/plain; charset=UTF-8", true, true, false},
+			{14, "", true, false, false},
+			{15, "Testmail", true, true, false},
+			{16, "--", false, true, false},
+			{17, `Content-Transfer-Encoding: quoted-printable`, true, true, false},
+			{18, `Content-Type: text/html; charset=UTF-8`, true, true, false},
+			{19, "", true, false, false},
+			{20, `<p>HTML alternative</p>`, true, true, false},
+			{21, "--", false, true, true},
+		}
+		checkMessageContent(t, buffer, wants)
 	})
 }
 
@@ -7235,6 +7243,35 @@ func hasSendmail() bool {
 		}
 	}
 	return false
+}
+
+func checkMessageContent(t *testing.T, buffer *bytes.Buffer, wants []msgContentTest) {
+	t.Helper()
+	lines := strings.Split(buffer.String(), "\r\n")
+	for _, want := range wants {
+		if len(lines) <= want.line {
+			t.Errorf("expected line %d to be present, got: %d lines in total", want.line, len(lines)-1)
+			continue
+		}
+		if !strings.Contains(lines[want.line], want.data) {
+			t.Errorf("expected line %d to contain %q, got: %q", want.line, want.data, lines[want.line])
+		}
+		if want.exact {
+			if !strings.EqualFold(lines[want.line], want.data) {
+				t.Errorf("expected line %d to be exactly %q, got: %q", want.line, want.data, lines[want.line])
+			}
+		}
+		if want.dataIsPrefix {
+			if !strings.HasPrefix(lines[want.line], want.data) {
+				t.Errorf("expected line %d to start with %q, got: %q", want.line, want.data, lines[want.line])
+			}
+		}
+		if want.dataIsSuffix {
+			if !strings.HasSuffix(lines[want.line], want.data) {
+				t.Errorf("expected line %d to end with %q, got: %q", want.line, want.data, lines[want.line])
+			}
+		}
+	}
 }
 
 // Fuzzing tests
