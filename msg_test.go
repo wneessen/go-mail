@@ -5955,6 +5955,10 @@ func TestMsg_WriteTo(t *testing.T) {
 		if _, err := message.WriteTo(buffer); err != nil {
 			t.Fatalf("failed to write message to buffer: %s", err)
 		}
+		fileContentType := "text/plain; charset=utf-8"
+		if runtime.GOOS == "freebsd" {
+			fileContentType = "application/octet-stream"
+		}
 		wants := []msgContentTest{
 			{0, "Date:", false, true, false},
 			{1, "MIME-Version: 1.0", true, true, false},
@@ -5971,7 +5975,7 @@ func TestMsg_WriteTo(t *testing.T) {
 			{16, "--", false, true, false},
 			{17, `Content-Disposition: attachment; filename="attachment.txt"`, true, true, false},
 			{18, `Content-Transfer-Encoding: base64`, true, true, false},
-			{19, `Content-Type: text/plain; charset=utf-8; name="attachment.txt"`, true, true, false},
+			{19, `Content-Type: ` + fileContentType + `; name="attachment.txt"`, true, true, false},
 			{20, "", true, false, false},
 			{21, "VGhpcyBpcyBhIHRlc3Qg", false, true, false},
 			{22, "", true, false, false},
@@ -6057,7 +6061,7 @@ func TestMsg_WriteTo(t *testing.T) {
 		if _, err := message.WriteTo(buffer); err != nil {
 			t.Fatalf("failed to write message to buffer: %s", err)
 		}
-		fileContentType := "text/plain"
+		fileContentType := "text/plain; charset=utf-8"
 		if runtime.GOOS == "freebsd" {
 			fileContentType = "application/octet-stream"
 		}
@@ -6095,7 +6099,7 @@ func TestMsg_WriteTo(t *testing.T) {
 			{32, `Content-Disposition: inline; filename="embed.txt"`, true, true, false},
 			{33, "Content-Id: <embed.txt>", true, true, false},
 			{34, "Content-Transfer-Encoding: base64", true, true, false},
-			{35, `Content-Type: ` + fileContentType + `; charset=utf-8; name="embed.txt"`, true, true, false},
+			{35, `Content-Type: ` + fileContentType + `; name="embed.txt"`, true, true, false},
 			{36, "", true, false, false},
 			{37, "VGhp", false, true, false},
 			{38, "", true, false, false},
@@ -6104,7 +6108,7 @@ func TestMsg_WriteTo(t *testing.T) {
 			{41, "--", false, true, false},
 			{42, `Content-Disposition: attachment; filename="attachment.txt"`, true, true, false},
 			{43, "Content-Transfer-Encoding: base64", true, true, false},
-			{44, `Content-Type: ` + fileContentType + `; charset=utf-8; name="attachment.txt"`, true, true, false},
+			{44, `Content-Type: ` + fileContentType + `; name="attachment.txt"`, true, true, false},
 			{45, "", true, false, false},
 			{46, "VGhp", false, true, false},
 			{47, "", true, false, false},
@@ -6128,7 +6132,7 @@ func TestMsg_WriteTo(t *testing.T) {
 		if _, err := message.WriteTo(buffer); err != nil {
 			t.Fatalf("failed to write message to buffer: %s", err)
 		}
-		fileContentType := "text/plain"
+		fileContentType := "text/plain; charset=utf-8"
 		if runtime.GOOS == "freebsd" {
 			fileContentType = "application/octet-stream"
 		}
@@ -6173,7 +6177,7 @@ func TestMsg_WriteTo(t *testing.T) {
 			{36, `Content-Disposition: inline; filename="embed.txt"`, true, true, false},
 			{37, "Content-Id: <embed.txt>", true, true, false},
 			{38, "Content-Transfer-Encoding: base64", true, true, false},
-			{39, `Content-Type: ` + fileContentType + `; charset=utf-8; name="embed.txt"`, true, true, false},
+			{39, `Content-Type: ` + fileContentType + `; name="embed.txt"`, true, true, false},
 			{40, "", true, false, false},
 			{41, "VGhp", false, true, false},
 			{42, "", true, false, false},
@@ -6182,7 +6186,7 @@ func TestMsg_WriteTo(t *testing.T) {
 			{45, "--", false, true, false},
 			{46, `Content-Disposition: attachment; filename="attachment.txt"`, true, true, false},
 			{47, "Content-Transfer-Encoding: base64", true, true, false},
-			{48, `Content-Type: ` + fileContentType + `; charset=utf-8; name="attachment.txt"`, true, true, false},
+			{48, `Content-Type: ` + fileContentType + `; name="attachment.txt"`, true, true, false},
 			{49, "", true, false, false},
 			{50, "VGhp", false, true, false},
 			{51, "", true, false, false},
