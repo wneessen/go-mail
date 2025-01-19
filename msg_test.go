@@ -6047,6 +6047,66 @@ func TestMsg_WriteTo(t *testing.T) {
 		}
 		checkMessageContent(t, buffer, wants)
 	})
+	t.Run("WriteTo Multipart plain body, alternative html, attachment and embed", func(t *testing.T) {
+		message := testMessage(t)
+		message.AddAlternativeString(TypeTextHTML, "<p>HTML alternative part</p>")
+		message.AttachFile("testdata/attachment.txt")
+		message.EmbedFile("testdata/embed.txt")
+		buffer := bytes.NewBuffer(nil)
+		if _, err := message.WriteTo(buffer); err != nil {
+			t.Fatalf("failed to write message to buffer: %s", err)
+		}
+		wants := []msgContentTest{
+			{0, "Date:", false, true, false},
+			{1, "MIME-Version: 1.0", true, true, false},
+			{2, "Message-ID: <", false, true, false},
+			{2, ">", false, false, true},
+			{6, "From: <valid-from@domain.tld>", true, true, false},
+			{7, "To: <valid-to@domain.tld>", true, true, false},
+			{8, `Content-Type: multipart/mixed;`, true, true, false},
+			{9, ` boundary=`, false, true, false},
+			{10, "", true, false, false},
+			{11, "--", false, true, false},
+			{12, `Content-Type: multipart/related;`, true, true, false},
+			{13, ` boundary=`, false, true, false},
+			{14, "", true, false, false},
+			{15, "--", false, true, false},
+			{16, `Content-Type: multipart/alternative;`, true, true, false},
+			{17, ` boundary=`, false, true, false},
+			{18, "", true, false, false},
+			{19, "--", false, true, false},
+			{20, "Content-Transfer-Encoding: quoted-printable", true, true, false},
+			{21, "Content-Type: text/plain; charset=UTF-8", true, true, false},
+			{22, "", true, false, false},
+			{23, "Testmail", true, true, false},
+			{24, "--", false, true, false},
+			{25, "Content-Transfer-Encoding: quoted-printable", true, true, false},
+			{26, "Content-Type: text/html; charset=UTF-8", true, true, false},
+			{27, "", true, false, false},
+			{28, `<p>HTML alternative part</p>`, true, true, false},
+			{29, "--", false, true, true},
+			{30, "", true, false, false},
+			{31, "--", false, true, false},
+			{32, `Content-Disposition: inline; filename="embed.txt"`, true, true, false},
+			{33, "Content-Id: <embed.txt>", true, true, false},
+			{34, "Content-Transfer-Encoding: base64", true, true, false},
+			{35, `Content-Type: text/plain; charset=utf-8; name="embed.txt"`, true, true, false},
+			{36, "", true, false, false},
+			{37, "VGhp", false, true, false},
+			{38, "", true, false, false},
+			{39, "--", false, true, true},
+			{40, "", true, false, false},
+			{41, "--", false, true, false},
+			{42, `Content-Disposition: attachment; filename="attachment.txt"`, true, true, false},
+			{43, "Content-Transfer-Encoding: base64", true, true, false},
+			{44, `Content-Type: text/plain; charset=utf-8; name="attachment.txt"`, true, true, false},
+			{45, "", true, false, false},
+			{46, "VGhp", false, true, false},
+			{47, "", true, false, false},
+			{48, "--", false, true, true},
+		}
+		checkMessageContent(t, buffer, wants)
+	})
 }
 
 func TestMsg_WriteToFile(t *testing.T) {
