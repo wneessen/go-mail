@@ -6107,6 +6107,86 @@ func TestMsg_WriteTo(t *testing.T) {
 		}
 		checkMessageContent(t, buffer, wants)
 	})
+	t.Run("WriteTo Multipart plain body, alternative html, attachment, embed and S/MIME signed", func(t *testing.T) {
+		message := testMessage(t)
+		message.AddAlternativeString(TypeTextHTML, "<p>HTML alternative part</p>")
+		message.AttachFile("testdata/attachment.txt")
+		message.EmbedFile("testdata/embed.txt")
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Fatalf("failed to load dummy key material: %s", err)
+		}
+		if err = message.SignWithTLSCertificate(keypair); err != nil {
+			t.Fatalf("failed to initialize S/MIME signing: %s", err)
+		}
+		buffer := bytes.NewBuffer(nil)
+		if _, err := message.WriteTo(buffer); err != nil {
+			t.Fatalf("failed to write message to buffer: %s", err)
+		}
+		wants := []msgContentTest{
+			{0, "Date:", false, true, false},
+			{1, "MIME-Version: 1.0", true, true, false},
+			{2, "Message-ID: <", false, true, false},
+			{2, ">", false, false, true},
+			{6, "From: <valid-from@domain.tld>", true, true, false},
+			{7, "To: <valid-to@domain.tld>", true, true, false},
+			{8, `Content-Type: multipart/signed; protocol="application/pkcs7-signature"; micalg=sha-256;`, true,
+				true, false},
+			{9, ` boundary=`, false, true, false},
+			{10, "", true, false, false},
+			{11, "--", false, true, false},
+			{12, `Content-Type: multipart/mixed;`, true, true, false},
+			{13, ` boundary=`, false, true, false},
+			{14, "", true, false, false},
+			{15, "--", false, true, false},
+			{16, `Content-Type: multipart/related;`, true, true, false},
+			{17, ` boundary=`, false, true, false},
+			{18, "", true, false, false},
+			{19, "--", false, true, false},
+			{20, `Content-Type: multipart/alternative;`, true, true, false},
+			{21, ` boundary=`, false, true, false},
+			{22, "", true, false, false},
+			{23, "--", false, true, false},
+			{24, "Content-Transfer-Encoding: quoted-printable", true, true, false},
+			{25, "Content-Type: text/plain; charset=UTF-8", true, true, false},
+			{26, "", true, false, false},
+			{27, "Testmail", true, true, false},
+			{28, "--", false, true, false},
+			{29, "Content-Transfer-Encoding: quoted-printable", true, true, false},
+			{30, "Content-Type: text/html; charset=UTF-8", true, true, false},
+			{31, "", true, false, false},
+			{32, `<p>HTML alternative part</p>`, true, true, false},
+			{33, "--", false, true, true},
+			{34, "", true, false, false},
+			{35, "--", false, true, false},
+			{36, `Content-Disposition: inline; filename="embed.txt"`, true, true, false},
+			{37, "Content-Id: <embed.txt>", true, true, false},
+			{38, "Content-Transfer-Encoding: base64", true, true, false},
+			{39, `Content-Type: text/plain; charset=utf-8; name="embed.txt"`, true, true, false},
+			{40, "", true, false, false},
+			{41, "VGhp", false, true, false},
+			{42, "", true, false, false},
+			{43, "--", false, true, true},
+			{44, "", true, false, false},
+			{45, "--", false, true, false},
+			{46, `Content-Disposition: attachment; filename="attachment.txt"`, true, true, false},
+			{47, "Content-Transfer-Encoding: base64", true, true, false},
+			{48, `Content-Type: text/plain; charset=utf-8; name="attachment.txt"`, true, true, false},
+			{49, "", true, false, false},
+			{50, "VGhp", false, true, false},
+			{51, "", true, false, false},
+			{52, "--", false, true, true},
+			{53, "", true, false, false},
+			{54, "--", false, true, false},
+			{55, "Content-Transfer-Encoding: base64", true, true, false},
+			{56, `Content-Type: application/pkcs7-signature; name="smime.p7s"`, true, true, false},
+			{57, "", true, false, false},
+			{58, "MII", false, true, false},
+			{121, "", true, false, false},
+			{122, "--", false, true, true},
+		}
+		checkMessageContent(t, buffer, wants)
+	})
 }
 
 func TestMsg_WriteToFile(t *testing.T) {
