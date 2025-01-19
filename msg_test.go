@@ -6130,8 +6130,10 @@ func TestMsg_WriteTo(t *testing.T) {
 			{2, ">", false, false, true},
 			{6, "From: <valid-from@domain.tld>", true, true, false},
 			{7, "To: <valid-to@domain.tld>", true, true, false},
-			{8, `Content-Type: multipart/signed; protocol="application/pkcs7-signature"; micalg=sha-256;`, true,
-				true, false},
+			{
+				8, `Content-Type: multipart/signed; protocol="application/pkcs7-signature"; micalg=sha-256;`, true,
+				true, false,
+			},
 			{9, ` boundary=`, false, true, false},
 			{10, "", true, false, false},
 			{11, "--", false, true, false},
