@@ -6007,6 +6007,46 @@ func TestMsg_WriteTo(t *testing.T) {
 		}
 		checkMessageContent(t, buffer, wants)
 	})
+	t.Run("WriteTo Multipart two alternative parts", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("failed to create new message")
+		}
+		if err := message.From(TestSenderValid); err != nil {
+			t.Errorf("failed to set sender address: %s", err)
+		}
+		if err := message.To(TestRcptValid); err != nil {
+			t.Errorf("failed to set recipient address: %s", err)
+		}
+		message.Subject("Testmail")
+		message.AddAlternativeString(TypeTextPlain, "Plain alternative")
+		message.AddAlternativeString(TypeTextHTML, "<p>HTML main part</p>")
+		buffer := bytes.NewBuffer(nil)
+		if _, err := message.WriteTo(buffer); err != nil {
+			t.Fatalf("failed to write message to buffer: %s", err)
+		}
+		wants := []msgContentTest{
+			{0, "Date:", false, true, false},
+			{1, "MIME-Version: 1.0", true, true, false},
+			{2, "Message-ID: <", false, true, false},
+			{2, ">", false, false, true},
+			{8, "Content-Type: multipart/alternative;", true, true, false},
+			{9, " boundary=", false, true, false},
+			{10, "", true, false, false},
+			{11, "--", false, true, false},
+			{12, "Content-Transfer-Encoding: quoted-printable", true, true, false},
+			{13, "Content-Type: text/plain; charset=UTF-8", true, true, false},
+			{14, "", true, false, false},
+			{15, "Plain alternative", true, true, false},
+			{16, "--", false, true, false},
+			{17, "Content-Transfer-Encoding: quoted-printable", true, true, false},
+			{18, "Content-Type: text/html; charset=UTF-8", true, true, false},
+			{19, "", true, false, false},
+			{20, "<p>HTML main part</p>", true, true, false},
+			{21, "--", false, true, true},
+		}
+		checkMessageContent(t, buffer, wants)
+	})
 }
 
 func TestMsg_WriteToFile(t *testing.T) {
