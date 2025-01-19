@@ -97,34 +97,25 @@ func TestQuickSend(t *testing.T) {
 			t.Fatalf("failed to send email: %s", err)
 		}
 
+		wants := []msgContentTest{
+			{8, "STARTTLS", true, true, false},
+			{17, "AUTH PLAIN AHVzZXJuYW1lAHBhc3N3b3Jk", true, true, false},
+			{21, "MAIL FROM:<valid-from@domain.tld> BODY=8BITMIME SMTPUTF8", true, true, false},
+			{23, "RCPT TO:<valid-to@domain.tld>", true, true, false},
+			{30, "Subject: " + subject, true, true, false},
+			{33, "From: <valid-from@domain.tld>", true, true, false},
+			{34, "To: <valid-to@domain.tld>", true, true, false},
+			{35, "Content-Transfer-Encoding: quoted-printable", true, true, false},
+			{36, "Content-Type: text/plain; charset=UTF-8", true, true, false},
+			{38, "This is a test body", true, true, false},
+			{39, "With multiple lines", true, true, false},
+			{40, "", true, true, false},
+			{41, "Best,", true, true, false},
+			{42, "  The go-mail team", true, true, false},
+		}
 		props.BufferMutex.RLock()
-		resp := strings.Split(echoBuffer.String(), "\r\n")
+		checkMessageContent(t, echoBuffer, wants)
 		props.BufferMutex.RUnlock()
-
-		expects := []struct {
-			line int
-			data string
-		}{
-			{8, "STARTTLS"},
-			{17, "AUTH PLAIN AHVzZXJuYW1lAHBhc3N3b3Jk"},
-			{21, "MAIL FROM:<valid-from@domain.tld> BODY=8BITMIME SMTPUTF8"},
-			{23, "RCPT TO:<valid-to@domain.tld>"},
-			{30, "Subject: " + subject},
-			{33, "From: <valid-from@domain.tld>"},
-			{34, "To: <valid-to@domain.tld>"},
-			{35, "Content-Transfer-Encoding: quoted-printable"},
-			{36, "Content-Type: text/plain; charset=UTF-8"},
-			{38, "This is a test body"},
-			{39, "With multiple lines"},
-			{40, ""},
-			{41, "Best,"},
-			{42, "  The go-mail team"},
-		}
-		for _, expect := range expects {
-			if !strings.EqualFold(resp[expect.line], expect.data) {
-				t.Errorf("expected %q at line %d, got: %q", expect.data, expect.line, resp[expect.line])
-			}
-		}
 	})
 	t.Run("QuickSend with authentication and TLS and multiple receipients", func(t *testing.T) {
 		ctxAuth, cancelAuth := context.WithCancel(context.Background())
