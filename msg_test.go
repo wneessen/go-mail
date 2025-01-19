@@ -19,11 +19,20 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	ttpl "text/template"
 	"time"
 )
+
+type msgContentTest struct {
+	line         int
+	data         string
+	exact        bool
+	dataIsPrefix bool
+	dataIsSuffix bool
+}
 
 var (
 	charsetTests = []struct {
@@ -5939,6 +5948,260 @@ func TestMsg_WriteTo(t *testing.T) {
 			t.Errorf("expected S/MIME signing error to contain: %q, got: %s", expErr, err)
 		}
 	})
+	t.Run("WriteTo Multipart plain text with attachment", func(t *testing.T) {
+		message := testMessage(t)
+		message.AttachFile("testdata/attachment.txt")
+		buffer := bytes.NewBuffer(nil)
+		if _, err := message.WriteTo(buffer); err != nil {
+			t.Fatalf("failed to write message to buffer: %s", err)
+		}
+		fileContentType := "text/plain; charset=utf-8"
+		if runtime.GOOS == "freebsd" {
+			fileContentType = "application/octet-stream"
+		}
+		wants := []msgContentTest{
+			{0, "Date:", false, true, false},
+			{1, "MIME-Version: 1.0", true, true, false},
+			{2, "Message-ID: <", false, true, false},
+			{2, ">", false, false, true},
+			{8, "Content-Type: multipart/mixed;", true, true, false},
+			{9, " boundary=", false, true, false},
+			{10, "", true, false, false},
+			{11, "--", false, true, false},
+			{12, "Content-Transfer-Encoding: quoted-printable", true, true, false},
+			{13, "Content-Type: text/plain; charset=UTF-8", true, true, false},
+			{14, "", true, false, false},
+			{15, "Testmail", true, true, false},
+			{16, "--", false, true, false},
+			{17, `Content-Disposition: attachment; filename="attachment.txt"`, true, true, false},
+			{18, `Content-Transfer-Encoding: base64`, true, true, false},
+			{19, `Content-Type: ` + fileContentType + `; name="attachment.txt"`, true, true, false},
+			{20, "", true, false, false},
+			{21, "VGhpcyBpcyBhIHRlc3Qg", false, true, false},
+			{22, "", true, false, false},
+			{23, "--", false, true, true},
+		}
+		checkMessageContent(t, buffer, wants)
+	})
+	t.Run("WriteTo Multipart plain text with alternative", func(t *testing.T) {
+		message := testMessage(t)
+		message.AddAlternativeString(TypeTextHTML, "<p>HTML alternative</p>")
+		buffer := bytes.NewBuffer(nil)
+		if _, err := message.WriteTo(buffer); err != nil {
+			t.Fatalf("failed to write message to buffer: %s", err)
+		}
+		wants := []msgContentTest{
+			{0, "Date:", false, true, false},
+			{1, "MIME-Version: 1.0", true, true, false},
+			{2, "Message-ID: <", false, true, false},
+			{2, ">", false, false, true},
+			{8, "Content-Type: multipart/alternative;", true, true, false},
+			{9, " boundary=", false, true, false},
+			{10, "", true, false, false},
+			{11, "--", false, true, false},
+			{12, "Content-Transfer-Encoding: quoted-printable", true, true, false},
+			{13, "Content-Type: text/plain; charset=UTF-8", true, true, false},
+			{14, "", true, false, false},
+			{15, "Testmail", true, true, false},
+			{16, "--", false, true, false},
+			{17, `Content-Transfer-Encoding: quoted-printable`, true, true, false},
+			{18, `Content-Type: text/html; charset=UTF-8`, true, true, false},
+			{19, "", true, false, false},
+			{20, `<p>HTML alternative</p>`, true, true, false},
+			{21, "--", false, true, true},
+		}
+		checkMessageContent(t, buffer, wants)
+	})
+	t.Run("WriteTo Multipart two alternative parts", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("failed to create new message")
+		}
+		if err := message.From(TestSenderValid); err != nil {
+			t.Errorf("failed to set sender address: %s", err)
+		}
+		if err := message.To(TestRcptValid); err != nil {
+			t.Errorf("failed to set recipient address: %s", err)
+		}
+		message.Subject("Testmail")
+		message.AddAlternativeString(TypeTextPlain, "Plain alternative")
+		message.AddAlternativeString(TypeTextHTML, "<p>HTML main part</p>")
+		buffer := bytes.NewBuffer(nil)
+		if _, err := message.WriteTo(buffer); err != nil {
+			t.Fatalf("failed to write message to buffer: %s", err)
+		}
+		wants := []msgContentTest{
+			{0, "Date:", false, true, false},
+			{1, "MIME-Version: 1.0", true, true, false},
+			{2, "Message-ID: <", false, true, false},
+			{2, ">", false, false, true},
+			{8, "Content-Type: multipart/alternative;", true, true, false},
+			{9, " boundary=", false, true, false},
+			{10, "", true, false, false},
+			{11, "--", false, true, false},
+			{12, "Content-Transfer-Encoding: quoted-printable", true, true, false},
+			{13, "Content-Type: text/plain; charset=UTF-8", true, true, false},
+			{14, "", true, false, false},
+			{15, "Plain alternative", true, true, false},
+			{16, "--", false, true, false},
+			{17, "Content-Transfer-Encoding: quoted-printable", true, true, false},
+			{18, "Content-Type: text/html; charset=UTF-8", true, true, false},
+			{19, "", true, false, false},
+			{20, "<p>HTML main part</p>", true, true, false},
+			{21, "--", false, true, true},
+		}
+		checkMessageContent(t, buffer, wants)
+	})
+	t.Run("WriteTo Multipart plain body, alternative html, attachment and embed", func(t *testing.T) {
+		message := testMessage(t)
+		message.AddAlternativeString(TypeTextHTML, "<p>HTML alternative part</p>")
+		message.AttachFile("testdata/attachment.txt")
+		message.EmbedFile("testdata/embed.txt")
+		buffer := bytes.NewBuffer(nil)
+		if _, err := message.WriteTo(buffer); err != nil {
+			t.Fatalf("failed to write message to buffer: %s", err)
+		}
+		fileContentType := "text/plain; charset=utf-8"
+		if runtime.GOOS == "freebsd" {
+			fileContentType = "application/octet-stream"
+		}
+		wants := []msgContentTest{
+			{0, "Date:", false, true, false},
+			{1, "MIME-Version: 1.0", true, true, false},
+			{2, "Message-ID: <", false, true, false},
+			{2, ">", false, false, true},
+			{6, "From: <valid-from@domain.tld>", true, true, false},
+			{7, "To: <valid-to@domain.tld>", true, true, false},
+			{8, `Content-Type: multipart/mixed;`, true, true, false},
+			{9, ` boundary=`, false, true, false},
+			{10, "", true, false, false},
+			{11, "--", false, true, false},
+			{12, `Content-Type: multipart/related;`, true, true, false},
+			{13, ` boundary=`, false, true, false},
+			{14, "", true, false, false},
+			{15, "--", false, true, false},
+			{16, `Content-Type: multipart/alternative;`, true, true, false},
+			{17, ` boundary=`, false, true, false},
+			{18, "", true, false, false},
+			{19, "--", false, true, false},
+			{20, "Content-Transfer-Encoding: quoted-printable", true, true, false},
+			{21, "Content-Type: text/plain; charset=UTF-8", true, true, false},
+			{22, "", true, false, false},
+			{23, "Testmail", true, true, false},
+			{24, "--", false, true, false},
+			{25, "Content-Transfer-Encoding: quoted-printable", true, true, false},
+			{26, "Content-Type: text/html; charset=UTF-8", true, true, false},
+			{27, "", true, false, false},
+			{28, `<p>HTML alternative part</p>`, true, true, false},
+			{29, "--", false, true, true},
+			{30, "", true, false, false},
+			{31, "--", false, true, false},
+			{32, `Content-Disposition: inline; filename="embed.txt"`, true, true, false},
+			{33, "Content-Id: <embed.txt>", true, true, false},
+			{34, "Content-Transfer-Encoding: base64", true, true, false},
+			{35, `Content-Type: ` + fileContentType + `; name="embed.txt"`, true, true, false},
+			{36, "", true, false, false},
+			{37, "VGhp", false, true, false},
+			{38, "", true, false, false},
+			{39, "--", false, true, true},
+			{40, "", true, false, false},
+			{41, "--", false, true, false},
+			{42, `Content-Disposition: attachment; filename="attachment.txt"`, true, true, false},
+			{43, "Content-Transfer-Encoding: base64", true, true, false},
+			{44, `Content-Type: ` + fileContentType + `; name="attachment.txt"`, true, true, false},
+			{45, "", true, false, false},
+			{46, "VGhp", false, true, false},
+			{47, "", true, false, false},
+			{48, "--", false, true, true},
+		}
+		checkMessageContent(t, buffer, wants)
+	})
+	t.Run("WriteTo Multipart plain body, alternative html, attachment, embed and S/MIME signed", func(t *testing.T) {
+		message := testMessage(t)
+		message.AddAlternativeString(TypeTextHTML, "<p>HTML alternative part</p>")
+		message.AttachFile("testdata/attachment.txt")
+		message.EmbedFile("testdata/embed.txt")
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Fatalf("failed to load dummy key material: %s", err)
+		}
+		if err = message.SignWithTLSCertificate(keypair); err != nil {
+			t.Fatalf("failed to initialize S/MIME signing: %s", err)
+		}
+		buffer := bytes.NewBuffer(nil)
+		if _, err := message.WriteTo(buffer); err != nil {
+			t.Fatalf("failed to write message to buffer: %s", err)
+		}
+		fileContentType := "text/plain; charset=utf-8"
+		if runtime.GOOS == "freebsd" {
+			fileContentType = "application/octet-stream"
+		}
+		wants := []msgContentTest{
+			{0, "Date:", false, true, false},
+			{1, "MIME-Version: 1.0", true, true, false},
+			{2, "Message-ID: <", false, true, false},
+			{2, ">", false, false, true},
+			{6, "From: <valid-from@domain.tld>", true, true, false},
+			{7, "To: <valid-to@domain.tld>", true, true, false},
+			{
+				8, `Content-Type: multipart/signed; protocol="application/pkcs7-signature"; micalg=sha-256;`, true,
+				true, false,
+			},
+			{9, ` boundary=`, false, true, false},
+			{10, "", true, false, false},
+			{11, "--", false, true, false},
+			{12, `Content-Type: multipart/mixed;`, true, true, false},
+			{13, ` boundary=`, false, true, false},
+			{14, "", true, false, false},
+			{15, "--", false, true, false},
+			{16, `Content-Type: multipart/related;`, true, true, false},
+			{17, ` boundary=`, false, true, false},
+			{18, "", true, false, false},
+			{19, "--", false, true, false},
+			{20, `Content-Type: multipart/alternative;`, true, true, false},
+			{21, ` boundary=`, false, true, false},
+			{22, "", true, false, false},
+			{23, "--", false, true, false},
+			{24, "Content-Transfer-Encoding: quoted-printable", true, true, false},
+			{25, "Content-Type: text/plain; charset=UTF-8", true, true, false},
+			{26, "", true, false, false},
+			{27, "Testmail", true, true, false},
+			{28, "--", false, true, false},
+			{29, "Content-Transfer-Encoding: quoted-printable", true, true, false},
+			{30, "Content-Type: text/html; charset=UTF-8", true, true, false},
+			{31, "", true, false, false},
+			{32, `<p>HTML alternative part</p>`, true, true, false},
+			{33, "--", false, true, true},
+			{34, "", true, false, false},
+			{35, "--", false, true, false},
+			{36, `Content-Disposition: inline; filename="embed.txt"`, true, true, false},
+			{37, "Content-Id: <embed.txt>", true, true, false},
+			{38, "Content-Transfer-Encoding: base64", true, true, false},
+			{39, `Content-Type: ` + fileContentType + `; name="embed.txt"`, true, true, false},
+			{40, "", true, false, false},
+			{41, "VGhp", false, true, false},
+			{42, "", true, false, false},
+			{43, "--", false, true, true},
+			{44, "", true, false, false},
+			{45, "--", false, true, false},
+			{46, `Content-Disposition: attachment; filename="attachment.txt"`, true, true, false},
+			{47, "Content-Transfer-Encoding: base64", true, true, false},
+			{48, `Content-Type: ` + fileContentType + `; name="attachment.txt"`, true, true, false},
+			{49, "", true, false, false},
+			{50, "VGhp", false, true, false},
+			{51, "", true, false, false},
+			{52, "--", false, true, true},
+			{53, "", true, false, false},
+			{54, "--", false, true, false},
+			{55, "Content-Transfer-Encoding: base64", true, true, false},
+			{56, `Content-Type: application/pkcs7-signature; name="smime.p7s"`, true, true, false},
+			{57, "", true, false, false},
+			{58, "MII", false, true, false},
+			{121, "", true, false, false},
+			{122, "--", false, true, true},
+		}
+		checkMessageContent(t, buffer, wants)
+	})
 }
 
 func TestMsg_WriteToFile(t *testing.T) {
@@ -7175,6 +7438,35 @@ func hasSendmail() bool {
 		}
 	}
 	return false
+}
+
+func checkMessageContent(t *testing.T, buffer *bytes.Buffer, wants []msgContentTest) {
+	t.Helper()
+	lines := strings.Split(buffer.String(), "\r\n")
+	for _, want := range wants {
+		if len(lines) <= want.line {
+			t.Errorf("expected line %d to be present, got: %d lines in total", want.line, len(lines)-1)
+			continue
+		}
+		if !strings.Contains(lines[want.line], want.data) {
+			t.Errorf("expected line %d to contain %q, got: %q", want.line, want.data, lines[want.line])
+		}
+		if want.exact {
+			if !strings.EqualFold(lines[want.line], want.data) {
+				t.Errorf("expected line %d to be exactly %q, got: %q", want.line, want.data, lines[want.line])
+			}
+		}
+		if want.dataIsPrefix {
+			if !strings.HasPrefix(lines[want.line], want.data) {
+				t.Errorf("expected line %d to start with %q, got: %q", want.line, want.data, lines[want.line])
+			}
+		}
+		if want.dataIsSuffix {
+			if !strings.HasSuffix(lines[want.line], want.data) {
+				t.Errorf("expected line %d to end with %q, got: %q", want.line, want.data, lines[want.line])
+			}
+		}
+	}
 }
 
 // Fuzzing tests

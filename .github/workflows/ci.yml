@@ -153,7 +153,7 @@ jobs:
             cancel-in-progress: true
         strategy:
             matrix:
-                osver: ['14.1', '14.0', 13.4']
+                osver: ['14.2', '14.1', 13.4']
         env:
             TEST_BASEPORT: ${{ vars.TEST_BASEPORT }}
             TEST_BASEPORT_SMTP: ${{ vars.TEST_BASEPORT_SMTP }}
