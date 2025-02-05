@@ -8,5 +8,5 @@ go 1.16
 
 require (
 	golang.org/x/crypto v0.32.0
-	golang.org/x/text v0.21.0
+	golang.org/x/text v0.22.0
 )
