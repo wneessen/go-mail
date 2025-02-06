@@ -44,6 +44,9 @@ func (c *Client) SendWithSMTPClient(client *smtp.Client, messages ...*Msg) error
 	}
 	var errs []*SendError
 	for id, message := range messages {
+		if message == nil {
+			continue
+		}
 		if sendErr := c.sendSingleMsg(client, message); sendErr != nil {
 			messages[id].sendError = sendErr
 

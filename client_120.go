@@ -50,6 +50,9 @@ func (c *Client) SendWithSMTPClient(client *smtp.Client, messages ...*Msg) (retu
 	}()
 
 	for id, message := range messages {
+		if message == nil {
+			continue
+		}
 		if sendErr := c.sendSingleMsg(client, message); sendErr != nil {
 			messages[id].sendError = sendErr
 			errs = append(errs, sendErr)
