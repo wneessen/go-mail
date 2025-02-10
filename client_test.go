@@ -2217,6 +2217,39 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 			t.Fatalf("failed to dial and send: %s", err)
 		}
 	})
+	// https://github.com/wneessen/go-mail/commit/4641da450f5e3b3726e01b1cf03c88361cf49c8f
+	t.Run("DialAndSendWithContext with nil messages", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS), WithPort(serverPort))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialAndSendWithContext(ctxDial, nil); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
+			t.Fatalf("failed to dial and send: %s", err)
+		}
+	})
 	t.Run("DialAndSendWithContext fail on dial", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -2674,6 +2707,47 @@ func TestClient_Send(t *testing.T) {
 			}
 		})
 		if err = client.Send(message); err != nil {
+			t.Errorf("failed to send email: %s", err)
+		}
+	})
+	// https://github.com/wneessen/go-mail/commit/4641da450f5e3b3726e01b1cf03c88361cf49c8f
+	t.Run("connect and try to send email but message is nil", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.Send(nil); err != nil {
 			t.Errorf("failed to send email: %s", err)
 		}
 	})
