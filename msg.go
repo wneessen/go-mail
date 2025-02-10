@@ -147,6 +147,10 @@ type Msg struct {
 	// different Content-Type settings in the msgWriter.
 	pgptype PGPType
 
+	// queueResponse holds the response from the sending server after the mail has been
+	// successfully queued
+	queueResponse string
+
 	// sendError represents an error encountered during the process of sending a Msg during the
 	// Client.Send operation.
 	//
@@ -1554,6 +1558,11 @@ func (m *Msg) GetAttachments() []*File {
 //   - https://datatracker.ietf.org/doc/html/rfc2046#section-5.1.1
 func (m *Msg) GetBoundary() string {
 	return m.boundary
+}
+
+// TBD
+func (m *Msg) GetQueueResponse() string {
+	return m.queueResponse
 }
 
 // SetAttachments sets the attachments of the message.
