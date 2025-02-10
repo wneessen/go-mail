@@ -391,26 +391,39 @@ func (c *Client) Rcpt(to string) error {
 	return err
 }
 
-type dataCloser struct {
-	c *Client
+type DataCloser struct {
+	c    *Client
+	done bool
 	io.WriteCloser
+	response string
 }
 
 // Close releases the lock, closes the WriteCloser, waits for a response, and then returns any error encountered.
-func (d *dataCloser) Close() error {
+func (d *DataCloser) Close() error {
 	d.c.mutex.Lock()
 	_ = d.WriteCloser.Close()
-	_, _, err := d.c.Text.ReadResponse(250)
+	_, resp, err := d.c.Text.ReadResponse(250)
+	d.response = resp
+	d.done = true
 	d.c.mutex.Unlock()
 	return err
 }
 
 // Write writes data to the underlying WriteCloser while ensuring thread-safety by locking and unlocking a mutex.
-func (d *dataCloser) Write(p []byte) (n int, err error) {
+func (d *DataCloser) Write(p []byte) (n int, err error) {
 	d.c.mutex.Lock()
 	n, err = d.WriteCloser.Write(p)
 	d.c.mutex.Unlock()
 	return
+}
+
+// ServerResponse returns the response that was returned by the server after the DataCloser has
+// been closed. If the DataCloser has not been closed yet, it will return an empty string.
+func (d *DataCloser) ServerResponse() string {
+	if !d.done {
+		return ""
+	}
+	return d.response
 }
 
 // Data issues a DATA command to the server and returns a writer that
@@ -422,7 +435,7 @@ func (c *Client) Data() (io.WriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	datacloser := &dataCloser{}
+	datacloser := &DataCloser{}
 
 	c.mutex.Lock()
 	datacloser.c = c
