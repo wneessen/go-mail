@@ -2630,6 +2630,107 @@ func TestClient_auth(t *testing.T) {
 			t.Fatalf("client should have failed to connect")
 		}
 	})
+	// https://github.com/wneessen/go-mail/issues/428
+	t.Run("auth with custom auth type should succeed", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH CUSTOM\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		message := testMessage(t)
+		client, err := NewClient(DefaultHost, WithPort(serverPort),
+			WithTLSPolicy(TLSMandatory), WithSMTPAuthCustom(newTestCustomAuth()), WithTLSConfig(&tlsConfig),
+			WithUsername("test"), WithPassword("password"))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		if err = client.Send(message); err != nil {
+			t.Errorf("failed to send message: %s", err)
+		}
+	})
+	// https://github.com/wneessen/go-mail/issues/428
+	t.Run("auth with custom auth type should fail", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH UNKNOWN\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort),
+			WithTLSPolicy(TLSMandatory), WithSMTPAuthCustom(newTestCustomAuth()), WithTLSConfig(&tlsConfig),
+			WithUsername("test"), WithPassword("password"))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err == nil {
+			t.Fatalf("client should have failed to connect")
+		}
+	})
+	// https://github.com/wneessen/go-mail/issues/428
+	t.Run("auth with custom auth type overridden by SetCustomAuth", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH CUSTOM\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		message := testMessage(t)
+		client, err := NewClient(DefaultHost, WithPort(serverPort),
+			WithTLSPolicy(TLSMandatory), WithSMTPAuth(SMTPAuthPlain), WithTLSConfig(&tlsConfig))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetSMTPAuthCustom(newTestCustomAuth())
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		if err = client.Send(message); err != nil {
+			t.Errorf("failed to send message: %s", err)
+		}
+	})
 }
 
 func TestClient_authTypeAutoDiscover(t *testing.T) {
@@ -3911,6 +4012,39 @@ func (t *testSender) Send(ctx context.Context, m *Msg) error {
 		return fmt.Errorf("failed to dial and send mail: %w", err)
 	}
 	return nil
+}
+
+// testCustomAuth is a custom authentication mechanism implementation that satisfies the smtp.Auth
+// interface. It is used to test the SMTPAuthCustom type.
+type testCustomAuth struct{}
+
+// newTestCustomAuth initializes and returns a new testCustomAuth instance for use in testing
+// custom authentication.
+func newTestCustomAuth() *testCustomAuth {
+	return &testCustomAuth{}
+}
+
+// Start begins the custom authentication process, verifying if the "CUSTOM" method is supported
+// by the SMTP server.
+func (a *testCustomAuth) Start(info *smtp.ServerInfo) (proto string, toServer []byte, err error) {
+	if len(info.Auth) > 0 {
+		supported := false
+		for _, method := range info.Auth {
+			if method == "CUSTOM" {
+				supported = true
+			}
+		}
+		if !supported {
+			return "", nil, fmt.Errorf("custom auth method not supported")
+		}
+	}
+	return "CUSTOM", nil, nil
+}
+
+// Next processes the next step in the authentication exchange, returning data to send to the server
+// or an error.
+func (a *testCustomAuth) Next([]byte, bool) (toServer []byte, err error) {
+	return nil, nil
 }
 
 // parseJSONLog parses a JSON encoded log from the provided buffer and returns a slice of logLine structs.

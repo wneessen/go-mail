@@ -5925,6 +5925,10 @@ func TestMsg_WriteTo(t *testing.T) {
 		}
 	})
 	t.Run("WriteTo with S/MIME signing fails with broken rand.Reader", func(t *testing.T) {
+		version := getGoVersion(t)
+		if version >= 1.24 {
+			t.Skip("Go 1.24+ never fails on broken rand Reader. See: https://github.com/golang/go/issues/66821")
+		}
 		defaultRandReader := rand.Reader
 		t.Cleanup(func() { rand.Reader = defaultRandReader })
 		rand.Reader = &randReader{failon: 1}
@@ -7314,7 +7318,7 @@ func (mw uppercaseMiddleware) Handle(m *Msg) *Msg {
 	if !ok {
 		fmt.Println("can't find the subject header")
 	}
-	if s == nil || len(s) < 1 {
+	if len(s) < 1 {
 		s = append(s, "")
 	}
 	m.Subject(strings.ToUpper(s[0]))
@@ -7335,7 +7339,7 @@ func (mw encodeMiddleware) Handle(m *Msg) *Msg {
 	if !ok {
 		fmt.Println("can't find the subject header")
 	}
-	if s == nil || len(s) < 1 {
+	if len(s) < 1 {
 		s = append(s, "")
 	}
 	m.Subject(strings.Replace(s[0], "a", "@", -1))
