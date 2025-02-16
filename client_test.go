@@ -2632,11 +2632,13 @@ func TestClient_auth(t *testing.T) {
 	})
 	// https://github.com/wneessen/go-mail/issues/428
 	t.Run("auth with custom auth type should succeed", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH CUSTOM\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(t.Context(), t, &serverProps{
+			if err := simpleSMTPServer(ctx, t, &serverProps{
 				FeatureSet: featureSet,
 				ListenPort: serverPort,
 			}); err != nil {
@@ -2646,7 +2648,7 @@ func TestClient_auth(t *testing.T) {
 		}()
 		time.Sleep(time.Millisecond * 30)
 
-		ctxDial, cancelDial := context.WithTimeout(t.Context(), time.Millisecond*500)
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
 
 		message := testMessage(t)
@@ -2665,11 +2667,13 @@ func TestClient_auth(t *testing.T) {
 	})
 	// https://github.com/wneessen/go-mail/issues/428
 	t.Run("auth with custom auth type should fail", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH UNKNOWN\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(t.Context(), t, &serverProps{
+			if err := simpleSMTPServer(ctx, t, &serverProps{
 				FeatureSet: featureSet,
 				ListenPort: serverPort,
 			}); err != nil {
@@ -2679,7 +2683,7 @@ func TestClient_auth(t *testing.T) {
 		}()
 		time.Sleep(time.Millisecond * 30)
 
-		ctxDial, cancelDial := context.WithTimeout(t.Context(), time.Millisecond*500)
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
 
 		client, err := NewClient(DefaultHost, WithPort(serverPort),
@@ -2694,11 +2698,13 @@ func TestClient_auth(t *testing.T) {
 	})
 	// https://github.com/wneessen/go-mail/issues/428
 	t.Run("auth with custom auth type overridden by SetCustomAuth", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH CUSTOM\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(t.Context(), t, &serverProps{
+			if err := simpleSMTPServer(ctx, t, &serverProps{
 				FeatureSet: featureSet,
 				ListenPort: serverPort,
 			}); err != nil {
@@ -2708,7 +2714,7 @@ func TestClient_auth(t *testing.T) {
 		}()
 		time.Sleep(time.Millisecond * 30)
 
-		ctxDial, cancelDial := context.WithTimeout(t.Context(), time.Millisecond*500)
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
 
 		message := testMessage(t)
