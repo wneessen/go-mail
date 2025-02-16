@@ -7314,7 +7314,7 @@ func (mw uppercaseMiddleware) Handle(m *Msg) *Msg {
 	if !ok {
 		fmt.Println("can't find the subject header")
 	}
-	if s == nil || len(s) < 1 {
+	if len(s) < 1 {
 		s = append(s, "")
 	}
 	m.Subject(strings.ToUpper(s[0]))
@@ -7335,7 +7335,7 @@ func (mw encodeMiddleware) Handle(m *Msg) *Msg {
 	if !ok {
 		fmt.Println("can't find the subject header")
 	}
-	if s == nil || len(s) < 1 {
+	if len(s) < 1 {
 		s = append(s, "")
 	}
 	m.Subject(strings.Replace(s[0], "a", "@", -1))
