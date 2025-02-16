@@ -12,6 +12,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"os"
 	"strings"
 	"testing"
 )
@@ -181,6 +182,21 @@ func TestGetLeafCertificate(t *testing.T) {
 			t.Errorf("getting leaf certificate was supposed to fail with: %s, got: %s", expErr, err.Error())
 		}
 	})
+}
+
+func getOpenSSLPath() string {
+	paths := []string{"/bin/openssl", "/usr/bin/openssl", "/usr/local/bin/openssl"}
+	openSSL := ""
+	for _, path := range paths {
+		if info, err := os.Stat(path); err == nil {
+			if info.IsDir() || info.Mode()&0o111 == 0 {
+				continue
+			}
+			openSSL = path
+			break
+		}
+	}
+	return openSSL
 }
 
 // getDummyRSACryptoMaterial loads a certificate (RSA), the associated private key and certificate (RSA) is loaded
