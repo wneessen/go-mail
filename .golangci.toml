@@ -3,7 +3,7 @@
 ## SPDX-License-Identifier: MIT
 
 [run]
-go = "1.23"
+go = "1.24"
 tests = true
 exclude-dirs = ["examples"]
 
