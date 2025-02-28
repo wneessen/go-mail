@@ -988,12 +988,7 @@ func (m *Msg) BccFromString(rcpts string) error {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
 func (m *Msg) ReplyTo(addr string) error {
-	replyTo, err := mail.ParseAddress(addr)
-	if err != nil {
-		return fmt.Errorf("failed to parse reply-to address: %w", err)
-	}
-	m.SetGenHeader(HeaderReplyTo, replyTo.String())
-	return nil
+	return m.SetAddrHeader(HeaderReplyTo, addr)
 }
 
 // ReplyToFormat sets the "Reply-To" address for the Msg using the provided name and email address, specifying

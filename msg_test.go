@@ -1530,7 +1530,7 @@ func TestMsg_ReplyTo(t *testing.T) {
 		if err := message.ReplyTo("toni.tester@example.com"); err != nil {
 			t.Fatalf("failed to set ReplyTo: %s", err)
 		}
-		checkGenHeader(t, message, HeaderReplyTo, "ReplyTo", 0, 1, "<toni.tester@example.com>")
+		checkAddrHeader(t, message, HeaderReplyTo, "ReplyTo", 0, 1, "toni.tester@example.com", "")
 	})
 	t.Run("ReplyTo with invalid address", func(t *testing.T) {
 		message := NewMsg()
@@ -1578,7 +1578,7 @@ func TestMsg_ReplyToFormat(t *testing.T) {
 		if err := message.ReplyToFormat("Tina Tester", "tina.tester@example.com"); err != nil {
 			t.Fatalf("failed to set ReplyTo: %s", err)
 		}
-		checkGenHeader(t, message, HeaderReplyTo, "ReplyToFormat", 0, 1, `"Tina Tester" <tina.tester@example.com>`)
+		checkAddrHeader(t, message, HeaderReplyTo, "ReplyToFormat", 0, 1, "tina.tester@example.com", "Tina Tester")
 	})
 	t.Run("ReplyToFormat with invalid address", func(t *testing.T) {
 		message := NewMsg()
@@ -1587,6 +1587,29 @@ func TestMsg_ReplyToFormat(t *testing.T) {
 		}
 		if err := message.ReplyToFormat("Invalid", "invalid"); err == nil {
 			t.Errorf("ReplyToFormat should fail with invalid address")
+		}
+	})
+	// https://github.com/wneessen/go-mail/issues/440
+	t.Run("ReplyToFormat with special characters must not double encode", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.ReplyToFormat("Töni Tester", "töni.tester@example.com"); err != nil {
+			t.Errorf("failed to set ReplyTo: %s", err)
+		}
+		buffer := bytes.NewBuffer(nil)
+		if _, err := message.WriteTo(buffer); err != nil {
+			t.Errorf("failed to write message to buffer: %s", err)
+		}
+		header := strings.Split(buffer.String(), "Reply-To: ")
+		if len(header) != 2 {
+			t.Fatalf("could not split message after Reply-To:")
+		}
+		want := `=?utf-8?q?T=C3=B6ni_Tester?= <töni.tester@example.com>`
+		got := strings.TrimSpace(header[1])
+		if got != want {
+			t.Errorf("Reply-To header does not match: got %q, want %q", got, want)
 		}
 	})
 }

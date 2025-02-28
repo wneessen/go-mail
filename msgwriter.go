@@ -118,7 +118,7 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 	}
 
 	// Set the rest of the address headers
-	for _, to := range []AddrHeader{HeaderTo, HeaderCc} {
+	for _, to := range []AddrHeader{HeaderTo, HeaderCc, HeaderReplyTo} {
 		if addresses, ok := msg.addrHeader[to]; ok {
 			var val []string
 			for _, addr := range addresses {
