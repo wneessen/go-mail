@@ -76,9 +76,6 @@ const (
 	// HeaderReferences is the "References" header field.
 	HeaderReferences Header = "References"
 
-	// HeaderReplyTo is the "Reply-To" header field.
-	HeaderReplyTo Header = "Reply-To"
-
 	// HeaderSubject is the "Subject" header field.
 	HeaderSubject Header = "Subject"
 
@@ -114,6 +111,9 @@ const (
 
 	// HeaderFrom is the "From" header field.
 	HeaderFrom AddrHeader = "From"
+
+	// HeaderReplyTo is the "Reply-To" header field.
+	HeaderReplyTo AddrHeader = "Reply-To"
 
 	// HeaderTo is the "Receipient" header field.
 	HeaderTo AddrHeader = "To"

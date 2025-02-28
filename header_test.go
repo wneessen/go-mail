@@ -36,7 +36,6 @@ var (
 		{"Header: Precedence", HeaderPrecedence, "Precedence"},
 		{"Header: Priority", HeaderPriority, "Priority"},
 		{"Header: References", HeaderReferences, "References"},
-		{"Header: Reply-To", HeaderReplyTo, "Reply-To"},
 		{"Header: Subject", HeaderSubject, "Subject"},
 		{"Header: User-Agent", HeaderUserAgent, "User-Agent"},
 		{"Header: X-Auto-Response-Suppress", HeaderXAutoResponseSuppress, "X-Auto-Response-Suppress"},
@@ -53,6 +52,7 @@ var (
 		{"To", HeaderTo, "To"},
 		{"Cc", HeaderCc, "Cc"},
 		{"Bcc", HeaderBcc, "Bcc"},
+		{"Reply-To", HeaderReplyTo, "Reply-To"},
 	}
 )
 
