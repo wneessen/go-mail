@@ -233,19 +233,27 @@ func FuzzBase64LineBreaker(f *testing.F) {
 		{0o0, 0o1, 0o2, 30, 255},
 	}
 	for _, data := range seedData {
-		f.Add(data)
+		f.Add(data, len(data))
+		f.Add(data, 1)
 	}
 
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(t *testing.T, data []byte, chunkSize int) {
+		if chunkSize <= 0 || chunkSize > len(data)+1 {
+			return
+		}
 		buffer := bytes.NewBuffer(nil)
 		lineBreaker := &Base64LineBreaker{
 			out: buffer,
 		}
 		base64Encoder := base64.NewEncoder(base64.StdEncoding, lineBreaker)
 
-		_, err := base64Encoder.Write(data)
+		chunk := make([]byte, chunkSize)
+		n, err := io.CopyBuffer(base64Encoder, bytes.NewReader(data), chunk)
 		if err != nil {
 			t.Errorf("failed to write test data to base64 encoder: %s", err)
+		}
+		if n != int64(len(data)) {
+			t.Errorf("unexpected written bytes count: got %d, expected %d", n, len(data))
 		}
 		if err = base64Encoder.Close(); err != nil {
 			t.Errorf("failed to close base64 encoder: %s", err)
