@@ -48,13 +48,7 @@ func EMLToMsgFromString(emlString string) (*Msg, error) {
 //   - A pointer to the Msg object populated with the parsed data, and an error if parsing
 //     fails.
 func EMLToMsgFromReader(reader io.Reader) (*Msg, error) {
-	msg := &Msg{
-		addrHeader:    make(map[AddrHeader][]*netmail.Address),
-		genHeader:     make(map[Header][]string),
-		preformHeader: make(map[Header]string),
-		mimever:       MIME10,
-	}
-
+	msg := NewMsg()
 	parsedMsg, bodybuf, err := readEMLFromReader(reader)
 	if err != nil || parsedMsg == nil {
 		return msg, fmt.Errorf("failed to parse EML from reader: %w", err)
@@ -81,13 +75,7 @@ func EMLToMsgFromReader(reader io.Reader) (*Msg, error) {
 //   - A pointer to the Msg object populated with the parsed data, and an error if parsing
 //     fails.
 func EMLToMsgFromFile(filePath string) (*Msg, error) {
-	msg := &Msg{
-		addrHeader:    make(map[AddrHeader][]*netmail.Address),
-		genHeader:     make(map[Header][]string),
-		preformHeader: make(map[Header]string),
-		mimever:       MIME10,
-	}
-
+	msg := NewMsg()
 	parsedMsg, bodybuf, err := readEML(filePath)
 	if err != nil || parsedMsg == nil {
 		return msg, fmt.Errorf("failed to parse EML file: %w", err)
