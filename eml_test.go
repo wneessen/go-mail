@@ -1170,4 +1170,15 @@ func TestEMLToMsgFromFile(t *testing.T) {
 			t.Errorf("EMLToMsgFromFile with invalid EML message should fail")
 		}
 	})
+	// https://github.com/wneessen/go-mail/issues/446
+	t.Run("EMLToMsgFromFile and writing it back to buffer succeeds", func(t *testing.T) {
+		parsed, err := EMLToMsgFromFile("testdata/invoice.eml")
+		if err != nil {
+			t.Fatalf("EMLToMsgFromFile failed: %s ", err)
+		}
+		buffer := bytes.NewBuffer(nil)
+		if _, err = parsed.WriteTo(buffer); err != nil {
+			t.Fatalf("failed to write parsed message to buffer: %s", err)
+		}
+	})
 }
