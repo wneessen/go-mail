@@ -2,9 +2,6 @@
 //
 // SPDX-License-Identifier: MIT
 
-//go:build go1.17
-// +build go1.17
-
 package mail
 
 import (
