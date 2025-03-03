@@ -4,6 +4,11 @@
 
 version = 1
 SPDX-PackageName = "go-mail"
-SPDX-PackageSupplier = "Winni Neessen <winni@neessen.dev>"
+SPDX-PackageSupplier = "The go-mail Authors"
 SPDX-PackageDownloadLocation = "https://github.com/wneessen/go-mail"
-annotations = []
+
+[[annotations]]
+path = ["testdata/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "The go-mail Authors"
+SPDX-License-Identifier = "MIT"
