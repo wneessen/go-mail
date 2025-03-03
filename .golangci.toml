@@ -79,3 +79,9 @@ linters = ["gosec"]
 path = "quicksend_test.go"
 text = "G402:"
 
+## These are tests which intentionally test SHA1 and SHA256
+[[issues.exclude-rules]]
+linters = ["gosec"]
+path = "internal/pbkdf2/pbkdf2_test.go"
+text = "G505:"
+
