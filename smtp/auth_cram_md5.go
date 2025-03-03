@@ -11,9 +11,6 @@
 //
 // SPDX-License-Identifier: BSD-3-Clause AND MIT
 
-//go:build go1.19
-// +build go1.19
-
 package smtp
 
 import (
