@@ -518,7 +518,7 @@ func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encodin
 		writer = mw.partWriter
 	}
 	writeBuffer := bytes.Buffer{}
-	lineBreaker := Base64LineBreaker{}
+	lineBreaker := base64LineBreaker{}
 	lineBreaker.out = &writeBuffer
 
 	switch encoding {
