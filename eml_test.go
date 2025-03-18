@@ -889,6 +889,40 @@ Content-Disposition: broken; filename="test.png"
 iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIW2NgYGD4DwABBAEAwS2O
 UAAAAABJRU5ErkJggg==
 --abc123--`
+	// https://github.com/wneessen/go-mail/issues/457
+	exampleMailPlainB64WithAttachmentAndMetadata = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // plain text base64 with attachment
+User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: multipart/mixed;
+ boundary=45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+Content-Transfer-Encoding: base64
+Content-Type: text/plain; charset=UTF-8
+
+RGVhciBDdXN0b21lciwKClRoaXMgaXMgYSB0ZXN0IG1haWwuIFBsZWFzZSBkbyBub3QgcmVwbHkg
+dG8gdGhpcy4gQWxzbyB0aGlzIGxpbmUgaXMgdmVyeSBsb25nIHNvIGl0CnNob3VsZCBiZSB3cmFw
+cGVkLgoKClRoYW5rIHlvdXIgZm9yIHlvdXIgYnVzaW5lc3MhClRoZSBnby1tYWlsIHRlYW0KCi0t
+ClRoaXMgaXMgYSBzaWduYXR1cmU=
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+Content-Disposition: attachment; filename="test.attachment";
+	size=1043; creation-date="Mon, 01 Jan 2025 01:02:34 GMT";
+    modification-date="Mon, 01 Jan 2025 03:04:56 GMT"
+Content-Transfer-Encoding: base64
+Content-Type: application/octet-stream; name="test.attachment"
+
+VGhpcyBpcyBhIHNpbXBsZSB0ZXN0IHRleHQgZmlsZSBhdHRhY2htZW50LgoKSXQgCiAgaGFzCiAg
+ICAgc2V2ZXJhbAogICAgICAgICAgICBuZXdsaW5lcwoJICAgICAgICAgICAgYW5kCgkgICAgc3Bh
+Y2VzCiAgICAgaW4KICBpdAouCgpBcyB3ZWxsIGFzIGFuIGVtb2ppOiDwn5mCCg==
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7--`
 )
 
 func TestEMLToMsgFromReader(t *testing.T) {
@@ -1134,6 +1168,21 @@ func TestEMLToMsgFromReader(t *testing.T) {
 					t.Errorf("parsing of EML failed: %s", err)
 				}
 			})
+		}
+	})
+	// https://github.com/wneessen/go-mail/issues/457
+	t.Run("EMLToMsgFromReader via EMLToMsgFromString with attachment and metadata", func(t *testing.T) {
+		message, err := EMLToMsgFromString(exampleMailPlainB64WithAttachmentAndMetadata)
+		if err != nil {
+			t.Fatalf("failed to parse EML string: %s", err)
+		}
+		attachments := message.GetAttachments()
+		if len(attachments) != 1 {
+			t.Fatalf("failed to parse EML string, expected 1 attachment, got %d", len(attachments))
+		}
+		if attachments[0].Name != "test.attachment" {
+			t.Errorf("failed to parse EML string, expected attachment name 'test.attachment', got %s",
+				attachments[0].Name)
 		}
 	})
 }
