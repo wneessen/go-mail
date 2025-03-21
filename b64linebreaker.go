@@ -50,7 +50,7 @@ func (l *base64LineBreaker) Write(data []byte) (numBytes int, err error) {
 		return len(data), nil
 	}
 
-	numBytes, err = l.out.Write(l.line[0:l.used])
+	_, err = l.out.Write(l.line[0:l.used])
 	if err != nil {
 		return
 	}
@@ -62,12 +62,15 @@ func (l *base64LineBreaker) Write(data []byte) (numBytes int, err error) {
 		return
 	}
 
-	numBytes, err = l.out.Write(newlineBytes)
+	_, err = l.out.Write(newlineBytes)
 	if err != nil {
 		return
 	}
 
-	return l.Write(data[excess:])
+	var n int
+	n, err = l.Write(data[excess:]) // recurse
+	numBytes += n
+	return
 }
 
 // Close finalizes the base64LineBreaker, writing any remaining buffered data and appending a newline.
