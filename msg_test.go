@@ -18,6 +18,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/exec"
 	"reflect"
 	"runtime"
 	"strings"
@@ -6156,7 +6157,7 @@ func TestMsg_WriteTo(t *testing.T) {
 			t.Fatalf("failed to initialize S/MIME signing: %s", err)
 		}
 		buffer := bytes.NewBuffer(nil)
-		if _, err := message.WriteTo(buffer); err != nil {
+		if _, err = message.WriteTo(buffer); err != nil {
 			t.Fatalf("failed to write message to buffer: %s", err)
 		}
 		fileContentType := "text/plain; charset=utf-8"
@@ -6792,6 +6793,35 @@ func TestMsg_WriteToTempFile(t *testing.T) {
 		got := strings.TrimSpace(messageBuf.String())
 		if !strings.HasSuffix(got, "Testmail") {
 			t.Errorf("expected message buffer to contain Testmail, got: %s", got)
+		}
+	})
+	t.Run("WriteToTempFile S/MIME signed simple text message, verified with OpenSSL", func(t *testing.T) {
+		openSSL := getOpenSSLPath()
+		if openSSL == "" {
+			t.Skip("OpenSSL not found - skipping test")
+		}
+		message := testMessage(t)
+		keypair, err := getDummyKeyPairTLS()
+		if err != nil {
+			t.Fatalf("failed to load dummy key material: %s", err)
+		}
+		if err = message.SignWithTLSCertificate(keypair); err != nil {
+			t.Fatalf("failed to initialize S/MIME signing: %s", err)
+		}
+		msgFile, err := message.WriteToTempFile()
+		if err != nil {
+			t.Fatalf("failed to write message to buffer: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := os.RemoveAll(msgFile); err != nil {
+				t.Errorf("failed to remove temp file: %s", err)
+			}
+		})
+		openSSLExec := exec.Command(openSSL, "smime", "-verify", "-noverify", "-in", msgFile)
+		out, err := openSSLExec.CombinedOutput()
+		if err != nil {
+			t.Errorf("S/MIME signing failed, expected OpenSSL to verify the message but got error: %s "+
+				"// exec output: %s", err, out)
 		}
 	})
 }
