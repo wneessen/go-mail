@@ -7395,7 +7395,7 @@ func (mw encodeMiddleware) Handle(m *Msg) *Msg {
 	if len(s) < 1 {
 		s = append(s, "")
 	}
-	m.Subject(strings.Replace(s[0], "a", "@", -1))
+	m.Subject(strings.ReplaceAll(s[0], "a", "@"))
 	return m
 }
 
