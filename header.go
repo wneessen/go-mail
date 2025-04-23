@@ -115,7 +115,7 @@ const (
 	// HeaderReplyTo is the "Reply-To" header field.
 	HeaderReplyTo AddrHeader = "Reply-To"
 
-	// HeaderTo is the "Receipient" header field.
+	// HeaderTo is the "Recipient" header field.
 	HeaderTo AddrHeader = "To"
 )
 
