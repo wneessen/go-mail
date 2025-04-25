@@ -604,12 +604,9 @@ func (m *Msg) SetAddrHeader(header AddrHeader, values ...string) error {
 //   - addresses: One or more mail.Address instances representing the email addresses to associate with
 //     the specified header.
 //
-// Returns:
-//   - An error if parsing the address according to RFC 5322 fails
-//
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
-func (m *Msg) SetAddrHeaderFromAddr(header AddrHeader, values ...*mail.Address) error {
+func (m *Msg) SetAddrHeaderFromAddr(header AddrHeader, values ...*mail.Address) {
 	if m.addrHeader == nil {
 		m.addrHeader = make(map[AddrHeader][]*mail.Address)
 	}
@@ -630,7 +627,6 @@ func (m *Msg) SetAddrHeaderFromAddr(header AddrHeader, values ...*mail.Address) 
 	default:
 		m.addrHeader[header] = addresses
 	}
-	return nil
 }
 
 // SetAddrHeaderIgnoreInvalid sets the specified AddrHeader for the Msg to the given values.
@@ -767,8 +763,8 @@ func (m *Msg) To(rcpts ...string) error {
 //
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
-func (m *Msg) ToAddr(rcpts ...*mail.Address) error {
-	return m.SetAddrHeaderFromAddr(HeaderTo, rcpts...)
+func (m *Msg) ToAddr(rcpts ...*mail.Address) {
+	m.SetAddrHeaderFromAddr(HeaderTo, rcpts...)
 }
 
 // AddTo adds a single "TO" address to the existing list of recipients in the mail body for the Msg.

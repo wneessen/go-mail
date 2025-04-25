@@ -1055,9 +1055,7 @@ func TestMsg_ToAddr(t *testing.T) {
 			t.Fatal("message is nil")
 		}
 		addr := &mail.Address{Address: "toni.tester@example.com"}
-		if err := message.ToAddr(addr); err != nil {
-			t.Fatalf("failed to set TO address: %s", err)
-		}
+		message.ToAddr(addr)
 		checkAddrHeader(t, message, HeaderTo, "ToAddr", 0, 1, "toni.tester@example.com", "")
 	})
 	t.Run("ToAddr with single address (full)", func(t *testing.T) {
@@ -1066,9 +1064,7 @@ func TestMsg_ToAddr(t *testing.T) {
 			t.Fatal("message is nil")
 		}
 		addr := &mail.Address{Name: "Toni Tester", Address: "toni.tester@example.com"}
-		if err := message.ToAddr(addr); err != nil {
-			t.Fatalf("failed to set TO address: %s", err)
-		}
+		message.ToAddr(addr)
 		checkAddrHeader(t, message, HeaderTo, "ToAddr", 0, 1, "toni.tester@example.com", "Toni Tester")
 	})
 	t.Run("ToAddr with multiple addresses (mail only)", func(t *testing.T) {
@@ -1077,9 +1073,7 @@ func TestMsg_ToAddr(t *testing.T) {
 			t.Fatal("message is nil")
 		}
 		addresses := []*mail.Address{{Address: "toni.tester@example.com"}, {Address: "tina.tester@example.com"}}
-		if err := message.ToAddr(addresses...); err != nil {
-			t.Fatalf("failed to set TO address: %s", err)
-		}
+		message.ToAddr(addresses...)
 		checkAddrHeader(t, message, HeaderTo, "ToAddr", 0, 2, "toni.tester@example.com", "")
 		checkAddrHeader(t, message, HeaderTo, "ToAddr", 1, 2, "tina.tester@example.com", "")
 	})
@@ -1092,9 +1086,7 @@ func TestMsg_ToAddr(t *testing.T) {
 			{Address: "toni.tester@example.com", Name: "Toni Tester"},
 			{Address: "tina.tester@example.com", Name: "Tina Tester"},
 		}
-		if err := message.ToAddr(addresses...); err != nil {
-			t.Fatalf("failed to set TO address: %s", err)
-		}
+		message.ToAddr(addresses...)
 		checkAddrHeader(t, message, HeaderTo, "ToAddr", 0, 2, "toni.tester@example.com", "Toni Tester")
 		checkAddrHeader(t, message, HeaderTo, "ToAddr", 1, 2, "tina.tester@example.com", "Tina Tester")
 	})
@@ -1103,31 +1095,8 @@ func TestMsg_ToAddr(t *testing.T) {
 		if message == nil {
 			t.Fatal("message is nil")
 		}
-		if err := message.ToAddr(nil); err != nil {
-			t.Fatalf("failed to set TO address: %s", err)
-		}
+		message.ToAddr(nil)
 		checkAddrHeader(t, message, HeaderTo, "ToAddr", 0, 0, "", "")
-	})
-	t.Run("ToAddr with different RFC5322 addresses", func(t *testing.T) {
-		message := NewMsg()
-		if message == nil {
-			t.Fatal("message is nil")
-		}
-		for _, tt := range rfc5322Test {
-			t.Run(tt.value, func(t *testing.T) {
-				if !tt.valid {
-					t.Skipf("skipping invalid address: %s", tt.value)
-				}
-				addr, _ := mail.ParseAddress(tt.value)
-				err := message.ToAddr(addr)
-				if err != nil && tt.valid {
-					t.Errorf("To on address %s should succeed, but failed with: %s", tt.value, err)
-				}
-				if err == nil && !tt.valid {
-					t.Errorf("To on address %s should fail, but succeeded", tt.value)
-				}
-			})
-		}
 	})
 }
 
