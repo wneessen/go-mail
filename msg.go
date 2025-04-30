@@ -877,6 +877,22 @@ func (m *Msg) Cc(rcpts ...string) error {
 	return m.SetAddrHeader(HeaderCc, rcpts...)
 }
 
+// CcAddr sets one or more "CC" (carbon copy) addresses in the mail body for the Msg.
+//
+// The "CC" address specifies secondary recipient(s) of the message, and is included in the mail body.
+// This address is visible to the recipient and any other recipients of the message. Multiple "CC" addresses
+// can be set by passing them as variadic arguments to this method.
+//
+// Parameters:
+//   - rcpts: One or more recipient email addresses as mail.Address instance to include
+//     in the "CC" field.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+func (m *Msg) CcAddr(rcpts ...*mail.Address) {
+	m.SetAddrHeaderFromAddr(HeaderCc, rcpts...)
+}
+
 // AddCc adds a single "CC" (carbon copy) address to the existing list of "CC" recipients in the mail body
 // for the Msg.
 //
