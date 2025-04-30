@@ -596,8 +596,9 @@ func (m *Msg) SetAddrHeader(header AddrHeader, values ...string) error {
 // This method allows you to set address-related headers for the message, with mail.Address instances
 // as input. Using this method helps maintain the integrity of the email addresses within the message.
 //
-// Since mail.Address instances are already parsed according to RFC 5322, this method will not
-// attempt to perform any parsing and therefore no error will be returned.
+// Since we expect the mail.Address instances to be already parsed according to RFC 5322, this method
+// will not attempt to perform any sanity checks except of nil pointers and therefore no error will
+// be returned. Nil pointers will be silently ignored.
 //
 // Parameters:
 //   - header: The AddrHeader to set in the Msg (e.g., "From", "To", "Cc", "Bcc").
@@ -781,6 +782,23 @@ func (m *Msg) ToAddr(rcpts ...*mail.Address) {
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddTo(rcpt string) error {
 	return m.addAddr(HeaderTo, rcpt)
+}
+
+// AddToAddr adds a single "TO" address to the existing list of recipients in the mail body for the Msg.
+//
+// This method allows you to add a single recipient to the "TO" field without replacing any previously set
+// "TO" addresses. The "TO" address specifies the primary recipient(s) of the message and is visible in the mail
+// client. The provided address is validated according to RFC 5322, and an error will be returned if the
+// validation fails.
+//
+// Parameters:
+//   - rcpt: The recipient email address as *mail.Address to add to the "TO" field.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+func (m *Msg) AddToAddr(rcpt *mail.Address) {
+	addresses := append(m.addrHeader[HeaderTo], rcpt)
+	m.SetAddrHeaderFromAddr(HeaderTo, addresses...)
 }
 
 // AddToFormat adds a single "TO" address with the provided name and email to the existing list of recipients
