@@ -958,6 +958,36 @@ func TestMsg_From(t *testing.T) {
 	})
 }
 
+func TestMsg_FromAddr(t *testing.T) {
+	addresses := mailAddresses(t)
+	t.Run("FromAddr with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.FromAddr(addresses[0])
+		checkAddrHeader(t, message, HeaderFrom, "FromAddr", 0, 1, "toni.tester@example.com", "")
+	})
+	t.Run("FromAddr with valid address and name", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.FromAddr(addresses[1])
+		checkAddrHeader(t, message, HeaderFrom, "FromAddr", 0, 1, "tina.tester@example.com", "Tina Tester")
+	})
+	t.Run("FromAddr with nil", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.FromAddr(nil)
+		if from, ok := message.addrHeader[HeaderFrom]; ok {
+			t.Errorf("From address header should not be set, got: %v", from)
+		}
+	})
+}
+
 func TestMsg_FromFormat(t *testing.T) {
 	t.Run("FromFormat with valid address", func(t *testing.T) {
 		message := NewMsg()
@@ -7664,6 +7694,22 @@ func checkMessageContent(t *testing.T, buffer *bytes.Buffer, wants []msgContentT
 			}
 		}
 	}
+}
+
+func mailAddresses(t *testing.T) []*mail.Address {
+	var addresses []*mail.Address
+	for _, address := range []string{
+		"toni.tester@example.com",
+		`"Tina Tester" <tina.tester@example.com>`,
+		"michael.tester@example.com",
+	} {
+		addr, err := mail.ParseAddress(address)
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		addresses = append(addresses, addr)
+	}
+	return addresses
 }
 
 // Fuzzing tests

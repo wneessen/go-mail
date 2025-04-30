@@ -718,6 +718,22 @@ func (m *Msg) From(from string) error {
 	return m.SetAddrHeader(HeaderFrom, from)
 }
 
+// FromAddr sets the "FROM" address in the mail body for the Msg using a mail.Address instance.
+//
+// The "FROM" address is included in the mail body and indicates the sender of the message to
+// the recipient. This address is visible in the email client and is typically displayed to the
+// recipient. If the "FROM" address is not set, the msgWriter may attempt to use the envelope
+// from address (if available) for sending.
+//
+// Parameters:
+//   - from: The "FROM" address to set in the mail body as *mail.Address.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
+func (m *Msg) FromAddr(from *mail.Address) {
+	m.SetAddrHeaderFromAddr(HeaderFrom, from)
+}
+
 // FromFormat sets the provided name and mail address as the "FROM" address in the mail body for the Msg.
 //
 // The "FROM" address is included in the mail body and indicates the sender of the message to
