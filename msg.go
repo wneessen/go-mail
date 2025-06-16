@@ -591,7 +591,7 @@ func (m *Msg) SetAddrHeader(header AddrHeader, values ...string) error {
 	return nil
 }
 
-// SetAddrHeaderFromAddr sets the specified AddrHeader for the Msg to the given mail.Address values.
+// SetAddrHeaderFromMailAddress sets the specified AddrHeader for the Msg to the given mail.Address values.
 //
 // This method allows you to set address-related headers for the message, with mail.Address instances
 // as input. Using this method helps maintain the integrity of the email addresses within the message.
@@ -602,12 +602,12 @@ func (m *Msg) SetAddrHeader(header AddrHeader, values ...string) error {
 //
 // Parameters:
 //   - header: The AddrHeader to set in the Msg (e.g., "From", "To", "Cc", "Bcc").
-//   - addresses: One or more mail.Address instances representing the email addresses to associate with
+//   - addresses: One or more mail.Address pointers representing the email addresses to associate with
 //     the specified header.
 //
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
-func (m *Msg) SetAddrHeaderFromAddr(header AddrHeader, values ...*mail.Address) {
+func (m *Msg) SetAddrHeaderFromMailAddress(header AddrHeader, values ...*mail.Address) {
 	if m.addrHeader == nil {
 		m.addrHeader = make(map[AddrHeader][]*mail.Address)
 	}
@@ -718,7 +718,7 @@ func (m *Msg) From(from string) error {
 	return m.SetAddrHeader(HeaderFrom, from)
 }
 
-// FromAddr sets the "FROM" address in the mail body for the Msg using a mail.Address instance.
+// FromMailAddress sets the "FROM" address in the mail body for the Msg using a mail.Address instance.
 //
 // The "FROM" address is included in the mail body and indicates the sender of the message to
 // the recipient. This address is visible in the email client and is typically displayed to the
@@ -730,8 +730,8 @@ func (m *Msg) From(from string) error {
 //
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
-func (m *Msg) FromAddr(from *mail.Address) {
-	m.SetAddrHeaderFromAddr(HeaderFrom, from)
+func (m *Msg) FromMailAddress(from *mail.Address) {
+	m.SetAddrHeaderFromMailAddress(HeaderFrom, from)
 }
 
 // FromFormat sets the provided name and mail address as the "FROM" address in the mail body for the Msg.
@@ -768,7 +768,7 @@ func (m *Msg) To(rcpts ...string) error {
 	return m.SetAddrHeader(HeaderTo, rcpts...)
 }
 
-// ToAddr sets one or more "TO" addresses in the mail body for the Msg.
+// ToMailAddress sets one or more "TO" addresses in the mail body for the Msg.
 //
 // The "TO" address specifies the primary recipient(s) of the message and is included in the mail body.
 // This address is visible to the recipient and any other recipients of the message. Multiple "TO" addresses
@@ -780,8 +780,8 @@ func (m *Msg) To(rcpts ...string) error {
 //
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
-func (m *Msg) ToAddr(rcpts ...*mail.Address) {
-	m.SetAddrHeaderFromAddr(HeaderTo, rcpts...)
+func (m *Msg) ToMailAddress(rcpts ...*mail.Address) {
+	m.SetAddrHeaderFromMailAddress(HeaderTo, rcpts...)
 }
 
 // AddTo adds a single "TO" address to the existing list of recipients in the mail body for the Msg.
@@ -800,7 +800,7 @@ func (m *Msg) AddTo(rcpt string) error {
 	return m.addAddr(HeaderTo, rcpt)
 }
 
-// AddToAddr adds a single "TO" address to the existing list of recipients in the mail body for the Msg.
+// AddToMailAddress adds a single "TO" address to the existing list of recipients in the mail body for the Msg.
 //
 // This method allows you to add a single recipient to the "TO" field without replacing any previously set
 // "TO" addresses. The "TO" address specifies the primary recipient(s) of the message and is visible in the mail
@@ -812,9 +812,9 @@ func (m *Msg) AddTo(rcpt string) error {
 //
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
-func (m *Msg) AddToAddr(rcpt *mail.Address) {
+func (m *Msg) AddToMailAddress(rcpt *mail.Address) {
 	addresses := append(m.addrHeader[HeaderTo], rcpt)
-	m.SetAddrHeaderFromAddr(HeaderTo, addresses...)
+	m.SetAddrHeaderFromMailAddress(HeaderTo, addresses...)
 }
 
 // AddToFormat adds a single "TO" address with the provided name and email to the existing list of recipients
@@ -893,7 +893,7 @@ func (m *Msg) Cc(rcpts ...string) error {
 	return m.SetAddrHeader(HeaderCc, rcpts...)
 }
 
-// CcAddr sets one or more "CC" (carbon copy) addresses in the mail body for the Msg.
+// CcMailAddress sets one or more "CC" (carbon copy) addresses in the mail body for the Msg.
 //
 // The "CC" address specifies secondary recipient(s) of the message, and is included in the mail body.
 // This address is visible to the recipient and any other recipients of the message. Multiple "CC" addresses
@@ -905,8 +905,8 @@ func (m *Msg) Cc(rcpts ...string) error {
 //
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
-func (m *Msg) CcAddr(rcpts ...*mail.Address) {
-	m.SetAddrHeaderFromAddr(HeaderCc, rcpts...)
+func (m *Msg) CcMailAddress(rcpts ...*mail.Address) {
+	m.SetAddrHeaderFromMailAddress(HeaderCc, rcpts...)
 }
 
 // AddCc adds a single "CC" (carbon copy) address to the existing list of "CC" recipients in the mail body

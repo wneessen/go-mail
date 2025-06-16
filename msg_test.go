@@ -958,30 +958,30 @@ func TestMsg_From(t *testing.T) {
 	})
 }
 
-func TestMsg_FromAddr(t *testing.T) {
+func TestMsg_FromMailAddress(t *testing.T) {
 	addresses := mailAddresses(t)
-	t.Run("FromAddr with valid address", func(t *testing.T) {
+	t.Run("FromMailAddress with valid address", func(t *testing.T) {
 		message := NewMsg()
 		if message == nil {
 			t.Fatal("message is nil")
 		}
-		message.FromAddr(addresses[0])
-		checkAddrHeader(t, message, HeaderFrom, "FromAddr", 0, 1, "toni.tester@example.com", "")
+		message.FromMailAddress(addresses[0])
+		checkAddrHeader(t, message, HeaderFrom, "FromMailAddress", 0, 1, "toni.tester@example.com", "")
 	})
-	t.Run("FromAddr with valid address and name", func(t *testing.T) {
+	t.Run("FromMailAddress with valid address and name", func(t *testing.T) {
 		message := NewMsg()
 		if message == nil {
 			t.Fatal("message is nil")
 		}
-		message.FromAddr(addresses[1])
-		checkAddrHeader(t, message, HeaderFrom, "FromAddr", 0, 1, "tina.tester@example.com", "Tina Tester")
+		message.FromMailAddress(addresses[1])
+		checkAddrHeader(t, message, HeaderFrom, "FromMailAddress", 0, 1, "tina.tester@example.com", "Tina Tester")
 	})
-	t.Run("FromAddr with nil", func(t *testing.T) {
+	t.Run("FromMailAddress with nil", func(t *testing.T) {
 		message := NewMsg()
 		if message == nil {
 			t.Fatal("message is nil")
 		}
-		message.FromAddr(nil)
+		message.FromMailAddress(nil)
 		if from, ok := message.addrHeader[HeaderFrom]; ok {
 			t.Errorf("From address header should not be set, got: %v", from)
 		}
@@ -1078,7 +1078,7 @@ func TestMsg_To(t *testing.T) {
 	})
 }
 
-func TestMsg_ToAddr(t *testing.T) {
+func TestMsg_ToMailAddress(t *testing.T) {
 	var addresses []*mail.Address
 	for _, address := range []string{"toni.tester@example.com", `"Tina Tester" <tina.tester@example.com>`,
 		"michael.tester@example.com"} {
@@ -1088,31 +1088,31 @@ func TestMsg_ToAddr(t *testing.T) {
 		}
 		addresses = append(addresses, addr)
 	}
-	t.Run("ToAddr with single address", func(t *testing.T) {
+	t.Run("ToMailAddress with single address", func(t *testing.T) {
 		message := NewMsg()
 		if message == nil {
 			t.Fatal("message is nil")
 		}
-		message.ToAddr(addresses[0])
-		checkAddrHeader(t, message, HeaderTo, "ToAddr", 0, 1, "toni.tester@example.com", "")
+		message.ToMailAddress(addresses[0])
+		checkAddrHeader(t, message, HeaderTo, "ToMailAddress", 0, 1, "toni.tester@example.com", "")
 	})
-	t.Run("ToAddr with multiple addresses", func(t *testing.T) {
+	t.Run("ToMailAddress with multiple addresses", func(t *testing.T) {
 		message := NewMsg()
 		if message == nil {
 			t.Fatal("message is nil")
 		}
-		message.ToAddr(addresses...)
-		checkAddrHeader(t, message, HeaderTo, "ToAddr", 0, 3, "toni.tester@example.com", "")
-		checkAddrHeader(t, message, HeaderTo, "ToAddr", 1, 3, "tina.tester@example.com", "Tina Tester")
-		checkAddrHeader(t, message, HeaderTo, "ToAddr", 2, 3, "michael.tester@example.com", "")
+		message.ToMailAddress(addresses...)
+		checkAddrHeader(t, message, HeaderTo, "ToMailAddress", 0, 3, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderTo, "ToMailAddress", 1, 3, "tina.tester@example.com", "Tina Tester")
+		checkAddrHeader(t, message, HeaderTo, "ToMailAddress", 2, 3, "michael.tester@example.com", "")
 	})
-	t.Run("ToAddr with nil address", func(t *testing.T) {
+	t.Run("ToMailAddress with nil address", func(t *testing.T) {
 		message := NewMsg()
 		if message == nil {
 			t.Fatal("message is nil")
 		}
-		message.ToAddr(nil)
-		checkAddrHeader(t, message, HeaderTo, "ToAddr", 0, 0, "", "")
+		message.ToMailAddress(nil)
+		checkAddrHeader(t, message, HeaderTo, "ToMailAddress", 0, 0, "", "")
 	})
 }
 
@@ -1176,8 +1176,8 @@ func TestMsg_AddToFormat(t *testing.T) {
 	})
 }
 
-func TestMsg_AddToAddr(t *testing.T) {
-	t.Run("AddToAddr with valid addresses", func(t *testing.T) {
+func TestMsg_AddToMailAddress(t *testing.T) {
+	t.Run("AddToMailAddress with valid addresses", func(t *testing.T) {
 		message := NewMsg()
 		if message == nil {
 			t.Fatal("message is nil")
@@ -1190,19 +1190,19 @@ func TestMsg_AddToAddr(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to parse test address: %s", err)
 		}
-		message.AddToAddr(addr)
+		message.AddToMailAddress(addr)
 
 		addr, err = mail.ParseAddress("michael.tester@example.com")
 		if err != nil {
 			t.Fatalf("failed to parse test address: %s", err)
 		}
-		message.AddToAddr(addr)
+		message.AddToMailAddress(addr)
 
-		checkAddrHeader(t, message, HeaderTo, "AddToAddr", 0, 3, "toni.tester@example.com", "")
-		checkAddrHeader(t, message, HeaderTo, "AddToAddr", 1, 3, "tina.tester@example.com", "")
-		checkAddrHeader(t, message, HeaderTo, "AddToAddr", 2, 3, "michael.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderTo, "AddToMailAddress", 0, 3, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderTo, "AddToMailAddress", 1, 3, "tina.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderTo, "AddToMailAddress", 2, 3, "michael.tester@example.com", "")
 	})
-	t.Run("AddToAddr with nil", func(t *testing.T) {
+	t.Run("AddToMailAddress with nil", func(t *testing.T) {
 		message := NewMsg()
 		if message == nil {
 			t.Fatal("message is nil")
@@ -1210,28 +1210,28 @@ func TestMsg_AddToAddr(t *testing.T) {
 		if err := message.To("toni.tester@example.com"); err != nil {
 			t.Fatalf("failed to set To: %s", err)
 		}
-		message.AddToAddr(nil)
-		checkAddrHeader(t, message, HeaderTo, "AddToAddr", 0, 1, "toni.tester@example.com", "")
+		message.AddToMailAddress(nil)
+		checkAddrHeader(t, message, HeaderTo, "AddToMailAddress", 0, 1, "toni.tester@example.com", "")
 	})
-	t.Run("AddToAddr with nil as initial address", func(t *testing.T) {
+	t.Run("AddToMailAddress with nil as initial address", func(t *testing.T) {
 		message := NewMsg()
 		if message == nil {
 			t.Fatal("message is nil")
 		}
-		message.ToAddr(nil)
+		message.ToMailAddress(nil)
 
 		addr, err := mail.ParseAddress("toni.tester@example.com")
 		if err != nil {
 			t.Fatalf("failed to parse test address: %s", err)
 		}
-		message.AddToAddr(addr)
+		message.AddToMailAddress(addr)
 		addr, err = mail.ParseAddress("Tina Tester <tina.tester@example.com>")
 		if err != nil {
 			t.Fatalf("failed to parse test address: %s", err)
 		}
-		message.AddToAddr(addr)
-		checkAddrHeader(t, message, HeaderTo, "AddToAddr", 0, 2, "toni.tester@example.com", "")
-		checkAddrHeader(t, message, HeaderTo, "AddToAddr", 1, 2, "tina.tester@example.com", "Tina Tester")
+		message.AddToMailAddress(addr)
+		checkAddrHeader(t, message, HeaderTo, "AddToMailAddress", 0, 2, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderTo, "AddToMailAddress", 1, 2, "tina.tester@example.com", "Tina Tester")
 	})
 }
 
@@ -1472,7 +1472,7 @@ func TestMsg_CcFromString(t *testing.T) {
 	})
 }
 
-func TestMsg_CcAddr(t *testing.T) {
+func TestMsg_CcMailAddress(t *testing.T) {
 	var addresses []*mail.Address
 	for _, address := range []string{"toni.tester@example.com", `"Tina Tester" <tina.tester@example.com>`,
 		"michael.tester@example.com"} {
@@ -1482,31 +1482,31 @@ func TestMsg_CcAddr(t *testing.T) {
 		}
 		addresses = append(addresses, addr)
 	}
-	t.Run("CcAddr with valid address", func(t *testing.T) {
+	t.Run("CcMailAddress with valid address", func(t *testing.T) {
 		message := NewMsg()
 		if message == nil {
 			t.Fatal("message is nil")
 		}
-		message.CcAddr(addresses[0])
-		checkAddrHeader(t, message, HeaderCc, "CcAddr", 0, 1, "toni.tester@example.com", "")
+		message.CcMailAddress(addresses[0])
+		checkAddrHeader(t, message, HeaderCc, "CcMailAddress", 0, 1, "toni.tester@example.com", "")
 	})
-	t.Run("CcAddr with multiple valid addresses", func(t *testing.T) {
+	t.Run("CcMailAddress with multiple valid addresses", func(t *testing.T) {
 		message := NewMsg()
 		if message == nil {
 			t.Fatal("message is nil")
 		}
-		message.CcAddr(addresses...)
-		checkAddrHeader(t, message, HeaderCc, "CcAddr", 0, 3, "toni.tester@example.com", "")
-		checkAddrHeader(t, message, HeaderCc, "CcAddr", 1, 3, "tina.tester@example.com", "Tina Tester")
-		checkAddrHeader(t, message, HeaderCc, "CcAddr", 2, 3, "michael.tester@example.com", "")
+		message.CcMailAddress(addresses...)
+		checkAddrHeader(t, message, HeaderCc, "CcMailAddress", 0, 3, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderCc, "CcMailAddress", 1, 3, "tina.tester@example.com", "Tina Tester")
+		checkAddrHeader(t, message, HeaderCc, "CcMailAddress", 2, 3, "michael.tester@example.com", "")
 	})
-	t.Run("CcAddr with nil", func(t *testing.T) {
+	t.Run("CcMailAddress with nil", func(t *testing.T) {
 		message := NewMsg()
 		if message == nil {
 			t.Fatal("message is nil")
 		}
-		message.CcAddr(nil)
-		checkAddrHeader(t, message, HeaderCc, "CcAddr", 0, 0, "", "")
+		message.CcMailAddress(nil)
+		checkAddrHeader(t, message, HeaderCc, "CcMailAddress", 0, 0, "", "")
 	})
 }
 
