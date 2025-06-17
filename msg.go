@@ -1004,6 +1004,22 @@ func (m *Msg) Bcc(rcpts ...string) error {
 	return m.SetAddrHeader(HeaderBcc, rcpts...)
 }
 
+// BccMailAddress sets one or more "BCC" (blind carbon copy) addresses in the mail body for the Msg.
+//
+// The "CC" address specifies secondary recipient(s) of the message, and is included in the mail body.
+// These addresses are not visible in the mail body or to any other recipients, ensuring
+// the privacy of BCC'd recipients. Multiple "BCC" addresses can be set by passing them as variadic
+// arguments to this method.
+//
+// Parameters:
+//   - rcpts: One or more recipient email addresses as mail.Address instance to include in the "BCC" field.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+func (m *Msg) BccMailAddress(rcpts ...*mail.Address) {
+	m.SetAddrHeaderFromMailAddress(HeaderBcc, rcpts...)
+}
+
 // AddBcc adds a single "BCC" (blind carbon copy) address to the existing list of "BCC" recipients in the mail
 // body for the Msg.
 //
