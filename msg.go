@@ -930,7 +930,7 @@ func (m *Msg) AddCc(rcpt string) error {
 //
 // This method allows you to add a single recipient to the "CC" field without replacing any previously set "CC"
 // addresses. The "CC" address specifies secondary recipient(s) and is visible to all recipients, including those
-// in the "TO" field. Since the provided mail.Address has already been validated, no further validation is
+// in the "CC" field. Since the provided mail.Address has already been validated, no further validation is
 // performed in this method and the values are used as given.
 //
 // Parameters:
@@ -1052,6 +1052,22 @@ func (m *Msg) BccMailAddress(rcpts ...*mail.Address) {
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddBcc(rcpt string) error {
 	return m.addAddr(HeaderBcc, rcpt)
+}
+
+// AddBccMailAddress adds a single "BCC" address to the existing list of recipients in the mail body for the Msg.
+//
+// This method allows you to add a single recipient to the "BCC" field without replacing any previously set
+// "BCC" addresses. The "BCC" address specifies recipient(s) of the message who will receive a copy without other
+// recipients being aware of it.
+//
+// Parameters:
+//   - rcpt: The recipient email address as *mail.Address to add to the "BCC" field.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+func (m *Msg) AddBccMailAddress(rcpt *mail.Address) {
+	addresses := append(m.addrHeader[HeaderBcc], rcpt)
+	m.SetAddrHeaderFromMailAddress(HeaderBcc, addresses...)
 }
 
 // AddBccFormat adds a single "BCC" (blind carbon copy) address with the provided name and email to the existing

@@ -1696,6 +1696,65 @@ func TestMsg_AddBcc(t *testing.T) {
 	})
 }
 
+func TestMsg_AddBccMailAddress(t *testing.T) {
+	t.Run("AddBccMailAddress with valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Bcc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set Bcc: %s", err)
+		}
+
+		addr, err := mail.ParseAddress("tina.tester@example.com")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddBccMailAddress(addr)
+
+		addr, err = mail.ParseAddress("michael.tester@example.com")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddBccMailAddress(addr)
+
+		checkAddrHeader(t, message, HeaderBcc, "AddBccMailAddress", 0, 3, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderBcc, "AddBccMailAddress", 1, 3, "tina.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderBcc, "AddBccMailAddress", 2, 3, "michael.tester@example.com", "")
+	})
+	t.Run("AddBccMailAddress with nil", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Bcc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set Bcc: %s", err)
+		}
+		message.AddBccMailAddress(nil)
+		checkAddrHeader(t, message, HeaderBcc, "AddBccMailAddress", 0, 1, "toni.tester@example.com", "")
+	})
+	t.Run("AddBccMailAddress with nil as initial address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.BccMailAddress(nil)
+
+		addr, err := mail.ParseAddress("toni.tester@example.com")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddBccMailAddress(addr)
+		addr, err = mail.ParseAddress("Tina Tester <tina.tester@example.com>")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddBccMailAddress(addr)
+		checkAddrHeader(t, message, HeaderBcc, "AddBccMailAddress", 0, 2, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderBcc, "AddBccMailAddress", 1, 2, "tina.tester@example.com", "Tina Tester")
+	})
+}
+
 func TestMsg_AddBccFormat(t *testing.T) {
 	t.Run("AddBccFormat with valid addresses", func(t *testing.T) {
 		message := NewMsg()
