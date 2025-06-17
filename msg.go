@@ -804,8 +804,8 @@ func (m *Msg) AddTo(rcpt string) error {
 //
 // This method allows you to add a single recipient to the "TO" field without replacing any previously set
 // "TO" addresses. The "TO" address specifies the primary recipient(s) of the message and is visible in the mail
-// client. The provided address is validated according to RFC 5322, and an error will be returned if the
-// validation fails.
+// client. Since the provided mail.Address has already been validated, no further validation is performed in
+// this method and the values are used as given.
 //
 // Parameters:
 //   - rcpt: The recipient email address as *mail.Address to add to the "TO" field.
@@ -924,6 +924,23 @@ func (m *Msg) CcMailAddress(rcpts ...*mail.Address) {
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddCc(rcpt string) error {
 	return m.addAddr(HeaderCc, rcpt)
+}
+
+// AddCcMailAddress adds a single "CC" address to the existing list of recipients in the mail body for the Msg.
+//
+// This method allows you to add a single recipient to the "CC" field without replacing any previously set "CC"
+// addresses. The "CC" address specifies secondary recipient(s) and is visible to all recipients, including those
+// in the "TO" field. Since the provided mail.Address has already been validated, no further validation is
+// performed in this method and the values are used as given.
+//
+// Parameters:
+//   - rcpt: The recipient email address as *mail.Address to add to the "CC" field.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+func (m *Msg) AddCcMailAddress(rcpt *mail.Address) {
+	addresses := append(m.addrHeader[HeaderCc], rcpt)
+	m.SetAddrHeaderFromMailAddress(HeaderCc, addresses...)
 }
 
 // AddCcFormat adds a single "CC" (carbon copy) address with the provided name and email to the existing list

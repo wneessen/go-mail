@@ -1383,6 +1383,65 @@ func TestMsg_AddCc(t *testing.T) {
 	})
 }
 
+func TestMsg_AddCcMailAddress(t *testing.T) {
+	t.Run("AddCcMailAddress with valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Cc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set Cc: %s", err)
+		}
+
+		addr, err := mail.ParseAddress("tina.tester@example.com")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddCcMailAddress(addr)
+
+		addr, err = mail.ParseAddress("michael.tester@example.com")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddCcMailAddress(addr)
+
+		checkAddrHeader(t, message, HeaderCc, "AddCcMailAddress", 0, 3, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderCc, "AddCcMailAddress", 1, 3, "tina.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderCc, "AddCcMailAddress", 2, 3, "michael.tester@example.com", "")
+	})
+	t.Run("AddCcMailAddress with nil", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Cc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set Cc: %s", err)
+		}
+		message.AddCcMailAddress(nil)
+		checkAddrHeader(t, message, HeaderCc, "AddCcMailAddress", 0, 1, "toni.tester@example.com", "")
+	})
+	t.Run("AddCcMailAddress with nil as initial address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.CcMailAddress(nil)
+
+		addr, err := mail.ParseAddress("toni.tester@example.com")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddCcMailAddress(addr)
+		addr, err = mail.ParseAddress("Tina Tester <tina.tester@example.com>")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddCcMailAddress(addr)
+		checkAddrHeader(t, message, HeaderCc, "AddCcMailAddress", 0, 2, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderCc, "AddCcMailAddress", 1, 2, "tina.tester@example.com", "Tina Tester")
+	})
+}
+
 func TestMsg_AddCcFormat(t *testing.T) {
 	t.Run("AddCcFormat with valid addresses", func(t *testing.T) {
 		message := NewMsg()
