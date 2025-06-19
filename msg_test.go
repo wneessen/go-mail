@@ -1110,8 +1110,10 @@ func TestMsg_To(t *testing.T) {
 
 func TestMsg_ToMailAddress(t *testing.T) {
 	var addresses []*mail.Address
-	for _, address := range []string{"toni.tester@example.com", `"Tina Tester" <tina.tester@example.com>`,
-		"michael.tester@example.com"} {
+	for _, address := range []string{
+		"toni.tester@example.com", `"Tina Tester" <tina.tester@example.com>`,
+		"michael.tester@example.com",
+	} {
 		addr, err := mail.ParseAddress(address)
 		if err != nil {
 			t.Fatalf("failed to parse test address: %s", err)
@@ -1563,8 +1565,10 @@ func TestMsg_CcFromString(t *testing.T) {
 
 func TestMsg_CcMailAddress(t *testing.T) {
 	var addresses []*mail.Address
-	for _, address := range []string{"toni.tester@example.com", `"Tina Tester" <tina.tester@example.com>`,
-		"michael.tester@example.com"} {
+	for _, address := range []string{
+		"toni.tester@example.com", `"Tina Tester" <tina.tester@example.com>`,
+		"michael.tester@example.com",
+	} {
 		addr, err := mail.ParseAddress(address)
 		if err != nil {
 			t.Fatalf("failed to parse test address: %s", err)
@@ -1660,8 +1664,10 @@ func TestMsg_Bcc(t *testing.T) {
 
 func TestMsg_BccMailAddress(t *testing.T) {
 	var addresses []*mail.Address
-	for _, address := range []string{"toni.tester@example.com", `"Tina Tester" <tina.tester@example.com>`,
-		"michael.tester@example.com"} {
+	for _, address := range []string{
+		"toni.tester@example.com", `"Tina Tester" <tina.tester@example.com>`,
+		"michael.tester@example.com",
+	} {
 		addr, err := mail.ParseAddress(address)
 		if err != nil {
 			t.Fatalf("failed to parse test address: %s", err)
