@@ -122,6 +122,9 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 		if addresses, ok := msg.addrHeader[to]; ok {
 			var val []string
 			for _, addr := range addresses {
+				if addr == nil {
+					continue
+				}
 				val = append(val, addr.String())
 			}
 			msg.headerCount += mw.writeHeader(Header(to), val...)

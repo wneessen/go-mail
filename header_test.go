@@ -48,6 +48,7 @@ var (
 		header AddrHeader
 		want   string
 	}{
+		{"EnvelopeFrom", HeaderEnvelopeFrom, "EnvelopeFrom"},
 		{"From", HeaderFrom, "From"},
 		{"To", HeaderTo, "To"},
 		{"Cc", HeaderCc, "Cc"},
@@ -122,4 +123,47 @@ func TestHeader_Stringer(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestIsAddrHeader(t *testing.T) {
+	t.Run("validate all address headers", func(t *testing.T) {
+		for _, tt := range addrHeaderTests {
+			t.Run(tt.name+" is a valid address header", func(t *testing.T) {
+				if !IsAddrHeader(tt.header.String()) {
+					t.Errorf("expected %s to be a valid address header", tt.header.String())
+				}
+			})
+		}
+	})
+	t.Run("validate all non-address headers", func(t *testing.T) {
+		for _, tt := range genHeaderTests {
+			t.Run(tt.name+" is not an address header", func(t *testing.T) {
+				if IsAddrHeader(tt.header.String()) {
+					t.Errorf("expected %s to not be an address header", tt.header.String())
+				}
+			})
+		}
+	})
+	t.Run("validate mixed headers from map", func(t *testing.T) {
+		someHeaders := map[string]string{
+			"To":         "toni.tester@example.com",
+			"From":       "tina.tester@example.com",
+			"Subject":    "this is the subject",
+			"Message-ID": "test.mail.1234567@localhost.local",
+		}
+		message := NewMsg()
+		for k, v := range someHeaders {
+			if IsAddrHeader(k) {
+				if err := message.SetAddrHeader(AddrHeader(k), v); err != nil {
+					t.Errorf("failed to set address header: %s", err)
+				}
+				continue
+			}
+			message.SetGenHeader(Header(k), v)
+		}
+		checkAddrHeader(t, message, HeaderTo, "IsAddrHeader", 0, 1, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderFrom, "IsAddrHeader", 0, 1, "tina.tester@example.com", "")
+		checkGenHeader(t, message, HeaderSubject, "IsAddrHeader", 0, 1, "this is the subject")
+		checkGenHeader(t, message, HeaderMessageID, "IsAddrHeader", 0, 1, "test.mail.1234567@localhost.local")
+	})
 }

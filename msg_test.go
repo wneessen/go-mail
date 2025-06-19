@@ -17,6 +17,7 @@ import (
 	ht "html/template"
 	"io"
 	"net"
+	"net/mail"
 	"os"
 	"os/exec"
 	"reflect"
@@ -748,6 +749,20 @@ func TestMsg_SetAddrHeader(t *testing.T) {
 	})
 }
 
+func TestMsg_SetAddrHeaderFromMailAddress(t *testing.T) {
+	t.Run("SetAddrHeaderFromMailAddress on nil msg should make addrHeader field", func(t *testing.T) {
+		addresses := mailAddresses(t)
+		m := &Msg{}
+		if m.addrHeader != nil {
+			t.Fatal("expected addrHeader to be nil")
+		}
+		m.SetAddrHeaderFromMailAddress(HeaderTo, addresses...)
+		if m.addrHeader == nil {
+			t.Fatal("expected addrHeader to not be nil after SetAddrHeaderFromMailAddress")
+		}
+	})
+}
+
 func TestMsg_SetAddrHeaderIgnoreInvalid(t *testing.T) {
 	t.Run("SetAddrHeaderIgnoreInvalid with valid address without <>", func(t *testing.T) {
 		for _, tt := range addrHeaderTests {
@@ -878,6 +893,36 @@ func TestMsg_EnvelopeFrom(t *testing.T) {
 	})
 }
 
+func TestMsg_EnvelopeFromMailAddress(t *testing.T) {
+	addresses := mailAddresses(t)
+	t.Run("EnvelopeFromMailAddress with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.EnvelopeFromMailAddress(addresses[0])
+		checkAddrHeader(t, message, HeaderEnvelopeFrom, "EnvelopeFromMailAddress", 0, 1, "toni.tester@example.com", "")
+	})
+	t.Run("EnvelopeFromMailAddress with valid address and name", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.EnvelopeFromMailAddress(addresses[1])
+		checkAddrHeader(t, message, HeaderEnvelopeFrom, "EnvelopeFromMailAddress", 0, 1, "tina.tester@example.com", "Tina Tester")
+	})
+	t.Run("EnvelopeFromMailAddress with nil", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.EnvelopeFromMailAddress(nil)
+		if from, ok := message.addrHeader[HeaderEnvelopeFrom]; ok {
+			t.Errorf("EnvelopeFrom address header should not be set, got: %v", from)
+		}
+	})
+}
+
 func TestMsg_EnvelopeFromFormat(t *testing.T) {
 	t.Run("EnvelopeFromFormat with valid address", func(t *testing.T) {
 		message := NewMsg()
@@ -953,6 +998,36 @@ func TestMsg_From(t *testing.T) {
 					t.Errorf("From on address %s should fail, but succeeded", tt.value)
 				}
 			})
+		}
+	})
+}
+
+func TestMsg_FromMailAddress(t *testing.T) {
+	addresses := mailAddresses(t)
+	t.Run("FromMailAddress with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.FromMailAddress(addresses[0])
+		checkAddrHeader(t, message, HeaderFrom, "FromMailAddress", 0, 1, "toni.tester@example.com", "")
+	})
+	t.Run("FromMailAddress with valid address and name", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.FromMailAddress(addresses[1])
+		checkAddrHeader(t, message, HeaderFrom, "FromMailAddress", 0, 1, "tina.tester@example.com", "Tina Tester")
+	})
+	t.Run("FromMailAddress with nil", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.FromMailAddress(nil)
+		if from, ok := message.addrHeader[HeaderFrom]; ok {
+			t.Errorf("From address header should not be set, got: %v", from)
 		}
 	})
 }
@@ -1047,6 +1122,46 @@ func TestMsg_To(t *testing.T) {
 	})
 }
 
+func TestMsg_ToMailAddress(t *testing.T) {
+	var addresses []*mail.Address
+	for _, address := range []string{
+		"toni.tester@example.com", `"Tina Tester" <tina.tester@example.com>`,
+		"michael.tester@example.com",
+	} {
+		addr, err := mail.ParseAddress(address)
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		addresses = append(addresses, addr)
+	}
+	t.Run("ToMailAddress with single address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.ToMailAddress(addresses[0])
+		checkAddrHeader(t, message, HeaderTo, "ToMailAddress", 0, 1, "toni.tester@example.com", "")
+	})
+	t.Run("ToMailAddress with multiple addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.ToMailAddress(addresses...)
+		checkAddrHeader(t, message, HeaderTo, "ToMailAddress", 0, 3, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderTo, "ToMailAddress", 1, 3, "tina.tester@example.com", "Tina Tester")
+		checkAddrHeader(t, message, HeaderTo, "ToMailAddress", 2, 3, "michael.tester@example.com", "")
+	})
+	t.Run("ToMailAddress with nil address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.ToMailAddress(nil)
+		checkAddrHeader(t, message, HeaderTo, "ToMailAddress", 0, 0, "", "")
+	})
+}
+
 func TestMsg_AddTo(t *testing.T) {
 	t.Run("AddTo with valid addresses", func(t *testing.T) {
 		message := NewMsg()
@@ -1104,6 +1219,65 @@ func TestMsg_AddToFormat(t *testing.T) {
 			t.Errorf("AddToFormat should fail with invalid address")
 		}
 		checkAddrHeader(t, message, HeaderTo, "AddToFormat", 0, 1, "toni.tester@example.com", "")
+	})
+}
+
+func TestMsg_AddToMailAddress(t *testing.T) {
+	t.Run("AddToMailAddress with valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.To("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set To: %s", err)
+		}
+
+		addr, err := mail.ParseAddress("tina.tester@example.com")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddToMailAddress(addr)
+
+		addr, err = mail.ParseAddress("michael.tester@example.com")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddToMailAddress(addr)
+
+		checkAddrHeader(t, message, HeaderTo, "AddToMailAddress", 0, 3, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderTo, "AddToMailAddress", 1, 3, "tina.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderTo, "AddToMailAddress", 2, 3, "michael.tester@example.com", "")
+	})
+	t.Run("AddToMailAddress with nil", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.To("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set To: %s", err)
+		}
+		message.AddToMailAddress(nil)
+		checkAddrHeader(t, message, HeaderTo, "AddToMailAddress", 0, 1, "toni.tester@example.com", "")
+	})
+	t.Run("AddToMailAddress with nil as initial address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.ToMailAddress(nil)
+
+		addr, err := mail.ParseAddress("toni.tester@example.com")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddToMailAddress(addr)
+		addr, err = mail.ParseAddress("Tina Tester <tina.tester@example.com>")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddToMailAddress(addr)
+		checkAddrHeader(t, message, HeaderTo, "AddToMailAddress", 0, 2, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderTo, "AddToMailAddress", 1, 2, "tina.tester@example.com", "Tina Tester")
 	})
 }
 
@@ -1255,6 +1429,65 @@ func TestMsg_AddCc(t *testing.T) {
 	})
 }
 
+func TestMsg_AddCcMailAddress(t *testing.T) {
+	t.Run("AddCcMailAddress with valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Cc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set Cc: %s", err)
+		}
+
+		addr, err := mail.ParseAddress("tina.tester@example.com")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddCcMailAddress(addr)
+
+		addr, err = mail.ParseAddress("michael.tester@example.com")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddCcMailAddress(addr)
+
+		checkAddrHeader(t, message, HeaderCc, "AddCcMailAddress", 0, 3, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderCc, "AddCcMailAddress", 1, 3, "tina.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderCc, "AddCcMailAddress", 2, 3, "michael.tester@example.com", "")
+	})
+	t.Run("AddCcMailAddress with nil", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Cc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set Cc: %s", err)
+		}
+		message.AddCcMailAddress(nil)
+		checkAddrHeader(t, message, HeaderCc, "AddCcMailAddress", 0, 1, "toni.tester@example.com", "")
+	})
+	t.Run("AddCcMailAddress with nil as initial address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.CcMailAddress(nil)
+
+		addr, err := mail.ParseAddress("toni.tester@example.com")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddCcMailAddress(addr)
+		addr, err = mail.ParseAddress("Tina Tester <tina.tester@example.com>")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddCcMailAddress(addr)
+		checkAddrHeader(t, message, HeaderCc, "AddCcMailAddress", 0, 2, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderCc, "AddCcMailAddress", 1, 2, "tina.tester@example.com", "Tina Tester")
+	})
+}
+
 func TestMsg_AddCcFormat(t *testing.T) {
 	t.Run("AddCcFormat with valid addresses", func(t *testing.T) {
 		message := NewMsg()
@@ -1344,6 +1577,46 @@ func TestMsg_CcFromString(t *testing.T) {
 	})
 }
 
+func TestMsg_CcMailAddress(t *testing.T) {
+	var addresses []*mail.Address
+	for _, address := range []string{
+		"toni.tester@example.com", `"Tina Tester" <tina.tester@example.com>`,
+		"michael.tester@example.com",
+	} {
+		addr, err := mail.ParseAddress(address)
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		addresses = append(addresses, addr)
+	}
+	t.Run("CcMailAddress with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.CcMailAddress(addresses[0])
+		checkAddrHeader(t, message, HeaderCc, "CcMailAddress", 0, 1, "toni.tester@example.com", "")
+	})
+	t.Run("CcMailAddress with multiple valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.CcMailAddress(addresses...)
+		checkAddrHeader(t, message, HeaderCc, "CcMailAddress", 0, 3, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderCc, "CcMailAddress", 1, 3, "tina.tester@example.com", "Tina Tester")
+		checkAddrHeader(t, message, HeaderCc, "CcMailAddress", 2, 3, "michael.tester@example.com", "")
+	})
+	t.Run("CcMailAddress with nil", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.CcMailAddress(nil)
+		checkAddrHeader(t, message, HeaderCc, "CcMailAddress", 0, 0, "", "")
+	})
+}
+
 func TestMsg_Bcc(t *testing.T) {
 	t.Run("Bcc with valid address", func(t *testing.T) {
 		message := NewMsg()
@@ -1403,6 +1676,46 @@ func TestMsg_Bcc(t *testing.T) {
 	})
 }
 
+func TestMsg_BccMailAddress(t *testing.T) {
+	var addresses []*mail.Address
+	for _, address := range []string{
+		"toni.tester@example.com", `"Tina Tester" <tina.tester@example.com>`,
+		"michael.tester@example.com",
+	} {
+		addr, err := mail.ParseAddress(address)
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		addresses = append(addresses, addr)
+	}
+	t.Run("BccMailAddress with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.BccMailAddress(addresses[0])
+		checkAddrHeader(t, message, HeaderBcc, "BccMailAddress", 0, 1, "toni.tester@example.com", "")
+	})
+	t.Run("BccMailAddress with multiple valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.BccMailAddress(addresses...)
+		checkAddrHeader(t, message, HeaderBcc, "BccMailAddress", 0, 3, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderBcc, "BccMailAddress", 1, 3, "tina.tester@example.com", "Tina Tester")
+		checkAddrHeader(t, message, HeaderBcc, "BccMailAddress", 2, 3, "michael.tester@example.com", "")
+	})
+	t.Run("BccMailAddress with nil", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.BccMailAddress(nil)
+		checkAddrHeader(t, message, HeaderBcc, "BccMailAddress", 0, 0, "", "")
+	})
+}
+
 func TestMsg_AddBcc(t *testing.T) {
 	t.Run("AddBcc with valid addresses", func(t *testing.T) {
 		message := NewMsg()
@@ -1430,6 +1743,65 @@ func TestMsg_AddBcc(t *testing.T) {
 			t.Errorf("AddBcc should fail with invalid address")
 		}
 		checkAddrHeader(t, message, HeaderBcc, "AddBcc", 0, 1, "toni.tester@example.com", "")
+	})
+}
+
+func TestMsg_AddBccMailAddress(t *testing.T) {
+	t.Run("AddBccMailAddress with valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Bcc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set Bcc: %s", err)
+		}
+
+		addr, err := mail.ParseAddress("tina.tester@example.com")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddBccMailAddress(addr)
+
+		addr, err = mail.ParseAddress("michael.tester@example.com")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddBccMailAddress(addr)
+
+		checkAddrHeader(t, message, HeaderBcc, "AddBccMailAddress", 0, 3, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderBcc, "AddBccMailAddress", 1, 3, "tina.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderBcc, "AddBccMailAddress", 2, 3, "michael.tester@example.com", "")
+	})
+	t.Run("AddBccMailAddress with nil", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.Bcc("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set Bcc: %s", err)
+		}
+		message.AddBccMailAddress(nil)
+		checkAddrHeader(t, message, HeaderBcc, "AddBccMailAddress", 0, 1, "toni.tester@example.com", "")
+	})
+	t.Run("AddBccMailAddress with nil as initial address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.BccMailAddress(nil)
+
+		addr, err := mail.ParseAddress("toni.tester@example.com")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddBccMailAddress(addr)
+		addr, err = mail.ParseAddress("Tina Tester <tina.tester@example.com>")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddBccMailAddress(addr)
+		checkAddrHeader(t, message, HeaderBcc, "AddBccMailAddress", 0, 2, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderBcc, "AddBccMailAddress", 1, 2, "tina.tester@example.com", "Tina Tester")
 	})
 }
 
@@ -1566,6 +1938,36 @@ func TestMsg_ReplyTo(t *testing.T) {
 					t.Errorf("ReplyTo on address %s should fail, but succeeded", tt.value)
 				}
 			})
+		}
+	})
+}
+
+func TestMsg_ReplyToMailAddress(t *testing.T) {
+	addresses := mailAddresses(t)
+	t.Run("ReplyToMailAddress with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.ReplyToMailAddress(addresses[0])
+		checkAddrHeader(t, message, HeaderReplyTo, "ReplyToMailAddress", 0, 1, "toni.tester@example.com", "")
+	})
+	t.Run("ReplyToMailAddress with valid address and name", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.ReplyToMailAddress(addresses[1])
+		checkAddrHeader(t, message, HeaderReplyTo, "ReplyToMailAddress", 0, 1, "tina.tester@example.com", "Tina Tester")
+	})
+	t.Run("ReplyToMailAddress with nil", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.ReplyToMailAddress(nil)
+		if replyto, ok := message.addrHeader[HeaderReplyTo]; ok {
+			t.Errorf("ReplyTo address header should not be set, got: %v", replyto)
 		}
 	})
 }
@@ -7441,6 +7843,10 @@ func checkAddrHeader(t *testing.T, message *Msg, header AddrHeader, fn string, f
 	if len(addresses) != wantFields {
 		t.Fatalf("failed to exec %s, addrHeader value count is: %d, want: %d", fn, len(addresses), field)
 	}
+	if len(addresses) == 0 {
+		t.Logf("no addresses found, skipping further checks")
+		return
+	}
 	if addresses[field].Address != wantMail {
 		t.Errorf("failed to exec %s, addrHeader value is %s, want: %s", fn, addresses[field].Address, wantMail)
 	}
@@ -7524,6 +7930,22 @@ func checkMessageContent(t *testing.T, buffer *bytes.Buffer, wants []msgContentT
 			}
 		}
 	}
+}
+
+func mailAddresses(t *testing.T) []*mail.Address {
+	var addresses []*mail.Address
+	for _, address := range []string{
+		"toni.tester@example.com",
+		`"Tina Tester" <tina.tester@example.com>`,
+		"michael.tester@example.com",
+	} {
+		addr, err := mail.ParseAddress(address)
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		addresses = append(addresses, addr)
+	}
+	return addresses
 }
 
 // Fuzzing tests
