@@ -621,7 +621,7 @@ func (m *Msg) SetAddrHeaderFromMailAddress(header AddrHeader, values ...*mail.Ad
 	}
 
 	switch header {
-	case HeaderFrom:
+	case HeaderFrom, HeaderReplyTo:
 		if len(addresses) > 0 {
 			m.addrHeader[header] = []*mail.Address{addresses[0]}
 		}
@@ -1023,9 +1023,9 @@ func (m *Msg) Bcc(rcpts ...string) error {
 
 // BccMailAddress sets one or more "BCC" (blind carbon copy) addresses in the mail body for the Msg.
 //
-// The "CC" address specifies secondary recipient(s) of the message, and is included in the mail body.
-// These addresses are not visible in the mail body or to any other recipients, ensuring
-// the privacy of BCC'd recipients. Multiple "BCC" addresses can be set by passing them as variadic
+// The "BCC" address specifies recipient(s) of the message who will receive a copy without other recipients
+// being aware of it. These addresses are not visible in the mail body or to any other recipients, ensuring
+// the privacy of BCC'd recipients. Multiple "BCC" addresses can be set by passing them as variadic arguments
 // arguments to this method.
 //
 // Parameters:
@@ -1145,6 +1145,20 @@ func (m *Msg) BccFromString(rcpts string) error {
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
 func (m *Msg) ReplyTo(addr string) error {
 	return m.SetAddrHeader(HeaderReplyTo, addr)
+}
+
+// ReplyToMailAddress sets one or more "BCC" (blind carbon copy) addresses in the mail body for the Msg.
+//
+// The "Reply-To" address can be different from the "From" address, allowing the sender to specify an alternate
+// address for responses.
+//
+// Parameters:
+//   - rcpts: The mail.Address instance to set as the "Reply-To" address.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+func (m *Msg) ReplyToMailAddress(addr *mail.Address) {
+	m.SetAddrHeaderFromMailAddress(HeaderReplyTo, addr)
 }
 
 // ReplyToFormat sets the "Reply-To" address for the Msg using the provided name and email address, specifying

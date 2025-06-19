@@ -1892,6 +1892,36 @@ func TestMsg_ReplyTo(t *testing.T) {
 	})
 }
 
+func TestMsg_ReplyToMailAddress(t *testing.T) {
+	addresses := mailAddresses(t)
+	t.Run("ReplyToMailAddress with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.ReplyToMailAddress(addresses[0])
+		checkAddrHeader(t, message, HeaderReplyTo, "ReplyToMailAddress", 0, 1, "toni.tester@example.com", "")
+	})
+	t.Run("ReplyToMailAddress with valid address and name", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.ReplyToMailAddress(addresses[1])
+		checkAddrHeader(t, message, HeaderReplyTo, "ReplyToMailAddress", 0, 1, "tina.tester@example.com", "Tina Tester")
+	})
+	t.Run("ReplyToMailAddress with nil", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.ReplyToMailAddress(nil)
+		if replyto, ok := message.addrHeader[HeaderReplyTo]; ok {
+			t.Errorf("ReplyTo address header should not be set, got: %v", replyto)
+		}
+	})
+}
+
 func TestMsg_ReplyToFormat(t *testing.T) {
 	t.Run("ReplyToFormat with valid address", func(t *testing.T) {
 		message := NewMsg()
