@@ -621,7 +621,7 @@ func (m *Msg) SetAddrHeaderFromMailAddress(header AddrHeader, values ...*mail.Ad
 	}
 
 	switch header {
-	case HeaderFrom, HeaderReplyTo:
+	case HeaderEnvelopeFrom, HeaderFrom, HeaderReplyTo:
 		if len(addresses) > 0 {
 			m.addrHeader[header] = []*mail.Address{addresses[0]}
 		}
@@ -699,6 +699,23 @@ func (m *Msg) EnvelopeFrom(from string) error {
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
 func (m *Msg) EnvelopeFromFormat(name, addr string) error {
 	return m.SetAddrHeader(HeaderEnvelopeFrom, fmt.Sprintf(`"%s" <%s>`, name, addr))
+}
+
+// EnvelopeFromMailAddress sets the "FROM" address in the mail body for the Msg using a mail.Address instance.
+//
+// The HeaderEnvelopeFrom address is generally not included in the mail body but only used by the
+// Client for communication with the SMTP server. If the Msg has no "FROM" address set in the mail
+// body, the msgWriter will try to use the envelope from address if it has been set for the Msg.
+// The provided name and address are validated according to RFC 5322 and will return an error if
+// the validation fails.
+//
+// Parameters:
+//   - addr: The address as mail.Address instance to be set as envelope from address.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
+func (m *Msg) EnvelopeFromMailAddress(addr *mail.Address) {
+	m.SetAddrHeaderFromMailAddress(HeaderEnvelopeFrom, addr)
 }
 
 // From sets the "FROM" address in the mail body for the Msg.
@@ -1153,7 +1170,7 @@ func (m *Msg) ReplyTo(addr string) error {
 // address for responses.
 //
 // Parameters:
-//   - rcpts: The mail.Address instance to set as the "Reply-To" address.
+//   - addr: The mail.Address instance to set as the "Reply-To" address.
 //
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3

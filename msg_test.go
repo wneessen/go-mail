@@ -879,6 +879,36 @@ func TestMsg_EnvelopeFrom(t *testing.T) {
 	})
 }
 
+func TestMsg_EnvelopeFromMailAddress(t *testing.T) {
+	addresses := mailAddresses(t)
+	t.Run("EnvelopeFromMailAddress with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.EnvelopeFromMailAddress(addresses[0])
+		checkAddrHeader(t, message, HeaderEnvelopeFrom, "EnvelopeFromMailAddress", 0, 1, "toni.tester@example.com", "")
+	})
+	t.Run("EnvelopeFromMailAddress with valid address and name", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.EnvelopeFromMailAddress(addresses[1])
+		checkAddrHeader(t, message, HeaderEnvelopeFrom, "EnvelopeFromMailAddress", 0, 1, "tina.tester@example.com", "Tina Tester")
+	})
+	t.Run("EnvelopeFromMailAddress with nil", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.EnvelopeFromMailAddress(nil)
+		if from, ok := message.addrHeader[HeaderEnvelopeFrom]; ok {
+			t.Errorf("EnvelopeFrom address header should not be set, got: %v", from)
+		}
+	})
+}
+
 func TestMsg_EnvelopeFromFormat(t *testing.T) {
 	t.Run("EnvelopeFromFormat with valid address", func(t *testing.T) {
 		message := NewMsg()
