@@ -749,6 +749,20 @@ func TestMsg_SetAddrHeader(t *testing.T) {
 	})
 }
 
+func TestMsg_SetAddrHeaderFromMailAddress(t *testing.T) {
+	t.Run("SetAddrHeaderFromMailAddress on nil msg should make addrHeader field", func(t *testing.T) {
+		addresses := mailAddresses(t)
+		m := &Msg{}
+		if m.addrHeader != nil {
+			t.Fatal("expected addrHeader to be nil")
+		}
+		m.SetAddrHeaderFromMailAddress(HeaderTo, addresses...)
+		if m.addrHeader == nil {
+			t.Fatal("expected addrHeader to not be nil after SetAddrHeaderFromMailAddress")
+		}
+	})
+}
+
 func TestMsg_SetAddrHeaderIgnoreInvalid(t *testing.T) {
 	t.Run("SetAddrHeaderIgnoreInvalid with valid address without <>", func(t *testing.T) {
 		for _, tt := range addrHeaderTests {
