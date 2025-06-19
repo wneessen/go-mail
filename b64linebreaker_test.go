@@ -10,6 +10,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -22,7 +23,7 @@ var (
 func TestBase64LineBreaker(t *testing.T) {
 	t.Run("write, copy and close", func(t *testing.T) {
 		logoWriter := bytes.NewBuffer(nil)
-		lineBreaker := &Base64LineBreaker{out: logoWriter}
+		lineBreaker := &base64LineBreaker{out: logoWriter}
 		t.Cleanup(func() {
 			if err := lineBreaker.Close(); err != nil {
 				t.Errorf("failed to close line breaker: %s", err)
@@ -44,7 +45,7 @@ func TestBase64LineBreaker(t *testing.T) {
 		})
 
 		logoWriter := bytes.NewBuffer(nil)
-		lineBreaker := &Base64LineBreaker{out: logoWriter}
+		lineBreaker := &base64LineBreaker{out: logoWriter}
 		t.Cleanup(func() {
 			if err := lineBreaker.Close(); err != nil {
 				t.Errorf("failed to close line breaker: %s", err)
@@ -86,16 +87,17 @@ func TestBase64LineBreaker(t *testing.T) {
 		}
 	})
 	t.Run("fail with no writer defined", func(t *testing.T) {
-		lineBreaker := &Base64LineBreaker{}
+		lineBreaker := &base64LineBreaker{}
 		_, err := lineBreaker.Write([]byte("testdata"))
 		if err == nil {
-			t.Errorf("writing to Base64LineBreaker with no output io.Writer was supposed to failed, but didn't")
+			t.Errorf("writing to base64LineBreaker with no output io.Writer was supposed to failed, but didn't")
 		}
-		if !errors.Is(err, ErrNoOutWriter) {
-			t.Errorf("unexpected error while writing to empty Base64LineBreaker: %s", err)
+		expErr := "no io.Writer set for base64LineBreaker"
+		if !strings.Contains(err.Error(), expErr) {
+			t.Errorf("unexpected error while writing to empty base64LineBreaker: %s", err)
 		}
-		if err := lineBreaker.Close(); err != nil {
-			t.Errorf("failed to close Base64LineBreaker: %s", err)
+		if err = lineBreaker.Close(); err != nil {
+			t.Errorf("failed to close base64LineBreaker: %s", err)
 		}
 	})
 	t.Run("write on an already closed output writer", func(t *testing.T) {
@@ -110,14 +112,14 @@ func TestBase64LineBreaker(t *testing.T) {
 		})
 
 		writeBuffer := &errorWriter{}
-		lineBreaker := &Base64LineBreaker{out: writeBuffer}
+		lineBreaker := &base64LineBreaker{out: writeBuffer}
 		_, err = io.Copy(lineBreaker, logo)
 		if err == nil {
-			t.Errorf("writing to Base64LineBreaker with an already closed output io.Writer was " +
+			t.Errorf("writing to base64LineBreaker with an already closed output io.Writer was " +
 				"supposed to failed, but didn't")
 		}
 		if !errors.Is(err, errClosedWriter) {
-			t.Errorf("unexpected error while writing to Base64LineBreaker: %s", err)
+			t.Errorf("unexpected error while writing to base64LineBreaker: %s", err)
 		}
 	})
 	t.Run("fail on different scenarios with mock writer", func(t *testing.T) {
@@ -146,7 +148,7 @@ func TestBase64LineBreaker(t *testing.T) {
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				lineBreaker := &Base64LineBreaker{out: tt.writer}
+				lineBreaker := &base64LineBreaker{out: tt.writer}
 
 				_, err := lineBreaker.Write(tt.data)
 				if err != nil && !errors.Is(err, errMockDefault) && !errors.Is(err, errMockNewline) {
@@ -233,19 +235,27 @@ func FuzzBase64LineBreaker(f *testing.F) {
 		{0o0, 0o1, 0o2, 30, 255},
 	}
 	for _, data := range seedData {
-		f.Add(data)
+		f.Add(data, len(data))
+		f.Add(data, 1)
 	}
 
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(t *testing.T, data []byte, chunkSize int) {
+		if chunkSize <= 0 || chunkSize > len(data)+1 {
+			return
+		}
 		buffer := bytes.NewBuffer(nil)
-		lineBreaker := &Base64LineBreaker{
+		lineBreaker := &base64LineBreaker{
 			out: buffer,
 		}
 		base64Encoder := base64.NewEncoder(base64.StdEncoding, lineBreaker)
 
-		_, err := base64Encoder.Write(data)
+		chunk := make([]byte, chunkSize)
+		n, err := io.CopyBuffer(base64Encoder, bytes.NewReader(data), chunk)
 		if err != nil {
 			t.Errorf("failed to write test data to base64 encoder: %s", err)
+		}
+		if n != int64(len(data)) {
+			t.Errorf("unexpected written bytes count: got %d, expected %d", n, len(data))
 		}
 		if err = base64Encoder.Close(); err != nil {
 			t.Errorf("failed to close base64 encoder: %s", err)

@@ -2,80 +2,144 @@
 ##
 ## SPDX-License-Identifier: MIT
 
+version = '2'
+
 [run]
-go = "1.23"
+go = '1.24'
 tests = true
-exclude-dirs = ["examples"]
 
 [linters]
-enable = ["stylecheck", "whitespace", "containedctx", "contextcheck", "decorder",
-    "errname", "errorlint", "gofmt", "gofumpt", "gosec"]
+enable = [
+  'containedctx',
+  'contextcheck',
+  'decorder',
+  'errname',
+  'errorlint',
+  'gosec',
+  'staticcheck',
+  'whitespace'
+]
 
-[issues]
+[linters.exclusions]
+generated = 'lax'
+presets = [
+  'comments',
+  'common-false-positives',
+  'legacy',
+  'std-error-handling'
+]
+paths = [
+  'examples',
+  'third_party$',
+  'builtin$',
+  'examples$'
+]
 
 ## An overflow is impossible here
-[[issues.exclude-rules]]
-linters = ["gosec"]
-path = "random.go"
-text = "G115:"
+[[linters.exclusions.rules]]
+linters = [
+  'gosec'
+]
+path = 'random.go'
+text = 'G115:'
 
 ## These are tests which intentionally do not need any TLS settings
-[[issues.exclude-rules]]
-linters = ["gosec"]
-path = "client_test.go"
-text = "G402:"
+[[linters.exclusions.rules]]
+linters = [
+  'gosec'
+]
+path = 'client_test.go'
+text = 'G402:'
 
 ## These are tests which intentionally do not need any TLS settings
-[[issues.exclude-rules]]
-linters = ["gosec"]
-path = "smtp/smtp_test.go"
-text = "G402:"
+[[linters.exclusions.rules]]
+linters = [
+  'gosec'
+]
+path = 'smtp/smtp_test.go'
+text = 'G402:'
 
 ## We do not dictate a TLS minimum version in the smtp package. go-mail
 ## itself does set sane defaults
-[[issues.exclude-rules]]
-linters = ["gosec"]
-path = "smtp/smtp.go"
-text = "G402:"
+[[linters.exclusions.rules]]
+linters = [
+  'gosec'
+]
+path = 'smtp/smtp.go'
+text = 'G402:'
 
 ## The chance that we write +2 million tests is very low, I think we can
 ## ignore this for the time being
-[[issues.exclude-rules]]
-linters = ["gosec"]
-path = "client_test.go"
-text = "G109:"
+[[linters.exclusions.rules]]
+linters = [
+  'gosec'
+]
+path = 'client_test.go'
+text = 'G109:'
 
 ## The chance that we write +2 million tests is very low, I think we can
 ## ignore this for the time being
-[[issues.exclude-rules]]
-linters = ["gosec"]
-path = "smtp/smtp_test.go"
-text = "G109:"
+[[linters.exclusions.rules]]
+linters = [
+  'gosec'
+]
+path = 'smtp/smtp_test.go'
+text = 'G109:'
 
 ## We inform the user about the deprecated status of CRAM-MD5 and suggest
 ## to use SCRAM-SHA instead
-[[issues.exclude-rules]]
-linters = ["gosec"]
-path = "smtp/auth_cram_md5.go"
-text = "G501:"
+[[linters.exclusions.rules]]
+linters = [
+  'gosec'
+]
+path = 'smtp/auth_cram_md5.go'
+text = 'G501:'
 
 ## Yes, SHA1 is weak, but in the context of SCRAM it is still considered
 ## secure for specific applications. The user is information about this
 ## in the documentation
-[[issues.exclude-rules]]
-linters = ["gosec"]
-path = "smtp/auth_scram.go"
-text = "G505:"
+[[linters.exclusions.rules]]
+linters = [
+  'gosec'
+]
+path = 'smtp/auth_scram.go'
+text = 'G505:'
 
 ## Test code for SCRAM-SHA1. Can be ignored.
-[[issues.exclude-rules]]
-linters = ["gosec"]
-path = "smtp/smtp_test.go"
-text = "G505:"
+[[linters.exclusions.rules]]
+linters = [
+  'gosec'
+]
+path = 'smtp/smtp_test.go'
+text = 'G505:'
 
 ## These are tests which intentionally do not need any TLS settings
-[[issues.exclude-rules]]
-linters = ["gosec"]
-path = "quicksend_test.go"
-text = "G402:"
+[[linters.exclusions.rules]]
+linters = [
+  'gosec'
+]
+path = 'quicksend_test.go'
+text = 'G402:'
 
+## These are tests which intentionally test SHA1 and SHA256
+[[linters.exclusions.rules]]
+linters = [
+  'gosec'
+]
+path = 'internal/pbkdf2/pbkdf2_test.go'
+text = 'G505:'
+
+[formatters]
+enable = [
+  'gofmt',
+  'gofumpt'
+]
+
+[formatters.exclusions]
+generated = 'lax'
+paths = [
+  'examples',
+  'third_party$',
+  'builtin$',
+  'examples$'
+]

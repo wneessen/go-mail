@@ -41,6 +41,10 @@ func TestRandomStringSecure(t *testing.T) {
 		}
 	})
 	t.Run("randomStringSecure fails on broken rand Reader (first read)", func(t *testing.T) {
+		version := getGoVersion(t)
+		if version >= 1.24 {
+			t.Skip("Go 1.24+ never fails on broken rand Reader. See: https://github.com/golang/go/issues/66821")
+		}
 		defaultRandReader := rand.Reader
 		t.Cleanup(func() { rand.Reader = defaultRandReader })
 		rand.Reader = &randReader{failon: 1}
@@ -49,6 +53,10 @@ func TestRandomStringSecure(t *testing.T) {
 		}
 	})
 	t.Run("randomStringSecure fails on broken rand Reader (second read)", func(t *testing.T) {
+		version := getGoVersion(t)
+		if version >= 1.24 {
+			t.Skip("Go 1.24+ never fails on broken rand Reader. See: https://github.com/golang/go/issues/66821")
+		}
 		defaultRandReader := rand.Reader
 		t.Cleanup(func() { rand.Reader = defaultRandReader })
 		rand.Reader = &randReader{failon: 0}
@@ -69,6 +77,10 @@ func TestRandomBoundary(t *testing.T) {
 		}
 	})
 	t.Run("randomBoundary fails on broken rand Reader", func(t *testing.T) {
+		version := getGoVersion(t)
+		if version >= 1.24 {
+			t.Skip("Go 1.24+ never fails on broken rand Reader. See: https://github.com/golang/go/issues/66821")
+		}
 		defaultRandReader := rand.Reader
 		t.Cleanup(func() { rand.Reader = defaultRandReader })
 		rand.Reader = &randReader{failon: 1}

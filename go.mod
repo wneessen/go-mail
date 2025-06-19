@@ -4,9 +4,6 @@
 
 module github.com/wneessen/go-mail
 
-go 1.16
+go 1.20
 
-require (
-	golang.org/x/crypto v0.33.0
-	golang.org/x/text v0.22.0
-)
+require golang.org/x/text v0.22.0

@@ -11,9 +11,6 @@
 //
 // SPDX-License-Identifier: BSD-3-Clause AND MIT
 
-//go:build go1.18
-// +build go1.18
-
 package smtp
 
 import "strings"

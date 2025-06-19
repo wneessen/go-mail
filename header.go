@@ -4,6 +4,8 @@
 
 package mail
 
+import "strings"
+
 // Header is a type wrapper for a string and represents email header fields in a Msg.
 type Header string
 
@@ -76,9 +78,6 @@ const (
 	// HeaderReferences is the "References" header field.
 	HeaderReferences Header = "References"
 
-	// HeaderReplyTo is the "Reply-To" header field.
-	HeaderReplyTo Header = "Reply-To"
-
 	// HeaderSubject is the "Subject" header field.
 	HeaderSubject Header = "Subject"
 
@@ -115,7 +114,10 @@ const (
 	// HeaderFrom is the "From" header field.
 	HeaderFrom AddrHeader = "From"
 
-	// HeaderTo is the "Receipient" header field.
+	// HeaderReplyTo is the "Reply-To" header field.
+	HeaderReplyTo AddrHeader = "Reply-To"
+
+	// HeaderTo is the "Recipient" header field.
 	HeaderTo AddrHeader = "To"
 )
 
@@ -221,4 +223,19 @@ func (h Header) String() string {
 //   - A string representing the AddrHeader.
 func (a AddrHeader) String() string {
 	return string(a)
+}
+
+// IsAddrHeader checks if the provided string is an address header. It returns true on a valid AddrHeader
+// and false for any other string.
+//
+// Parameters:
+//   - header: The string to check.
+func IsAddrHeader(header string) bool {
+	addrHeaderList := []string{"bcc", "cc", "envelopefrom", "from", "reply-to", "to"}
+	for _, addrHeader := range addrHeaderList {
+		if addrHeader == strings.ToLower(header) {
+			return true
+		}
+	}
+	return false
 }

@@ -889,6 +889,40 @@ Content-Disposition: broken; filename="test.png"
 iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIW2NgYGD4DwABBAEAwS2O
 UAAAAABJRU5ErkJggg==
 --abc123--`
+	// https://github.com/wneessen/go-mail/issues/457
+	exampleMailPlainB64WithAttachmentAndMetadata = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+MIME-Version: 1.0
+Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
+Subject: Example mail // plain text base64 with attachment
+User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Cc: <go-mail+cc@go-mail.dev>
+Content-Type: multipart/mixed;
+ boundary=45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+Content-Transfer-Encoding: base64
+Content-Type: text/plain; charset=UTF-8
+
+RGVhciBDdXN0b21lciwKClRoaXMgaXMgYSB0ZXN0IG1haWwuIFBsZWFzZSBkbyBub3QgcmVwbHkg
+dG8gdGhpcy4gQWxzbyB0aGlzIGxpbmUgaXMgdmVyeSBsb25nIHNvIGl0CnNob3VsZCBiZSB3cmFw
+cGVkLgoKClRoYW5rIHlvdXIgZm9yIHlvdXIgYnVzaW5lc3MhClRoZSBnby1tYWlsIHRlYW0KCi0t
+ClRoaXMgaXMgYSBzaWduYXR1cmU=
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+Content-Disposition: attachment; filename="test.attachment";
+	size=1043; creation-date="Mon, 01 Jan 2025 01:02:34 GMT";
+    modification-date="Mon, 01 Jan 2025 03:04:56 GMT"
+Content-Transfer-Encoding: base64
+Content-Type: application/octet-stream; name="test.attachment"
+
+VGhpcyBpcyBhIHNpbXBsZSB0ZXN0IHRleHQgZmlsZSBhdHRhY2htZW50LgoKSXQgCiAgaGFzCiAg
+ICAgc2V2ZXJhbAogICAgICAgICAgICBuZXdsaW5lcwoJICAgICAgICAgICAgYW5kCgkgICAgc3Bh
+Y2VzCiAgICAgaW4KICBpdAouCgpBcyB3ZWxsIGFzIGFuIGVtb2ppOiDwn5mCCg==
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7--`
 )
 
 func TestEMLToMsgFromReader(t *testing.T) {
@@ -1136,6 +1170,21 @@ func TestEMLToMsgFromReader(t *testing.T) {
 			})
 		}
 	})
+	// https://github.com/wneessen/go-mail/issues/457
+	t.Run("EMLToMsgFromReader via EMLToMsgFromString with attachment and metadata", func(t *testing.T) {
+		message, err := EMLToMsgFromString(exampleMailPlainB64WithAttachmentAndMetadata)
+		if err != nil {
+			t.Fatalf("failed to parse EML string: %s", err)
+		}
+		attachments := message.GetAttachments()
+		if len(attachments) != 1 {
+			t.Fatalf("failed to parse EML string, expected 1 attachment, got %d", len(attachments))
+		}
+		if attachments[0].Name != "test.attachment" {
+			t.Errorf("failed to parse EML string, expected attachment name 'test.attachment', got %s",
+				attachments[0].Name)
+		}
+	})
 }
 
 func TestEMLToMsgFromFile(t *testing.T) {
@@ -1170,384 +1219,15 @@ func TestEMLToMsgFromFile(t *testing.T) {
 			t.Errorf("EMLToMsgFromFile with invalid EML message should fail")
 		}
 	})
-}
-
-/*
-func TestEMLToMsgFromString(t *testing.T) {
-	tests := []struct {
-		name string
-		eml  string
-		enc  string
-		sub  string
-	}{
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			msg, err := EMLToMsgFromString(tt.eml)
-			if err != nil {
-				t.Errorf("failed to parse EML: %s", err)
-			}
-			if msg.Encoding() != tt.enc {
-				t.Errorf("EMLToMsgFromString failed: expected encoding: %s, but got: %s", tt.enc, msg.Encoding())
-			}
-			if subject := msg.GetGenHeader(HeaderSubject); len(subject) > 0 && !strings.EqualFold(subject[0], tt.sub) {
-				t.Errorf("EMLToMsgFromString failed: expected subject: %s, but got: %s",
-					tt.sub, subject[0])
-			}
-		})
-	}
-}
-
-func TestEMLToMsgFromFile(t *testing.T) {
-	tests := []struct {
-		name string
-		eml  string
-		enc  string
-		sub  string
-	}{
-		{
-			"Plain text no encoding", exampleMailPlainNoEnc, "8bit",
-			"Example mail // plain text without encoding",
-		},
-		{
-			"Plain text quoted-printable", exampleMailPlainQP, "quoted-printable",
-			"Example mail // plain text quoted-printable",
-		},
-		{
-			"Plain text base64", exampleMailPlainB64, "base64",
-			"Example mail // plain text base64",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tempDir, tempFile, err := stringToTempFile(tt.eml, tt.name)
-			defer func() {
-				if err = os.RemoveAll(tempDir); err != nil {
-					t.Error("failed to remove temp dir:", err)
-				}
-			}()
-			msg, err := EMLToMsgFromFile(tempFile)
-			if err != nil {
-				t.Errorf("failed to parse EML: %s", err)
-			}
-			if msg.Encoding() != tt.enc {
-				t.Errorf("EMLToMsgFromString failed: expected encoding: %s, but got: %s", tt.enc, msg.Encoding())
-			}
-			if subject := msg.GetGenHeader(HeaderSubject); len(subject) > 0 && !strings.EqualFold(subject[0], tt.sub) {
-				t.Errorf("EMLToMsgFromString failed: expected subject: %s, but got: %s",
-					tt.sub, subject[0])
-			}
-		})
-	}
-}
-
-func TestEMLToMsgFromReaderFailing(t *testing.T) {
-	mailbuf := bytes.NewBufferString(exampleMailPlainBrokenFrom)
-	_, err := EMLToMsgFromReader(mailbuf)
-	if err == nil {
-		t.Error("EML from Reader with broken FROM was supposed to fail, but didn't")
-	}
-	mailbuf.Reset()
-	mailbuf.WriteString(exampleMailPlainBrokenHeader)
-	_, err = EMLToMsgFromReader(mailbuf)
-	if err == nil {
-		t.Error("EML from Reader with broken header was supposed to fail, but didn't")
-	}
-	mailbuf.Reset()
-	mailbuf.WriteString(exampleMailPlainB64BrokenBody)
-	_, err = EMLToMsgFromReader(mailbuf)
-	if err == nil {
-		t.Error("EML from Reader with broken body was supposed to fail, but didn't")
-	}
-	mailbuf.Reset()
-	mailbuf.WriteString(exampleMailPlainBrokenBody)
-	_, err = EMLToMsgFromReader(mailbuf)
-	if err == nil {
-		t.Error("EML from Reader with broken body was supposed to fail, but didn't")
-	}
-	mailbuf.Reset()
-	mailbuf.WriteString(exampleMailPlainUnknownContentType)
-	_, err = EMLToMsgFromReader(mailbuf)
-	if err == nil {
-		t.Error("EML from Reader with unknown content type was supposed to fail, but didn't")
-	}
-	mailbuf.Reset()
-	mailbuf.WriteString(exampleMailPlainUnsupportedTransferEnc)
-	_, err = EMLToMsgFromReader(mailbuf)
-	if err == nil {
-		t.Error("EML from Reader with unsupported Transer-Encoding was supposed to fail, but didn't")
-	}
-}
-
-func TestEMLToMsgFromFileFailing(t *testing.T) {
-	tempDir, tempFile, err := stringToTempFile(exampleMailPlainBrokenFrom, "testmail")
-	if err != nil {
-		t.Errorf("failed to write EML string to temp file: %s", err)
-	}
-	_, err = EMLToMsgFromFile(tempFile)
-	if err == nil {
-		t.Error("EML from Reader with broken FROM was supposed to fail, but didn't")
-	}
-	if err = os.RemoveAll(tempDir); err != nil {
-		t.Error("failed to remove temp dir:", err)
-	}
-	tempDir, tempFile, err = stringToTempFile(exampleMailPlainBrokenHeader, "testmail")
-	if err != nil {
-		t.Errorf("failed to write EML string to temp file: %s", err)
-	}
-	_, err = EMLToMsgFromFile(tempFile)
-	if err == nil {
-		t.Error("EML from Reader with broken header was supposed to fail, but didn't")
-	}
-	if err = os.RemoveAll(tempDir); err != nil {
-		t.Error("failed to remove temp dir:", err)
-	}
-	tempDir, tempFile, err = stringToTempFile(exampleMailPlainB64BrokenBody, "testmail")
-	if err != nil {
-		t.Errorf("failed to write EML string to temp file: %s", err)
-	}
-	_, err = EMLToMsgFromFile(tempFile)
-	if err == nil {
-		t.Error("EML from Reader with broken body was supposed to fail, but didn't")
-	}
-	if err = os.RemoveAll(tempDir); err != nil {
-		t.Error("failed to remove temp dir:", err)
-	}
-	tempDir, tempFile, err = stringToTempFile(exampleMailPlainBrokenBody, "testmail")
-	if err != nil {
-		t.Errorf("failed to write EML string to temp file: %s", err)
-	}
-	_, err = EMLToMsgFromFile(tempFile)
-	if err == nil {
-		t.Error("EML from Reader with broken body was supposed to fail, but didn't")
-	}
-	if err = os.RemoveAll(tempDir); err != nil {
-		t.Error("failed to remove temp dir:", err)
-	}
-	tempDir, tempFile, err = stringToTempFile(exampleMailPlainUnknownContentType, "testmail")
-	if err != nil {
-		t.Errorf("failed to write EML string to temp file: %s", err)
-	}
-	_, err = EMLToMsgFromFile(tempFile)
-	if err == nil {
-		t.Error("EML from Reader with unknown content type was supposed to fail, but didn't")
-	}
-	if err = os.RemoveAll(tempDir); err != nil {
-		t.Error("failed to remove temp dir:", err)
-	}
-	tempDir, tempFile, err = stringToTempFile(exampleMailPlainUnsupportedTransferEnc, "testmail")
-	if err != nil {
-		t.Errorf("failed to write EML string to temp file: %s", err)
-	}
-	_, err = EMLToMsgFromFile(tempFile)
-	if err == nil {
-		t.Error("EML from Reader with unsupported Transer-Encoding was supposed to fail, but didn't")
-	}
-	if err = os.RemoveAll(tempDir); err != nil {
-		t.Error("failed to remove temp dir:", err)
-	}
-}
-
-func TestEMLToMsgFromStringBrokenDate(t *testing.T) {
-	_, err := EMLToMsgFromString(exampleMailPlainNoEncInvalidDate)
-	if err == nil {
-		t.Error("EML with invalid date was supposed to fail, but didn't")
-	}
-	now := time.Now()
-	m, err := EMLToMsgFromString(exampleMailPlainNoEncNoDate)
-	if err != nil {
-		t.Errorf("EML with no date parsing failed: %s", err)
-	}
-	da := m.GetGenHeader(HeaderDate)
-	if len(da) < 1 {
-		t.Error("EML with no date expected current date, but got nothing")
-		return
-	}
-	d := da[0]
-	if d != now.Format(time.RFC1123Z) {
-		t.Errorf("EML with no date expected: %s, got: %s", now.Format(time.RFC1123Z), d)
-	}
-}
-
-func TestEMLToMsgFromStringBrokenFrom(t *testing.T) {
-	_, err := EMLToMsgFromString(exampleMailPlainBrokenFrom)
-	if err == nil {
-		t.Error("EML with broken FROM was supposed to fail, but didn't")
-	}
-}
-
-func TestEMLToMsgFromStringBrokenTo(t *testing.T) {
-	_, err := EMLToMsgFromString(exampleMailPlainBrokenTo)
-	if err == nil {
-		t.Error("EML with broken TO was supposed to fail, but didn't")
-	}
-}
-
-func TestEMLToMsgFromStringNoBoundary(t *testing.T) {
-	_, err := EMLToMsgFromString(exampleMailPlainB64WithAttachmentNoBoundary)
-	if err == nil {
-		t.Error("EML with no boundary was supposed to fail, but didn't")
-	}
-}
-
-func TestEMLToMsgFromStringWithAttachment(t *testing.T) {
-	wantSubject := "Example mail // plain text base64 with attachment"
-	msg, err := EMLToMsgFromString(exampleMailPlainB64WithAttachment)
-	if err != nil {
-		t.Errorf("EML with attachment failed: %s", err)
-	}
-	if subject := msg.GetGenHeader(HeaderSubject); len(subject) > 0 && !strings.EqualFold(subject[0], wantSubject) {
-		t.Errorf("EMLToMsgFromString of EML with attachment failed: expected subject: %s, but got: %s",
-			wantSubject, subject[0])
-	}
-	if len(msg.attachments) != 1 {
-		t.Errorf("EMLToMsgFromString of EML with attachment failed: expected no. of attachments: %d, but got: %d",
-			1, len(msg.attachments))
-	}
-}
-
-func TestEMLToMsgFromStringWithEmbed(t *testing.T) {
-	wantSubject := "Example mail // plain text base64 with embed"
-	msg, err := EMLToMsgFromString(exampleMailPlainB64WithEmbed)
-	if err != nil {
-		t.Errorf("EML with embed failed: %s", err)
-	}
-	if subject := msg.GetGenHeader(HeaderSubject); len(subject) > 0 && !strings.EqualFold(subject[0], wantSubject) {
-		t.Errorf("EMLToMsgFromString of EML with embed failed: expected subject: %s, but got: %s",
-			wantSubject, subject[0])
-	}
-	if len(msg.embeds) != 1 {
-		t.Errorf("EMLToMsgFromString of EML with embed failed: expected no. of embeds: %d, but got: %d",
-			1, len(msg.embeds))
-	}
-	msg, err = EMLToMsgFromString(exampleMailPlainB64WithEmbedNoContentID)
-	if err != nil {
-		t.Errorf("EML with embed failed: %s", err)
-	}
-	if subject := msg.GetGenHeader(HeaderSubject); len(subject) > 0 && !strings.EqualFold(subject[0], wantSubject) {
-		t.Errorf("EMLToMsgFromString of EML with embed failed: expected subject: %s, but got: %s",
-			wantSubject, subject[0])
-	}
-	if len(msg.embeds) != 1 {
-		t.Errorf("EMLToMsgFromString of EML with embed failed: expected no. of embeds: %d, but got: %d",
-			1, len(msg.embeds))
-	}
-}
-
-func TestEMLToMsgFromStringMultipartMixedAlternativeRelated(t *testing.T) {
-	wantSubject := "Example mail // plain text base64 with attachment, embed and alternative part"
-	msg, err := EMLToMsgFromString(exampleMailMultipartMixedAlternativeRelated)
-	if err != nil {
-		t.Errorf("EML multipart mixed, related, alternative failed: %s", err)
-	}
-	if subject := msg.GetGenHeader(HeaderSubject); len(subject) > 0 && !strings.EqualFold(subject[0], wantSubject) {
-		t.Errorf("EMLToMsgFromString of EML multipart mixed, related, alternative failed: expected subject: %s,"+
-			" but got: %s", wantSubject, subject[0])
-	}
-	if len(msg.embeds) != 1 {
-		t.Errorf("EMLToMsgFromString of EML multipart mixed, related, alternative failed: expected no. of "+
-			"embeds: %d, but got: %d", 1, len(msg.embeds))
-	}
-	if len(msg.attachments) != 1 {
-		t.Errorf("EMLToMsgFromString of EML multipart mixed, related, alternative failed: expected no. of "+
-			"attachments: %d, but got: %d", 1, len(msg.attachments))
-	}
-	if len(msg.parts) != 3 {
-		t.Errorf("EMLToMsgFromString of EML multipart mixed, related, alternative failed: expected no. of "+
-			"parts: %d, but got: %d", 3, len(msg.parts))
-	}
-
-	var hasPlain, hasHTML, hasAlternative bool
-	for _, part := range msg.parts {
-		if strings.EqualFold(part.contentType.String(), TypeMultipartAlternative.String()) {
-			hasAlternative = true
+	// https://github.com/wneessen/go-mail/issues/446
+	t.Run("EMLToMsgFromFile and writing it back to buffer succeeds", func(t *testing.T) {
+		parsed, err := EMLToMsgFromFile("testdata/invoice.eml")
+		if err != nil {
+			t.Fatalf("EMLToMsgFromFile failed: %s ", err)
 		}
-		if strings.EqualFold(part.contentType.String(), TypeTextPlain.String()) {
-			hasPlain = true
+		buffer := bytes.NewBuffer(nil)
+		if _, err = parsed.WriteTo(buffer); err != nil {
+			t.Fatalf("failed to write parsed message to buffer: %s", err)
 		}
-		if strings.EqualFold(part.contentType.String(), TypeTextHTML.String()) {
-			hasHTML = true
-		}
-	}
-	if !hasPlain {
-		t.Error("EMLToMsgFromString of EML multipart mixed, related, alternative failed: expected PLAIN " +
-			"but got none")
-	}
-	if !hasHTML {
-		t.Error("EMLToMsgFromString of EML multipart mixed, related, alternative failed: expected HTML " +
-			"but got none")
-	}
-	if !hasAlternative {
-		t.Error("EMLToMsgFromString of EML multipart mixed, related, alternative failed: expected Alternative " +
-			"but got none")
-	}
+	})
 }
-
-func TestEMLToMsgFromStringMultipartMixedWith7Bit(t *testing.T) {
-	wantSubject := "Example mail // 7bit with base64 attachment"
-	msg, err := EMLToMsgFromString(exampleMultiPart7BitBase64)
-	if err != nil {
-		t.Errorf("EML multipart mixed with 7bit: %s", err)
-	}
-	if subject := msg.GetGenHeader(HeaderSubject); len(subject) > 0 && !strings.EqualFold(subject[0], wantSubject) {
-		t.Errorf("EMLToMsgFromString of EML multipart mixed with 7bit: expected subject: %s,"+
-			" but got: %s", wantSubject, subject[0])
-	}
-	if len(msg.parts) != 1 {
-		t.Errorf("EMLToMsgFromString of EML multipart mixed with 7bit failed: expected 1 part, got: %d",
-			len(msg.parts))
-		return
-	}
-	if !strings.EqualFold(msg.parts[0].GetEncoding().String(), EncodingUSASCII.String()) {
-		t.Errorf("EMLToMsgFromString of EML multipart mixed with 7bit failed: expected encoding: %s, got %s",
-			EncodingUSASCII.String(), msg.parts[0].GetEncoding().String())
-	}
-	if len(msg.attachments) != 1 {
-		t.Errorf("EMLToMsgFromString of EML multipart mixed with 7bit failed: expected 1 attachment, got: %d",
-			len(msg.attachments))
-		return
-	}
-}
-
-func TestEMLToMsgFromStringMultipartMixedWith8Bit(t *testing.T) {
-	wantSubject := "Example mail // 8bit with base64 attachment"
-	msg, err := EMLToMsgFromString(exampleMultiPart8BitBase64)
-	if err != nil {
-		t.Errorf("EML multipart mixed with 8bit: %s", err)
-	}
-	if subject := msg.GetGenHeader(HeaderSubject); len(subject) > 0 && !strings.EqualFold(subject[0], wantSubject) {
-		t.Errorf("EMLToMsgFromString of EML multipart mixed with 8bit: expected subject: %s,"+
-			" but got: %s", wantSubject, subject[0])
-	}
-	if len(msg.parts) != 1 {
-		t.Errorf("EMLToMsgFromString of EML multipart mixed with 8bit failed: expected 1 part, got: %d",
-			len(msg.parts))
-		return
-	}
-	if !strings.EqualFold(msg.parts[0].GetEncoding().String(), NoEncoding.String()) {
-		t.Errorf("EMLToMsgFromString of EML multipart mixed with 8bit failed: expected encoding: %s, got %s",
-			NoEncoding.String(), msg.parts[0].GetEncoding().String())
-	}
-	if len(msg.attachments) != 1 {
-		t.Errorf("EMLToMsgFromString of EML multipart mixed with 8bit failed: expected 1 attachment, got: %d",
-			len(msg.attachments))
-		return
-	}
-}
-
-// stringToTempFile is a helper method that will create a temporary file form a give data string
-func stringToTempFile(data, name string) (string, string, error) {
-	tempDir, err := os.MkdirTemp("", fmt.Sprintf("*-%s", name))
-	if err != nil {
-		return tempDir, "", fmt.Errorf("failed to create temp dir: %w", err)
-	}
-	filePath := fmt.Sprintf("%s/%s", tempDir, name)
-	err = os.WriteFile(filePath, []byte(data), 0o666)
-	if err != nil {
-		return tempDir, "", fmt.Errorf("failed to write data to temp file: %w", err)
-	}
-	return tempDir, filePath, nil
-}
-
-
-*/

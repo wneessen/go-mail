@@ -1230,6 +1230,9 @@ func (c *Client) Send(messages ...*Msg) (returnErr error) {
 //     or if the authentication process fails.
 func (c *Client) auth(client *smtp.Client, isEnc bool) error {
 	var smtpAuth smtp.Auth
+	if c.smtpAuthType == SMTPAuthCustom {
+		smtpAuth = c.smtpAuth
+	}
 	if c.smtpAuth == nil && c.smtpAuthType != SMTPAuthNoAuth {
 		hasSMTPAuth, smtpAuthType := client.Extension("AUTH")
 		if !hasSMTPAuth {

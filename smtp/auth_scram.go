@@ -19,8 +19,9 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/crypto/pbkdf2"
 	"golang.org/x/text/secure/precis"
+
+	"github.com/wneessen/go-mail/internal/pbkdf2"
 )
 
 // scramAuth represents a SCRAM (Salted Challenge Response Authentication Mechanism) client and

@@ -118,10 +118,13 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 	}
 
 	// Set the rest of the address headers
-	for _, to := range []AddrHeader{HeaderTo, HeaderCc} {
+	for _, to := range []AddrHeader{HeaderTo, HeaderCc, HeaderReplyTo} {
 		if addresses, ok := msg.addrHeader[to]; ok {
 			var val []string
 			for _, addr := range addresses {
+				if addr == nil {
+					continue
+				}
 				val = append(val, addr.String())
 			}
 			msg.headerCount += mw.writeHeader(Header(to), val...)
@@ -518,7 +521,7 @@ func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encodin
 		writer = mw.partWriter
 	}
 	writeBuffer := bytes.Buffer{}
-	lineBreaker := Base64LineBreaker{}
+	lineBreaker := base64LineBreaker{}
 	lineBreaker.out = &writeBuffer
 
 	switch encoding {

@@ -48,13 +48,7 @@ func EMLToMsgFromString(emlString string) (*Msg, error) {
 //   - A pointer to the Msg object populated with the parsed data, and an error if parsing
 //     fails.
 func EMLToMsgFromReader(reader io.Reader) (*Msg, error) {
-	msg := &Msg{
-		addrHeader:    make(map[AddrHeader][]*netmail.Address),
-		genHeader:     make(map[Header][]string),
-		preformHeader: make(map[Header]string),
-		mimever:       MIME10,
-	}
-
+	msg := NewMsg()
 	parsedMsg, bodybuf, err := readEMLFromReader(reader)
 	if err != nil || parsedMsg == nil {
 		return msg, fmt.Errorf("failed to parse EML from reader: %w", err)
@@ -81,13 +75,7 @@ func EMLToMsgFromReader(reader io.Reader) (*Msg, error) {
 //   - A pointer to the Msg object populated with the parsed data, and an error if parsing
 //     fails.
 func EMLToMsgFromFile(filePath string) (*Msg, error) {
-	msg := &Msg{
-		addrHeader:    make(map[AddrHeader][]*netmail.Address),
-		genHeader:     make(map[Header][]string),
-		preformHeader: make(map[Header]string),
-		mimever:       MIME10,
-	}
-
+	msg := NewMsg()
 	parsedMsg, bodybuf, err := readEML(filePath)
 	if err != nil || parsedMsg == nil {
 		return msg, fmt.Errorf("failed to parse EML file: %w", err)
@@ -544,10 +532,13 @@ func handleEMLMultiPartBase64Encoding(multiPartData []byte, part *Part) error {
 //   - The main header value as a string and a map of optional parameters.
 func parseMultiPartHeader(multiPartHeader string) (header string, optional map[string]string) {
 	optional = make(map[string]string)
-	headerSplit := strings.SplitN(multiPartHeader, ";", 2)
+	headerSplit := strings.Split(multiPartHeader, ";")
 	header = headerSplit[0]
-	if len(headerSplit) == 2 {
-		optString := strings.TrimLeft(headerSplit[1], " ")
+	if len(headerSplit) == 1 {
+		return
+	}
+	for _, opt := range headerSplit[1:] {
+		optString := strings.TrimLeft(opt, " ")
 		optSplit := strings.SplitN(optString, "=", 2)
 		if len(optSplit) == 2 {
 			optional[optSplit[0]] = optSplit[1]
