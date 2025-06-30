@@ -147,6 +147,10 @@ type Msg struct {
 	// different Content-Type settings in the msgWriter.
 	pgptype PGPType
 
+	// serverResponse holds the response from the sending server after the mail has been
+	// successfully queued
+	serverResponse string
+
 	// sendError represents an error encountered during the process of sending a Msg during the
 	// Client.Send operation.
 	//
@@ -1736,6 +1740,19 @@ func (m *Msg) GetAttachments() []*File {
 //   - https://datatracker.ietf.org/doc/html/rfc2046#section-5.1.1
 func (m *Msg) GetBoundary() string {
 	return m.boundary
+}
+
+// ServerResponse returns the server's response after queuing the mail.
+//
+// This function retrieves the value of m.serverResponse, which typically contains information
+// such as the queue ID returned by the mail server once a message has been queued. Unfortunately
+// different mail server software returns different server responses, therefore you have to
+// parse the output yourself.
+//
+// Returns:
+//   - The server response string, usually containing the queue ID or status.
+func (m *Msg) ServerResponse() string {
+	return m.serverResponse
 }
 
 // SetAttachments sets the attachments of the message.

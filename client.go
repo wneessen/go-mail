@@ -1454,6 +1454,9 @@ func (c *Client) sendSingleMsg(client *smtp.Client, message *Msg) error {
 			enhancedStatusCode: enhancedStatusCode(err, escSupport),
 		}
 	}
+	if dc, ok := writer.(*smtp.DataCloser); ok {
+		message.serverResponse = dc.ServerResponse()
+	}
 	message.isDelivered = true
 
 	if err = c.ResetWithSMTPClient(client); err != nil {
