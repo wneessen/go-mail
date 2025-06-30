@@ -2643,6 +2643,98 @@ func TestClient_Data(t *testing.T) {
 	})
 }
 
+func TestDataCloser_ServerResponse(t *testing.T) {
+	t.Run("successful delivery returns server response", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-DSN\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		writer, err := client.Data()
+		if err != nil {
+			t.Fatalf("failed to create data writer: %s", err)
+		}
+		if _, err = writer.Write([]byte("test message")); err != nil {
+			t.Errorf("failed to write data to test server: %s", err)
+		}
+		if err = writer.Close(); err != nil {
+			t.Errorf("failed to close data writer: %s", err)
+		}
+		dataCloser, ok := writer.(*DataCloser)
+		if !ok {
+			t.Fatalf("failed to cast writer to DataCloser")
+		}
+		exp := "2.0.0 Ok: queued as 1234567890"
+		if !strings.EqualFold(dataCloser.ServerResponse(), exp) {
+			t.Errorf("expected server response to be %q, but got %q", exp, dataCloser.ServerResponse())
+		}
+	})
+	t.Run("unclosed datacloser returns empty server response", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-DSN\r\n250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		writer, err := client.Data()
+		if err != nil {
+			t.Fatalf("failed to create data writer: %s", err)
+		}
+		if _, err = writer.Write([]byte("test message")); err != nil {
+			t.Errorf("failed to write data to test server: %s", err)
+		}
+		dataCloser, ok := writer.(*DataCloser)
+		if !ok {
+			t.Fatalf("failed to cast writer to DataCloser")
+		}
+		if dataCloser.ServerResponse() != "" {
+			t.Errorf("expected empty server response but got %q", dataCloser.ServerResponse())
+		}
+		if err = writer.Close(); err != nil {
+			t.Errorf("failed to close data writer: %s", err)
+		}
+	})
+}
+
 func TestSendMail(t *testing.T) {
 	tests := []struct {
 		name       string
