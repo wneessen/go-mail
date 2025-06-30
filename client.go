@@ -1455,7 +1455,7 @@ func (c *Client) sendSingleMsg(client *smtp.Client, message *Msg) error {
 		}
 	}
 	if dc, ok := writer.(*smtp.DataCloser); ok {
-		message.queueResponse = dc.ServerResponse()
+		message.serverResponse = dc.ServerResponse()
 	}
 	message.isDelivered = true
 
