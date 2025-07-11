@@ -201,13 +201,6 @@ func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, s
 	c.Text.StartResponse(id)
 	defer c.Text.EndResponse(id)
 	code, msg, err := c.Text.ReadResponse(expectCode)
-
-	logMsg = []interface{}{code, msg}
-	if c.authIsActive && code >= 300 && code <= 400 {
-		logMsg = []interface{}{code, "<SMTP auth data redacted>"}
-	}
-	c.debugLog(log.DirServerToClient, "%d %s", logMsg...)
-
 	if err != nil {
 		fmtValues := strings.Split(format, " ")
 		if len(fmtValues) <= 0 {
@@ -225,6 +218,12 @@ func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, s
 		// This assumes the handler has consumed the problematic data beforehand.
 		code, msg, err = c.Text.ReadResponse(expectCode)
 	}
+
+	logMsg = []interface{}{code, msg}
+	if c.authIsActive && code >= 300 && code <= 400 {
+		logMsg = []interface{}{code, "<SMTP auth data redacted>"}
+	}
+	c.debugLog(log.DirServerToClient, "%d %s", logMsg...)
 
 	c.mutex.Unlock()
 	return code, msg, err
