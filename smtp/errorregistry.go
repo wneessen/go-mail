@@ -16,13 +16,13 @@ import (
 // Parameters:
 //   - host: The hostname of the SMTP server that this ResponseErrorHandler should handle
 //   - command: The SMTP command that triggered the error.
-//   - err: The error received from the SMTP server.
 //   - conn: The textproto.Conn to the SMTP server.
+//   - err: The error received from the SMTP server.
 //
 // Returns:
 //   - An error indicating the outcome of the error handling logic.
 type ResponseErrorHandler interface {
-	HandleError(host, command string, err error, conn *textproto.Conn) error
+	HandleError(host, command string, conn *textproto.Conn, err error) error
 }
 
 // DefaultErrorHandler implements ResponseErrorHandler by returning the original error.
@@ -36,7 +36,7 @@ type ResponseErrorHandler interface {
 type DefaultErrorHandler struct{}
 
 // HandleError satisfies the ResponseErrorHandler interface for the DefaultErrorHandler type
-func (d *DefaultErrorHandler) HandleError(_, _ string, err error, _ *textproto.Conn) error {
+func (d *DefaultErrorHandler) HandleError(_, _ string, _ *textproto.Conn, err error) error {
 	return err
 }
 

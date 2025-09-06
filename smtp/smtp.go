@@ -208,7 +208,7 @@ func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, s
 		}
 		currentCmd := strings.ToLower(fmtValues[0])
 		handler := c.ErrorHandlerRegistry.GetHandler(c.serverName, currentCmd)
-		handledErr := handler.HandleError(c.serverName, currentCmd, err, c.Text)
+		handledErr := handler.HandleError(c.serverName, currentCmd, c.Text, err)
 		if handledErr != nil {
 			c.mutex.Unlock()
 			return 0, "", handledErr
