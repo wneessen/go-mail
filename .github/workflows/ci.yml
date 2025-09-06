@@ -126,9 +126,7 @@ jobs:
             cancel-in-progress: true
         strategy:
             matrix:
-                # TODO: macos builds are failing, needs invetigation
-                #os: [ubuntu-latest, macos-latest, windows-latest]
-                os: [ubuntu-latest, windows-latest]
+                os: [ubuntu-latest, windows-latest] # TODO: macos builds are failing, needs invetigation (macos-latest)
                 go: ['1.23', '1.24', '1.25']
         env:
             TEST_BASEPORT: ${{ vars.TEST_BASEPORT }}
