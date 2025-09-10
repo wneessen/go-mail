@@ -270,6 +270,9 @@ func parseEMLBodyParts(parsedMsg *netmail.Message, bodybuf *bytes.Buffer, msg *M
 	if value, ok := params["charset"]; ok {
 		msg.SetCharset(Charset(value))
 	}
+	if value, ok := params["boundary"]; ok {
+		msg.SetBoundary(value)
+	}
 
 	switch {
 	case strings.EqualFold(mediatype, TypeTextPlain.String()),

@@ -1231,3 +1231,30 @@ func TestEMLToMsgFromFile(t *testing.T) {
 		}
 	})
 }
+
+func TestToAndFromEMLMultipart(t *testing.T) {
+	t.Run("TestToAndFromEMLMultipart succeeds", func(t *testing.T) {
+		msg := NewMsg()
+		_ = msg.To("user@example.com")
+		_ = msg.FromFormat("Person", "person@example.com")
+		msg.Subject("Test Subject")
+
+		msg.SetBodyString(TypeTextPlain, "hi")
+		msg.AddAlternativeString(TypeTextHTML, "<h1>hi</h1>")
+
+		var emlBuf bytes.Buffer
+		_, _ = msg.WriteTo(&emlBuf)
+
+		decMsg, _ := EMLToMsgFromReader(&emlBuf)
+
+		var resBuf bytes.Buffer
+		_, _ = decMsg.WriteTo(&resBuf)
+
+		str := resBuf.String()
+
+		contentTypeCount := strings.Count(str, "Content-Type: multipart/alternative")
+		if contentTypeCount != 1 {
+			t.Fatalf("TestToAndFromEMLMultipart failed: want 1 multipart/alternative Content-Type header, got %d", contentTypeCount)
+		}
+	})
+}
