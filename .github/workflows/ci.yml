@@ -133,6 +133,9 @@ jobs:
                   - os: macos-latest
                     go: '1.24'
                     allow_fail: true
+                  - os: macos-latest
+                    go: '1.25'
+                    allow_fail: true
         continue-on-error: ${{ matrix.allow_fail == true }}
         env:
             TEST_BASEPORT: ${{ vars.TEST_BASEPORT }}
