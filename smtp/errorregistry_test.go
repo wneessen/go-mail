@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: Copyright (c) The go-mail Authors
+//
+// SPDX-License-Identifier: MIT
+
 package smtp
 
 import (
