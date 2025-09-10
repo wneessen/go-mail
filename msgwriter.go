@@ -251,6 +251,7 @@ func (mw *msgWriter) writePreformattedGenHeader(msg *Msg) {
 // generated. It also handles writing a new part when nested multipart structures are used.
 //
 // Parameters:
+//   - msg: The message whose multipart headers are being written.
 //   - mimeType: The MIME type of the multipart content (e.g., "mixed", "alternative").
 //   - boundary: The boundary string separating different parts of the multipart message.
 //
