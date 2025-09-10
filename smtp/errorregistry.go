@@ -87,7 +87,7 @@ func NewErrorHandlerRegistry() *ErrorHandlerRegistry {
 func (r *ErrorHandlerRegistry) RegisterHandler(host, command string, handler ResponseErrorHandler) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.handlers[HandlerKey{Host: host, Command: strings.ToLower(command)}] = handler
+	r.handlers[HandlerKey{Host: strings.ToLower(host), Command: strings.ToLower(command)}] = handler
 }
 
 // GetHandler retrieves the handler for a given host and command.
@@ -104,7 +104,7 @@ func (r *ErrorHandlerRegistry) RegisterHandler(host, command string, handler Res
 func (r *ErrorHandlerRegistry) GetHandler(host, command string) ResponseErrorHandler {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	if handler, ok := r.handlers[HandlerKey{Host: host, Command: command}]; ok {
+	if handler, ok := r.handlers[HandlerKey{Host: strings.ToLower(host), Command: strings.ToLower(command)}]; ok {
 		return handler
 	}
 	return r.defaultHandler
