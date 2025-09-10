@@ -3280,7 +3280,7 @@ func TestClient_SetDebugLog(t *testing.T) {
 			t.Errorf("expected logger to be of type *log.Stdlog, got: %T", client.logger)
 		}
 	})
-	t.Run("set debug logggin to off with no logger defined", func(t *testing.T) {
+	t.Run("set debug loggging to off with no logger defined", func(t *testing.T) {
 		client := &Client{}
 		client.SetDebugLog(false)
 		if client.debug {
