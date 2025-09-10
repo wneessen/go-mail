@@ -114,6 +114,9 @@ type (
 	//   - https://datatracker.ietf.org/doc/html/rfc3207#section-2
 	//   - https://datatracker.ietf.org/doc/html/rfc8314
 	Client struct {
+		// ErrorHandlerRegistry manages custom error handlers for SMTP host-command pairs.
+		ErrorHandlerRegistry *smtp.ErrorHandlerRegistry
+
 		// connTimeout specifies timeout for the connection to the SMTP server.
 		connTimeout time.Duration
 
@@ -270,12 +273,13 @@ var (
 //   - An error if any critical default values are missing or options fail to apply.
 func NewClient(host string, opts ...Option) (*Client, error) {
 	c := &Client{
-		smtpAuthType: SMTPAuthNoAuth,
-		connTimeout:  DefaultTimeout,
-		host:         host,
-		port:         DefaultPort,
-		tlsconfig:    &tls.Config{ServerName: host, MinVersion: DefaultTLSMinVersion},
-		tlspolicy:    DefaultTLSPolicy,
+		ErrorHandlerRegistry: smtp.NewErrorHandlerRegistry(),
+		smtpAuthType:         SMTPAuthNoAuth,
+		connTimeout:          DefaultTimeout,
+		host:                 host,
+		port:                 DefaultPort,
+		tlsconfig:            &tls.Config{ServerName: host, MinVersion: DefaultTLSMinVersion},
+		tlspolicy:            DefaultTLSPolicy,
 	}
 
 	// Set default HELO/EHLO hostname
@@ -1037,6 +1041,7 @@ func (c *Client) DialToSMTPClientWithContext(ctxDial context.Context) (*smtp.Cli
 	if err != nil {
 		return nil, err
 	}
+	client.ErrorHandlerRegistry = c.ErrorHandlerRegistry
 
 	if c.logger != nil {
 		client.SetLogger(c.logger)

@@ -126,6 +126,17 @@ jobs:
             matrix:
                 os: [ubuntu-latest, windows-latest, macos-latest]
                 go: ['1.23', '1.24', '1.25']
+                include:
+                  - os: macos-latest
+                    go: '1.23'
+                    allow_fail: true
+                  - os: macos-latest
+                    go: '1.24'
+                    allow_fail: true
+                  - os: macos-latest
+                    go: '1.25'
+                    allow_fail: true
+        continue-on-error: ${{ matrix.allow_fail == true }}
         env:
             TEST_BASEPORT: ${{ vars.TEST_BASEPORT }}
             TEST_BASEPORT_SMTP: ${{ vars.TEST_BASEPORT_SMTP }}

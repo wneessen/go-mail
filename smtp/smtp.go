@@ -51,6 +51,9 @@ type Client struct {
 	// Text is the textproto.Conn used by the Client. It is exported to allow for clients to add extensions.
 	Text *textproto.Conn
 
+	// ErrorHandlerRegistry manages custom error handlers for SMTP host-command pairs.
+	ErrorHandlerRegistry *ErrorHandlerRegistry
+
 	// auth supported auth mechanisms
 	auth []string
 
@@ -131,6 +134,7 @@ func NewClient(conn net.Conn, host string) (*Client, error) {
 	c := &Client{Text: text, conn: conn, serverName: host, localName: "localhost"}
 	_, c.tls = conn.(*tls.Conn)
 	c.isConnected = true
+	c.ErrorHandlerRegistry = NewErrorHandlerRegistry()
 
 	return c, nil
 }
@@ -195,7 +199,22 @@ func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, s
 		return 0, "", err
 	}
 	c.Text.StartResponse(id)
+	defer c.Text.EndResponse(id)
 	code, msg, err := c.Text.ReadResponse(expectCode)
+	if err != nil {
+		fmtValues := strings.Split(format, " ")
+		currentCmd := strings.ToLower(fmtValues[0])
+		handler := c.ErrorHandlerRegistry.GetHandler(c.serverName, currentCmd)
+		handledErr := handler.HandleError(c.serverName, currentCmd, c.Text, err)
+		if handledErr != nil {
+			c.mutex.Unlock()
+			return 0, "", handledErr
+		}
+
+		// If the handler successfully recovered, we try reading the response again
+		// This assumes the handler has consumed the problematic data beforehand.
+		code, msg, err = c.Text.ReadResponse(expectCode)
+	}
 
 	logMsg = []interface{}{code, msg}
 	if c.authIsActive && code >= 300 && code <= 400 {
@@ -203,7 +222,6 @@ func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, s
 	}
 	c.debugLog(log.DirServerToClient, "%d %s", logMsg...)
 
-	c.Text.EndResponse(id)
 	c.mutex.Unlock()
 	return code, msg, err
 }

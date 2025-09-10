@@ -2164,6 +2164,75 @@ func TestClient_Auth(t *testing.T) {
 	})
 }
 
+func TestClient_errorRegistryHandler(t *testing.T) {
+	t.Run("quit fails on short response (simulate qq.com behaviour)", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet:            featureSet,
+				ListenPort:            serverPort,
+				SimulateShortResponse: true,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.Hello("test.domain.tld"); err != nil {
+			t.Errorf("SMTP hello failed: %s", err)
+		}
+		if err = client.Quit(); err == nil {
+			t.Error("expected short response error on quit, but got nothing")
+		}
+	})
+	t.Run("error registry handles short response (simulate qq.com behaviour)", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250 STARTTLS"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet:            featureSet,
+				ListenPort:            serverPort,
+				SimulateShortResponse: true,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		client.ErrorHandlerRegistry.RegisterHandler(TestServerAddr, "quit", &testRegistryErrorHandler{})
+		if err = client.Hello("test.domain.tld"); err != nil {
+			t.Errorf("SMTP hello failed: %s", err)
+		}
+		if err = client.Quit(); err != nil {
+			t.Errorf("SMTP quit failed: %s", err)
+		}
+	})
+}
+
 func TestClient_Mail(t *testing.T) {
 	t.Run("normal from address succeeds", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
@@ -3280,7 +3349,7 @@ func TestClient_SetDebugLog(t *testing.T) {
 			t.Errorf("expected logger to be of type *log.Stdlog, got: %T", client.logger)
 		}
 	})
-	t.Run("set debug logggin to off with no logger defined", func(t *testing.T) {
+	t.Run("set debug loggging to off with no logger defined", func(t *testing.T) {
 		client := &Client{}
 		client.SetDebugLog(false)
 		if client.debug {
@@ -3715,30 +3784,31 @@ func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "
 
 // serverProps represents the configuration properties for the SMTP server.
 type serverProps struct {
-	BufferMutex     sync.RWMutex
-	EchoBuffer      io.Writer
-	FailOnAuth      bool
-	FailOnDataInit  bool
-	FailOnDataClose bool
-	FailOnDial      bool
-	FailOnEhlo      bool
-	FailOnHelo      bool
-	FailOnMailFrom  bool
-	FailOnNoop      bool
-	FailOnQuit      bool
-	FailOnReset     bool
-	FailOnRcptTo    bool
-	FailOnSTARTTLS  bool
-	FailTemp        bool
-	FeatureSet      string
-	ListenPort      int
-	HashFunc        func() hash.Hash
-	IsSCRAMPlus     bool
-	IsTLS           bool
-	SupportDSN      bool
-	SSLListener     bool
-	TestSCRAM       bool
-	VRFYUserUnknown bool
+	BufferMutex           sync.RWMutex
+	EchoBuffer            io.Writer
+	FailOnAuth            bool
+	FailOnDataInit        bool
+	FailOnDataClose       bool
+	FailOnDial            bool
+	FailOnEhlo            bool
+	FailOnHelo            bool
+	FailOnMailFrom        bool
+	FailOnNoop            bool
+	FailOnQuit            bool
+	FailOnReset           bool
+	FailOnRcptTo          bool
+	FailOnSTARTTLS        bool
+	FailTemp              bool
+	SimulateShortResponse bool
+	FeatureSet            string
+	ListenPort            int
+	HashFunc              func() hash.Hash
+	IsSCRAMPlus           bool
+	IsTLS                 bool
+	SupportDSN            bool
+	SSLListener           bool
+	TestSCRAM             bool
+	VRFYUserUnknown       bool
 }
 
 // simpleSMTPServer starts a simple TCP server that resonds to SMTP commands.
@@ -3993,6 +4063,12 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 		case strings.EqualFold(data, "quit"):
 			if props.FailOnQuit {
 				writeLine("500 5.1.2 Error: quit failed")
+				break
+			}
+			if props.SimulateShortResponse {
+				_, _ = writer.Write([]byte("\x00\x00\x00\x1a\x00\x00\x00\x0a\x00\x00\x00\x00\x00\x00\x00\x00"))
+				_, _ = writer.WriteString("221 Bye.\r\n")
+				_ = writer.Flush()
 				break
 			}
 			writeLine("221 2.0.0 Bye")
