@@ -137,12 +137,12 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 			mw.err = err
 			return
 		}
-		mw.startMP(MIMESMIMESigned, boundary)
+		mw.startMP(msg, MIMESMIMESigned, boundary)
 		mw.writeString(DoubleNewLine)
 	}
 	if msg.hasMixed() {
 		boundary := mw.getMultipartBoundary(msg, MIMEMixed)
-		boundary = mw.startMP(MIMEMixed, boundary)
+		boundary = mw.startMP(msg, MIMEMixed, boundary)
 		msg.multiPartBoundary[MIMEMixed] = boundary
 		if mw.depth == 1 {
 			mw.writeString(DoubleNewLine)
@@ -150,7 +150,7 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 	}
 	if msg.hasRelated() {
 		boundary := mw.getMultipartBoundary(msg, MIMERelated)
-		boundary = mw.startMP(MIMERelated, boundary)
+		boundary = mw.startMP(msg, MIMERelated, boundary)
 		msg.multiPartBoundary[MIMERelated] = boundary
 		if mw.depth == 1 {
 			mw.writeString(DoubleNewLine)
@@ -158,7 +158,7 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 	}
 	if msg.hasAlt() {
 		boundary := mw.getMultipartBoundary(msg, MIMEAlternative)
-		boundary = mw.startMP(MIMEAlternative, boundary)
+		boundary = mw.startMP(msg, MIMEAlternative, boundary)
 		msg.multiPartBoundary[MIMEAlternative] = boundary
 		if mw.depth == 1 {
 			mw.writeString(DoubleNewLine)
@@ -167,10 +167,10 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 	if msg.hasPGPType() {
 		switch msg.pgptype {
 		case PGPEncrypt:
-			mw.startMP(`encrypted; protocol="application/pgp-encrypted"`,
+			mw.startMP(msg, `encrypted; protocol="application/pgp-encrypted"`,
 				msg.boundary)
 		case PGPSignature:
-			mw.startMP(`signed; protocol="application/pgp-signature";`,
+			mw.startMP(msg, `signed; protocol="application/pgp-signature";`,
 				msg.boundary)
 		default:
 		}
@@ -259,7 +259,7 @@ func (mw *msgWriter) writePreformattedGenHeader(msg *Msg) {
 //
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2046
-func (mw *msgWriter) startMP(mimeType MIMEType, boundary string) string {
+func (mw *msgWriter) startMP(msg *Msg, mimeType MIMEType, boundary string) string {
 	multiPartWriter := multipart.NewWriter(mw)
 	if boundary != "" {
 		mw.err = multiPartWriter.SetBoundary(boundary)
@@ -269,12 +269,16 @@ func (mw *msgWriter) startMP(mimeType MIMEType, boundary string) string {
 		multiPartWriter.Boundary())
 	mw.multiPartWriter[mw.depth] = multiPartWriter
 
-	if mw.depth == 0 {
-		mw.writeString(fmt.Sprintf("%s: %s", HeaderContentType, contentType))
+	// Do not write Content-Type if the header was already written as part of genHeaders.
+	if _, ok := msg.genHeader[HeaderContentType]; !ok {
+		if mw.depth == 0 {
+			mw.writeString(fmt.Sprintf("%s: %s", HeaderContentType, contentType))
+		}
+		if mw.depth > 0 {
+			mw.newPart(map[string][]string{"Content-Type": {contentType}})
+		}
 	}
-	if mw.depth > 0 {
-		mw.newPart(map[string][]string{"Content-Type": {contentType}})
-	}
+
 	mw.depth++
 	return multiPartWriter.Boundary()
 }
