@@ -44,6 +44,51 @@ func TestErrorHandlerRegistry_Register(t *testing.T) {
 	t.Run("TestErrorHandlerRegistry register the test handler", func(t *testing.T) {
 		registry := NewErrorHandlerRegistry()
 		registry.RegisterHandler("localhost", "HELO", &testRegistryErrorHandler{})
+	})
+	t.Run("TestErrorHandlerRegistry register nil", func(t *testing.T) {
+		registry := NewErrorHandlerRegistry()
+		registry.RegisterHandler("localhost", "HELO", nil)
+	})
+}
 
+func TestErrorHandlerRegistry_GetHandler(t *testing.T) {
+	t.Run("TestErrorHandlerRegistry should return testRegistryErrorHandler", func(t *testing.T) {
+		registry := NewErrorHandlerRegistry()
+		registry.RegisterHandler("localhost", "HELO", &testRegistryErrorHandler{})
+		handler := registry.GetHandler("localhost", "HELO")
+		if handler == nil {
+			t.Fatal("GetHandler returned nil")
+		}
+		if _, ok := handler.(*testRegistryErrorHandler); !ok {
+			t.Errorf("GetHandler returned wrong handler type. expected: %T, got: %T", &testRegistryErrorHandler{},
+				handler)
+		}
+	})
+	t.Run("TestErrorHandlerRegistry should return default handler", func(t *testing.T) {
+		registry := NewErrorHandlerRegistry()
+		registry.RegisterHandler("localhost", "HELO", &testRegistryErrorHandler{})
+		handler := registry.GetHandler("localhost", "RCPT TO")
+		if handler == nil {
+			t.Fatal("GetHandler returned nil")
+		}
+		if _, ok := handler.(*DefaultErrorHandler); !ok {
+			t.Errorf("GetHandler returned wrong handler type. expected: %T, got: %T", &DefaultErrorHandler{},
+				handler)
+		}
+	})
+}
+
+func TestErrorHandlerRegistry_SetDefaultHandler(t *testing.T) {
+	t.Run("TestErrorHandlerRegistry set the default handler to test handler", func(t *testing.T) {
+		registry := NewErrorHandlerRegistry()
+		registry.SetDefaultHandler(&testRegistryErrorHandler{})
+		handler := registry.GetHandler("localhost", "HELO")
+		if handler == nil {
+			t.Fatal("GetHandler returned nil")
+		}
+		if _, ok := handler.(*testRegistryErrorHandler); !ok {
+			t.Errorf("GetHandler returned wrong handler type. expected: %T, got: %T", &testRegistryErrorHandler{},
+				handler)
+		}
 	})
 }
