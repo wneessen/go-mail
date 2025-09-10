@@ -203,9 +203,6 @@ func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, s
 	code, msg, err := c.Text.ReadResponse(expectCode)
 	if err != nil {
 		fmtValues := strings.Split(format, " ")
-		if len(fmtValues) <= 0 {
-			return 0, "", err
-		}
 		currentCmd := strings.ToLower(fmtValues[0])
 		handler := c.ErrorHandlerRegistry.GetHandler(c.serverName, currentCmd)
 		handledErr := handler.HandleError(c.serverName, currentCmd, c.Text, err)
