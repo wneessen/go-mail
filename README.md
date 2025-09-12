@@ -67,6 +67,7 @@ Here are some highlights of go-mail's featureset:
 * [X] Output a go-mail message as EML file and parse EML file into a go-mail message
 * [X] S/MIME message signing support (RSA and ECDSA)
 * [X] UNIX domain socket support
+* [X] Pluggable SMTP error registry for advanced handling of non-RFC-conforming servers
 
 go-mail works like a programatic email client and provides lots of methods and functionalities you would consider
 standard in a MUA.
@@ -79,8 +80,7 @@ documentation website at [go-mail.dev](https://go-mail.dev)
 
 Go evolves quickly and introduces valuable improvements with each release. To balance adopting new features with 
 ensuring stability for our users, we align our support with the official Go release policy. In practice, go-mail 
-will always support the same set of Go versions that the Go team actively maintains - the most recent release 
-along with its two predecessors.
+will always support the same set of Go versions that the Go team actively maintains.
 
 Since Go provides two releases per year, this translates into roughly one year of guaranteed compatibility for 
 any given Go version. We encourage users to stay current with supported Go versions to benefit from security 

@@ -114,7 +114,12 @@ type (
 	//   - https://datatracker.ietf.org/doc/html/rfc3207#section-2
 	//   - https://datatracker.ietf.org/doc/html/rfc8314
 	Client struct {
-		// ErrorHandlerRegistry manages custom error handlers for SMTP host-command pairs.
+		// ErrorHandlerRegistry provides access to the smtp.Client's custom error handlers for SMTP
+		// host-command pairs which are based on the smtp.ResponseErrorHandler interface.
+		//
+		// The smtp.ResponseErrorHandler interface defines a method for handling SMTP responses that do not
+		// comply with expected formats or behaviors. It is useful for implementing retry logic, logging,
+		// or error handling logic for non-compliant SMTP responses.
 		ErrorHandlerRegistry *smtp.ErrorHandlerRegistry
 
 		// connTimeout specifies timeout for the connection to the SMTP server.
@@ -544,6 +549,13 @@ func WithSMTPAuthCustom(smtpAuth smtp.Auth) Option {
 //
 // This function configures the Client with the specified username for SMTP authentication.
 //
+// Important:
+//   - Specifying a username with this option alone does NOT enable SMTP authentication.
+//   - To actually perform authentication with the server, you must also configure an
+//     authentication mechanism by using either WithSMTPAuth() or WithSMTPAuthCustom().
+//   - If you only call WithUsername() without setting an SMTP authentication method,
+//     the provided username will be stored but never used.
+//
 // Parameters:
 //   - username: The username to be used for SMTP authentication.
 //
@@ -559,6 +571,13 @@ func WithUsername(username string) Option {
 // WithPassword sets the password that the Client will use for SMTP authentication.
 //
 // This function configures the Client with the specified password for SMTP authentication.
+//
+// Important:
+//   - Specifying a password with this option alone does NOT enable SMTP authentication.
+//   - To actually perform authentication with the server, you must also configure an
+//     authentication mechanism by using either WithSMTPAuth() or WithSMTPAuthCustom().
+//   - If you only call WithPassword() without setting an SMTP authentication method,
+//     the provided password will be stored but never used.
 //
 // Parameters:
 //   - password: The password to be used for SMTP authentication.
