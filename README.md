@@ -67,6 +67,7 @@ Here are some highlights of go-mail's featureset:
 * [X] Output a go-mail message as EML file and parse EML file into a go-mail message
 * [X] S/MIME message signing support (RSA and ECDSA)
 * [X] UNIX domain socket support
+* [X] Pluggable SMTP error registry for advanced handling of non-RFC-conforming servers
 
 go-mail works like a programatic email client and provides lots of methods and functionalities you would consider
 standard in a MUA.
