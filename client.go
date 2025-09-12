@@ -544,6 +544,13 @@ func WithSMTPAuthCustom(smtpAuth smtp.Auth) Option {
 //
 // This function configures the Client with the specified username for SMTP authentication.
 //
+// Important:
+//   - Specifying a username with this option alone does NOT enable SMTP authentication.
+//   - To actually perform authentication with the server, you must also configure an
+//     authentication mechanism by using either WithSMTPAuth() or WithSMTPAuthCustom().
+//   - If you only call WithUsername() without setting an SMTP authentication method,
+//     the provided username will be stored but never used.
+//
 // Parameters:
 //   - username: The username to be used for SMTP authentication.
 //
@@ -559,6 +566,13 @@ func WithUsername(username string) Option {
 // WithPassword sets the password that the Client will use for SMTP authentication.
 //
 // This function configures the Client with the specified password for SMTP authentication.
+//
+// Important:
+//   - Specifying a password with this option alone does NOT enable SMTP authentication.
+//   - To actually perform authentication with the server, you must also configure an
+//     authentication mechanism by using either WithSMTPAuth() or WithSMTPAuthCustom().
+//   - If you only call WithPassword() without setting an SMTP authentication method,
+//     the provided password will be stored but never used.
 //
 // Parameters:
 //   - password: The password to be used for SMTP authentication.
