@@ -114,7 +114,12 @@ type (
 	//   - https://datatracker.ietf.org/doc/html/rfc3207#section-2
 	//   - https://datatracker.ietf.org/doc/html/rfc8314
 	Client struct {
-		// ErrorHandlerRegistry manages custom error handlers for SMTP host-command pairs.
+		// ErrorHandlerRegistry provides access to the smtp.Client's custom error handlers for SMTP
+		// host-command pairs which are based on the smtp.ResponseErrorHandler interface.
+		//
+		// The smtp.ResponseErrorHandler interface defines a method for handling SMTP responses that do not
+		// comply with expected formats or behaviors. It is useful for implementing retry logic, logging,
+		// or error handling logic for non-compliant SMTP responses.
 		ErrorHandlerRegistry *smtp.ErrorHandlerRegistry
 
 		// connTimeout specifies timeout for the connection to the SMTP server.
