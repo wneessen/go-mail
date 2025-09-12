@@ -7,6 +7,7 @@ package smtp
 import (
 	"bytes"
 	"crypto/hmac"
+	"crypto/pbkdf2"
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -20,8 +21,6 @@ import (
 	"strings"
 
 	"golang.org/x/text/secure/precis"
-
-	"github.com/wneessen/go-mail/internal/pbkdf2"
 )
 
 // scramAuth represents a SCRAM (Salted Challenge Response Authentication Mechanism) client and
@@ -215,7 +214,10 @@ func (a *scramAuth) handleServerFirstResponse(fromServer []byte) ([]byte, error)
 		return nil, fmt.Errorf("unable to normalize password: %w", err)
 	}
 
-	a.saltedPwd = pbkdf2.Key([]byte(password), salt, a.iterations, a.h().Size(), a.h)
+	a.saltedPwd, err = pbkdf2.Key(a.h, password, salt, a.iterations, a.h().Size())
+	if err != nil {
+		return nil, fmt.Errorf("unable to derive key: %w", err)
+	}
 
 	msgWithoutProof := []byte("c=biws,r=" + string(a.nonce))
 
