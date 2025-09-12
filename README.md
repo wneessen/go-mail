@@ -79,8 +79,7 @@ documentation website at [go-mail.dev](https://go-mail.dev)
 
 Go evolves quickly and introduces valuable improvements with each release. To balance adopting new features with 
 ensuring stability for our users, we align our support with the official Go release policy. In practice, go-mail 
-will always support the same set of Go versions that the Go team actively maintains - the most recent release 
-along with its two predecessors.
+will always support the same set of Go versions that the Go team actively maintains.
 
 Since Go provides two releases per year, this translates into roughly one year of guaranteed compatibility for 
 any given Go version. We encourage users to stay current with supported Go versions to benefit from security 
