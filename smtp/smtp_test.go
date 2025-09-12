@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/hmac"
+	"crypto/pbkdf2"
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -37,7 +38,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wneessen/go-mail/internal/pbkdf2"
 	"github.com/wneessen/go-mail/log"
 )
 
@@ -4214,7 +4214,11 @@ func (s *testSCRAMSMTP) handleSCRAMAuth(conn net.Conn) {
 	}
 
 	authMsg = authMsg + "," + splits[0] + "," + splits[1]
-	saltedPwd := pbkdf2.Key([]byte("password"), []byte("salt"), 4096, s.h().Size(), s.h)
+	saltedPwd, err := pbkdf2.Key(s.h, "password", []byte("salt"), 4096, s.h().Size())
+	if err != nil {
+		_ = writeLine("535 Authentication failed")
+		return
+	}
 	mac := hmac.New(s.h, saltedPwd)
 	mac.Write([]byte("Server Key"))
 	skey := mac.Sum(nil)
