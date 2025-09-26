@@ -1261,7 +1261,7 @@ func (c *Client) SendWithSMTPClient(client *smtp.Client, messages ...*Msg) (retu
 			Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err),
 			errcode: errorCode(err), enhancedStatusCode: enhancedStatusCode(err, escSupport),
 		}
-		return
+		return returnErr
 	}
 
 	var errs []error
@@ -1279,7 +1279,7 @@ func (c *Client) SendWithSMTPClient(client *smtp.Client, messages ...*Msg) (retu
 		}
 	}
 
-	return
+	return returnErr
 }
 
 // auth attempts to authenticate the client using SMTP AUTH mechanisms. It checks the connection,
