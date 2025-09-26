@@ -2895,7 +2895,7 @@ func TestMsg_GetRecipients(t *testing.T) {
 }
 
 func TestMsg_addressCmdInjectsions(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		name       string
 		payload    string
 		shouldFail bool
@@ -2938,7 +2938,7 @@ func TestMsg_addressCmdInjectsions(t *testing.T) {
 
 		// unicode / homoglyphs
 		{"unicode-fullwidth", `"toni.tester@example.com> ORCPT=admin@ｅxample.com"@example.com`, false},
-		{"unicode-hidden", `"toni.tester@example.com> ORCPT=admin@exam‌ple.com"@example.com`, false},
+		{"unicode-hidden", `"toni.tester@example.com> ORCPT=admin@exam` + "\u200c" + `ple.com"@example.com`, false},
 
 		// multiple @ / nested-at attempts
 		{"nested-at", `"toni.tester@example.com> ORCPT=admin@sub@example.com"@example.com`, false},
