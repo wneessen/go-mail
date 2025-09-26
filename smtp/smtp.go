@@ -368,7 +368,7 @@ func (c *Client) Mail(from string) error {
 	if err := c.hello(); err != nil {
 		return err
 	}
-	cmdStr := "MAIL FROM:<%s>"
+	cmdStr := "MAIL FROM:%s"
 
 	c.mutex.RLock()
 	if c.ext != nil {

@@ -2539,8 +2539,8 @@ func TestMsg_GetSender(t *testing.T) {
 		if err != nil {
 			t.Errorf("failed to get sender: %s", err)
 		}
-		if !strings.EqualFold(sender, "toni.tester@example.com") {
-			t.Errorf("expected sender not returned. Want: %s, got: %s", "toni.tester@example.com", sender)
+		if !strings.EqualFold(sender, "<toni.tester@example.com>") {
+			t.Errorf("expected sender not returned. Want: %s, got: %s", "<toni.tester@example.com>", sender)
 		}
 	})
 	t.Run("GetSender with envelope from only (full address)", func(t *testing.T) {
@@ -2571,8 +2571,8 @@ func TestMsg_GetSender(t *testing.T) {
 		if err != nil {
 			t.Errorf("failed to get sender: %s", err)
 		}
-		if !strings.EqualFold(sender, "toni.tester@example.com") {
-			t.Errorf("expected sender not returned. Want: %s, got: %s", "toni.tester@example.com", sender)
+		if !strings.EqualFold(sender, "<toni.tester@example.com>") {
+			t.Errorf("expected sender not returned. Want: %s, got: %s", "<toni.tester@example.com>", sender)
 		}
 	})
 	t.Run("GetSender with from only (full address)", func(t *testing.T) {
@@ -2606,8 +2606,8 @@ func TestMsg_GetSender(t *testing.T) {
 		if err != nil {
 			t.Errorf("failed to get sender: %s", err)
 		}
-		if !strings.EqualFold(sender, "toni.tester@example.com") {
-			t.Errorf("expected sender not returned. Want: %s, got: %s", "toni.tester@example.com", sender)
+		if !strings.EqualFold(sender, "<toni.tester@example.com>") {
+			t.Errorf("expected sender not returned. Want: %s, got: %s", "<toni.tester@example.com>", sender)
 		}
 	})
 	t.Run("GetSender with envelope from and from (full address)", func(t *testing.T) {

@@ -1495,10 +1495,12 @@ func (m *Msg) GetSender(useFullAddr bool) (string, error) {
 			return "", ErrNoFromAddress
 		}
 	}
-	if useFullAddr {
-		return from[0].String(), nil
+
+	addr := from[0]
+	if !useFullAddr {
+		addr.Name = ""
 	}
-	return from[0].Address, nil
+	return addr.String(), nil
 }
 
 // GetRecipients returns a list of the currently set "TO", "CC", and "BCC" addresses for the Msg.
