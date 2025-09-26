@@ -402,10 +402,10 @@ func (c *Client) Rcpt(to string) error {
 	c.mutex.RUnlock()
 
 	if ok && c.dsnrntype != "" {
-		_, _, err := c.cmd(25, "RCPT TO:<%s> NOTIFY=%s", to, c.dsnrntype)
+		_, _, err := c.cmd(25, "RCPT TO:%s NOTIFY=%s", to, c.dsnrntype)
 		return err
 	}
-	_, _, err := c.cmd(25, "RCPT TO:<%s>", to)
+	_, _, err := c.cmd(25, "RCPT TO:%s", to)
 	return err
 }
 

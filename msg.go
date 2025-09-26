@@ -1522,7 +1522,8 @@ func (m *Msg) GetRecipients() ([]string, error) {
 			continue
 		}
 		for _, r := range addresses {
-			rcpts = append(rcpts, r.Address)
+			r.Name = ""
+			rcpts = append(rcpts, r.String())
 		}
 	}
 	if len(rcpts) <= 0 {

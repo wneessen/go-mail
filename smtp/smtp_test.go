@@ -30,6 +30,7 @@ import (
 	"hash"
 	"io"
 	"net"
+	netmail "net/mail"
 	"os"
 	"strconv"
 	"strings"
@@ -2560,7 +2561,11 @@ func TestClient_Rcpt(t *testing.T) {
 				t.Errorf("failed to close client: %s", err)
 			}
 		})
-		if err = client.Rcpt("valid-to@domain.tld"); err != nil {
+		addr, err := netmail.ParseAddress("valid-to@domain.tld")
+		if err != nil {
+			t.Fatalf("failed to parse recipient address: %s", err)
+		}
+		if err = client.Rcpt(addr.String()); err != nil {
 			t.Errorf("failed to set recipient address: %s", err)
 		}
 	})
@@ -2626,7 +2631,11 @@ func TestClient_Rcpt(t *testing.T) {
 			t.Fatalf("failed to send hello to test server: %s", err)
 		}
 		client.dsnrntype = "SUCCESS"
-		if err = client.Rcpt("valid-to@domain.tld"); err == nil {
+		addr, err := netmail.ParseAddress("valid-to@domain.tld")
+		if err != nil {
+			t.Fatalf("failed to parse recipient address: %s", err)
+		}
+		if err = client.Rcpt(addr.String()); err == nil {
 			t.Error("recpient address with newlines should fail")
 		}
 		expected := "RCPT TO:<valid-to@domain.tld> NOTIFY=SUCCESS"
@@ -3007,7 +3016,11 @@ func TestSendMail(t *testing.T) {
 			config.Certificates = testConfig.Certificates
 		}
 		auth := LoginAuth("username", "password", TestServerAddr, false)
-		if err := SendMail(addr, auth, "valid-from@domain.tld", []string{"valid-to@domain.tld"},
+		toAddr, err := netmail.ParseAddress("valid-to@domain.tld")
+		if err != nil {
+			t.Fatalf("failed to parse recipient address: %s", err)
+		}
+		if err := SendMail(addr, auth, "valid-from@domain.tld", []string{toAddr.String()},
 			[]byte("test message")); err != nil {
 			t.Fatalf("failed to send mail: %s", err)
 		}
@@ -3090,8 +3103,12 @@ Subject: Hooray for Go
 Line 1
 .Leading dot line .
 Goodbye.`)
+		toAddr, err := netmail.ParseAddress("valid-to@domain.tld")
+		if err != nil {
+			t.Fatalf("failed to parse recipient address: %s", err)
+		}
 		auth := LoginAuth("username", "password", TestServerAddr, false)
-		if err := SendMail(addr, auth, "valid-from@domain.tld", []string{"valid-to@domain.tld"}, message); err != nil {
+		if err := SendMail(addr, auth, "valid-from@domain.tld", []string{toAddr.String()}, message); err != nil {
 			t.Fatalf("failed to send mail: %s", err)
 		}
 		props.BufferMutex.RLock()

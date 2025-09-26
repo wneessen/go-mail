@@ -2661,9 +2661,30 @@ func TestMsg_GetRecipients(t *testing.T) {
 		if len(rcpts) != 1 {
 			t.Fatalf("expected 1 recipient, got: %d", len(rcpts))
 		}
-		if !strings.EqualFold(rcpts[0], "toni.tester@example.com") {
+		if !strings.EqualFold(rcpts[0], "<toni.tester@example.com>") {
 			t.Errorf("expected recipient not returned. Want: %s, got: %s",
-				"toni.tester@example.com", rcpts[0])
+				"<toni.tester@example.com>", rcpts[0])
+		}
+	})
+	t.Run("GetRecipients with quoted local-part (issue #495)", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		addr := `"toni.tester@example.com> ORCPT=admin@admin.com"@example.com`
+		if err := message.To(addr); err != nil {
+			t.Fatalf("failed to set to address: %s", err)
+		}
+		rcpts, err := message.GetRecipients()
+		if err != nil {
+			t.Errorf("failed to get recipients: %s", err)
+		}
+		if len(rcpts) != 1 {
+			t.Fatalf("expected 1 recipient, got: %d", len(rcpts))
+		}
+		if !strings.EqualFold(rcpts[0], `<"toni.tester@example.com> ORCPT=admin@admin.com"@example.com>`) {
+			t.Errorf("expected recipient not returned. Want: %s, got: %s",
+				`<"toni.tester@example.com> ORCPT=admin@admin.com"@example.com>`, rcpts[0])
 		}
 	})
 	t.Run("GetRecipients with only cc", func(t *testing.T) {
@@ -2681,9 +2702,9 @@ func TestMsg_GetRecipients(t *testing.T) {
 		if len(rcpts) != 1 {
 			t.Fatalf("expected 1 recipient, got: %d", len(rcpts))
 		}
-		if !strings.EqualFold(rcpts[0], "toni.tester@example.com") {
+		if !strings.EqualFold(rcpts[0], "<toni.tester@example.com>") {
 			t.Errorf("expected recipient not returned. Want: %s, got: %s",
-				"toni.tester@example.com", rcpts[0])
+				"<toni.tester@example.com>", rcpts[0])
 		}
 	})
 	t.Run("GetRecipients with only bcc", func(t *testing.T) {
@@ -2701,9 +2722,9 @@ func TestMsg_GetRecipients(t *testing.T) {
 		if len(rcpts) != 1 {
 			t.Fatalf("expected 1 recipient, got: %d", len(rcpts))
 		}
-		if !strings.EqualFold(rcpts[0], "toni.tester@example.com") {
+		if !strings.EqualFold(rcpts[0], "<toni.tester@example.com>") {
 			t.Errorf("expected recipient not returned. Want: %s, got: %s",
-				"toni.tester@example.com", rcpts[0])
+				"<toni.tester@example.com>", rcpts[0])
 		}
 	})
 	t.Run("GetRecipients with to and cc", func(t *testing.T) {
@@ -2724,13 +2745,13 @@ func TestMsg_GetRecipients(t *testing.T) {
 		if len(rcpts) != 2 {
 			t.Fatalf("expected 2 recipient, got: %d", len(rcpts))
 		}
-		if !strings.EqualFold(rcpts[0], "toni.tester@example.com") {
+		if !strings.EqualFold(rcpts[0], "<toni.tester@example.com>") {
 			t.Errorf("expected recipient not returned. Want: %s, got: %s",
-				"toni.tester@example.com", rcpts[0])
+				"<toni.tester@example.com>", rcpts[0])
 		}
-		if !strings.EqualFold(rcpts[1], "tina.tester@example.com") {
+		if !strings.EqualFold(rcpts[1], "<tina.tester@example.com>") {
 			t.Errorf("expected recipient not returned. Want: %s, got: %s",
-				"tina.tester@example.com", rcpts[1])
+				"<tina.tester@example.com>", rcpts[1])
 		}
 	})
 	t.Run("GetRecipients with to and bcc", func(t *testing.T) {
@@ -2751,13 +2772,13 @@ func TestMsg_GetRecipients(t *testing.T) {
 		if len(rcpts) != 2 {
 			t.Fatalf("expected 2 recipient, got: %d", len(rcpts))
 		}
-		if !strings.EqualFold(rcpts[0], "toni.tester@example.com") {
+		if !strings.EqualFold(rcpts[0], "<toni.tester@example.com>") {
 			t.Errorf("expected recipient not returned. Want: %s, got: %s",
-				"toni.tester@example.com", rcpts[0])
+				"<toni.tester@example.com>", rcpts[0])
 		}
-		if !strings.EqualFold(rcpts[1], "tina.tester@example.com") {
+		if !strings.EqualFold(rcpts[1], "<tina.tester@example.com>") {
 			t.Errorf("expected recipient not returned. Want: %s, got: %s",
-				"tina.tester@example.com", rcpts[1])
+				"<tina.tester@example.com>", rcpts[1])
 		}
 	})
 	t.Run("GetRecipients with cc and bcc", func(t *testing.T) {
@@ -2778,13 +2799,13 @@ func TestMsg_GetRecipients(t *testing.T) {
 		if len(rcpts) != 2 {
 			t.Fatalf("expected 2 recipient, got: %d", len(rcpts))
 		}
-		if !strings.EqualFold(rcpts[0], "toni.tester@example.com") {
+		if !strings.EqualFold(rcpts[0], "<toni.tester@example.com>") {
 			t.Errorf("expected recipient not returned. Want: %s, got: %s",
-				"toni.tester@example.com", rcpts[0])
+				"<toni.tester@example.com>", rcpts[0])
 		}
-		if !strings.EqualFold(rcpts[1], "tina.tester@example.com") {
+		if !strings.EqualFold(rcpts[1], "<tina.tester@example.com>") {
 			t.Errorf("expected recipient not returned. Want: %s, got: %s",
-				"tina.tester@example.com", rcpts[1])
+				"<tina.tester@example.com>", rcpts[1])
 		}
 	})
 	t.Run("GetRecipients with to, cc and bcc", func(t *testing.T) {
@@ -2808,17 +2829,17 @@ func TestMsg_GetRecipients(t *testing.T) {
 		if len(rcpts) != 3 {
 			t.Fatalf("expected 3 recipient, got: %d", len(rcpts))
 		}
-		if !strings.EqualFold(rcpts[0], "toni.tester@example.com") {
+		if !strings.EqualFold(rcpts[0], "<toni.tester@example.com>") {
 			t.Errorf("expected recipient not returned. Want: %s, got: %s",
-				"toni.tester@example.com", rcpts[0])
+				"<toni.tester@example.com>", rcpts[0])
 		}
-		if !strings.EqualFold(rcpts[1], "tina.tester@example.com") {
+		if !strings.EqualFold(rcpts[1], "<tina.tester@example.com>") {
 			t.Errorf("expected recipient not returned. Want: %s, got: %s",
-				"tina.tester@example.com", rcpts[1])
+				"<tina.tester@example.com>", rcpts[1])
 		}
-		if !strings.EqualFold(rcpts[2], "tom.tester@example.com") {
+		if !strings.EqualFold(rcpts[2], "<tom.tester@example.com>") {
 			t.Errorf("expected recipient not returned. Want: %s, got: %s",
-				"tina.tester@example.com", rcpts[2])
+				"<tina.tester@example.com>", rcpts[2])
 		}
 	})
 	t.Run("GetRecipients with no recipients", func(t *testing.T) {
