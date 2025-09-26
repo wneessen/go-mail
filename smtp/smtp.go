@@ -266,10 +266,10 @@ func (c *Client) TLSConnectionState() (state tls.ConnectionState, ok bool) {
 
 	tc, ok := c.conn.(*tls.Conn)
 	if !ok {
-		return
+		return state, ok
 	}
 	state, ok = tc.ConnectionState(), true
-	return
+	return state, ok
 }
 
 // Verify checks the validity of an email address on the server.
@@ -432,7 +432,7 @@ func (d *DataCloser) Write(p []byte) (n int, err error) {
 	d.c.mutex.Lock()
 	n, err = d.WriteCloser.Write(p)
 	d.c.mutex.Unlock()
-	return
+	return n, err
 }
 
 // ServerResponse returns the response that was returned by the server after the DataCloser has

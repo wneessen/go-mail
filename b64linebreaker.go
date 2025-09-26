@@ -42,7 +42,7 @@ type base64LineBreaker struct {
 func (l *base64LineBreaker) Write(data []byte) (numBytes int, err error) {
 	if l.out == nil {
 		err = errors.New("no io.Writer set for base64LineBreaker")
-		return
+		return numBytes, err
 	}
 	if l.used+len(data) < MaxBodyLength {
 		copy(l.line[l.used:], data)
@@ -52,25 +52,25 @@ func (l *base64LineBreaker) Write(data []byte) (numBytes int, err error) {
 
 	_, err = l.out.Write(l.line[0:l.used])
 	if err != nil {
-		return
+		return numBytes, err
 	}
 	excess := MaxBodyLength - l.used
 	l.used = 0
 
 	numBytes, err = l.out.Write(data[0:excess])
 	if err != nil {
-		return
+		return numBytes, err
 	}
 
 	_, err = l.out.Write(newlineBytes)
 	if err != nil {
-		return
+		return numBytes, err
 	}
 
 	var n int
 	n, err = l.Write(data[excess:]) // recurse
 	numBytes += n
-	return
+	return numBytes, err
 }
 
 // Close finalizes the base64LineBreaker, writing any remaining buffered data and appending a newline.
@@ -85,10 +85,10 @@ func (l *base64LineBreaker) Close() (err error) {
 	if l.used > 0 {
 		_, err = l.out.Write(l.line[0:l.used])
 		if err != nil {
-			return
+			return err
 		}
 		_, err = l.out.Write(newlineBytes)
 	}
 
-	return
+	return err
 }

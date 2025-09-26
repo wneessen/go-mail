@@ -538,7 +538,7 @@ func parseMultiPartHeader(multiPartHeader string) (header string, optional map[s
 	headerSplit := strings.Split(multiPartHeader, ";")
 	header = headerSplit[0]
 	if len(headerSplit) == 1 {
-		return
+		return header, optional
 	}
 	for _, opt := range headerSplit[1:] {
 		optString := strings.TrimLeft(opt, " ")
@@ -547,7 +547,7 @@ func parseMultiPartHeader(multiPartHeader string) (header string, optional map[s
 			optional[optSplit[0]] = optSplit[1]
 		}
 	}
-	return
+	return header, optional
 }
 
 // parseEMLAttachmentEmbed parses a multipart that is an attachment or embed.
