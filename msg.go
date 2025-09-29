@@ -1496,9 +1496,9 @@ func (m *Msg) GetSender(useFullAddr bool) (string, error) {
 		}
 	}
 
-	addr := from[0]
+	addr := *from[0]
 	if !useFullAddr {
-		addr.Name = ""
+		return mailAddressStringWithoutName(addr), nil
 	}
 	return addr.String(), nil
 }
@@ -1524,8 +1524,7 @@ func (m *Msg) GetRecipients() ([]string, error) {
 			continue
 		}
 		for _, r := range addresses {
-			r.Name = ""
-			rcpts = append(rcpts, r.String())
+			rcpts = append(rcpts, mailAddressStringWithoutName(*r))
 		}
 	}
 	if len(rcpts) <= 0 {
@@ -3326,4 +3325,9 @@ func writeFuncFromBuffer(buffer *bytes.Buffer) func(io.Writer) (int64, error) {
 		return int64(numBytes), err
 	}
 	return writeFunc
+}
+
+func mailAddressStringWithoutName(addr mail.Address) string {
+	addr.Name = ""
+	return addr.String()
 }
