@@ -1153,8 +1153,6 @@ func (c *Client) ResetWithSMTPClient(client *smtp.Client) error {
 		return err
 	}
 	if err := client.Reset(); err != nil {
-		_ = client.Quit()
-		_ = client.Close()
 		return fmt.Errorf("failed to send RSET to SMTP client: %w", err)
 	}
 
