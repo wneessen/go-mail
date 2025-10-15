@@ -1191,21 +1191,21 @@ func (c *Client) DialAndSend(messages ...*Msg) error {
 // Returns:
 //   - An error if the connection fails, if sending the messages fails, or if closing the
 //     connection fails; otherwise, returns nil.
-func (c *Client) DialAndSendWithContext(ctx context.Context, messages ...*Msg) error {
+func (c *Client) DialAndSendWithContext(ctx context.Context, messages ...*Msg) (err error) {
 	client, err := c.DialToSMTPClientWithContext(ctx)
 	if err != nil {
 		return fmt.Errorf("dial failed: %w", err)
 	}
 	defer func() {
-		_ = c.CloseWithSMTPClient(client)
+		if closeErr := c.CloseWithSMTPClient(client); closeErr != nil {
+			err = errors.Join(err, fmt.Errorf("failed to close connection: %w", closeErr))
+		}
 	}()
 
 	if err = c.SendWithSMTPClient(client, messages...); err != nil {
 		return fmt.Errorf("send failed: %w", err)
 	}
-	if err = c.CloseWithSMTPClient(client); err != nil {
-		return fmt.Errorf("failed to close connection: %w", err)
-	}
+
 	return nil
 }
 
