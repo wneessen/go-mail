@@ -8188,28 +8188,41 @@ func hasSendmail() bool {
 
 func checkMessageContent(t *testing.T, buffer *bytes.Buffer, wants []msgContentTest) {
 	t.Helper()
+	longMsgID := false
+	addAfterLine := 0
 	lines := strings.Split(buffer.String(), "\r\n")
+	for i := range lines {
+		if strings.EqualFold(lines[i], "Message-ID:") {
+			longMsgID = true
+			addAfterLine = i
+		}
+	}
+
 	for _, want := range wants {
+		addLine := 0
+		if longMsgID && want.line > addAfterLine {
+			addLine = 1
+		}
 		if len(lines) <= want.line {
 			t.Errorf("expected line %d to be present, got: %d lines in total", want.line, len(lines)-1)
 			continue
 		}
-		if !strings.Contains(lines[want.line], want.data) {
-			t.Errorf("expected line %d to contain %q, got: %q", want.line, want.data, lines[want.line])
+		if !strings.Contains(lines[want.line+addLine], want.data) {
+			t.Errorf("expected line %d to contain %q, got: %q", want.line, want.data, lines[want.line+addLine])
 		}
 		if want.exact {
-			if !strings.EqualFold(lines[want.line], want.data) {
-				t.Errorf("expected line %d to be exactly %q, got: %q", want.line, want.data, lines[want.line])
+			if !strings.EqualFold(lines[want.line+addLine], want.data) {
+				t.Errorf("expected line %d to be exactly %q, got: %q", want.line, want.data, lines[want.line+addLine])
 			}
 		}
 		if want.dataIsPrefix {
-			if !strings.HasPrefix(lines[want.line], want.data) {
-				t.Errorf("expected line %d to start with %q, got: %q", want.line, want.data, lines[want.line])
+			if !strings.HasPrefix(lines[want.line+addLine], want.data) {
+				t.Errorf("expected line %d to start with %q, got: %q", want.line, want.data, lines[want.line+addLine])
 			}
 		}
 		if want.dataIsSuffix {
-			if !strings.HasSuffix(lines[want.line], want.data) {
-				t.Errorf("expected line %d to end with %q, got: %q", want.line, want.data, lines[want.line])
+			if !strings.HasSuffix(lines[want.line+addLine], want.data) {
+				t.Errorf("expected line %d to end with %q, got: %q", want.line, want.data, lines[want.line+addLine])
 			}
 		}
 	}
