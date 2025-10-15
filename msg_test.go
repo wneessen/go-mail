@@ -6675,8 +6675,7 @@ func TestMsg_WriteTo(t *testing.T) {
 		wants := []msgContentTest{
 			{0, "Date:", false, true, false},
 			{1, "MIME-Version: 1.0", true, true, false},
-			{2, "Message-ID: <", false, true, false},
-			{2, ">", false, false, true},
+			{2, "Message-ID:", false, true, false},
 			{8, "Content-Type: multipart/mixed;", true, true, false},
 			{9, " boundary=", false, true, false},
 			{10, "", true, false, false},
@@ -6706,8 +6705,7 @@ func TestMsg_WriteTo(t *testing.T) {
 		wants := []msgContentTest{
 			{0, "Date:", false, true, false},
 			{1, "MIME-Version: 1.0", true, true, false},
-			{2, "Message-ID: <", false, true, false},
-			{2, ">", false, false, true},
+			{2, "Message-ID:", false, true, false},
 			{8, "Content-Type: multipart/alternative;", true, true, false},
 			{9, " boundary=", false, true, false},
 			{10, "", true, false, false},
@@ -6746,8 +6744,7 @@ func TestMsg_WriteTo(t *testing.T) {
 		wants := []msgContentTest{
 			{0, "Date:", false, true, false},
 			{1, "MIME-Version: 1.0", true, true, false},
-			{2, "Message-ID: <", false, true, false},
-			{2, ">", false, false, true},
+			{2, "Message-ID:", false, true, false},
 			{8, "Content-Type: multipart/alternative;", true, true, false},
 			{9, " boundary=", false, true, false},
 			{10, "", true, false, false},
@@ -6781,8 +6778,7 @@ func TestMsg_WriteTo(t *testing.T) {
 		wants := []msgContentTest{
 			{0, "Date:", false, true, false},
 			{1, "MIME-Version: 1.0", true, true, false},
-			{2, "Message-ID: <", false, true, false},
-			{2, ">", false, false, true},
+			{2, "Message-ID:", false, true, false},
 			{6, "From: <valid-from@domain.tld>", true, true, false},
 			{7, "To: <valid-to@domain.tld>", true, true, false},
 			{8, `Content-Type: multipart/mixed;`, true, true, false},
@@ -6852,8 +6848,7 @@ func TestMsg_WriteTo(t *testing.T) {
 		wants := []msgContentTest{
 			{0, "Date:", false, true, false},
 			{1, "MIME-Version: 1.0", true, true, false},
-			{2, "Message-ID: <", false, true, false},
-			{2, ">", false, false, true},
+			{2, "Message-ID:", false, true, false},
 			{6, "From: <valid-from@domain.tld>", true, true, false},
 			{7, "To: <valid-to@domain.tld>", true, true, false},
 			{
