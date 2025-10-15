@@ -259,6 +259,9 @@ var (
 
 	// ErrDialContextFuncIsNil indicates that a required dial context function is not provided.
 	ErrDialContextFuncIsNil = errors.New("dial context function is nil")
+
+	// ErrClientIsNil indicates that a required smtp client is not provided.
+	ErrClientIsNil = errors.New("client is nil")
 )
 
 // NewClient creates a new Client instance with the provided host and optional configuration Option functions.
@@ -1252,16 +1255,19 @@ func (c *Client) Send(messages ...*Msg) (returnErr error) {
 //   - An error that represents the sending result, which may include multiple SendErrors if
 //     any occurred; otherwise, returns nil.
 func (c *Client) SendWithSMTPClient(client *smtp.Client, messages ...*Msg) (returnErr error) {
-	escSupport := false
-	if client != nil {
-		escSupport, _ = client.Extension("ENHANCEDSTATUSCODES")
+	if client == nil {
+		return &SendError{
+			Reason: ErrConnCheck, errlist: []error{ErrClientIsNil}, isTemp: isTempError(ErrClientIsNil),
+			errcode: errorCode(ErrClientIsNil), enhancedStatusCode: enhancedStatusCode(ErrClientIsNil, false),
+		}
 	}
+
+	escSupport, _ := client.Extension("ENHANCEDSTATUSCODES")
 	if err := c.checkConn(client); err != nil {
-		returnErr = &SendError{
+		return &SendError{
 			Reason: ErrConnCheck, errlist: []error{err}, isTemp: isTempError(err),
 			errcode: errorCode(err), enhancedStatusCode: enhancedStatusCode(err, escSupport),
 		}
-		return returnErr
 	}
 
 	var errs []error

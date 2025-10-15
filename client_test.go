@@ -3755,6 +3755,98 @@ func TestClient_DialWithContextNewVersionsOnly(t *testing.T) {
 	})
 }
 
+func TestClient_SendWithSMTPClient(t *testing.T) {
+	message := testMessage(t)
+
+	t.Run("sending with normal client should succeed", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{FeatureSet: featureSet, ListenPort: serverPort}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.SendWithSMTPClient(client.smtpClient, message); err != nil {
+			t.Errorf("failed to deliver message via smtp client: %s", err)
+		}
+	})
+	t.Run("sending should return a send error on connection test", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+				FailOnNoop: true,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.SendWithSMTPClient(client.smtpClient, message); err == nil {
+			t.Errorf("expected delivery to fail on connection check, but it didn't")
+		}
+	})
+	t.Run("sending with nil client should fail", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.SendWithSMTPClient(nil, message); err == nil {
+			t.Errorf("expected delivery to fail with nil client, but it didn't")
+		}
+	})
+}
+
 func TestClient_checkConn(t *testing.T) {
 	t.Run("connection is alive", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
