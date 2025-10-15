@@ -145,36 +145,27 @@ func TestQuickSend(t *testing.T) {
 			t.Fatalf("failed to send email: %s", err)
 		}
 
+		wants := []msgContentTest{
+			{8, "STARTTLS", true, true, false},
+			{17, "AUTH PLAIN AHVzZXJuYW1lAHBhc3N3b3Jk", true, true, false},
+			{21, "MAIL FROM:<valid-from@domain.tld> BODY=8BITMIME SMTPUTF8", true, true, false},
+			{23, "RCPT TO:<valid-to@domain.tld>", true, true, false},
+			{25, "RCPT TO:<valid-to@domain.tld>", true, true, false},
+			{27, "RCPT TO:<valid-to@domain.tld>", true, true, false},
+			{34, "Subject: " + subject, true, true, false},
+			{37, "From: <valid-from@domain.tld>", true, true, false},
+			{38, "To: <valid-to@domain.tld>, <valid-to@domain.tld>, <valid-to@domain.tld>", true, true, false},
+			{39, "Content-Transfer-Encoding: quoted-printable", true, true, false},
+			{40, "Content-Type: text/plain; charset=UTF-8", true, true, false},
+			{42, "This is a test body", true, true, false},
+			{43, "With multiple lines", true, true, false},
+			{44, "", true, true, false},
+			{45, "Best,", true, true, false},
+			{46, "  The go-mail team", true, true, false},
+		}
 		props.BufferMutex.RLock()
-		resp := strings.Split(echoBuffer.String(), "\r\n")
+		checkMessageContent(t, echoBuffer, wants)
 		props.BufferMutex.RUnlock()
-
-		expects := []struct {
-			line int
-			data string
-		}{
-			{8, "STARTTLS"},
-			{17, "AUTH PLAIN AHVzZXJuYW1lAHBhc3N3b3Jk"},
-			{21, "MAIL FROM:<valid-from@domain.tld> BODY=8BITMIME SMTPUTF8"},
-			{23, "RCPT TO:<valid-to@domain.tld>"},
-			{25, "RCPT TO:<valid-to@domain.tld>"},
-			{27, "RCPT TO:<valid-to@domain.tld>"},
-			{34, "Subject: " + subject},
-			{37, "From: <valid-from@domain.tld>"},
-			{38, "To: <valid-to@domain.tld>, <valid-to@domain.tld>, <valid-to@domain.tld>"},
-			{39, "Content-Transfer-Encoding: quoted-printable"},
-			{40, "Content-Type: text/plain; charset=UTF-8"},
-			{42, "This is a test body"},
-			{43, "With multiple lines"},
-			{44, ""},
-			{45, "Best,"},
-			{46, "  The go-mail team"},
-		}
-		for _, expect := range expects {
-			if !strings.EqualFold(resp[expect.line], expect.data) {
-				t.Errorf("expected %q at line %d, got: %q", expect.data, expect.line, resp[expect.line])
-			}
-		}
 	})
 	t.Run("QuickSend uses stronged authentication method", func(t *testing.T) {
 		ctxAuth, cancelAuth := context.WithCancel(context.Background())
