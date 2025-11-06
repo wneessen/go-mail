@@ -460,8 +460,6 @@ func WithHELO(helo string) Option {
 //
 // Returns:
 //   - An Option function that sets the TLSPolicy for the Client.
-//
-// WithTLSPortPolicy instead.
 func WithTLSPolicy(policy TLSPolicy) Option {
 	return func(c *Client) error {
 		c.tlspolicy = policy
