@@ -513,6 +513,40 @@ func (m *Msg) SetGenHeader(header Header, values ...string) {
 	m.genHeader[header] = values
 }
 
+// AddGenHeaderPreformatted adds a generic header field to the Msg with a preformatted value.
+// Unlike SetGenHeaderPreformatted, this method appends to existing headers instead of
+// replacing them. This is useful when you need multiple headers with the same key,
+// such as multiple DKIM-Signature headers for key rotation.
+//
+// Parameters:
+//   - header: The Header type representing the header field name (e.g., HeaderDKIMSig)
+//   - value: The preformatted header value string (will not be canonicalized)
+//
+// Example:
+//
+//	m := mail.NewMsg()
+//	m.AddGenHeaderPreformatted(mail.HeaderDKIMSig, "v=1; a=rsa-sha256; d=example.com; s=selector1; ...")
+//	m.AddGenHeaderPreformatted(mail.HeaderDKIMSig, "v=1; a=rsa-sha256; d=example.com; s=selector2; ...")
+//	// Message now has two DKIM-Signature headers
+func (m *Msg) AddGenHeaderPreformatted(header Header, value string) {
+	if m.genHeader == nil {
+		m.genHeader = make(map[Header][]string)
+	}
+	m.genHeader[header] = append(m.genHeader[header], value)
+}
+
+// Note: The existing SetGenHeaderPreformatted function looks like this:
+//
+// func (m *Msg) SetGenHeaderPreformatted(header Header, value string) {
+//     if m.genHeader == nil {
+//         m.genHeader = make(map[Header][]string)
+//     }
+//     m.genHeader[header] = []string{value}  // <-- This REPLACES
+// }
+//
+// The difference is that AddGenHeaderPreformatted uses append() to ADD to existing values
+// while SetGenHeaderPreformatted replaces all existing values with a single new value.
+
 // SetHeaderPreformatted sets a generic header field of the Msg, which content is already preformatted.
 //
 // Deprecated: This method only exists for compatibility reasons. Please use
