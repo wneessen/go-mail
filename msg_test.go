@@ -594,13 +594,13 @@ func TestMsg_SetHeaderPreformatted(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				//goland:noinspection GoDeprecation
 				message.SetHeaderPreformatted(tt.header, "test")
-				value, ok := message.preformHeader[tt.header]
+				values, ok := message.preformHeader[tt.header]
 				if !ok {
 					t.Fatalf("failed to set header, genHeader field for %s is not set", tt.header)
 				}
-				if value != "test" {
-					t.Errorf("failed to set header, genHeader value for %s is %s, want: %s", tt.header,
-						value, "test")
+				if len(values) != 1 || values[0] != "test" {
+					t.Errorf("failed to set header, preformHeader value for %s is %v, want: %s", tt.header,
+						values, "test")
 				}
 			})
 		}
@@ -616,13 +616,13 @@ func TestMsg_SetGenHeaderPreformatted(t *testing.T) {
 		for _, tt := range genHeaderTests {
 			t.Run(tt.name, func(t *testing.T) {
 				message.SetGenHeaderPreformatted(tt.header, "test")
-				value, ok := message.preformHeader[tt.header]
+				values, ok := message.preformHeader[tt.header]
 				if !ok {
-					t.Fatalf("failed to set header, genHeader field for %s is not set", tt.header)
+					t.Fatalf("failed to set header, preformHeader field for %s is not set", tt.header)
 				}
-				if value != "test" {
-					t.Errorf("failed to set header, genHeader value for %s is %s, want: %s", tt.header,
-						value, "test")
+				if len(values) != 1 || values[0] != "test" {
+					t.Errorf("failed to set header, preformHeader value for %s is %v, want: %s", tt.header,
+						values, "test")
 				}
 			})
 		}
@@ -634,13 +634,13 @@ func TestMsg_SetGenHeaderPreformatted(t *testing.T) {
 		}
 		message.preformHeader = nil
 		message.SetGenHeaderPreformatted(HeaderSubject, "test")
-		value, ok := message.preformHeader[HeaderSubject]
+		values, ok := message.preformHeader[HeaderSubject]
 		if !ok {
-			t.Fatalf("failed to set header, genHeader field for %s is not set", HeaderSubject)
+			t.Fatalf("failed to set header, preformHeader field for %s is not set", HeaderSubject)
 		}
-		if value != "test" {
-			t.Errorf("failed to set header, genHeader value for %s is %s, want: %s", HeaderSubject,
-				value, "test")
+		if len(values) != 1 || values[0] != "test" {
+			t.Errorf("failed to set header, preformHeader value for %s is %v, want: %s", HeaderSubject,
+				values, "test")
 		}
 	})
 }
@@ -8265,4 +8265,161 @@ func FuzzMsg_From(f *testing.F) {
 		}
 		m.Reset()
 	})
+}
+
+// TestMsg_AddGenHeaderPreformatted tests the AddGenHeaderPreformatted method
+func TestMsg_AddGenHeaderPreformatted(t *testing.T) {
+	tests := []struct {
+		name    string
+		headers []struct {
+			key   Header
+			value string
+		}
+		wantCount map[Header]int
+	}{
+		{
+			name: "single header",
+			headers: []struct {
+				key   Header
+				value string
+			}{
+				{HeaderXMailer, "test-mailer"},
+			},
+			wantCount: map[Header]int{
+				HeaderXMailer: 1,
+			},
+		},
+		{
+			name: "multiple different headers",
+			headers: []struct {
+				key   Header
+				value string
+			}{
+				{HeaderXMailer, "test-mailer"},
+				{HeaderXPriority, "1"},
+			},
+			wantCount: map[Header]int{
+				HeaderXMailer:   1,
+				HeaderXPriority: 1,
+			},
+		},
+		{
+			name: "multiple same headers",
+			headers: []struct {
+				key   Header
+				value string
+			}{
+				{Header("X-Custom"), "value1"},
+				{Header("X-Custom"), "value2"},
+			},
+			wantCount: map[Header]int{
+				Header("X-Custom"): 2,
+			},
+		},
+		{
+			name: "three same headers",
+			headers: []struct {
+				key   Header
+				value string
+			}{
+				{Header("X-Custom"), "value1"},
+				{Header("X-Custom"), "value2"},
+				{Header("X-Custom"), "value3"},
+			},
+			wantCount: map[Header]int{
+				Header("X-Custom"): 3,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := NewMsg()
+
+			// Add all headers
+			for _, h := range tt.headers {
+				m.AddGenHeaderPreformatted(h.key, h.value)
+			}
+
+			// Verify counts
+			for header, expectedCount := range tt.wantCount {
+				if got := len(m.preformHeader[header]); got != expectedCount {
+					t.Errorf("AddGenHeaderPreformatted() header %s count = %d, want %d",
+						header, got, expectedCount)
+				}
+			}
+		})
+	}
+}
+
+// TestMsg_AddGenHeaderPreformatted_PreservesValues tests that values are preserved correctly
+func TestMsg_AddGenHeaderPreformatted_PreservesValues(t *testing.T) {
+	m := NewMsg()
+	customHeader := Header("X-Custom")
+
+	value1 := "first-value"
+	value2 := "second-value"
+
+	m.AddGenHeaderPreformatted(customHeader, value1)
+	m.AddGenHeaderPreformatted(customHeader, value2)
+
+	values := m.preformHeader[customHeader]
+
+	if len(values) != 2 {
+		t.Fatalf("Expected 2 values, got %d", len(values))
+	}
+
+	if values[0] != value1 {
+		t.Errorf("First value = %q, want %q", values[0], value1)
+	}
+
+	if values[1] != value2 {
+		t.Errorf("Second value = %q, want %q", values[1], value2)
+	}
+}
+
+// TestMsg_AddGenHeaderPreformatted_MultipleAdds tests that multiple Add calls accumulate values
+func TestMsg_AddGenHeaderPreformatted_MultipleAdds(t *testing.T) {
+	m := NewMsg()
+	customHeader := Header("X-Custom")
+
+	// Add headers one by one
+	m.AddGenHeaderPreformatted(customHeader, "first")
+	if len(m.preformHeader[customHeader]) != 1 {
+		t.Fatalf("After first Add: expected 1 value, got %d", len(m.preformHeader[customHeader]))
+	}
+
+	m.AddGenHeaderPreformatted(customHeader, "second")
+	if len(m.preformHeader[customHeader]) != 2 {
+		t.Fatalf("After second Add: expected 2 values, got %d", len(m.preformHeader[customHeader]))
+	}
+
+	m.AddGenHeaderPreformatted(customHeader, "third")
+	if len(m.preformHeader[customHeader]) != 3 {
+		t.Fatalf("After third Add: expected 3 values, got %d", len(m.preformHeader[customHeader]))
+	}
+
+	// Verify all values are present
+	expected := []string{"first", "second", "third"}
+	for i, exp := range expected {
+		if m.preformHeader[customHeader][i] != exp {
+			t.Errorf("Value at index %d = %q, want %q", i, m.preformHeader[customHeader][i], exp)
+		}
+	}
+}
+
+// TestMsg_AddGenHeaderPreformatted_NilMap tests that the method handles nil map correctly
+func TestMsg_AddGenHeaderPreformatted_NilMap(t *testing.T) {
+	m := &Msg{} // Create without NewMsg to have nil preformHeader
+
+	// Should not panic
+	m.AddGenHeaderPreformatted(HeaderXMailer, "test")
+
+	if m.preformHeader == nil {
+		t.Error("preformHeader should be initialized")
+	}
+
+	if len(m.preformHeader[HeaderXMailer]) != 1 {
+		t.Errorf("Expected 1 header, got %d", len(m.preformHeader[HeaderXMailer]))
+	}
 }
