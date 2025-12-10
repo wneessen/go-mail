@@ -5,5 +5,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: GitHub Community Discussions
-    url: https://github.com/wneessen/go-mail/discussions
+    url: https://github.com/thib-d/go-mail/discussions
     about: If your question is not a feature or a bug, please go to the discussion panel and retrieve if your question already exists before submitting.

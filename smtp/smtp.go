@@ -33,7 +33,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wneessen/go-mail/log"
+	"github.com/thib-d/go-mail/log"
 )
 
 var (

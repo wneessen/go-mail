@@ -2,8 +2,8 @@ Date: Mon, 03 Mar 2025 10:18:52 +0100
 MIME-Version: 1.0
 Message-ID: <fTLb20IMVl4XQJkbTpFOUg@dev-vm>
 Subject: Order Confirmation and Invoice
-User-Agent: go-mail v0.6.2 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.6.2 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.6.2 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.6.2 // https://github.com/thib-d/go-mail
 From: "Snake-Oil Inc." <go-mail@neessen.dev>
 To: <winni@go-mail.dev>
 Content-Type: multipart/mixed;

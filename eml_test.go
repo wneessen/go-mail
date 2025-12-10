@@ -42,8 +42,8 @@ So, "Hello".`
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text without encoding
-User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.0 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -65,8 +65,8 @@ This is a signature`
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text without encoding
-User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.0 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -88,8 +88,8 @@ This is a signature`
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text without encoding
-User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.0 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -111,8 +111,8 @@ This is a signature`
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text without encoding
-User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.0 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -134,8 +134,8 @@ This is a signature`
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text without encoding
-User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.0 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -148,8 +148,8 @@ This plain text body should not be parsed as Base64.
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text without encoding
-User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.0 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -162,8 +162,8 @@ This plain text body should not be parsed as Base64.
 MIME-Version = 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text without encoding
-User-Agent = go-mail v0.4.0 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+User-Agent = go-mail v0.4.0 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/thib-d/go-mail
 From = "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -185,8 +185,8 @@ This is a signature`
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text without encoding
-User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.0 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/thib-d/go-mail
 From: Toni Tester" go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -208,8 +208,8 @@ This is a signature`
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text without encoding
-User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.0 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: go-mail+test.go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -231,8 +231,8 @@ This is a signature`
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text without encoding
-User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.0 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -253,8 +253,8 @@ This is a signature`
 	exampleMailPlainNoEncNoDate = `MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text without encoding
-User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.0 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -276,8 +276,8 @@ This is a signature`
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text quoted-printable
-User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.0 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -299,8 +299,8 @@ This is a signature`
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text quoted-printable
-User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.0 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -322,8 +322,8 @@ This is a signature`
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text base64
-User-Agent: go-mail v0.4.0 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.0 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.0 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.0 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -338,8 +338,8 @@ ClRoaXMgaXMgYSBzaWduYXR1cmU=`
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text base64 with attachment
-User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.1 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -369,8 +369,8 @@ Y2VzCiAgICAgaW4KICBpdAouCgpBcyB3ZWxsIGFzIGFuIGVtb2ppOiDwn5mCCg==
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text base64 with attachment
-User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.1 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -398,8 +398,8 @@ Y2VzCiAgICAgaW4KICBpdAouCgpBcyB3ZWxsIGFzIGFuIGVtb2ppOiDwn5mCCg==
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text base64 with attachment
-User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.1 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -429,8 +429,8 @@ Y2VzCiAgICAgaW4KICBpdAouCgpBcyB3ZWxsIGFzIGFuIGVtb2ppOiDwn5mCCg==
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text base64 with attachment
-User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.1 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -460,8 +460,8 @@ Y2VzCiAgICAgaW4KICBpdAouCgpBcyB3ZWxsIGFzIGFuIGVtb2ppOiDwn5mCCg==
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text base64 with attachment
-User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.1 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -491,8 +491,8 @@ Y2VzCiAgICAgaW4KICBpdAouCgpBcyB3ZWxsIGFzIGFuIGVtb2ppOiDwn5mCCg==
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text base64 with attachment
-User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.1 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -521,8 +521,8 @@ Y2VzCiAgICAgaW4KICBpdAouCgpBcyB3ZWxsIGFzIGFuIGVtb2ppOiDwn5mCCg==
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text base64 with attachment
-User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.1 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -552,8 +552,8 @@ Y2VzCiAgICAgaW4KICBpdAouCgpBcyB3ZWxsIGFzIGFuIGVtb2ppOiDwn5mCCg==
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text base64 with embed
-User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.1 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -579,8 +579,8 @@ UAAAAABJRU5ErkJggg==
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text base64 with embed
-User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.1 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -605,8 +605,8 @@ UAAAAABJRU5ErkJggg==
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text base64 with attachment, embed and alternative part
-User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.1 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -732,8 +732,8 @@ GAAAABFJREFUCJljnMoAA0wMNGcCAEQrAKk9oHKhAAAAAElFTkSuQmCC
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // 7bit with base64 attachment
-User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.1 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -765,8 +765,8 @@ VGhpcyBpcyBhIHRlc3QgaW4gQmFzZTY0
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // 7bit with base64 attachment
-User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.1 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -798,8 +798,8 @@ VGh@@@@§§§§hIHRlc3QgaW4gQmFzZTY0
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // 8bit with base64 attachment
-User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.1 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -831,8 +831,8 @@ VGhpcyBpcyBhIHRlc3QgaW4gQmFzZTY0
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail with inline embed
-User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.1 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Content-Type: multipart/related; boundary="abc123"
@@ -862,8 +862,8 @@ UAAAAABJRU5ErkJggg==
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail with inline embed
-User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.1 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Content-Type: multipart/related; boundary="abc123"
@@ -889,13 +889,13 @@ Content-Disposition: broken; filename="test.png"
 iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIW2NgYGD4DwABBAEAwS2O
 UAAAAABJRU5ErkJggg==
 --abc123--`
-	// https://github.com/wneessen/go-mail/issues/457
+	// https://github.com/thib-d/go-mail/issues/457
 	exampleMailPlainB64WithAttachmentAndMetadata = `Date: Wed, 01 Nov 2023 00:00:00 +0000
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
 Subject: Example mail // plain text base64 with attachment
-User-Agent: go-mail v0.4.1 // https://github.com/wneessen/go-mail
-X-Mailer: go-mail v0.4.1 // https://github.com/wneessen/go-mail
+User-Agent: go-mail v0.4.1 // https://github.com/thib-d/go-mail
+X-Mailer: go-mail v0.4.1 // https://github.com/thib-d/go-mail
 From: "Toni Tester" <go-mail@go-mail.dev>
 To: <go-mail+test@go-mail.dev>
 Cc: <go-mail+cc@go-mail.dev>
@@ -1170,7 +1170,7 @@ func TestEMLToMsgFromReader(t *testing.T) {
 			})
 		}
 	})
-	// https://github.com/wneessen/go-mail/issues/457
+	// https://github.com/thib-d/go-mail/issues/457
 	t.Run("EMLToMsgFromReader via EMLToMsgFromString with attachment and metadata", func(t *testing.T) {
 		message, err := EMLToMsgFromString(exampleMailPlainB64WithAttachmentAndMetadata)
 		if err != nil {
@@ -1219,7 +1219,7 @@ func TestEMLToMsgFromFile(t *testing.T) {
 			t.Errorf("EMLToMsgFromFile with invalid EML message should fail")
 		}
 	})
-	// https://github.com/wneessen/go-mail/issues/446
+	// https://github.com/thib-d/go-mail/issues/446
 	t.Run("EMLToMsgFromFile and writing it back to buffer succeeds", func(t *testing.T) {
 		parsed, err := EMLToMsgFromFile("testdata/invoice.eml")
 		if err != nil {

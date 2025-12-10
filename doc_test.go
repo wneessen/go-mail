@@ -11,7 +11,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/wneessen/go-mail"
+	"github.com/thib-d/go-mail"
 )
 
 // Code example for the NewClient method

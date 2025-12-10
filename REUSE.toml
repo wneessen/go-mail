@@ -5,7 +5,7 @@
 version = 1
 SPDX-PackageName = "go-mail"
 SPDX-PackageSupplier = "The go-mail Authors"
-SPDX-PackageDownloadLocation = "https://github.com/wneessen/go-mail"
+SPDX-PackageDownloadLocation = "https://github.com/thib-d/go-mail"
 
 [[annotations]]
 path = ["testdata/**"]
