@@ -326,6 +326,26 @@ func TestMsgWriter_writePreformattedGenHeader(t *testing.T) {
 			t.Errorf("expected preformatted header, got: %s", buffer.String())
 		}
 	})
+	t.Run("multiple preformatted headers rendered separately", func(t *testing.T) {
+		buffer := bytes.NewBuffer(nil)
+		msgwriter := &msgWriter{
+			writer:  buffer,
+			charset: CharsetUTF8,
+			encoder: getEncoder(EncodingQP),
+		}
+		message := testMessage(t)
+		message.AddGenHeaderPreformatted(Header("DKIM-Signature"), "v=1; s=one; d=example.com")
+		message.AddGenHeaderPreformatted(Header("DKIM-Signature"), "v=1; s=two; d=example.com")
+
+		msgwriter.writeMsg(message)
+
+		if count := strings.Count(buffer.String(), "DKIM-Signature:"); count != 2 {
+			t.Fatalf("expected 2 DKIM-Signature headers, got %d", count)
+		}
+		if strings.Contains(buffer.String(), "DKIM-Signature: v=1; s=one; d=example.com, v=1; s=two; d=example.com") {
+			t.Errorf("DKIM headers were collapsed into a single header: %s", buffer.String())
+		}
+	})
 }
 
 func TestMsgWriter_addFiles(t *testing.T) {
