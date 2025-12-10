@@ -2,8 +2,11 @@
 //
 // SPDX-License-Identifier: MIT
 
-module github.com/wneessen/go-mail
+module github.com/thib-d/go-mail
 
 go 1.24.0
 
-require golang.org/x/text v0.31.0
+require (
+	github.com/wneessen/go-mail v0.7.2
+	golang.org/x/text v0.32.0
+)
