@@ -44,33 +44,47 @@ func (l *base64LineBreaker) Write(data []byte) (numBytes int, err error) {
 		err = errors.New("no io.Writer set for base64LineBreaker")
 		return numBytes, err
 	}
-	if l.used+len(data) < MaxBodyLength {
-		copy(l.line[l.used:], data)
-		l.used += len(data)
-		return len(data), nil
-	}
 
-	_, err = l.out.Write(l.line[0:l.used])
-	if err != nil {
-		return numBytes, err
-	}
-	excess := MaxBodyLength - l.used
-	l.used = 0
+	written := 0
+	for len(data) > 0 {
+		space := MaxBodyLength - l.used
+		if space == 0 {
+			// buffer full, flush it
+			_, err = l.out.Write(l.line[0:l.used])
+			if err != nil {
+				return written, err
+			}
+			_, err = l.out.Write(newlineBytes)
+			if err != nil {
+				return written, err
+			}
+			l.used = 0
+			space = MaxBodyLength
+		}
 
-	numBytes, err = l.out.Write(data[0:excess])
-	if err != nil {
-		return numBytes, err
-	}
+		if len(data) <= space {
+			copy(l.line[l.used:], data)
+			l.used += len(data)
+			written += len(data)
+			break
+		}
 
-	_, err = l.out.Write(newlineBytes)
-	if err != nil {
-		return numBytes, err
+		// Fill the buffer and flush
+		copy(l.line[l.used:], data[:space])
+		l.used = MaxBodyLength
+		_, err = l.out.Write(l.line[0:l.used])
+		if err != nil {
+			return written, err
+		}
+		_, err = l.out.Write(newlineBytes)
+		if err != nil {
+			return written, err
+		}
+		l.used = 0
+		written += space
+		data = data[space:]
 	}
-
-	var n int
-	n, err = l.Write(data[excess:]) // recurse
-	numBytes += n
-	return numBytes, err
+	return written, nil
 }
 
 // Close finalizes the base64LineBreaker, writing any remaining buffered data and appending a newline.
