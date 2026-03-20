@@ -185,6 +185,10 @@ type (
 		// You should use one of go-mail's SMTPAuthType, instead.
 		smtpAuth smtp.Auth
 
+		// customSMTPAuthFunc is a function which if set in combination with smtpAuthType value SMTPAuthCustom will
+		// provision the smtpAuth for a session.
+		customSMTPAuthFunc SMTPAuthCustomFunc
+
 		// smtpAuthType specifies the authentication type to be used for SMTP authentication.
 		smtpAuthType SMTPAuthType
 
@@ -541,6 +545,17 @@ func WithSMTPAuthCustom(smtpAuth smtp.Auth) Option {
 			return ErrSMTPAuthMethodIsNil
 		}
 		c.smtpAuth = smtpAuth
+		c.smtpAuthType = SMTPAuthCustom
+		return nil
+	}
+}
+
+func WithSMTPAuthCustomFunc(f SMTPAuthCustomFunc) Option {
+	return func(c *Client) error {
+		if f == nil {
+			return ErrSMTPAuthMethodIsNil
+		}
+		c.customSMTPAuthFunc = f
 		c.smtpAuthType = SMTPAuthCustom
 		return nil
 	}
@@ -1308,7 +1323,19 @@ func (c *Client) SendWithSMTPClient(client *smtp.Client, messages ...*Msg) (retu
 func (c *Client) auth(client *smtp.Client, isEnc bool) error {
 	var smtpAuth smtp.Auth
 	if c.smtpAuthType == SMTPAuthCustom {
-		smtpAuth = c.smtpAuth
+		if c.customSMTPAuthFunc != nil {
+			tlsConnState, err := client.GetTLSConnectionState()
+			if err != nil && !errors.Is(err, smtp.ErrNonTLSConnection) {
+				return err
+			}
+
+			smtpAuth, err = c.customSMTPAuthFunc("", c.user, c.pass, c.host, tlsConnState)
+			if err != nil {
+				return err
+			}
+		} else {
+			smtpAuth = c.smtpAuth
+		}
 	}
 	if c.smtpAuth == nil && c.smtpAuthType != SMTPAuthNoAuth {
 		hasSMTPAuth, smtpAuthType := client.Extension("AUTH")
