@@ -1057,11 +1057,21 @@ func (c *Client) DialToSMTPClientWithContext(ctxDial context.Context) (*smtp.Cli
 		return nil, err
 	}
 
+	err = connection.SetDeadline(time.Now().Add(c.connTimeout))
+	if err != nil {
+		return nil, err
+	}
+
 	client, err := smtp.NewClient(connection, c.host)
 	if err != nil {
 		return nil, err
 	}
 	client.ErrorHandlerRegistry = c.ErrorHandlerRegistry
+
+	err = client.UpdateDeadline(0)
+	if err != nil {
+		return nil, err
+	}
 
 	if c.logger != nil {
 		client.SetLogger(c.logger)
