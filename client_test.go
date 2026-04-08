@@ -2057,7 +2057,7 @@ func TestClient_DialWithContext(t *testing.T) {
 		dialTimeout := time.Millisecond * 300
 
 		done := make(chan error, 1)
-		go func() {
+		go func(ctxParent context.Context) {
 			client, err := NewClient(DefaultHost, WithPort(sslServerPort), WithTLSPolicy(NoTLS),
 				WithTimeout(dialTimeout))
 			if err != nil {
@@ -2065,10 +2065,9 @@ func TestClient_DialWithContext(t *testing.T) {
 				return
 			}
 
-			ctxDial, cancelDial := context.WithCancel(t.Context())
-			t.Cleanup(cancelDial)
-			done <- client.DialWithContext(ctxDial)
-		}()
+			dialCtx := context.WithoutCancel(ctxParent)
+			done <- client.DialWithContext(dialCtx)
+		}(ctx)
 
 		select {
 		case err := <-done:
