@@ -28,7 +28,7 @@ jobs:
         strategy:
             matrix:
                 os: [ubuntu-latest]
-                go: ['1.25']
+                go: ['1.26']
         env:
             PERFORM_ONLINE_TEST: ${{ vars.PERFORM_ONLINE_TEST }}
             PERFORM_UNIX_OPEN_WRITE_TESTS: ${{ vars.PERFORM_UNIX_OPEN_WRITE_TESTS }}
@@ -70,7 +70,7 @@ jobs:
             cancel-in-progress: true
         strategy:
             matrix:
-                go: ['1.25']
+                go: ['1.26']
         steps:
             - name: Harden Runner
               uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
@@ -125,13 +125,13 @@ jobs:
             fail-fast: false
             matrix:
                 os: [ubuntu-latest, windows-latest, macos-latest]
-                go: ['1.24', '1.25']
+                go: ['1.25', '1.26']
                 include:
                   - os: macos-latest
-                    go: '1.24'
+                    go: '1.25'
                     allow_fail: true
                   - os: macos-latest
-                    go: '1.25'
+                    go: '1.26'
                     allow_fail: true
         continue-on-error: ${{ matrix.allow_fail == true }}
         env:
@@ -159,7 +159,7 @@ jobs:
             cancel-in-progress: true
         strategy:
             matrix:
-                osver: ['13.5', '14.2', '14.3']
+                osver: ['14.3', '14.4', '15.0']
         env:
             TEST_BASEPORT: ${{ vars.TEST_BASEPORT }}
             TEST_BASEPORT_SMTP: ${{ vars.TEST_BASEPORT_SMTP }}
