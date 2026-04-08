@@ -2036,6 +2036,48 @@ func TestClient_DialWithContext(t *testing.T) {
 			t.Fatalf("failed to close client: %s", err)
 		}
 	})
+	t.Run("dialing a TLS server with no TLS runs into deadlock", func(t *testing.T) {
+		ctxSSL, cancelSSL := context.WithCancel(ctx)
+		defer cancelSSL()
+		PortAdder.Add(1)
+		sslServerPort := int(TestServerPortBase + PortAdder.Load())
+		sslFeatureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctxSSL, t, &serverProps{
+				SSLListener: true,
+				FeatureSet:  sslFeatureSet,
+				ListenPort:  sslServerPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		testDeadlock := time.Second * 2
+		dialTimeout := time.Millisecond * 300
+
+		done := make(chan error, 1)
+		go func(ctxParent context.Context) {
+			client, err := NewClient(DefaultHost, WithPort(sslServerPort), WithTLSPolicy(NoTLS),
+				WithTimeout(dialTimeout))
+			if err != nil {
+				done <- err
+				return
+			}
+
+			dialCtx := context.WithoutCancel(ctxParent)
+			done <- client.DialWithContext(dialCtx)
+		}(ctx)
+
+		select {
+		case err := <-done:
+			if err == nil || !strings.Contains(err.Error(), "i/o timeout") {
+				t.Fatalf("expected client fail with i/o timeout, but got: %s", err)
+			}
+		case <-time.After(testDeadlock):
+			t.Fatalf("potential deadlock detected, expected client to fail after %s", dialTimeout.String())
+		}
+	})
 }
 
 func TestClient_Reset(t *testing.T) {

@@ -1068,7 +1068,7 @@ func (c *Client) DialToSMTPClientWithContext(ctxDial context.Context) (*smtp.Cli
 	}
 	client.ErrorHandlerRegistry = c.ErrorHandlerRegistry
 
-	err = client.UpdateDeadline(0)
+	err = client.UpdateDeadline(c.connTimeout)
 	if err != nil {
 		return nil, err
 	}
