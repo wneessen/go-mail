@@ -4,6 +4,6 @@
 
 module github.com/wneessen/go-mail
 
-go 1.24.0
+go 1.25.0
 
-require golang.org/x/text v0.32.0
+require golang.org/x/text v0.35.0
