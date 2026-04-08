@@ -129,6 +129,22 @@ linters = [
 path = 'internal/pbkdf2/pbkdf2_test.go'
 text = 'G505:'
 
+## We're using strings.Builder which does not support fmt.Fprintf()
+[[linters.exclusions.rules]]
+linters = [
+  'staticcheck'
+]
+path = 'msgwriter.go'
+text = 'QF1012:'
+
+## These are test credentials and do not represent any kind of hardcoded credentials
+[[linters.exclusions.rules]]
+linters = [
+  'gosec'
+]
+path = 'smtp/smtp_test.go'
+text = 'G101:'
+
 [formatters]
 enable = [
   'gofmt',
