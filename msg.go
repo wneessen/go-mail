@@ -623,9 +623,13 @@ func (m *Msg) SetAddrHeaderFromMailAddress(header AddrHeader, values ...*mail.Ad
 	}
 
 	switch header {
-	case HeaderEnvelopeFrom, HeaderFrom, HeaderReplyTo:
+	case HeaderEnvelopeFrom, HeaderFrom:
 		if len(addresses) > 0 {
 			m.addrHeader[header] = []*mail.Address{addresses[0]}
+		}
+	case HeaderReplyTo:
+		if len(addresses) > 0 {
+			m.addrHeader[header] = addresses
 		}
 	default:
 		m.addrHeader[header] = addresses
@@ -1166,7 +1170,7 @@ func (m *Msg) ReplyTo(addr string) error {
 	return m.SetAddrHeader(HeaderReplyTo, addr)
 }
 
-// ReplyToMailAddress sets one or more "BCC" (blind carbon copy) addresses in the mail body for the Msg.
+// ReplyToMailAddress sets one or more "Reply-To" addresses for the Msg, specifying where replies should be sent.
 //
 // The "Reply-To" address can be different from the "From" address, allowing the sender to specify an alternate
 // address for responses.
@@ -1176,8 +1180,8 @@ func (m *Msg) ReplyTo(addr string) error {
 //
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
-func (m *Msg) ReplyToMailAddress(addr *mail.Address) {
-	m.SetAddrHeaderFromMailAddress(HeaderReplyTo, addr)
+func (m *Msg) ReplyToMailAddress(addrs ...*mail.Address) {
+	m.SetAddrHeaderFromMailAddress(HeaderReplyTo, addrs...)
 }
 
 // ReplyToFormat sets the "Reply-To" address for the Msg using the provided name and email address, specifying
@@ -1699,6 +1703,20 @@ func (m *Msg) GetBccString() []string {
 //   - A slice of strings containing the values of the specified generic header.
 func (m *Msg) GetGenHeader(header Header) []string {
 	return m.genHeader[header]
+}
+
+// GetReplyTo returns the content of the "ReplyTo" address header of the Msg.
+//
+// This method retrieves the list of email addresses set in the "ReplyTo" header of the message.
+// It returns a slice of pointers to `mail.Address` objects representing the return path(s) of the email.
+//
+// Returns:
+//   - A slice of `*mail.Address` containing the "ReplyTo" header addresses.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+func (m *Msg) GetReplyTo() []*mail.Address {
+	return m.GetAddrHeader(HeaderReplyTo)
 }
 
 // GetParts returns the message parts of the Msg.
