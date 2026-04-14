@@ -154,7 +154,10 @@ func (c *Client) hello() error {
 		c.didHello = true
 		err := c.ehlo()
 		if err != nil {
-			c.helloError = c.helo()
+			if heloErr := c.helo(); heloErr != nil {
+				c.helloError = fmt.Errorf("smtp: EHLO/HELO exchange failed. EHLO response: %w, HELO response: %w",
+					err, heloErr)
+			}
 		}
 	}
 	return c.helloError
