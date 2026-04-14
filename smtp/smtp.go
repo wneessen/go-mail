@@ -152,11 +152,11 @@ func (c *Client) Close() error {
 func (c *Client) hello() error {
 	if !c.didHello {
 		c.didHello = true
-		ehloErr := c.ehlo()
-		if ehloErr != nil {
-			heloErr := c.helo()
-			if heloErr != nil {
-				c.helloError = fmt.Errorf("EHLO failed: %w, HELO also failed: %v", ehloErr, heloErr)
+		err := c.ehlo()
+		if err != nil {
+			if heloErr := c.helo(); heloErr != nil {
+				c.helloError = fmt.Errorf("smtp: EHLO/HELO exchange failed. EHLO response: %w, HELO response: %s",
+					err, heloErr)
 			}
 		}
 	}
