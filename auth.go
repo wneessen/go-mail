@@ -5,9 +5,12 @@
 package mail
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/wneessen/go-mail/smtp"
 )
 
 // SMTPAuthType is a type wrapper for a string type. It represents the type of SMTP authentication
@@ -227,3 +230,5 @@ func (sa *SMTPAuthType) UnmarshalString(value string) error {
 	}
 	return nil
 }
+
+type SMTPAuthCustomFunc func(identity, username, password, host string, tlsConnState *tls.ConnectionState) (smtpAuth smtp.Auth, err error)
