@@ -441,6 +441,9 @@ func TestPlainAuth(t *testing.T) {
 		if err = client.Auth(auth); err != nil {
 			t.Errorf("failed to authenticate to test server: %s", err)
 		}
+		if hr := client.HelloResponse(); hr != "localhost.localdomain" {
+			t.Errorf(`Hello response mismatch: got %q, expected "localhost.localdomain"`, hr)
+		}
 	})
 	t.Run("PLAIN authentication on test server should fail", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
@@ -1606,7 +1609,7 @@ func TestClient_hello(t *testing.T) {
 }
 
 func TestClient_Hello(t *testing.T) {
-	t.Run("normal client HELO/EHLO", func(t *testing.T) {
+	t.Run("normal client EHLO", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		PortAdder.Add(1)
@@ -1614,6 +1617,7 @@ func TestClient_Hello(t *testing.T) {
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
 			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnHelo: true,
 				FeatureSet: featureSet,
 				ListenPort: serverPort,
 			},
@@ -1630,6 +1634,39 @@ func TestClient_Hello(t *testing.T) {
 		}
 		if err = client.Hello(TestServerAddr); err != nil {
 			t.Errorf("failed to send HELO/EHLO to test server: %s", err)
+		}
+		if hr := client.HelloResponse(); hr != "localhost.localdomain" {
+			t.Errorf(`Hello response mismatch: got %q, expected "localhost.localdomain"`, hr)
+		}
+	})
+	t.Run("normal client EHLO fallback on HELO", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FailOnEhlo: true,
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		if err = client.Hello(TestServerAddr); err != nil {
+			t.Errorf("failed to send HELO/EHLO to test server: %s", err)
+		}
+		if hr := client.HelloResponse(); hr != "localhost.localdomain" {
+			t.Errorf(`Hello response mismatch: got %q, expected "localhost.localdomain"`, hr)
 		}
 	})
 	t.Run("client HELO/EHLO with empty name should fail", func(t *testing.T) {
@@ -1769,6 +1806,9 @@ func TestClient_StartTLS(t *testing.T) {
 		tlsConfig := getTLSConfig(t)
 		if err = client.StartTLS(tlsConfig); err != nil {
 			t.Errorf("failed to initialize STARTTLS session: %s", err)
+		}
+		if hr := client.HelloResponse(); hr != "localhost.localdomain" {
+			t.Errorf(`Hello response mismatch: got %q, expected "localhost.localdomain"`, hr)
 		}
 	})
 	t.Run("STARTTLS fails on EHLO/HELO", func(t *testing.T) {
@@ -1945,6 +1985,9 @@ func TestClient_Verify(t *testing.T) {
 		})
 		if err = client.Verify("toni.tester@example.com"); err != nil {
 			t.Errorf("failed to verify user: %s", err)
+		}
+		if hr := client.HelloResponse(); hr != "localhost.localdomain" {
+			t.Errorf(`Hello response mismatch: got %q, expected "localhost.localdomain"`, hr)
 		}
 	})
 	t.Run("Verify on non-existing user fails", func(t *testing.T) {
@@ -2272,6 +2315,9 @@ func TestClient_Mail(t *testing.T) {
 		}
 		if err = client.Mail(fromAddr.String()); err != nil {
 			t.Errorf("failed to set mail from address: %s", err)
+		}
+		if hr := client.HelloResponse(); hr != "localhost.localdomain" {
+			t.Errorf(`Hello response mismatch: got %q, expected "localhost.localdomain"`, hr)
 		}
 	})
 	t.Run("from address with new lines fails", func(t *testing.T) {
@@ -3200,7 +3246,7 @@ func TestClient_Extension(t *testing.T) {
 }
 
 func TestClient_Reset(t *testing.T) {
-	t.Run("reset on functioning client conneciton", func(t *testing.T) {
+	t.Run("reset on functioning client connection", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		PortAdder.Add(1)
@@ -3228,6 +3274,9 @@ func TestClient_Reset(t *testing.T) {
 		})
 		if err = client.Reset(); err != nil {
 			t.Errorf("failed to reset client: %s", err)
+		}
+		if hr := client.HelloResponse(); hr != "localhost.localdomain" {
+			t.Errorf(`Hello response mismatch: got %q, expected "localhost.localdomain"`, hr)
 		}
 	})
 	t.Run("reset fails on RSET", func(t *testing.T) {
@@ -3296,7 +3345,7 @@ func TestClient_Reset(t *testing.T) {
 }
 
 func TestClient_Noop(t *testing.T) {
-	t.Run("noop on functioning client conneciton", func(t *testing.T) {
+	t.Run("noop on functioning client connection", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		PortAdder.Add(1)
@@ -3324,6 +3373,9 @@ func TestClient_Noop(t *testing.T) {
 		})
 		if err = client.Noop(); err != nil {
 			t.Errorf("failed client no-operation: %s", err)
+		}
+		if hr := client.HelloResponse(); hr != "localhost.localdomain" {
+			t.Errorf(`Hello response mismatch: got %q, expected "localhost.localdomain"`, hr)
 		}
 	})
 	t.Run("noop fails on EHLO/HELO", func(t *testing.T) {
