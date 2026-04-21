@@ -81,6 +81,9 @@ type Client struct {
 	// helloError is the error from the hello
 	helloError error
 
+	// helloResponse is the response message from the hello
+	helloResponse string
+
 	// isConnected indicates if the Client has an active connection
 	isConnected bool
 
@@ -183,6 +186,12 @@ func (c *Client) Hello(localName string) error {
 	return c.hello()
 }
 
+// HelloResponse returns the message returned by the previous HELO or
+// EHLO request, excluding code and features.
+func (c *Client) HelloResponse() string {
+	return c.helloResponse
+}
+
 // cmd is a convenience function that sends a command and returns the response
 func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, string, error) {
 	c.mutex.Lock()
@@ -236,7 +245,8 @@ func (c *Client) helo() error {
 	c.ext = nil
 	c.mutex.Unlock()
 
-	_, _, err := c.cmd(250, "HELO %s", c.localName)
+	_, msg, err := c.cmd(250, "HELO %s", c.localName)
+	c.helloResponse, _, _ = strings.Cut(msg, "\n")
 	return err
 }
 

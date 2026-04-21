@@ -27,6 +27,7 @@ func (c *Client) ehlo() error {
 	defer c.mutex.Unlock()
 	ext := make(map[string]string)
 	extList := strings.Split(msg, "\n")
+	c.helloResponse = extList[0]
 	if len(extList) > 1 {
 		extList = extList[1:]
 		for _, line := range extList {
