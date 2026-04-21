@@ -3023,6 +3023,9 @@ func TestClient_DialToSMTPClientWithContext(t *testing.T) {
 		if ok, _ := smtpClient.Extension("DSN"); !ok {
 			t.Error("expected DSN extension but it was not found")
 		}
+		if hr := smtpClient.HelloResponse(); hr != "localhost.localdomain" {
+			t.Errorf(`Hello response mismatch: got %q, expected "localhost.localdomain"`, hr)
+		}
 	})
 	t.Run("dial to SMTP server fails on first client writeFile", func(t *testing.T) {
 		var fake faker
@@ -3102,6 +3105,9 @@ func TestClient_DialToSMTPClientWithContext(t *testing.T) {
 		}
 		if ok, _ := smtpClient.Extension("DSN"); !ok {
 			t.Error("expected DSN extension but it was not found")
+		}
+		if hr := smtpClient.HelloResponse(); hr != "localhost.localdomain" {
+			t.Errorf(`Hello response mismatch: got %q, expected "localhost.localdomain"`, hr)
 		}
 	})
 }
