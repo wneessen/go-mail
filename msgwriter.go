@@ -525,6 +525,9 @@ func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encodin
 	if mw.depth > 0 {
 		writer = mw.partWriter
 	}
+	if writer == nil {
+		return
+	}
 	writeBuffer := bytes.Buffer{}
 	lineBreaker := base64LineBreaker{}
 	lineBreaker.out = &writeBuffer

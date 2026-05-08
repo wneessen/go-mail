@@ -763,6 +763,18 @@ func TestMsgWriter_writeBody(t *testing.T) {
 			t.Errorf("expected error: bodyWriter function: intentional write failure, got: %s", msgwriter.err)
 		}
 	})
+	t.Run("writeBody with nil partWriter does not panic", func(t *testing.T) {
+		mw := &msgWriter{
+			charset: CharsetUTF8,
+			encoder: getEncoder(EncodingQP),
+			depth:   1,
+		}
+		mw.partWriter = nil
+		writeFunc := func(w io.Writer) (int64, error) {
+			return 0, nil
+		}
+		mw.writeBody(writeFunc, EncodingQP)
+	})
 }
 
 func TestMsgWriter_sanitizeFilename(t *testing.T) {
