@@ -725,6 +725,17 @@ func TestNewClient(t *testing.T) {
 				},
 				false, nil,
 			},
+			{
+				"WithoutSMTPUTF8", WithoutSMTPUTF8(),
+				func(c *Client) error {
+					if !c.skipUTF8 {
+						return fmt.Errorf("failed to disable SMTPUTF8. Want skipSMTPUTF8: %t, got: %t", true,
+							c.skipUTF8)
+					}
+					return nil
+				},
+				false, nil,
+			},
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
