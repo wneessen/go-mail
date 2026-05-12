@@ -2606,6 +2606,83 @@ func TestClient_Mail(t *testing.T) {
 			t.Errorf("expected mail from command to be %q, but sent %q", expected, resp[7])
 		}
 	})
+	t.Run("server announces SMTPUTF8 but MAIL FROM does not implement it fails", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-SMTPUTF8\r\n250 STARTTLS"
+		echoBuffer := bytes.NewBuffer(nil)
+		props := &serverProps{
+			EchoBuffer:     echoBuffer,
+			FeatureSet:     featureSet,
+			ListenPort:     serverPort,
+			FailOnSMTPUTF8: true,
+		}
+		go func() {
+			if err := simpleSMTPServer(ctx, t, props); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		fromAddr, err := netmail.ParseAddress("valid-from@domain.tld")
+		if err != nil {
+			t.Fatalf("failed to parse from address: %s", err)
+		}
+		if err = client.Mail(fromAddr.String()); err == nil {
+			t.Error("expected MAIL FROM to fail due to non-support of SMTPUTF8")
+		}
+	})
+	t.Run("server announces SMTPUTF8 but MAIL FROM does not implement succeeds due to skip", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-SMTPUTF8\r\n250 STARTTLS"
+		echoBuffer := bytes.NewBuffer(nil)
+		props := &serverProps{
+			EchoBuffer:     echoBuffer,
+			FeatureSet:     featureSet,
+			ListenPort:     serverPort,
+			FailOnSMTPUTF8: true,
+		}
+		go func() {
+			if err := simpleSMTPServer(ctx, t, props); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		fromAddr, err := netmail.ParseAddress("valid-from@domain.tld")
+		if err != nil {
+			t.Fatalf("failed to parse from address: %s", err)
+		}
+		client.SkipSMTPUTF8(true)
+		if err = client.Mail(fromAddr.String()); err != nil {
+			t.Errorf("failed to set mail from address: %s", err)
+		}
+	})
 }
 
 func TestClient_Rcpt(t *testing.T) {
@@ -3906,6 +3983,7 @@ type serverProps struct {
 	FailOnReset           bool
 	FailOnRcptTo          bool
 	FailOnSTARTTLS        bool
+	FailOnSMTPUTF8        bool
 	FailTemp              bool
 	SimulateShortResponse bool
 	FeatureSet            string
@@ -4060,6 +4138,10 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 		case strings.HasPrefix(data, "MAIL FROM:"):
 			if props.FailOnMailFrom {
 				writeLine("500 5.5.2 Error: fail on MAIL FROM")
+				break
+			}
+			if strings.Contains(data, "SMTPUTF8") && props.FailOnSMTPUTF8 {
+				writeLine("502 5.3.3 Command not implemented")
 				break
 			}
 			from := strings.TrimPrefix(data, "MAIL FROM:")
