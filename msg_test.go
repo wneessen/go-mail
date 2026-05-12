@@ -6912,6 +6912,26 @@ func TestMsg_WriteTo(t *testing.T) {
 	})
 }
 
+func TestMsg_WriteTo_FailingWriter(t *testing.T) {
+	t.Run("WriteTo with failing writer does not panic", func(t *testing.T) {
+		message := NewMsg()
+		if err := message.From(TestSenderValid); err != nil {
+			t.Fatalf("failed to set from address: %s", err)
+		}
+		if err := message.To(TestRcptValid); err != nil {
+			t.Fatalf("failed to set to address: %s", err)
+		}
+		message.Subject("Test panic fix")
+		message.SetBodyString(TypeTextPlain, "plain text")
+		message.AddAlternativeString(TypeTextHTML, "<p>html</p>")
+
+		_, err := message.WriteTo(failReadWriteSeekCloser{})
+		if err == nil {
+			t.Error("expected error when writing to a failing writer, got nil")
+		}
+	})
+}
+
 func TestMsg_WriteToFile(t *testing.T) {
 	t.Run("WriteToFile with normal mail parts", func(t *testing.T) {
 		tempfile, err := os.CreateTemp("", "testmail.*.eml")
