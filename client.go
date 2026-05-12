@@ -178,6 +178,10 @@ type (
 		// sendMutex is used to synchronize access to shared resources during the dial and send methods.
 		sendMutex sync.Mutex
 
+		// skipUTF8 indicates that the Client should skip the "SMTPUTF8" in a "MAIL FROM" even if the server
+		// claims to support it
+		skipUTF8 bool
+
 		// smtpAuth is the authentication type that is used to authenticate the user with SMTP server. It
 		// satisfies the smtp.Auth interface.
 		//
@@ -739,6 +743,20 @@ func WithLogAuthData() Option {
 	}
 }
 
+// WithoutSMTPUTF8 forces the SMTP client to skip the SMTPUTF8 extension in the "MAIL FROM" command, even if
+// the server supports it.
+//
+// This option is useful for servers that advertise support for SMTPUTF8 but do not actually implement it.
+//
+// Returns:
+//   - An Option function that configures the Client to skip SMTPUTF8 in the "MAIL FROM" command.
+func WithoutSMTPUTF8() Option {
+	return func(c *Client) error {
+		c.skipUTF8 = true
+		return nil
+	}
+}
+
 // TLSPolicy returns the TLSPolicy that is currently set on the Client as a string.
 //
 // This method retrieves the current TLSPolicy configured for the Client and returns it as a string representation.
@@ -1082,6 +1100,7 @@ func (c *Client) DialToSMTPClientWithContext(ctxDial context.Context) (*smtp.Cli
 	if c.logAuthData {
 		client.SetLogAuthData()
 	}
+	client.SkipSMTPUTF8(c.skipUTF8)
 	if err = client.Hello(c.helo); err != nil {
 		return nil, err
 	}
