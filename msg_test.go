@@ -1960,6 +1960,20 @@ func TestMsg_ReplyToMailAddress(t *testing.T) {
 		message.ReplyToMailAddress(addresses[1])
 		checkAddrHeader(t, message, HeaderReplyTo, "ReplyToMailAddress", 0, 1, "tina.tester@example.com", "Tina Tester")
 	})
+	t.Run("ReplyToMailAddress with multiple valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.ReplyToMailAddress(addresses...)
+		replyTo := message.GetReplyTo()
+		if len(replyTo) != 3 {
+			t.Fatalf("expected GetReplyTo to return %d addresses, got: %d", len(addresses), len(replyTo))
+		}
+		checkAddrHeader(t, message, HeaderReplyTo, "ReplyToMailAddress", 0, 3, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderReplyTo, "ReplyToMailAddress", 1, 3, "tina.tester@example.com", "Tina Tester")
+		checkAddrHeader(t, message, HeaderReplyTo, "ReplyToMailAddress", 2, 3, "michael.tester@example.com", "")
+	})
 	t.Run("ReplyToMailAddress with nil", func(t *testing.T) {
 		message := NewMsg()
 		if message == nil {
