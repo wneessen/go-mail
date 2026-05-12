@@ -100,6 +100,10 @@ type Client struct {
 	// the resource at a time.
 	mutex sync.RWMutex
 
+	// skipUTF8 indicates whether the Client should skip SMTPUTF8 in "MAIL FROM" commands, even if the
+	// server advertises support for SMTPUTF8.
+	skipUTF8 bool
+
 	// tls indicates whether the Client is using TLS
 	tls bool
 
@@ -190,6 +194,14 @@ func (c *Client) Hello(localName string) error {
 // EHLO request, excluding code and features.
 func (c *Client) HelloResponse() string {
 	return c.helloResponse
+}
+
+// SkipSMTPUTF8 sets the Client's SkipSMTPUTF8 flag. If set to true, the Client will not
+// send SMTPUTF8 in "MAIL FROM" commands, even if the server advertises support for SMTPUTF8.
+func (c *Client) SkipSMTPUTF8(val bool) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.skipUTF8 = val
 }
 
 // cmd is a convenience function that sends a command and returns the response
@@ -388,7 +400,7 @@ func (c *Client) Mail(from string) error {
 		if _, ok := c.ext["8BITMIME"]; ok {
 			cmdStr += " BODY=8BITMIME"
 		}
-		if _, ok := c.ext["SMTPUTF8"]; ok {
+		if _, ok := c.ext["SMTPUTF8"]; ok && !c.skipUTF8 {
 			cmdStr += " SMTPUTF8"
 		}
 		_, ok := c.ext["DSN"]
