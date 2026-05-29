@@ -1,2 +1,6 @@
+github.com/m7913d/go-ntlm v0.0.1 h1:yLB0TIanTCf+eYllzKDbvGGwoCoxflemjduAcruZKx0=
+github.com/m7913d/go-ntlm v0.0.1/go.mod h1:2Tebo9gwEGobV67Bvb5LT6D3T4W9RWDoPaiObTluqXM=
+github.com/songxiang93/go-ntlm v0.0.2 h1:waNolpHpxqaJtI8qB4irCGXmllpCReeKbUWxVgD3Ga8=
+github.com/songxiang93/go-ntlm v0.0.2/go.mod h1:NF7qTEdX7q09OfwflwpElWRHua7bg6DqJNNgb0GYRj4=
 golang.org/x/text v0.37.0 h1:Cqjiwd9eSg8e0QAkyCaQTNHFIIzWtidPahFWR83rTrc=
 golang.org/x/text v0.37.0/go.mod h1:a5sjxXGs9hsn/AJVwuElvCAo9v8QYLzvavO5z2PiM38=
