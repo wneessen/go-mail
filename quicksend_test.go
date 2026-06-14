@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/wneessen/go-mail/internal/helper"
 )
 
 func TestNewAuthData(t *testing.T) {
@@ -280,7 +282,11 @@ func TestQuickSend(t *testing.T) {
 		}
 		expect := `failed to dial and send message: send failed: sending SMTP MAIL FROM command: 500 ` +
 			`5.5.2 Error: fail on MAIL FROM`
-		if getGoVersion(t, true) >= 1.264 {
+		val, verErr := helper.GetGoVersion(true)
+		if verErr != nil {
+			t.Errorf("failed to get Go version: %s", err)
+		}
+		if val >= 1.264 {
 			expect = `failed to dial and send message: send failed: sending SMTP MAIL FROM command: 500 ` +
 				`"5.5.2 Error: fail on MAIL FROM"`
 		}

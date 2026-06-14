@@ -9,6 +9,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/wneessen/go-mail/internal/helper"
 )
 
 // TestRandomStringSecure tests the randomStringSecure method
@@ -41,7 +43,10 @@ func TestRandomStringSecure(t *testing.T) {
 		}
 	})
 	t.Run("randomStringSecure fails on broken rand Reader (first read)", func(t *testing.T) {
-		version := getGoVersion(t, false)
+		version, err := helper.GetGoVersion(false)
+		if err != nil {
+			t.Errorf("failed to get Go version: %s", err)
+		}
 		if version >= 1.24 {
 			t.Skip("Go 1.24+ never fails on broken rand Reader. See: https://github.com/golang/go/issues/66821")
 		}
@@ -53,7 +58,10 @@ func TestRandomStringSecure(t *testing.T) {
 		}
 	})
 	t.Run("randomStringSecure fails on broken rand Reader (second read)", func(t *testing.T) {
-		version := getGoVersion(t, false)
+		version, err := helper.GetGoVersion(false)
+		if err != nil {
+			t.Errorf("failed to get Go version: %s", err)
+		}
 		if version >= 1.24 {
 			t.Skip("Go 1.24+ never fails on broken rand Reader. See: https://github.com/golang/go/issues/66821")
 		}
@@ -77,7 +85,10 @@ func TestRandomBoundary(t *testing.T) {
 		}
 	})
 	t.Run("randomBoundary fails on broken rand Reader", func(t *testing.T) {
-		version := getGoVersion(t, false)
+		version, err := helper.GetGoVersion(false)
+		if err != nil {
+			t.Errorf("failed to get Go version: %s", err)
+		}
 		if version >= 1.24 {
 			t.Skip("Go 1.24+ never fails on broken rand Reader. See: https://github.com/golang/go/issues/66821")
 		}
