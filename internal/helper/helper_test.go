@@ -82,6 +82,13 @@ func TestGoVersion(t *testing.T) {
 			t.Fatalf("expected error, got nil")
 		}
 	})
+	t.Run("getting minor version with short version string fails", func(t *testing.T) {
+		curVersion = "go1.26"
+		_, err := GetGoVersion(true)
+		if err == nil {
+			t.Fatalf("expected error, got nil")
+		}
+	})
 	t.Run("non-standard go version string fails", func(t *testing.T) {
 		curVersion = "unknown"
 		_, err := GetGoVersion(false)
