@@ -23,7 +23,7 @@ func (q *testRegistryErrorHandler) HandleError(_, _ string, conn *textproto.Conn
 		return fmt.Errorf("failed to get Go version: %w", err)
 	}
 	expBytes := []byte(`\x00\x00\x00\x1a\x00\x00\x00`)
-	if version >= 1.264 {
+	if (version >= 12511 && version < 1.26) || version >= 1.264 {
 		expBytes = []byte(`"\x00\x00\x00\x1a\x00\x00\x00"`)
 	}
 	var tpErr textproto.ProtocolError
