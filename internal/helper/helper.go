@@ -24,6 +24,9 @@ func GetGoVersion(wantMinorVer bool) (float64, error) {
 		return verNumMajorOnly, nil
 	}
 
+	if len(parts[2]) == 1 {
+		parts[2] = "0" + parts[2]
+	}
 	verNumWithMinor, err := strconv.ParseFloat(parts[0]+"."+parts[1]+parts[2], 64)
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse Go minor version: %w", err)
