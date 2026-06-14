@@ -253,7 +253,7 @@ func TestQuickSend(t *testing.T) {
 			}
 		}
 	})
-	t.Run("QuickSend fails during DialAndSned", func(t *testing.T) {
+	t.Run("QuickSend fails during DialAndSend", func(t *testing.T) {
 		ctxAuth, cancelAuth := context.WithCancel(context.Background())
 		defer cancelAuth()
 		PortAdder.Add(1)
@@ -280,6 +280,10 @@ func TestQuickSend(t *testing.T) {
 		}
 		expect := `failed to dial and send message: send failed: sending SMTP MAIL FROM command: 500 ` +
 			`5.5.2 Error: fail on MAIL FROM`
+		if getGoVersion(t, true) >= 1.264 {
+			expect = `failed to dial and send message: send failed: sending SMTP MAIL FROM command: 500 ` +
+				`"5.5.2 Error: fail on MAIL FROM"`
+		}
 		if !strings.EqualFold(err.Error(), expect) {
 			t.Errorf("expected error to contain %s, got %s", expect, err)
 		}
