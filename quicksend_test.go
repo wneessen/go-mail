@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/wneessen/go-mail/internal/helper"
 )
 
 func TestNewAuthData(t *testing.T) {
@@ -253,7 +255,7 @@ func TestQuickSend(t *testing.T) {
 			}
 		}
 	})
-	t.Run("QuickSend fails during DialAndSned", func(t *testing.T) {
+	t.Run("QuickSend fails during DialAndSend", func(t *testing.T) {
 		ctxAuth, cancelAuth := context.WithCancel(context.Background())
 		defer cancelAuth()
 		PortAdder.Add(1)
@@ -280,6 +282,14 @@ func TestQuickSend(t *testing.T) {
 		}
 		expect := `failed to dial and send message: send failed: sending SMTP MAIL FROM command: 500 ` +
 			`5.5.2 Error: fail on MAIL FROM`
+		val, verErr := helper.GetGoVersion(true)
+		if verErr != nil {
+			t.Errorf("failed to get Go version: %s", err)
+		}
+		if (val >= 1.2511 && val <= 1.26) || val >= 1.2604 {
+			expect = `failed to dial and send message: send failed: sending SMTP MAIL FROM command: 500 ` +
+				`"5.5.2 Error: fail on MAIL FROM"`
+		}
 		if !strings.EqualFold(err.Error(), expect) {
 			t.Errorf("expected error to contain %s, got %s", expect, err)
 		}
