@@ -12,6 +12,14 @@
           inherit system;
           overlays = [ go-overlay.overlays.default ];
         };
-      in { ... }
+      in {
+        devShells.default = pkgs.mkShell {
+          buildInputs = [
+            go-overlay.packages.${system}.govendor
+            nixpkgs.legacyPackages.${system}.reuse
+            nixpkgs.legacyPackages.${system}.golangci-lint
+          ];
+        };
+      }
     );
 }
