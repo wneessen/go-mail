@@ -7,20 +7,31 @@ package smtp
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"net/textproto"
 	"testing"
+
+	"github.com/wneessen/go-mail/internal/helper"
 )
 
 type testRegistryErrorHandler struct{}
 
 func (q *testRegistryErrorHandler) HandleError(_, _ string, conn *textproto.Conn, err error) error {
+	version, verErr := helper.GetGoVersion(true)
+	if verErr != nil {
+		return fmt.Errorf("failed to get Go version: %w", err)
+	}
+	expBytes := []byte("\x00\x00\x00\x1a\x00\x00\x00")
+	if (version >= 1.2511 && version <= 1.26) || version >= 1.2604 {
+		expBytes = []byte(`"\x00\x00\x00\x1a\x00\x00\x00"`)
+	}
 	var tpErr textproto.ProtocolError
 	if errors.As(err, &tpErr) {
 		if len(tpErr.Error()) < 16 {
 			return err
 		}
-		if !bytes.Equal([]byte(tpErr.Error()[16:]), []byte("\x00\x00\x00\x1a\x00\x00\x00")) {
+		if !bytes.Equal([]byte(tpErr.Error()[16:]), expBytes) {
 			return err
 		}
 		_, _ = io.ReadFull(conn.R, make([]byte, 8))

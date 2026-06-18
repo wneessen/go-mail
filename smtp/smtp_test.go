@@ -39,6 +39,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/wneessen/go-mail/internal/helper"
 	"github.com/wneessen/go-mail/log"
 )
 
@@ -2179,6 +2180,13 @@ func TestClient_Auth(t *testing.T) {
 			t.Error("auth should fail on auth-start, then on quit")
 		}
 		expErr := "wrong host name, 500 5.1.2 Error: quit failed"
+		version, verErr := helper.GetGoVersion(true)
+		if verErr != nil {
+			t.Errorf("failed to get Go version: %s", err)
+		}
+		if (version >= 1.2511 && version <= 1.26) || version >= 1.2604 {
+			expErr = `wrong host name, 500 "5.1.2 Error: quit failed"`
+		}
 		if !strings.EqualFold(expErr, err.Error()) {
 			t.Errorf("expected error: %q, got: %q", expErr, err.Error())
 		}

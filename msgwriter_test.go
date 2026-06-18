@@ -15,6 +15,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/wneessen/go-mail/internal/helper"
 )
 
 func TestMsgWriter_Write(t *testing.T) {
@@ -282,7 +284,10 @@ func TestMsgWriter_writeMsg(t *testing.T) {
 		}
 	})
 	t.Run("msgWriter fails on S/MIME signing with broken rand.Reader", func(t *testing.T) {
-		version := getGoVersion(t)
+		version, err := helper.GetGoVersion(false)
+		if err != nil {
+			t.Errorf("failed to get Go version: %s", err)
+		}
 		if version >= 1.24 {
 			t.Skip("Go 1.24+ never fails on broken rand Reader. See: https://github.com/golang/go/issues/66821")
 		}
