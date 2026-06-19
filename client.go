@@ -166,6 +166,12 @@ type (
 		// other than AUTH.
 		noNoop bool
 
+		// noRset indicates that the Client should skip the "RSET" at the end of the mail delivery
+		//
+		// This is useful for servers for custom MTAs that have not implemented the "RSET" SMTP
+		// command and would issue an "unknown command" error after successful delivery
+		noRset bool
+
 		// pass represents a password or a secret token used for the SMTP authentication.
 		pass string
 
@@ -707,6 +713,21 @@ func WithoutNoop() Option {
 	}
 }
 
+// WithoutRset indicates that the Client should not send a "RSET" command after successful mail
+// delivery.
+//
+// This option is useful for servers have not implemented the "RSET" SMTP command and would return
+// an "unknown command" error after successful delivery.
+//
+// Returns:
+//   - An Option function that configures the Client to skip the "RSET" command.
+func WithoutRset() Option {
+	return func(c *Client) error {
+		c.noRset = true
+		return nil
+	}
+}
+
 // WithDialContextFunc sets the provided DialContextFunc as the DialContext for connecting to the SMTP server.
 //
 // This function overrides the default DialContext function used by the Client when establishing a connection
@@ -1179,6 +1200,9 @@ func (c *Client) Reset() error {
 // Returns:
 //   - An error if the connection check fails or if sending the RSET command fails; otherwise, returns nil.
 func (c *Client) ResetWithSMTPClient(client *smtp.Client) error {
+	if c.noRset {
+		return nil
+	}
 	if err := c.checkConn(client); err != nil {
 		return err
 	}
