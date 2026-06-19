@@ -654,7 +654,17 @@ func TestNewClient(t *testing.T) {
 				"WithoutNoop", WithoutNoop(),
 				func(c *Client) error {
 					if !c.noNoop {
-						return fmt.Errorf("failed to disable Noop. Want noNoop: %t, got: %t", false, c.noNoop)
+						return fmt.Errorf("failed to disable Noop. Want noNoop: %t, got: %t", true, c.noNoop)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithoutRset", WithoutRset(),
+				func(c *Client) error {
+					if !c.noRset {
+						return fmt.Errorf("failed to disable Rset. Want noRset: %t, got: %t", true, c.noNoop)
 					}
 					return nil
 				},
