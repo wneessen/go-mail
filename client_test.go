@@ -1440,6 +1440,7 @@ func TestClient_SetSMTPAuth(t *testing.T) {
 			{"NOAUTH", SMTPAuthNoAuth, SMTPAuthNoAuth},
 			{"PLAIN", SMTPAuthPlain, SMTPAuthPlain},
 			{"PLAIN-NOENC", SMTPAuthPlainNoEnc, SMTPAuthPlainNoEnc},
+			{"NTLM", SMTPAuthNTLM, SMTPAuthNTLM},
 			{"SCRAM-SHA-1", SMTPAuthSCRAMSHA1, SMTPAuthSCRAMSHA1},
 			{"SCRAM-SHA-1-PLUS", SMTPAuthSCRAMSHA1PLUS, SMTPAuthSCRAMSHA1PLUS},
 			{"SCRAM-SHA-256", SMTPAuthSCRAMSHA256, SMTPAuthSCRAMSHA256},
@@ -1473,6 +1474,7 @@ func TestClient_SetSMTPAuth(t *testing.T) {
 			{"NOAUTH", SMTPAuthNoAuth, SMTPAuthNoAuth},
 			{"PLAIN", SMTPAuthPlain, SMTPAuthPlain},
 			{"PLAIN-NOENC", SMTPAuthPlainNoEnc, SMTPAuthPlainNoEnc},
+			{"NTLM", SMTPAuthNTLM, SMTPAuthNTLM},
 			{"SCRAM-SHA-1", SMTPAuthSCRAMSHA1, SMTPAuthSCRAMSHA1},
 			{"SCRAM-SHA-1-PLUS", SMTPAuthSCRAMSHA1PLUS, SMTPAuthSCRAMSHA1PLUS},
 			{"SCRAM-SHA-256", SMTPAuthSCRAMSHA256, SMTPAuthSCRAMSHA256},
@@ -1540,6 +1542,10 @@ func TestClient_SetSMTPAuthCustom(t *testing.T) {
 			{
 				"PLAIN-NOENC", smtp.PlainAuth("", "", "", "", true),
 				"*smtp.plainAuth",
+			},
+			{
+				"NTLM", smtp.NTLMAuth("", "", ""),
+				"*smtp.ntlmAuth",
 			},
 			{"SCRAM-SHA-1", smtp.ScramSHA1Auth("", ""), "*smtp.scramAuth"},
 			{
@@ -2521,6 +2527,7 @@ func TestClient_auth(t *testing.T) {
 	}{
 		{"LOGIN via AUTODISCOVER", SMTPAuthAutoDiscover},
 		{"PLAIN via AUTODISCOVER", SMTPAuthAutoDiscover},
+		{"NTLM via AUTODISCOVER", SMTPAuthAutoDiscover},
 		{"SCRAM-SHA-1 via AUTODISCOVER", SMTPAuthAutoDiscover},
 		{"SCRAM-SHA-256 via AUTODISCOVER", SMTPAuthAutoDiscover},
 		{"CRAM-MD5 via AUTODISCOVER", SMTPAuthAutoDiscover},
@@ -2529,6 +2536,7 @@ func TestClient_auth(t *testing.T) {
 		{"LOGIN-NOENC", SMTPAuthLoginNoEnc},
 		{"PLAIN", SMTPAuthPlain},
 		{"PLAIN-NOENC", SMTPAuthPlainNoEnc},
+		{"NTLM", SMTPAuthNTLM},
 		{"SCRAM-SHA-1", SMTPAuthSCRAMSHA1},
 		{"SCRAM-SHA-1-PLUS", SMTPAuthSCRAMSHA1PLUS},
 		{"SCRAM-SHA-256", SMTPAuthSCRAMSHA256},
@@ -2843,6 +2851,7 @@ func TestClient_authTypeAutoDiscover(t *testing.T) {
 		{"LOGIN PLAIN SCRAM-SHA-1 SCRAM-SHA-1-PLUS", false, SMTPAuthSCRAMSHA1, false},
 		{"LOGIN XOAUTH2 SCRAM-SHA-1 SCRAM-SHA-1-PLUS", false, SMTPAuthSCRAMSHA1, false},
 		{"PLAIN LOGIN CRAM-MD5", false, SMTPAuthCramMD5, false},
+		{"PLAIN NTLM LOGIN CRAM-MD5", false, SMTPAuthNTLM, false},
 		{"CRAM-MD5", false, SMTPAuthCramMD5, false},
 		{"PLAIN", true, SMTPAuthPlain, false},
 		{"LOGIN PLAIN", true, SMTPAuthPlain, false},
