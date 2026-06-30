@@ -69,15 +69,15 @@ func (n *NTLMv2Session) ProcessChallengeMessage(message *ChallengeMessage) error
 // See: https://curl.se/rfc/ntlm.html#theType3Message
 func (n *NTLMv2Session) GenerateAuthenticateMessage() *AuthenticateMessage {
 	return &AuthenticateMessage{
-		Signature:                 []byte("NTLMSSP\x00"),
-		MessageType:               3,
-		LmChallengeResponse:       CreateBytePayload(n.lmChallengeResponse),
-		NtChallengeResponseFields: CreateBytePayload(n.ntChallengeResponse),
-		DomainName:                CreateStringPayload(n.userDomain),
-		UserName:                  CreateStringPayload(n.user),
-		Workstation:               CreateStringPayload(""),
-		EncryptedRandomSessionKey: CreateBytePayload(n.encryptedRandomSessionKey),
-		NegotiateFlags:            n.negotiateFlags,
+		signature:                 []byte("NTLMSSP\x00"),
+		messageType:               3,
+		lmChallengeResponse:       CreateBytePayload(n.lmChallengeResponse),
+		ntChallengeResponseFields: CreateBytePayload(n.ntChallengeResponse),
+		domainname:                CreateStringPayload(n.userDomain),
+		username:                  CreateStringPayload(n.user),
+		workstation:               CreateStringPayload(""),
+		encryptedRandomSessionKey: CreateBytePayload(n.encryptedRandomSessionKey),
+		negotiateFlags:            n.negotiateFlags,
 	}
 }
 

@@ -7,19 +7,17 @@ import (
 
 // AuthenticateMessage represents the Type 3 message in the NTLM authentication process.
 type AuthenticateMessage struct {
-	Signature   []byte
-	MessageType uint32
+	signature   []byte
+	messageType uint32
 
-	NegotiateFlags NegotiateFlags
+	negotiateFlags NegotiateFlags
 
-	LmChallengeResponse       *Payload
-	NtChallengeResponseFields *Payload
-	DomainName                *Payload
-	UserName                  *Payload
-	Workstation               *Payload
-	EncryptedRandomSessionKey *Payload
-
-	Payload []byte
+	lmChallengeResponse       *Payload
+	ntChallengeResponseFields *Payload
+	domainname                *Payload
+	username                  *Payload
+	workstation               *Payload
+	encryptedRandomSessionKey *Payload
 }
 
 // Bytes returns the byte representation of the AuthenticateMessage type (Type 3 message)
@@ -31,14 +29,14 @@ func (a *AuthenticateMessage) Bytes() []byte {
 	// See: https://curl.se/rfc/ntlm.html#theType3Message
 	const headerLen = 8 + 4 + 6*8 + 4 + 8
 
-	payloadLen := int(a.DomainName.Len) + int(a.UserName.Len) + int(a.Workstation.Len) +
-		int(a.LmChallengeResponse.Len) + int(a.NtChallengeResponseFields.Len) +
-		int(a.EncryptedRandomSessionKey.Len)
+	payloadLen := int(a.domainname.Len) + int(a.username.Len) + int(a.workstation.Len) +
+		int(a.lmChallengeResponse.Len) + int(a.ntChallengeResponseFields.Len) +
+		int(a.encryptedRandomSessionKey.Len)
 
 	offset := uint32(headerLen)
 	for _, p := range []*Payload{
-		a.DomainName, a.UserName, a.Workstation, a.LmChallengeResponse,
-		a.NtChallengeResponseFields, a.EncryptedRandomSessionKey,
+		a.domainname, a.username, a.workstation, a.lmChallengeResponse,
+		a.ntChallengeResponseFields, a.encryptedRandomSessionKey,
 	} {
 		p.Offset = offset
 		offset += uint32(p.Len)
@@ -46,31 +44,31 @@ func (a *AuthenticateMessage) Bytes() []byte {
 
 	buf := bytes.NewBuffer(make([]byte, 0, headerLen+payloadLen))
 
-	buf.Write(a.Signature)
+	buf.Write(a.signature)
 
 	var msgType [4]byte
-	binary.LittleEndian.PutUint32(msgType[:], a.MessageType)
+	binary.LittleEndian.PutUint32(msgType[:], a.messageType)
 	buf.Write(msgType[:])
 
-	buf.Write(a.LmChallengeResponse.Bytes())
-	buf.Write(a.NtChallengeResponseFields.Bytes())
-	buf.Write(a.DomainName.Bytes())
-	buf.Write(a.UserName.Bytes())
-	buf.Write(a.Workstation.Bytes())
-	buf.Write(a.EncryptedRandomSessionKey.Bytes())
-	buf.Write(a.NegotiateFlags.Bytes())
+	buf.Write(a.lmChallengeResponse.Bytes())
+	buf.Write(a.ntChallengeResponseFields.Bytes())
+	buf.Write(a.domainname.Bytes())
+	buf.Write(a.username.Bytes())
+	buf.Write(a.workstation.Bytes())
+	buf.Write(a.encryptedRandomSessionKey.Bytes())
+	buf.Write(a.negotiateFlags.Bytes())
 
 	// Even if NTLMSSP_NEGOTIATE_VERSION is set, we'll send a zero version byte, due
 	// to improved privacy. The version field is purely cosmetic and only useful for
 	// debugging purposes on the server end.
 	buf.Write(make([]byte, 8))
 
-	buf.Write(a.DomainName.Payload)
-	buf.Write(a.UserName.Payload)
-	buf.Write(a.Workstation.Payload)
-	buf.Write(a.LmChallengeResponse.Payload)
-	buf.Write(a.NtChallengeResponseFields.Payload)
-	buf.Write(a.EncryptedRandomSessionKey.Payload)
+	buf.Write(a.domainname.Payload)
+	buf.Write(a.username.Payload)
+	buf.Write(a.workstation.Payload)
+	buf.Write(a.lmChallengeResponse.Payload)
+	buf.Write(a.ntChallengeResponseFields.Payload)
+	buf.Write(a.encryptedRandomSessionKey.Payload)
 
 	return buf.Bytes()
 }
