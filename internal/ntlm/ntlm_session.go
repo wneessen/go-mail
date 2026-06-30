@@ -5,11 +5,8 @@ import (
 	"crypto/md5"
 	"crypto/rc4"
 	"fmt"
+	"slices"
 	"time"
-)
-
-const (
-	WindowsFileTime = 116444736000000000
 )
 
 // NTLMv2Session holds the state of an NTLMv2 session.
@@ -90,25 +87,25 @@ func (n *NTLMv2Session) fetchResponseKeys() (err error) {
 	if len(n.responseKeyNT) > 0 {
 		return
 	}
-	n.responseKeyLM = ntowfv2(n.user, n.password, n.userDomain)
-	n.responseKeyNT = ntowfv2(n.user, n.password, n.userDomain)
+	n.responseKeyLM = ntlmv2Hash(n.user, n.password, n.userDomain)
+	n.responseKeyNT = ntlmv2Hash(n.user, n.password, n.userDomain)
 	return
 }
 
 func (n *NTLMv2Session) computeExpectedResponses(timestamp []byte, avPairs *AVPairs) {
 	avPairBytes := avPairs.Bytes()
-	temp := concatBytes([]byte{0x01}, []byte{0x01}, zeroBytes(6), timestamp, n.clientChallenge,
-		zeroBytes(4), avPairBytes, zeroBytes(4))
+	temp := slices.Concat([]byte{0x01}, []byte{0x01}, make([]byte, 6), timestamp, n.clientChallenge,
+		make([]byte, 4), avPairBytes, make([]byte, 4))
 
 	mac := hmac.New(md5.New, n.responseKeyNT)
-	mac.Write(concatBytes(n.serverChallenge, temp))
+	mac.Write(slices.Concat(n.serverChallenge, temp))
 	ntProofStr := mac.Sum(nil)
 
-	n.ntChallengeResponse = concatBytes(ntProofStr, temp)
+	n.ntChallengeResponse = slices.Concat(ntProofStr, temp)
 
 	mac.Reset()
-	mac.Write(concatBytes(n.serverChallenge, n.clientChallenge))
-	n.lmChallengeResponse = concatBytes(mac.Sum(nil), n.clientChallenge)
+	mac.Write(slices.Concat(n.serverChallenge, n.clientChallenge))
+	n.lmChallengeResponse = slices.Concat(mac.Sum(nil), n.clientChallenge)
 
 	mac.Reset()
 	mac.Write(ntProofStr)
