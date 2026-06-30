@@ -50,10 +50,10 @@ func (n *NTLMv2Session) ProcessChallengeMessage(message *ChallengeMessage) error
 	n.clientChallenge = randomBytes(8)
 	n.negotiateFlags = message.negotiateFlags
 	n.responseKeyNT = ntlmv2Hash(n.user, n.password, n.userDomain)
-	timestamp := timeToWindowsFileTime(time.Now())
 	n.keyExchangeKey = n.sessionBaseKey
 
 	// Compute the expected response
+	timestamp := timeToWindowsFileTime(time.Now())
 	n.computeExpectedResponses(timestamp, message.targetInfo)
 
 	// Return the encrypted session key
