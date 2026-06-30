@@ -280,9 +280,7 @@ func parseEMLBodyParts(parsedMsg *netmail.Message, bodybuf *bytes.Buffer, msg *M
 		if err = parseEMLBodyPlain(mediatype, parsedMsg, bodybuf, msg); err != nil {
 			return fmt.Errorf("failed to parse plain body: %w", err)
 		}
-	case strings.EqualFold(mediatype, TypeMultipartAlternative.String()),
-		strings.EqualFold(mediatype, TypeMultipartMixed.String()),
-		strings.EqualFold(mediatype, TypeMultipartRelated.String()):
+	case strings.HasPrefix(strings.ToLower(mediatype), "multipart/"):
 		if err = parseEMLMultipart(params, bodybuf, msg); err != nil {
 			return fmt.Errorf("failed to parse multipart body: %w", err)
 		}
@@ -422,10 +420,13 @@ ReadNextPart:
 
 		mutliPartTransferEnc, ok := multiPart.Header[HeaderContentTransferEnc.String()]
 		if !ok {
-			// If CTE is empty we can assume that it's a quoted-printable CTE since the
-			// GO stdlib multipart packages deletes that header
-			// See: https://cs.opensource.google/go/go/+/refs/tags/go1.22.0:src/mime/multipart/multipart.go;l=161
+			// Go's mime/multipart strips the Content-Transfer-Encoding header only when
+			// it auto-decodes quoted-printable. message/* parts may not be QP-encoded
+			// (RFC 2046 5.2.1), so a missing CTE there means the body is already verbatim.
 			mutliPartTransferEnc = []string{EncodingQP.String()}
+			if strings.HasPrefix(strings.ToLower(contentType), "message/") {
+				mutliPartTransferEnc = []string{NoEncoding.String()}
+			}
 		}
 
 		switch {
