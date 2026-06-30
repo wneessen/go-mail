@@ -422,7 +422,7 @@ ReadNextPart:
 		if !ok {
 			// Go's mime/multipart strips the Content-Transfer-Encoding header only when
 			// it auto-decodes quoted-printable. message/* parts may not be QP-encoded
-			// (RFC 2046 §5.2.1), so a missing CTE there means the body is already verbatim.
+			// (RFC 2046 5.2.1), so a missing CTE there means the body is already verbatim.
 			mutliPartTransferEnc = []string{EncodingQP.String()}
 			if strings.HasPrefix(strings.ToLower(contentType), "message/") {
 				mutliPartTransferEnc = []string{NoEncoding.String()}
