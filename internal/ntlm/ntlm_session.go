@@ -9,13 +9,13 @@ import (
 	"time"
 )
 
-// NTLMv2Session holds the state of an NTLMv2 session.
+// NTLMv2Session represents a session using the NTLMv2 protocol.
 type NTLMv2Session struct {
 	user       string
 	password   string
 	userDomain string
 
-	NegotiateFlags NegotiateFlags
+	negotiateFlags NegotiateFlags
 
 	negotiateMessage *NegotiateMessage
 	challengeMessage *ChallengeMessage
@@ -51,7 +51,7 @@ func (n *NTLMv2Session) ProcessChallengeMessage(message *ChallengeMessage) (err 
 	n.challengeMessage = message
 	n.serverChallenge = message.ServerChallenge
 	n.clientChallenge = randomBytes(8)
-	n.NegotiateFlags = message.NegotiateFlags
+	n.negotiateFlags = message.NegotiateFlags
 
 	if err = n.fetchResponseKeys(); err != nil {
 		return err
@@ -78,7 +78,7 @@ func (n *NTLMv2Session) GenerateAuthenticateMessage() *AuthenticateMessage {
 		UserName:                  CreateStringPayload(n.user),
 		Workstation:               CreateStringPayload(""),
 		EncryptedRandomSessionKey: CreateBytePayload(n.encryptedRandomSessionKey),
-		NegotiateFlags:            n.NegotiateFlags,
+		NegotiateFlags:            n.negotiateFlags,
 		Mic:                       make([]byte, 16),
 	}
 }
@@ -117,7 +117,7 @@ func (n *NTLMv2Session) computeExpectedResponses(timestamp []byte, avPairs *AVPa
 }
 
 func (n *NTLMv2Session) computeEncryptedSessionKey() error {
-	if uint32(n.NegotiateFlags)&uint32(NTLMSSP_NEGOTIATE_KEY_EXCH) != 0 {
+	if uint32(n.negotiateFlags)&uint32(NTLMSSP_NEGOTIATE_KEY_EXCH) != 0 {
 		cipher, err := rc4.NewCipher(n.keyExchangeKey)
 		if err != nil {
 			return fmt.Errorf("failed create new RC4 cipher: %w", err)

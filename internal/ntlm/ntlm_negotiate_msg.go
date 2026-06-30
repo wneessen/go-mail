@@ -5,37 +5,82 @@ import (
 	"encoding/binary"
 )
 
-type NegotiateFlags uint32
-type NegotiateFlag uint32
+type (
+	// NegotiateFlag holds the individual flags for the NTLMv2 negotiate message (Type 1 message).
+	NegotiateFlag uint32
 
+	// NegotiateFlags holds the flags for the NTLMv2 negotiate message (Type 1 message).
+	NegotiateFlags uint32
+)
+
+// NegotiateMessage represents a NTLMv2 negotiate message (Type 1 message).
 type NegotiateMessage struct {
 	Signature         []byte
 	MessageType       uint32
 	NegotiateFlags    NegotiateFlags
 	DomainNameFields  *Payload
 	WorkstationFields *Payload
-	/*
-		Payload           []byte
-	*/
 }
 
+// List of required NTLM flags. This list only holds the flags that are required for
+// this package to work. Check the reference for a comprehensive list.
+//
+// See: https://curl.se/rfc/ntlm.html#theNtlmFlags
 const (
-	NTLMSSP_NEGOTIATE_UNICODE                  NegotiateFlag = 0x00000001
-	NTLM_NEGOTIATE_OEM                         NegotiateFlag = 0x00000002
-	NTLMSSP_REQUEST_TARGET                     NegotiateFlag = 0x00000004
-	NTLMSSP_NEGOTIATE_LM_KEY                   NegotiateFlag = 0x00000080
-	NTLMSSP_NEGOTIATE_NTLM                     NegotiateFlag = 0x00000200
+	// NTLMSSP_NEGOTIATE_UNICODE indicates that Unicode strings are supported for use
+	// in security buffer data.
+	NTLMSSP_NEGOTIATE_UNICODE NegotiateFlag = 0x00000001
+
+	// NTLMSSP_NEGOTIATE_OEM indicates that OEM strings are supported for use in
+	// security buffer data.
+	NTLMSSP_NEGOTIATE_OEM NegotiateFlag = 0x00000002
+
+	// NTLMSSP_REQUEST_TARGET requests that the server's authentication realm be included
+	// in the Type 2 message.
+	NTLMSSP_REQUEST_TARGET NegotiateFlag = 0x00000004
+
+	// NTLMSSP_NEGOTIATE_LM_KEY indicates that the Lan Manager Session Key should be used
+	// for signing and sealing authenticated communications.
+	NTLMSSP_NEGOTIATE_LM_KEY NegotiateFlag = 0x00000080
+
+	// NTLMSSP_NEGOTIATE_NTLM indicates that NTLM authentication is being used.
+	NTLMSSP_NEGOTIATE_NTLM NegotiateFlag = 0x00000200
+
+	// NTLMSSP_NEGOTIATE_DOMAIN_SUPPLIED is sent by the client in the Type 1 message to indicate that
+	// the name of the domain in which the client workstation has membership is included in the message.
+	// This is used by the server to determine whether the client is eligible for local authentication.
+	NTLMSSP_NEGOTIATE_DOMAIN_SUPPLIED NegotiateFlag = 0x00001000
+
+	// NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY indicates that the NTLM2 signing and sealing scheme
+	// should be used for protecting authenticated communications.
+	//
+	// Note that this refers to a particular session security scheme, and is not related to the use of
+	// NTLMv2 authentication. This flag can, however, have an effect on the response calculations.
+	//
+	// See: https://curl.se/rfc/ntlm.html#theNtlm2SessionResponse
 	NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY NegotiateFlag = 0x00080000
-	NTLMSSP_NEGOTIATE_VERSION                  NegotiateFlag = 0x02000000
-	NTLMSSP_NEGOTIATE_KEY_EXCH                 NegotiateFlag = 0x40000000
+
+	// NTLMSSP_NEGOTIATE_VERSION indicates the version of the negotiation message
+	NTLMSSP_NEGOTIATE_VERSION NegotiateFlag = 0x02000000
+
+	// NTLMSSP_NEGOTIATE_128 indicates that 128-bit encryption is supported.
+	NTLMSSP_NEGOTIATE_128 NegotiateFlag = 0x20000000
+
+	// NTLMSSP_NEGOTIATE_KEY_EXCH indicates that the client will provide an encrypted master key in
+	// the "Session Key" field of the Type 3 message.
+	NTLMSSP_NEGOTIATE_KEY_EXCH NegotiateFlag = 0x40000000
 )
 
+// GenerateNegotiateMessage generates a NTLMv2 negotiation message (Type 1 message).
+//
+// See: https://curl.se/rfc/ntlm.html#theType1Message
 func (n *NTLMv2Session) GenerateNegotiateMessage() (*NegotiateMessage, error) {
 	message := &NegotiateMessage{
 		Signature:   []byte("NTLMSSP\x00"),
 		MessageType: 1,
-		NegotiateFlags: NegotiateFlags(NTLMSSP_NEGOTIATE_UNICODE | NTLMSSP_REQUEST_TARGET |
-			NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY),
+		NegotiateFlags: NegotiateFlags(NTLMSSP_NEGOTIATE_UNICODE | NTLMSSP_NEGOTIATE_OEM |
+			NTLMSSP_REQUEST_TARGET | NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_DOMAIN_SUPPLIED |
+			NTLMSSP_NEGOTIATE_128 | NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY),
 		DomainNameFields:  new(Payload),
 		WorkstationFields: new(Payload),
 	}
@@ -44,25 +89,31 @@ func (n *NTLMv2Session) GenerateNegotiateMessage() (*NegotiateMessage, error) {
 	return message, nil
 }
 
+// ReadNegotiateFlags reads the negotiate flags from the given byte slice and returns them as
+// NegotiateFlags type.
+func ReadNegotiateFlags(flags []byte) NegotiateFlags {
+	return NegotiateFlags(binary.LittleEndian.Uint32(flags))
+}
+
+// Bytes returns the byte representation of the negotiate flags.
 func (f NegotiateFlags) Bytes() []byte {
 	b := make([]byte, 4)
 	binary.LittleEndian.PutUint32(b, uint32(f))
 	return b
 }
 
-func ReadNegotiateFlags(flags []byte) NegotiateFlags {
-	return NegotiateFlags(binary.LittleEndian.Uint32(flags))
-}
-
+// Bytes returns the byte representation of the NTLMv2 negotiate message (Type 1 message).
 func (nm *NegotiateMessage) Bytes() []byte {
-	payloadLength := nm.DomainNameFields.Len + nm.WorkstationFields.Len
-	messageLength := uint16(40)
-	payloadOffset := messageLength
+	const headerLen = 32
 
-	buffer := bytes.NewBuffer(make([]byte, 0, messageLength+payloadLength))
+	payloadLen := int(nm.DomainNameFields.Len) + int(nm.WorkstationFields.Len)
+	buffer := bytes.NewBuffer(make([]byte, 0, headerLen+payloadLen))
+
 	buffer.Write(nm.Signature)
 	binary.Write(buffer, binary.LittleEndian, nm.MessageType)
 	buffer.Write(nm.NegotiateFlags.Bytes())
+
+	payloadOffset := uint16(headerLen)
 
 	nm.DomainNameFields.Offset = uint32(payloadOffset)
 	payloadOffset += nm.DomainNameFields.Len
@@ -74,5 +125,6 @@ func (nm *NegotiateMessage) Bytes() []byte {
 
 	buffer.Write(nm.DomainNameFields.Payload)
 	buffer.Write(nm.WorkstationFields.Payload)
+
 	return buffer.Bytes()
 }

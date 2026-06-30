@@ -74,7 +74,7 @@ func ParseChallengeMessage(body []byte) (*ChallengeMessage, error) {
 
 func (c *ChallengeMessage) readStringPayload(startByte int, payload []byte) (*Payload, error) {
 	payloadType := PayloadEncodingUnicode
-	if uint32(c.NegotiateFlags)&uint32(NTLM_NEGOTIATE_OEM) != 0 {
+	if uint32(c.NegotiateFlags)&uint32(NTLMSSP_NEGOTIATE_OEM) != 0 {
 		payloadType = PayloadEncodingOEM
 	}
 
