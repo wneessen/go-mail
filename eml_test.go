@@ -1230,6 +1230,12 @@ func TestEMLToMsgFromFile(t *testing.T) {
 			t.Fatalf("failed to write parsed message to buffer: %s", err)
 		}
 	})
+	// https://github.com/wneessen/go-mail/issues/477
+	t.Run("EMLToMsgFromFile from a multipart/report succeeds", func(t *testing.T) {
+		if _, err := EMLToMsgFromFile("testdata/multipart-report.eml"); err != nil {
+			t.Errorf("failed to parse multipart/report EML")
+		}
+	})
 }
 
 func TestToAndFromEMLMultipart(t *testing.T) {
