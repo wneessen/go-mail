@@ -19,7 +19,6 @@ type AuthenticateMessage struct {
 	EncryptedRandomSessionKey *Payload
 
 	NegotiateFlags NegotiateFlags
-	Mic            []byte
 
 	Payload []byte
 }
@@ -58,11 +57,7 @@ func (a *AuthenticateMessage) Bytes() []byte {
 	buf.Write(a.NegotiateFlags.Bytes())
 
 	buf.Write(make([]byte, 8))
-	if a.Mic != nil {
-		buf.Write(a.Mic)
-	} else {
-		buf.Write(make([]byte, 16))
-	}
+	buf.Write(make([]byte, 16))
 
 	buf.Write(a.DomainName.Payload)
 	buf.Write(a.UserName.Payload)

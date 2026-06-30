@@ -1,11 +1,11 @@
 package ntlm
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 )
 
+// Payload represents a NTLM payload.
 type Payload struct {
 	Type    int
 	Len     uint16
@@ -24,6 +24,7 @@ var (
 	ErrNTLMInvalidPayload = errors.New("invalid payload")
 )
 
+// CreateBytePayload creates a Payload from the given byte slice.
 func CreateBytePayload(payload []byte) *Payload {
 	return &Payload{
 		Type:    PayloadEncodingByte,
@@ -33,6 +34,7 @@ func CreateBytePayload(payload []byte) *Payload {
 	}
 }
 
+// CreateStringPayload creates a Payload from the given string.
 func CreateStringPayload(payload string) *Payload {
 	b := utf16FromString(payload)
 	return &Payload{
@@ -43,18 +45,22 @@ func CreateStringPayload(payload string) *Payload {
 	}
 }
 
+// ReadPayload reads a payload from the given byte slice starting at startByte of type payloadType.
 func ReadPayload(startByte int, payload []byte, payloadType int) (*Payload, error) {
-	if len(payload) < startByte+8 {
+	if startByte < 0 || len(payload) < startByte+8 {
 		return nil, ErrNTLMInvalidPayload
 	}
-	p := new(Payload)
-	p.Type = payloadType
-	p.Len = binary.LittleEndian.Uint16(payload[startByte : startByte+2])
-	p.MaxLen = binary.LittleEndian.Uint16(payload[startByte+2 : startByte+4])
-	p.Offset = binary.LittleEndian.Uint32(payload[startByte+4 : startByte+8])
+
+	p := &Payload{
+		Type:   payloadType,
+		Len:    binary.LittleEndian.Uint16(payload[startByte : startByte+2]),
+		MaxLen: binary.LittleEndian.Uint16(payload[startByte+2 : startByte+4]),
+		Offset: binary.LittleEndian.Uint32(payload[startByte+4 : startByte+8]),
+	}
+
 	if p.Len > 0 {
-		end := p.Offset + uint32(p.Len)
-		if uint32(len(payload)) < end {
+		end := uint64(p.Offset) + uint64(p.Len)
+		if uint64(p.Offset) > uint64(len(payload)) || end > uint64(len(payload)) {
 			return nil, ErrNTLMInvalidPayload
 		}
 		p.Payload = payload[p.Offset:end]
@@ -62,10 +68,11 @@ func ReadPayload(startByte int, payload []byte, payloadType int) (*Payload, erro
 	return p, nil
 }
 
+// Bytes returns the payload as a byte slice.
 func (p *Payload) Bytes() []byte {
-	buffer := bytes.NewBuffer(nil)
-	binary.Write(buffer, binary.LittleEndian, p.Len)
-	binary.Write(buffer, binary.LittleEndian, p.MaxLen)
-	binary.Write(buffer, binary.LittleEndian, p.Offset)
-	return buffer.Bytes()
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint16(b[0:2], p.Len)
+	binary.LittleEndian.PutUint16(b[2:4], p.MaxLen)
+	binary.LittleEndian.PutUint32(b[4:8], p.Offset)
+	return b
 }
