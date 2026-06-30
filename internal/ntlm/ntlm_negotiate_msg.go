@@ -15,11 +15,11 @@ type (
 
 // NegotiateMessage represents a NTLMv2 negotiate message (Type 1 message).
 type NegotiateMessage struct {
-	Signature         []byte
-	MessageType       uint32
-	NegotiateFlags    NegotiateFlags
-	DomainNameFields  *Payload
-	WorkstationFields *Payload
+	signature      []byte
+	messageType    uint32
+	negotiateFlags NegotiateFlags
+	domainname     *Payload
+	workstation    *Payload
 }
 
 // List of required NTLM flags. This list only holds the flags that are required for
@@ -60,7 +60,8 @@ const (
 	// See: https://curl.se/rfc/ntlm.html#theNtlm2SessionResponse
 	NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY NegotiateFlag = 0x00080000
 
-	// NTLMSSP_NEGOTIATE_VERSION indicates the version of the negotiation message
+	// NTLMSSP_NEGOTIATE_VERSION indicates the OS version (purley cosmetic and for debugging purposes)
+	// We ignore this
 	NTLMSSP_NEGOTIATE_VERSION NegotiateFlag = 0x02000000
 
 	// NTLMSSP_NEGOTIATE_128 indicates that 128-bit encryption is supported.
@@ -76,13 +77,13 @@ const (
 // See: https://curl.se/rfc/ntlm.html#theType1Message
 func (n *NTLMv2Session) GenerateNegotiateMessage() (*NegotiateMessage, error) {
 	message := &NegotiateMessage{
-		Signature:   []byte("NTLMSSP\x00"),
-		MessageType: 1,
-		NegotiateFlags: NegotiateFlags(NTLMSSP_NEGOTIATE_UNICODE | NTLMSSP_NEGOTIATE_OEM |
+		signature:   []byte("NTLMSSP\x00"),
+		messageType: 1,
+		negotiateFlags: NegotiateFlags(NTLMSSP_NEGOTIATE_UNICODE | NTLMSSP_NEGOTIATE_OEM |
 			NTLMSSP_REQUEST_TARGET | NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_DOMAIN_SUPPLIED |
 			NTLMSSP_NEGOTIATE_128 | NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY),
-		DomainNameFields:  new(Payload),
-		WorkstationFields: new(Payload),
+		domainname:  new(Payload),
+		workstation: new(Payload),
 	}
 	n.negotiateMessage = message
 
@@ -106,25 +107,25 @@ func (f NegotiateFlags) Bytes() []byte {
 func (nm *NegotiateMessage) Bytes() []byte {
 	const headerLen = 32
 
-	payloadLen := int(nm.DomainNameFields.Len) + int(nm.WorkstationFields.Len)
+	payloadLen := int(nm.domainname.Len) + int(nm.workstation.Len)
 	buffer := bytes.NewBuffer(make([]byte, 0, headerLen+payloadLen))
 
-	buffer.Write(nm.Signature)
-	binary.Write(buffer, binary.LittleEndian, nm.MessageType)
-	buffer.Write(nm.NegotiateFlags.Bytes())
+	buffer.Write(nm.signature)
+	binary.Write(buffer, binary.LittleEndian, nm.messageType)
+	buffer.Write(nm.negotiateFlags.Bytes())
 
 	payloadOffset := uint16(headerLen)
 
-	nm.DomainNameFields.Offset = uint32(payloadOffset)
-	payloadOffset += nm.DomainNameFields.Len
-	buffer.Write(nm.DomainNameFields.Bytes())
+	nm.domainname.Offset = uint32(payloadOffset)
+	payloadOffset += nm.domainname.Len
+	buffer.Write(nm.domainname.Bytes())
 
-	nm.WorkstationFields.Offset = uint32(payloadOffset)
-	payloadOffset += nm.WorkstationFields.Len
-	buffer.Write(nm.WorkstationFields.Bytes())
+	nm.workstation.Offset = uint32(payloadOffset)
+	payloadOffset += nm.workstation.Len
+	buffer.Write(nm.workstation.Bytes())
 
-	buffer.Write(nm.DomainNameFields.Payload)
-	buffer.Write(nm.WorkstationFields.Payload)
+	buffer.Write(nm.domainname.Payload)
+	buffer.Write(nm.workstation.Payload)
 
 	return buffer.Bytes()
 }

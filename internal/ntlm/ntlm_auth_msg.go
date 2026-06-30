@@ -43,7 +43,6 @@ func (a *AuthenticateMessage) Bytes() []byte {
 	}
 
 	buf := bytes.NewBuffer(make([]byte, 0, headerLen+payloadLen))
-
 	buf.Write(a.signature)
 
 	var msgType [4]byte
