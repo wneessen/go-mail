@@ -50,15 +50,15 @@ func (n *NTLMv2Session) SetUserInfo(username, password, domain string) {
 func (n *NTLMv2Session) ProcessChallengeMessage(message *ChallengeMessage) error {
 	// Fill session with required data
 	n.challengeMessage = message
-	n.serverChallenge = message.ServerChallenge
+	n.serverChallenge = message.serverChallenge
 	n.clientChallenge = randomBytes(8)
-	n.negotiateFlags = message.NegotiateFlags
+	n.negotiateFlags = message.negotiateFlags
 	n.responseKeyNT = ntlmv2Hash(n.user, n.password, n.userDomain)
 	timestamp := timeToWindowsFileTime(time.Now())
 	n.keyExchangeKey = n.sessionBaseKey
 
 	// Compute the expected response
-	n.computeExpectedResponses(timestamp, message.TargetInfo)
+	n.computeExpectedResponses(timestamp, message.targetInfo)
 
 	// Return the encrypted session key
 	return n.computeEncryptedSessionKey()
