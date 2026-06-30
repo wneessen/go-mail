@@ -172,6 +172,9 @@ type (
 		// command and would issue an "unknown command" error after successful delivery
 		noRset bool
 
+		// ntDomain represents a NT domain name used for the SMTP authentication (NTLM only).
+		ntDomain string
+
 		// pass represents a password or a secret token used for the SMTP authentication.
 		pass string
 
@@ -602,6 +605,29 @@ func WithPassword(password string) Option {
 	}
 }
 
+// WithDomain sets the domain that the Client will use for SMTP authentication (NTLM only).
+//
+// This function configures the Client with the specified domain for SMTP authentication.
+//
+// Important:
+//   - Specifying a domain name with this option alone does NOT enable SMTP authentication.
+//   - To actually perform authentication with the server, you must also configure an
+//     authentication mechanism by using either WithSMTPAuth() or WithSMTPAuthCustom().
+//   - If you only call WithDomain() without setting an SMTP authentication method,
+//     the provided username will be stored but never used.
+//
+// Parameters:
+//   - domain: The NT domain name to be used for SMTP authentication.
+//
+// Returns:
+//   - An Option function that sets the NT domain name for the Client.
+func WithDomain(domain string) Option {
+	return func(c *Client) error {
+		c.ntDomain = domain
+		return nil
+	}
+}
+
 // WithDSN enables DSN (Delivery Status Notifications) for the Client as described in RFC 1891.
 //
 // This function configures the Client to request DSN, which provides status notifications for email delivery.
@@ -979,6 +1005,16 @@ func (c *Client) SetUsername(username string) {
 //   - password: The password to be set for SMTP authentication.
 func (c *Client) SetPassword(password string) {
 	c.pass = password
+}
+
+// SetDomain sets or overrides the domain that the Client will use for SMTP authentication (NTLM only).
+//
+// This method updates the NT domain name used by the Client for authenticating with the SMTP server.
+//
+// Parameters:
+//   - domain: The NT domain name to be set for SMTP authentication.
+func (c *Client) SetDomain(domain string) {
+	c.ntDomain = domain
 }
 
 // SetSMTPAuth sets or overrides the SMTPAuthType currently configured on the Client for SMTP
@@ -1404,6 +1440,11 @@ func (c *Client) auth(client *smtp.Client, isEnc bool) error {
 				return ErrCramMD5AuthNotSupported
 			}
 			smtpAuth = smtp.CRAMMD5Auth(c.user, c.pass)
+		case SMTPAuthNTLM:
+			if !strings.Contains(smtpAuthType, string(SMTPAuthNTLM)) {
+				return ErrNTLMAuthNotSupported
+			}
+			smtpAuth = smtp.NTLMAuth(c.user, c.pass, c.ntDomain)
 		case SMTPAuthXOAUTH2:
 			if !strings.Contains(smtpAuthType, string(SMTPAuthXOAUTH2)) {
 				return ErrXOauth2AuthNotSupported
@@ -1456,7 +1497,7 @@ func (c *Client) authTypeAutoDiscover(supported string, isEnc bool) (SMTPAuthTyp
 	}
 	preferList := []SMTPAuthType{
 		SMTPAuthSCRAMSHA256PLUS, SMTPAuthSCRAMSHA256, SMTPAuthSCRAMSHA1PLUS, SMTPAuthSCRAMSHA1,
-		SMTPAuthCramMD5, SMTPAuthPlain, SMTPAuthLogin,
+		SMTPAuthCramMD5, SMTPAuthPlain, SMTPAuthLogin, SMTPAuthNTLM,
 	}
 	if !isEnc {
 		preferList = []SMTPAuthType{SMTPAuthSCRAMSHA256, SMTPAuthSCRAMSHA1, SMTPAuthCramMD5}
