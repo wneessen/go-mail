@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: The go-mail Authors
+//
+// SPDX-License-Identifier: MIT
+
 package ntlm
 
 import (

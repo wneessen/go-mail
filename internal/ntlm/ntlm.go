@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: The go-mail Authors
+//
+// SPDX-License-Identifier: MIT
+
 // Package ntlm provides a very basic implementation of the NTLMv2 protocol. It provides everything needed to
 // authenticate a SMTP authentication request. This package is not feature complete and is intented to only
 // provide the means required for go-mail to perform NTLM via SMTP authentication.
