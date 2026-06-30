@@ -15,23 +15,19 @@ type NTLMv2Session struct {
 	password   string
 	userDomain string
 
-	negotiateFlags NegotiateFlags
-
-	negotiateMessage *NegotiateMessage
-	challengeMessage *ChallengeMessage
-	serverChallenge  []byte
-	clientChallenge  []byte
-
-	responseKeyNT       []byte
-	ntChallengeResponse []byte
-	lmChallengeResponse []byte
-
+	negotiateFlags            NegotiateFlags
+	negotiateMessage          *NegotiateMessage
+	challengeMessage          *ChallengeMessage
+	serverChallenge           []byte
+	clientChallenge           []byte
+	responseKeyNT             []byte
+	ntChallengeResponse       []byte
+	lmChallengeResponse       []byte
 	sessionBaseKey            []byte
 	keyExchangeKey            []byte
 	exportedSessionKey        []byte
 	encryptedRandomSessionKey []byte
-
-	sequenceNumber uint32
+	sequenceNumber            uint32
 }
 
 // CreateClientSession returns a new NTLMv2Session.
