@@ -13,7 +13,7 @@ type ChallengeMessage struct {
 	NegotiateFlags  NegotiateFlags
 	ServerChallenge []byte
 	Reserved        []byte
-	TargetInfo      *AVPairs
+	TargetInfo      *avPairs
 	Payload         []byte
 }
 

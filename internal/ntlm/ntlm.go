@@ -16,9 +16,9 @@ import (
 )
 
 const (
-	// WindowsFileTime is the number of 100-nanosecond intervals since January 1, 1601 (UTC).
+	// windowsFileTime is the number of 100-nanosecond intervals since January 1, 1601 (UTC).
 	// This magic number is used as base for the Windows FILETIME representation.
-	WindowsFileTime = 116444736000000000
+	windowsFileTime = 116444736000000000
 )
 
 // ntlmv2Hash computes the NT One-Way Function (OWF) for the given user, password,
@@ -38,7 +38,7 @@ func ntlmv2Hash(user, passwd, userDom string) []byte {
 // See:      https://learn.microsoft.com/en-us/windows/win32/sysinfo/converting-a-time-t-value-to-a-file-time
 // See also: https://curl.se/rfc/ntlm.html#appendixD
 func timeToWindowsFileTime(t time.Time) []byte {
-	fileTime := uint64(t.UnixNano()/100 + WindowsFileTime)
+	fileTime := uint64(t.UnixNano()/100 + windowsFileTime)
 	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, fileTime)
 	return buf

@@ -82,7 +82,7 @@ func (n *NTLMv2Session) GenerateAuthenticateMessage() *AuthenticateMessage {
 }
 
 // computeExpectedResponses computes the expected NTLMv2 challenge responses (LMv2 and NTLMv2).
-func (n *NTLMv2Session) computeExpectedResponses(timestamp []byte, avPairs *AVPairs) {
+func (n *NTLMv2Session) computeExpectedResponses(timestamp []byte, avPairs *avPairs) {
 	// temp = RespType || HiRespType || ZeroByte(6) || Timestamp || ClientChallenge ||
 	// ZeroByte(4) || TargetInfo || ZeroByte(4)
 	//
@@ -116,7 +116,7 @@ func (n *NTLMv2Session) computeExpectedResponses(timestamp []byte, avPairs *AVPa
 	mac.Write(ntProofStr)
 	n.sessionBaseKey = mac.Sum(nil)
 
-	if avPairs.Find(MsvAvTimestamp) != nil {
+	if avPairs.Find(msvAvTimestamp) != nil {
 		n.lmChallengeResponse = make([]byte, 24)
 	}
 }
