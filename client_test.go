@@ -500,6 +500,17 @@ func TestNewClient(t *testing.T) {
 				false, nil,
 			},
 			{
+				"WithDomain", WithDomain("testdomain"),
+				func(c *Client) error {
+					if c.ntDomain != "testdomain" {
+						return fmt.Errorf("failed to set NT domain. Want NT domain: %s, got: %s",
+							"testdomain", c.ntDomain)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
 				"WithDSN", WithDSN(),
 				func(c *Client) error {
 					if c.requestDSN != true {
@@ -1389,6 +1400,29 @@ func TestClient_SetPassword(t *testing.T) {
 		client.SetPassword("Su%perS3crEt")
 		if client.pass != "Su%perS3crEt" {
 			t.Errorf("failed to set expected password, want: %s, got: %s", "Su%perS3crEt", client.pass)
+		}
+	})
+}
+
+func TestClient_SetDomain(t *testing.T) {
+	t.Run("SetDomain", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetDomain("testdomain")
+		if client.ntDomain != "testdomain" {
+			t.Errorf("failed to set expected NT domain, want: %s, got: %s", "testdomain", client.ntDomain)
+		}
+	})
+	t.Run("SetDomain to override WithDomain", func(t *testing.T) {
+		client, err := NewClient(DefaultHost, WithDomain("testdomain"))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		client.SetDomain("newdomain")
+		if client.ntDomain != "newdomain" {
+			t.Errorf("failed to set expected NT domain, want: %s, got: %s", "newdomain", client.ntDomain)
 		}
 	})
 }
