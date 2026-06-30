@@ -5,7 +5,7 @@ import (
 	"errors"
 )
 
-// Payload represents a NTLM payload.
+// Payload represents a NTLM payload
 type Payload struct {
 	Type    int
 	Len     uint16
@@ -15,12 +15,18 @@ type Payload struct {
 }
 
 const (
+	// PayloadEncodingUnicode represents the Unicode payload encoding
 	PayloadEncodingUnicode = iota
+
+	// PayloadEncodingOEM represents the OEM payload encoding
 	PayloadEncodingOEM
+
+	// PayloadEncodingByte represents the byte payload encoding
 	PayloadEncodingByte
 )
 
 var (
+	// ErrNTLMInvalidPayload is returned when the payload is invalid
 	ErrNTLMInvalidPayload = errors.New("invalid payload")
 )
 
