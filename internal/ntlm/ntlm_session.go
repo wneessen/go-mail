@@ -28,7 +28,6 @@ type NTLMv2Session struct {
 	ntChallengeResponse       []byte
 	lmChallengeResponse       []byte
 	sessionBaseKey            []byte
-	keyExchangeKey            []byte
 	exportedSessionKey        []byte
 	encryptedRandomSessionKey []byte
 }
@@ -117,7 +116,6 @@ func (s *NTLMv2Session) ParseChallengeMessage(body []byte) error {
 	s.challengeMessage = challenge
 	s.clientChallenge = randomBytes(8)
 	s.responseKeyNT = ntlmv2Hash(s.user, s.password, s.domain)
-	s.keyExchangeKey = s.sessionBaseKey
 
 	// Compute the expected response
 	timestamp := timeToWindowsFileTime(time.Now())
@@ -210,13 +208,13 @@ func (s *NTLMv2Session) computeExpectedResponses(timestamp []byte, avPairs *avPa
 // computeEncryptedSessionKey computes the encrypted session key for NTLMv2 key exchange.
 func (s *NTLMv2Session) computeEncryptedSessionKey() error {
 	if uint32(s.challengeMessage.negotiateFlags)&uint32(ntlmsspNegotiateKeyExchange) == 0 {
-		s.exportedSessionKey = s.keyExchangeKey
+		s.exportedSessionKey = s.sessionBaseKey
 		s.encryptedRandomSessionKey = nil
 		return nil
 	}
 
 	s.exportedSessionKey = randomBytes(16)
-	cipher, err := rc4.NewCipher(s.keyExchangeKey)
+	cipher, err := rc4.NewCipher(s.sessionBaseKey)
 	if err != nil {
 		return fmt.Errorf("failed to create RC4 cipher: %w", err)
 	}
