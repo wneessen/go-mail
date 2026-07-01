@@ -9,10 +9,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 	"time"
 )
+
+const challenge = "S3creT!1"
 
 func Test_ntlmv2Hash(t *testing.T) {
 	want := []byte{23, 76, 33, 13, 99, 39, 31, 213, 150, 111, 98, 90, 105, 122, 255, 91}
@@ -105,7 +108,7 @@ func Test_toUint32(t *testing.T) {
 }
 
 func TestCreateClientSession(t *testing.T) {
-	session := CreateClientSession()
+	session := NewNTLMv2Session()
 	if session == nil {
 		t.Fatal("failed to create client session. session is nil")
 	}
@@ -178,7 +181,7 @@ func TestNTLMv2Session_SetUserInfo(t *testing.T) {
 	testUser, testPass, testDomain := "testuser", "passw0rd!", "DOMAIN"
 
 	t.Run("set all values", func(t *testing.T) {
-		session := CreateClientSession()
+		session := NewNTLMv2Session()
 		if session == nil {
 			t.Fatal("failed to create client session. session is nil")
 		}
@@ -189,7 +192,7 @@ func TestNTLMv2Session_SetUserInfo(t *testing.T) {
 		}
 	})
 	t.Run("username only", func(t *testing.T) {
-		session := CreateClientSession()
+		session := NewNTLMv2Session()
 		if session == nil {
 			t.Fatal("failed to create client session. session is nil")
 		}
@@ -203,7 +206,7 @@ func TestNTLMv2Session_SetUserInfo(t *testing.T) {
 		}
 	})
 	t.Run("password only", func(t *testing.T) {
-		session := CreateClientSession()
+		session := NewNTLMv2Session()
 		if session == nil {
 			t.Fatal("failed to create client session. session is nil")
 		}
@@ -217,7 +220,7 @@ func TestNTLMv2Session_SetUserInfo(t *testing.T) {
 		}
 	})
 	t.Run("domain only", func(t *testing.T) {
-		session := CreateClientSession()
+		session := NewNTLMv2Session()
 		if session == nil {
 			t.Fatal("failed to create client session. session is nil")
 		}
@@ -233,9 +236,8 @@ func TestNTLMv2Session_SetUserInfo(t *testing.T) {
 }
 
 func TestNTLMv2Session_ParseChallengeMessage(t *testing.T) {
-	challenge := "S3creT!1"
 	t.Run("processing challenge message succeeds", func(t *testing.T) {
-		session := CreateClientSession()
+		session := NewNTLMv2Session()
 		if session == nil {
 			t.Fatal("failed to create client session. session is nil")
 		}
@@ -261,7 +263,7 @@ func TestNTLMv2Session_ParseChallengeMessage(t *testing.T) {
 		}
 	})
 	t.Run("processing nil byte challenge message fails", func(t *testing.T) {
-		session := CreateClientSession()
+		session := NewNTLMv2Session()
 		if session == nil {
 			t.Fatal("failed to create client session. session is nil")
 		}
@@ -270,7 +272,7 @@ func TestNTLMv2Session_ParseChallengeMessage(t *testing.T) {
 		}
 	})
 	t.Run("processing message with broken signature fails", func(t *testing.T) {
-		session := CreateClientSession()
+		session := NewNTLMv2Session()
 		if session == nil {
 			t.Fatal("failed to create client session. session is nil")
 		}
@@ -290,7 +292,7 @@ func TestNTLMv2Session_ParseChallengeMessage(t *testing.T) {
 		}
 	})
 	t.Run("processing message with wrong message type fails", func(t *testing.T) {
-		session := CreateClientSession()
+		session := NewNTLMv2Session()
 		if session == nil {
 			t.Fatal("failed to create client session. session is nil")
 		}
@@ -310,7 +312,7 @@ func TestNTLMv2Session_ParseChallengeMessage(t *testing.T) {
 		}
 	})
 	t.Run("processing message with broken payload fails", func(t *testing.T) {
-		session := CreateClientSession()
+		session := NewNTLMv2Session()
 		if session == nil {
 			t.Fatal("failed to create client session. session is nil")
 		}
@@ -327,6 +329,124 @@ func TestNTLMv2Session_ParseChallengeMessage(t *testing.T) {
 		}
 		if !errors.Is(err, ErrNTLMInvalidPayload) {
 			t.Errorf("expected error %s, got %s", ErrNTLMInvalidPayload, err)
+		}
+	})
+}
+
+func TestNTLMv2Session_GenerateAuthenticateMessage(t *testing.T) {
+	t.Run("generates authenticate message successfully", func(t *testing.T) {
+		session := NewNTLMv2Session()
+		if session == nil {
+			t.Fatal("failed to create client session. session is nil")
+		}
+		session.SetUserInfo("testuser", "P4ssw0rd!", "EXAMPLE.COM")
+		message, err := CreateChallengeMessage(
+			uint32(ntlmsspNegotiateUnicode|ntlmsspNegotiateAlwaysSign|ntlmsspNegotiateKeyExchange),
+			[]byte(challenge), "localhost", "EXAMPLE.COM")
+		if err != nil {
+			t.Fatalf("failed to create challenge message: %s", err)
+		}
+		err = session.ParseChallengeMessage(message)
+		if err != nil {
+			t.Fatalf("failed to parse challenge message: %s", err)
+		}
+		if _, err = session.GenerateAuthenticateMessage(); err != nil {
+			t.Errorf("failed to generate authenticate message: %s", err)
+		}
+	})
+	t.Run("generates authenticate message without negotiate key exchange successfully", func(t *testing.T) {
+		session := NewNTLMv2Session()
+		if session == nil {
+			t.Fatal("failed to create client session. session is nil")
+		}
+		session.SetUserInfo("testuser", "P4ssw0rd!", "EXAMPLE.COM")
+		message, err := CreateChallengeMessage(uint32(ntlmsspNegotiateUnicode), []byte(challenge), "localhost", "EXAMPLE.COM")
+		if err != nil {
+			t.Fatalf("failed to create challenge message: %s", err)
+		}
+		err = session.ParseChallengeMessage(message)
+		if err != nil {
+			t.Fatalf("failed to parse challenge message: %s", err)
+		}
+		if _, err = session.GenerateAuthenticateMessage(); err != nil {
+			t.Errorf("failed to generate authenticate message: %s", err)
+		}
+	})
+	t.Run("broken session fields fails the authenticate message generation", func(t *testing.T) {
+		tests := []struct {
+			name       string
+			sessionFun func(s *NTLMv2Session)
+		}{
+			{
+				"broken lmChallengeResponse", func(s *NTLMv2Session) {
+					s.lmChallengeResponse = []byte(strings.Repeat("x", math.MaxUint16+1))
+				},
+			},
+			{
+				"broken ntChallengeResponse", func(s *NTLMv2Session) {
+					s.ntChallengeResponse = []byte(strings.Repeat("x", math.MaxUint16+1))
+				},
+			},
+			{
+				"broken encryptedRandomSessionKey", func(s *NTLMv2Session) {
+					s.encryptedRandomSessionKey = []byte(strings.Repeat("x", math.MaxUint16+1))
+				},
+			},
+			{
+				"broken domain", func(s *NTLMv2Session) {
+					s.domain = strings.Repeat("x", math.MaxUint16+1)
+				},
+			},
+			{
+				"broken user", func(s *NTLMv2Session) {
+					s.user = strings.Repeat("x", math.MaxUint16+1)
+				},
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				session := NewNTLMv2Session()
+				if session == nil {
+					t.Fatal("failed to create client session. session is nil")
+				}
+				session.SetUserInfo("testuser", "P4ssw0rd!", "EXAMPLE.COM")
+				message, err := CreateChallengeMessage(
+					uint32(ntlmsspNegotiateUnicode|ntlmsspNegotiateAlwaysSign|ntlmsspNegotiateKeyExchange),
+					[]byte(challenge), "localhost", "EXAMPLE.COM")
+				if err != nil {
+					t.Fatalf("failed to create challenge message: %s", err)
+				}
+				if err = session.ParseChallengeMessage(message); err != nil {
+					t.Errorf("failed to parse challenge message: %s", err)
+				}
+				tt.sessionFun(session)
+				if _, err = session.GenerateAuthenticateMessage(); err == nil {
+					t.Error("expected authentication message generation to fail, but got nil")
+				}
+			})
+		}
+	})
+}
+
+func TestNTLMv2Session_computeEncryptedSessionKey(t *testing.T) {
+	t.Run("computes encrypted session key successfully", func(t *testing.T) {
+		session := NewNTLMv2Session()
+		if session == nil {
+			t.Fatal("failed to create client session. session is nil")
+		}
+		session.SetUserInfo("testuser", "P4ssw0rd!", "EXAMPLE.COM")
+		message, err := CreateChallengeMessage(
+			uint32(ntlmsspNegotiateUnicode|ntlmsspNegotiateAlwaysSign|ntlmsspNegotiateKeyExchange),
+			[]byte(challenge), "localhost", "EXAMPLE.COM")
+		if err != nil {
+			t.Fatalf("failed to create challenge message: %s", err)
+		}
+		if err = session.ParseChallengeMessage(message); err != nil {
+			t.Errorf("failed to parse challenge message: %s", err)
+		}
+		session.sessionBaseKey = []byte(strings.Repeat("x", 257))
+		if err := session.computeEncryptedSessionKey(); err == nil {
+			t.Error("expected computeEncryptedSessionKey to fail, but got nil")
 		}
 	})
 }

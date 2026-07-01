@@ -78,6 +78,9 @@ func CreateChallengeMessage(clientFlags uint32, challenge []byte, targetName, do
 	if clientFlags&uint32(ntlmsspNegotiateExtendedSessionSecurity) != 0 {
 		flags |= negotiateFlagset(ntlmsspNegotiateExtendedSessionSecurity)
 	}
+	if clientFlags&uint32(ntlmsspNegotiateKeyExchange) != 0 {
+		flags |= negotiateFlagset(ntlmsspNegotiateKeyExchange)
+	}
 
 	payloadStart := uint32(headerLen + versionLen) // 56
 	buffer := bytes.NewBuffer(make([]byte, 0, int(payloadStart)+len(target)+len(tiBytes)))

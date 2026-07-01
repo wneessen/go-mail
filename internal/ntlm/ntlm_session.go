@@ -32,8 +32,8 @@ type NTLMv2Session struct {
 	encryptedRandomSessionKey []byte
 }
 
-// CreateClientSession returns a new NTLMv2Session.
-func CreateClientSession() *NTLMv2Session {
+// NewNTLMv2Session returns a new NTLMv2Session.
+func NewNTLMv2Session() *NTLMv2Session {
 	return &NTLMv2Session{}
 }
 
@@ -148,10 +148,7 @@ func (s *NTLMv2Session) GenerateAuthenticateMessage() (*AuthenticateMessage, err
 	if err != nil {
 		return nil, fmt.Errorf("failed to create username payload: %w", err)
 	}
-	workstationPayload, err := createStringPayload("")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create workstation payload: %w", err)
-	}
+	workstationPayload, _ := createStringPayload("")
 	return &AuthenticateMessage{
 		signature:                 []byte("NTLMSSP\x00"),
 		messageType:               3,

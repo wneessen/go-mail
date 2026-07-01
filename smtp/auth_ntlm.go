@@ -41,7 +41,7 @@ type ntlmAuth struct {
 //     creating the NTLM session or generating the negotiation message.
 func (a *ntlmAuth) Start(info *ServerInfo) (proto string, toServer []byte, err error) {
 	// Initialize a NTLMv2 client session and assign username, password and domain
-	a.session = ntlm.CreateClientSession()
+	a.session = ntlm.NewNTLMv2Session()
 	a.session.SetUserInfo(a.UserName, a.Password, a.Domain)
 
 	// Initialize a NTLMSSP Type 1 message, which holds the negotiation information
