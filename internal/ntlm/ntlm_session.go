@@ -15,9 +15,9 @@ import (
 
 // NTLMv2Session represents a session using the NTLMv2 protocol.
 type NTLMv2Session struct {
-	user       string
-	password   string
-	userDomain string
+	user     string
+	password string
+	domain   string
 
 	negotiateFlags            negotiateFlagSet
 	negotiateMessage          *NegotiateMessage
@@ -43,7 +43,7 @@ func CreateClientSession() *NTLMv2Session {
 func (n *NTLMv2Session) SetUserInfo(username, password, domain string) {
 	n.user = username
 	n.password = password
-	n.userDomain = domain
+	n.domain = domain
 }
 
 // ProcessChallengeMessage processes the challenge message from the server.
@@ -53,7 +53,7 @@ func (n *NTLMv2Session) ProcessChallengeMessage(message *ChallengeMessage) error
 	n.serverChallenge = message.serverChallenge
 	n.clientChallenge = randomBytes(8)
 	n.negotiateFlags = message.negotiateFlags
-	n.responseKeyNT = ntlmv2Hash(n.user, n.password, n.userDomain)
+	n.responseKeyNT = ntlmv2Hash(n.user, n.password, n.domain)
 	n.keyExchangeKey = n.sessionBaseKey
 
 	// Compute the expected response
@@ -73,7 +73,7 @@ func (n *NTLMv2Session) GenerateAuthenticateMessage() *AuthenticateMessage {
 		messageType:               3,
 		lmChallengeResponse:       CreateBytePayload(n.lmChallengeResponse),
 		ntChallengeResponseFields: CreateBytePayload(n.ntChallengeResponse),
-		domainname:                CreateStringPayload(n.userDomain),
+		domainname:                CreateStringPayload(n.domain),
 		username:                  CreateStringPayload(n.user),
 		workstation:               CreateStringPayload(""),
 		encryptedRandomSessionKey: CreateBytePayload(n.encryptedRandomSessionKey),
