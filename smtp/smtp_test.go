@@ -424,10 +424,11 @@ func TestPlainAuth(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -459,11 +460,12 @@ func TestPlainAuth(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnAuth: true,
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnAuth: true,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -582,10 +584,11 @@ func TestPlainAuth_noEnc(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -614,11 +617,12 @@ func TestPlainAuth_noEnc(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnAuth: true,
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnAuth: true,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -733,10 +737,11 @@ func TestLoginAuth(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -765,11 +770,12 @@ func TestLoginAuth(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnAuth: true,
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnAuth: true,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -881,10 +887,11 @@ func TestLoginAuth_noEnc(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -913,11 +920,12 @@ func TestLoginAuth_noEnc(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnAuth: true,
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnAuth: true,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -1052,10 +1060,11 @@ func TestXOAuth2Auth(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH XOAUTH2\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -1084,11 +1093,12 @@ func TestXOAuth2Auth(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH XOAUTH2\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnAuth: true,
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnAuth: true,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -1130,14 +1140,15 @@ func TestScramAuth(t *testing.T) {
 			serverPort := int(TestServerPortBase + PortAdder.Load())
 			featureSet := fmt.Sprintf("250-AUTH %s\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8", tt.authString)
 			go func() {
-				if err := simpleSMTPServer(ctx, t, &serverProps{
-					TestSCRAM:   true,
-					HashFunc:    tt.hash,
-					FeatureSet:  featureSet,
-					ListenPort:  serverPort,
-					SSLListener: tt.tls,
-					IsSCRAMPlus: tt.isPlus,
-				},
+				if err := simpleSMTPServer(
+					ctx, t, &serverProps{
+						TestSCRAM:   true,
+						HashFunc:    tt.hash,
+						FeatureSet:  featureSet,
+						ListenPort:  serverPort,
+						SSLListener: tt.tls,
+						IsSCRAMPlus: tt.isPlus,
+					},
 				); err != nil {
 					t.Errorf("failed to start test server: %s", err)
 					return
@@ -1202,14 +1213,15 @@ func TestScramAuth(t *testing.T) {
 			serverPort := int(TestServerPortBase + PortAdder.Load())
 			featureSet := fmt.Sprintf("250-AUTH %s\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8", tt.authString)
 			go func() {
-				if err := simpleSMTPServer(ctx, t, &serverProps{
-					TestSCRAM:   true,
-					HashFunc:    tt.hash,
-					FeatureSet:  featureSet,
-					ListenPort:  serverPort,
-					SSLListener: tt.tls,
-					IsSCRAMPlus: tt.isPlus,
-				},
+				if err := simpleSMTPServer(
+					ctx, t, &serverProps{
+						TestSCRAM:   true,
+						HashFunc:    tt.hash,
+						FeatureSet:  featureSet,
+						ListenPort:  serverPort,
+						SSLListener: tt.tls,
+						IsSCRAMPlus: tt.isPlus,
+					},
 				); err != nil {
 					t.Errorf("failed to start test server: %s", err)
 					return
@@ -1458,10 +1470,11 @@ func TestCRAMMD5Auth(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH CRAM-MD5\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -1485,11 +1498,12 @@ func TestCRAMMD5Auth(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH CRAM-MD5\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnAuth: true,
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnAuth: true,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -1516,11 +1530,12 @@ func TestNTLMAuth(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH GSSAPI NTLM\r\n250-8BITMIME\r\n250 DSN"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-				TestNTLMv2: true,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+					TestNTLMv2: true,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -1546,10 +1561,11 @@ func TestNewClient(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -1578,11 +1594,12 @@ func TestNewClient(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnDial: true,
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnDial: true,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -1622,12 +1639,13 @@ func TestClient_hello(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnEhlo: true,
-				FailOnHelo: true,
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnEhlo: true,
+					FailOnHelo: true,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -1653,11 +1671,12 @@ func TestClient_Hello(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnHelo: true,
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnHelo: true,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -1683,11 +1702,12 @@ func TestClient_Hello(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnEhlo: true,
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnEhlo: true,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -1713,10 +1733,11 @@ func TestClient_Hello(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -1739,10 +1760,11 @@ func TestClient_Hello(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -1765,10 +1787,11 @@ func TestClient_Hello(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -1820,10 +1843,11 @@ func TestClient_StartTLS(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -1855,12 +1879,13 @@ func TestClient_StartTLS(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnEhlo: true,
-				FailOnHelo: true,
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnEhlo: true,
+					FailOnHelo: true,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -1889,11 +1914,12 @@ func TestClient_StartTLS(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnSTARTTLS: true,
-				FeatureSet:     featureSet,
-				ListenPort:     serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnSTARTTLS: true,
+					FeatureSet:     featureSet,
+					ListenPort:     serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -1925,10 +1951,11 @@ func TestClient_TLSConnectionState(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -1965,10 +1992,11 @@ func TestClient_TLSConnectionState(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -2000,10 +2028,11 @@ func TestClient_Verify(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -2034,11 +2063,12 @@ func TestClient_Verify(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet:      featureSet,
-				ListenPort:      serverPort,
-				VRFYUserUnknown: true,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet:      featureSet,
+					ListenPort:      serverPort,
+					VRFYUserUnknown: true,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -2066,10 +2096,11 @@ func TestClient_Verify(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -2097,12 +2128,13 @@ func TestClient_Verify(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnEhlo: true,
-				FailOnHelo: true,
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnEhlo: true,
+					FailOnHelo: true,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -2133,12 +2165,13 @@ func TestClient_Auth(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnEhlo: true,
-				FailOnHelo: true,
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnEhlo: true,
+					FailOnHelo: true,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -2162,11 +2195,12 @@ func TestClient_Auth(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnAuth: true,
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnAuth: true,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -2194,12 +2228,13 @@ func TestClient_Auth(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnAuth: true,
-				FailOnQuit: true,
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnAuth: true,
+					FailOnQuit: true,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -2264,11 +2299,12 @@ func TestClient_errorRegistryHandler(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet:            featureSet,
-				ListenPort:            serverPort,
-				SimulateShortResponse: true,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet:            featureSet,
+					ListenPort:            serverPort,
+					SimulateShortResponse: true,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -2299,11 +2335,12 @@ func TestClient_errorRegistryHandler(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet:            featureSet,
-				ListenPort:            serverPort,
-				SimulateShortResponse: true,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet:            featureSet,
+					ListenPort:            serverPort,
+					SimulateShortResponse: true,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -2333,10 +2370,11 @@ func TestClient_Mail(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -2371,10 +2409,11 @@ func TestClient_Mail(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -2402,12 +2441,13 @@ func TestClient_Mail(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnEhlo: true,
-				FailOnHelo: true,
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnEhlo: true,
+					FailOnHelo: true,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -2737,10 +2777,11 @@ func TestClient_Rcpt(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -2771,10 +2812,11 @@ func TestClient_Rcpt(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -2851,10 +2893,11 @@ func TestClient_Data(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -2890,11 +2933,12 @@ func TestClient_Data(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnDataInit: true,
-				FeatureSet:     featureSet,
-				ListenPort:     serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnDataInit: true,
+					FeatureSet:     featureSet,
+					ListenPort:     serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -2924,10 +2968,11 @@ func TestDataCloser_ServerResponse(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -2969,10 +3014,11 @@ func TestDataCloser_ServerResponse(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -3339,12 +3385,13 @@ func TestClient_Extension(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnEhlo: true,
-				FailOnHelo: true,
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnEhlo: true,
+					FailOnHelo: true,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -3374,10 +3421,11 @@ func TestClient_Reset(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -3407,11 +3455,12 @@ func TestClient_Reset(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnReset: true,
-				FeatureSet:  featureSet,
-				ListenPort:  serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnReset: true,
+					FeatureSet:  featureSet,
+					ListenPort:  serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -3438,12 +3487,13 @@ func TestClient_Reset(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnEhlo: true,
-				FailOnHelo: true,
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnEhlo: true,
+					FailOnHelo: true,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -3473,10 +3523,11 @@ func TestClient_Noop(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -3506,12 +3557,13 @@ func TestClient_Noop(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnEhlo: true,
-				FailOnHelo: true,
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnEhlo: true,
+					FailOnHelo: true,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -3538,11 +3590,12 @@ func TestClient_Noop(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FailOnNoop: true,
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnNoop: true,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -3687,10 +3740,11 @@ func TestClient_HasConnection(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -3723,10 +3777,11 @@ func TestClient_HasConnection(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -3751,10 +3806,11 @@ func TestClient_HasConnection(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -3782,10 +3838,11 @@ func TestClient_UpdateDeadline(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -3823,10 +3880,11 @@ func TestClient_UpdateDeadline(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -3854,10 +3912,11 @@ func TestClient_GetTLSConnectionState(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -3904,10 +3963,11 @@ func TestClient_GetTLSConnectionState(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250 DSN"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return
@@ -3935,10 +3995,11 @@ func TestClient_GetTLSConnectionState(t *testing.T) {
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250 DSN"
 		go func() {
-			if err := simpleSMTPServer(ctx, t, &serverProps{
-				FeatureSet: featureSet,
-				ListenPort: serverPort,
-			},
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
 				return

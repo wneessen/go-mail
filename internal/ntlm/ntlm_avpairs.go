@@ -52,10 +52,8 @@ const (
 	msvAVTimestamp avPairType = 0x0007
 )
 
-var (
-	// ErrNTLMInvalidAVPair indicates that an invalid NTLM attribute-value pair was encountered
-	ErrNTLMInvalidAVPair = errors.New("invalid NTLM attribute-value pair")
-)
+// ErrNTLMInvalidAVPair indicates that an invalid NTLM attribute-value pair was encountered
+var ErrNTLMInvalidAVPair = errors.New("invalid NTLM attribute-value pair")
 
 // AppendToAVPairs creates an AVPair with the given type and value and appends it to the list.
 // It returns the created pair for convenience.

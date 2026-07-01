@@ -29,10 +29,8 @@ const (
 	payloadEncodingByte
 )
 
-var (
-	// ErrNTLMInvalidPayload is returned when the payload is invalid
-	ErrNTLMInvalidPayload = errors.New("invalid NTLM payload")
-)
+// ErrNTLMInvalidPayload is returned when the payload is invalid
+var ErrNTLMInvalidPayload = errors.New("invalid NTLM payload")
 
 // createBytePayload creates a Payload from the given byte slice.
 func createBytePayload(payload []byte) *Payload {
