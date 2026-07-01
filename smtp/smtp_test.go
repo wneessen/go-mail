@@ -31,6 +31,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"math"
 	"net"
 	netmail "net/mail"
 	"os"
@@ -1549,6 +1550,32 @@ func TestNTLMAuth(t *testing.T) {
 		}
 		if err = client.Auth(auth); err != nil {
 			t.Errorf("failed to auth to test server: %s", err)
+		}
+	})
+	t.Run("ntlmAuth start fails on overly long domain", func(t *testing.T) {
+		auth := NTLMAuth("toni.tester", "Passw0rd!", strings.Repeat("a", math.MaxUint16))
+		_, _, err := auth.Start(&ServerInfo{"testserver", true, nil})
+		if err == nil {
+			t.Error("expected auth start to fail with overly long domain, but didn't")
+		}
+	})
+	t.Run("ntlmAuth next fails due to missformed challenge", func(t *testing.T) {
+		const brokenChallenge = "TlRMTVNTUAACAAAAEAAQADgAAAAFgooCWwI2lf2+Y0kAAAAAAAAAAP//aABIAAAACgBhSgAAAA9OAFQATABNAC0AUABPAEMAAgAUAFQARQBTAFQARABPAE0AQQBJAE4AAQAQAE4AVABMAE0ALQBQAE8AQwAEABQAVABFAFMAVABEAE8ATQBBAEkATgADABAATgBUAEwATQAtAFAATwBDAAcACADSS7dbUQndAQAAAAA="
+		auth := NTLMAuth("toni.tester", "Passw0rd!", "domain")
+		proto, _, err := auth.Start(&ServerInfo{"testserver", true, nil})
+		if err != nil {
+			t.Errorf("failed to start NTLM auth: %s", err)
+		}
+		if proto != "NTLM" {
+			t.Errorf("expected protocol to be NTLM but got: %s", proto)
+		}
+		decoded, err := base64.StdEncoding.DecodeString(brokenChallenge)
+		if err != nil {
+			t.Errorf("failed to decode NTLM challenge: %s", err)
+		}
+		_, err = auth.Next(decoded, true)
+		if err == nil {
+			t.Error("expected next auth step to fail due to broken challenge, but didn't")
 		}
 	})
 }
