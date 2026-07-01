@@ -23,6 +23,9 @@ const (
 	// windowsFileTime is the number of 100-nanosecond intervals since January 1, 1601 (UTC).
 	// This magic number is used as base for the Windows FILETIME representation.
 	windowsFileTime = 116444736000000000
+
+	// signature is the NTLMSSP signature used in NTLMv2 messages.
+	signature = "NTLMSSP\x00"
 )
 
 // ntlmv2Hash computes the NT One-Way Function (OWF) for the given user, password,

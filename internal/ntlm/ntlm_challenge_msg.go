@@ -8,7 +8,11 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"time"
 )
+
+// messageType represents the type of NTLM message
+type messageType int
 
 // ChallengeMessage represents an NTLM challenge message (Type 2 message)
 type ChallengeMessage struct {
@@ -22,6 +26,12 @@ type ChallengeMessage struct {
 	payload         []byte
 }
 
+const (
+	messageTypeNegotiate = iota + 1
+	messageTypeChallenge
+	messageTypeAuthenticate
+)
+
 var (
 	// ErrNTLMInvalidChallengeMessage is returned when the challenge message is invalid
 	ErrNTLMInvalidChallengeMessage = errors.New("invalid challenge message")
@@ -32,6 +42,67 @@ var (
 	// ErrNTLMInvalidSignatureType is returned when the NTLM message type is invalid
 	ErrNTLMInvalidSignatureType = errors.New("invalid NTLM message type")
 )
+
+// CreateChallengeMessage creates an NTLM challenge message (Type 2 message) for the
+// given target name and domain
+func CreateChallengeMessage(clientFlags uint32, challenge []byte, targetName, domain string) []byte {
+	const headerLen = 48
+	const versionLen = 8
+
+	target := utf16FromString(targetName)
+	targetInfo := new(avPairs)
+	targetInfo.appendAVPair(msvAVNbDomainName, utf16FromString(domain))
+	targetInfo.appendAVPair(msvAVNbComputerName, target)
+	targetInfo.appendAVPair(msvAVDNSDomainName, utf16FromString(domain))
+	targetInfo.appendAVPair(msvAVDNSComputerName, target)
+	targetInfo.appendAVPair(msvAVTimestamp, timeToWindowsFileTime(time.Now()))
+	targetInfo.appendAVPair(msvAVEOL, nil)
+	tiBytes := targetInfo.bytes() // compute once
+
+	flags := negotiateFlagset(ntlmsspNegotiateUnicode | ntlmsspNegotiateNTLM | ntlmsspRequestTarget |
+		ntlmsspNegotiateAlwaysSign | ntlmsspNegotiateTargetTypeServer |
+		ntlmsspNegotiateTargetInfo | ntlmsspNegotiateVersion)
+	if clientFlags&uint32(ntlmsspNegotiateExtendedSessionSecurity) != 0 {
+		flags |= negotiateFlagset(ntlmsspNegotiateExtendedSessionSecurity)
+	}
+
+	payloadStart := uint32(headerLen + versionLen) // 56
+	buffer := bytes.NewBuffer(make([]byte, 0, int(payloadStart)+len(target)+len(tiBytes)))
+
+	// Signature + type
+	buffer.Write([]byte(signature))
+	binary.Write(buffer, binary.LittleEndian, uint32(messageTypeChallenge))
+
+	// TargetName security buffer  (len uint16, maxlen uint16, offset uint32)
+	targetOff := payloadStart
+	binary.Write(buffer, binary.LittleEndian, uint16(len(target)))
+	binary.Write(buffer, binary.LittleEndian, uint16(len(target)))
+	binary.Write(buffer, binary.LittleEndian, targetOff)
+
+	// Negotiate flags
+	buffer.Write(flags.bytes())
+
+	// Server challenge (8 bytes)
+	buffer.Write(challenge)
+
+	// Reserved (8 bytes)  <-- was missing
+	buffer.Write(make([]byte, 8))
+
+	// TargetInfo security buffer
+	tiOff := targetOff + uint32(len(target))
+	binary.Write(buffer, binary.LittleEndian, uint16(len(tiBytes)))
+	binary.Write(buffer, binary.LittleEndian, uint16(len(tiBytes)))
+	binary.Write(buffer, binary.LittleEndian, tiOff)
+
+	// Version (8 bytes)
+	buffer.Write(make([]byte, 8))
+
+	// Payload
+	buffer.Write(target)
+	buffer.Write(tiBytes)
+
+	return buffer.Bytes()
+}
 
 // ParseChallengeMessage parses an NTLM challenge message (Type 2 message) from the given body
 //

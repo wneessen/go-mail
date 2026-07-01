@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/hmac"
+	"crypto/md5"
 	"crypto/pbkdf2"
 	"crypto/rand"
 	"crypto/sha1"
@@ -25,6 +26,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"hash"
@@ -38,9 +40,13 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unicode/utf16"
 
 	"github.com/wneessen/go-mail/internal/helper"
+	"github.com/wneessen/go-mail/internal/ntlm"
 	"github.com/wneessen/go-mail/log"
+	"golang.org/x/crypto/md4"
+	"golang.org/x/text/encoding/unicode"
 )
 
 const (
@@ -1498,6 +1504,36 @@ func TestCRAMMD5Auth(t *testing.T) {
 		}
 		if err = client.Auth(auth); err == nil {
 			t.Error("auth should fail on test server")
+		}
+	})
+}
+
+func TestNTLMAuth(t *testing.T) {
+	t.Run("NTLM on test server succeeds", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH GSSAPI NTLM\r\n250-8BITMIME\r\n250 DSN"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+				TestNTLMv2: true,
+			},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+		auth := NTLMAuth("toni.tester", "Passw0rd!", "EXCHANGE")
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		if err = client.Auth(auth); err != nil {
+			t.Errorf("failed to auth to test server: %s", err)
 		}
 	})
 }
@@ -4002,6 +4038,7 @@ type serverProps struct {
 	SupportDSN            bool
 	SSLListener           bool
 	TestSCRAM             bool
+	TestNTLMv2            bool
 	VRFYUserUnknown       bool
 }
 
@@ -4200,6 +4237,25 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 				scram.handleSCRAMAuth(connection)
 				break
 			}
+			if props.TestNTLMv2 {
+				parts := strings.Split(data, " ")
+				if len(parts) != 3 {
+					writeLine("535 Authentication failed")
+					break
+				}
+				authMechanism := parts[1]
+				if authMechanism != "NTLM" {
+					writeLine("504 Unrecognized authentication mechanism")
+					break
+				}
+				ntlmv2 := &testNTLMv2SMTP{
+					username: "toni.tester",
+					password: "Passw0rd!",
+					domain:   "EXCHANGE",
+				}
+				ntlmv2.handleNTLMAuth(parts[2], connection)
+				break
+			}
 			writeLine("235 2.7.0 Authentication successful")
 		case strings.EqualFold(data, "DATA"):
 			if props.FailOnDataInit {
@@ -4235,7 +4291,7 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 				}
 				datastring += ddata + "\n"
 			}
-		case strings.EqualFold(data, "noop"):
+		case strings.EqualFold(data, "noop"), strings.EqualFold(data, "*"):
 			if props.FailOnNoop {
 				writeLine("500 5.0.0 Error: fail on NOOP")
 				break
@@ -4449,6 +4505,212 @@ func (s *testSCRAMSMTP) extractNonce(message string) string {
 	return ""
 }
 
+// testNTLMv2SMTP represents a part of the test server for NTLMv2-based SMTP authentication.
+type testNTLMv2SMTP struct {
+	username string
+	password string
+	domain   string
+}
+
+func (s *testNTLMv2SMTP) handleNTLMAuth(data string, conn net.Conn) {
+	const challenge = "V3ryS4f3"
+
+	reader := bufio.NewReader(conn)
+	writer := bufio.NewWriter(conn)
+	writeLine := func(data string) error {
+		_, err := writer.WriteString(data + "\r\n")
+		if err != nil {
+			return fmt.Errorf("unable to write line: %w", err)
+		}
+		return writer.Flush()
+	}
+
+	data = strings.TrimSpace(data)
+	decodedMessage, err := base64.StdEncoding.DecodeString(data)
+	if err != nil {
+		_ = writeLine("535 Authentication failed (base64 decode failed)")
+		return
+	}
+
+	// Invalid auth message
+	if len(decodedMessage) < 12 {
+		_ = writeLine("535 Authentication failed (short message)")
+		return
+	}
+
+	// Signature
+	if !bytes.Equal(decodedMessage[:8], []byte("NTLMSSP\x00")) {
+		_ = writeLine("535 Authentication failed (invalid signature)")
+		return
+	}
+
+	// Message type
+	if binary.LittleEndian.Uint32(decodedMessage[8:12]) != uint32(1) {
+		_ = writeLine("535 Authentication failed (invalid message type - expected 1)")
+		return
+	}
+
+	// Type 1 message negotiate flags
+	flags := binary.LittleEndian.Uint32(decodedMessage[12:16])
+	if flags != 0x20081207 {
+		_ = writeLine("535 Authentication failed (invalid flags)")
+		return
+	}
+
+	// Make sure the message holds domain/workstation fields
+	if len(decodedMessage) < 32 {
+		_ = writeLine("535 Authentication failed (short message - no domain)")
+		return
+	}
+
+	// Domain name field and offset to payload (incl. bounds check)
+	domainLen := binary.LittleEndian.Uint16(decodedMessage[16:18])
+	domainOffset := binary.LittleEndian.Uint32(decodedMessage[20:24])
+	if int(domainOffset)+int(domainLen) > len(decodedMessage) {
+		_ = writeLine("535 Authentication failed (domain bound check fails)")
+		return
+	}
+	domain := utf16LEToString(decodedMessage[domainOffset : domainOffset+uint32(domainLen)])
+
+	// Workstation field and offset to payload (incl. bounds check)
+	workstationLen := binary.LittleEndian.Uint16(decodedMessage[24:26])
+	workstationOffset := binary.LittleEndian.Uint32(decodedMessage[28:32])
+	if int(workstationOffset)+int(workstationLen) > len(decodedMessage) {
+		_ = writeLine("535 Authentication failed (workstation bound check fails)")
+		return
+	}
+	workstation := utf16LEToString(decodedMessage[workstationOffset : workstationOffset+uint32(workstationLen)])
+
+	// Verify expected domain
+	if domain != s.domain {
+		_ = writeLine("535 Authentication failed (invalid domain)")
+		return
+	}
+	if workstation != "" {
+		_ = writeLine("535 Authentication failed (invalid workstation)")
+		return
+	}
+
+	// Create and send a server challenge
+	challengeMsg := base64.StdEncoding.EncodeToString(ntlm.CreateChallengeMessage(flags, []byte(challenge), "localhost", domain))
+	_ = writeLine("334 " + challengeMsg)
+
+	// Read client response
+	data, err = reader.ReadString('\n')
+	if err != nil {
+		_ = writeLine("535 Authentication failed (2nd read failed)")
+		return
+	}
+	data = strings.TrimSpace(data)
+	decodedMessage, err = base64.StdEncoding.DecodeString(data)
+	if err != nil {
+		_ = writeLine("535 Authentication failed (2nd base64 decode failed)")
+		return
+	}
+
+	// Fixed-header bounds and signature checks
+	if len(decodedMessage) < 64 {
+		_ = writeLine("535 Authentication failed (short auth message)")
+		return
+	}
+	if !bytes.Equal(decodedMessage[:8], []byte("NTLMSSP\x00")) {
+		_ = writeLine("535 Authentication failed (invalid auth message signature)")
+		return
+	}
+	if binary.LittleEndian.Uint32(decodedMessage[8:12]) != uint32(3) {
+		_ = writeLine("535 Authentication failed (invalid message type - expected 3)")
+		return
+	}
+
+	lmResp, err := ntlmSecurityBuffer(decodedMessage, 12)
+	if err != nil {
+		_ = writeLine("535 Authentication failed (invalid security buffer: LM response buffer)")
+		return
+	}
+	ntResp, err := ntlmSecurityBuffer(decodedMessage, 20)
+	if err != nil {
+		_ = writeLine("535 Authentication failed (invalid security buffer: NT response buffer)")
+		return
+	}
+	domainRaw, err := ntlmSecurityBuffer(decodedMessage, 28)
+	if err != nil {
+		_ = writeLine("535 Authentication failed (invalid security buffer: raw domain buffer)")
+		return
+	}
+	userRaw, err := ntlmSecurityBuffer(decodedMessage, 36)
+	if err != nil {
+		_ = writeLine("535 Authentication failed (invalid security buffer: raw user buffer)")
+		return
+	}
+	workStationRaw, err := ntlmSecurityBuffer(decodedMessage, 44)
+	if err != nil {
+		_ = writeLine("535 Authentication failed (invalid security buffer: raw workstation buffer)")
+		return
+	}
+
+	// Expected flags and fields
+	flags = binary.LittleEndian.Uint32(decodedMessage[60:64])
+	if flags&uint32(0x00000001) == 0 {
+		_ = writeLine("535 Authentication failed (missing unicode flag)")
+		return
+	}
+	user := utf16LEToString(userRaw)
+	domain = utf16LEToString(domainRaw)
+	workstation = utf16LEToString(workStationRaw)
+	if user != s.username {
+		_ = writeLine("535 Authentication failed (invalid username: " + user + ")")
+		return
+	}
+	if domain != s.domain {
+		_ = writeLine("535 Authentication failed (invalid domain: " + domain + ")")
+		return
+	}
+	if workstation != "" {
+		_ = writeLine("535 Authentication failed (invalid workstation: " + workstation + ")")
+		return
+	}
+	if len(ntResp) < 16 {
+		_ = writeLine("535 Authentication failed (invalid NT response buffer length)")
+		return
+	}
+	if len(lmResp) < 24 {
+		_ = writeLine("535 Authentication failed (invalid LM response buffer length)")
+		return
+	}
+
+	// Password verification
+	ntProofStr := ntResp[:16]
+	blob := ntResp[16:]
+	pwUTF16, err := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM).
+		NewEncoder().Bytes([]byte(s.password))
+	if err != nil {
+		_ = writeLine("535 Authentication failed (failed to encode password)")
+		return
+	}
+	h := md4.New()
+	h.Write(pwUTF16)
+	ntlmHash := h.Sum(nil)
+	idUTF16, err := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM).
+		NewEncoder().Bytes([]byte(strings.ToUpper(user) + domain))
+	if err != nil {
+		_ = writeLine("535 Authentication failed (failed to encode user/domain)")
+		return
+	}
+	mac := hmac.New(md5.New, ntlmHash)
+	mac.Write(idUTF16)
+	ntlmv2Hash := mac.Sum(nil)
+	mac = hmac.New(md5.New, ntlmv2Hash)
+	mac.Write([]byte(challenge))
+	mac.Write(blob)
+	expected := mac.Sum(nil)
+	if !hmac.Equal(expected, ntProofStr) {
+		_ = writeLine("535 Authentication failed (password mismatch))")
+		return
+	}
+
+	_ = writeLine("235 Authentication successful")
+}
+
 // randReader is type that satisfies the io.Reader interface. It can fail on a specific read
 // operations and is therefore useful to test consecutive reads with errors
 type randReader struct{}
@@ -4492,4 +4754,32 @@ func getTLSConfig(t *testing.T) *tls.Config {
 		RootCAs:      testRootCAs,
 		ServerName:   "example.com",
 	}
+}
+
+func utf16LEToString(b []byte) string {
+	if len(b)%2 != 0 {
+		return ""
+	}
+	u16 := make([]uint16, len(b)/2)
+	for i := range u16 {
+		u16[i] = binary.LittleEndian.Uint16(b[i*2:])
+	}
+	return string(utf16.Decode(u16))
+}
+
+// securityBuffer reads a len/maxlen/offset descriptor at fieldOffset and
+// returns the referenced bytes, with bounds checking.
+func ntlmSecurityBuffer(msg []byte, fieldOffset int) ([]byte, error) {
+	if fieldOffset+8 > len(msg) {
+		return nil, errors.New("invalid payload")
+	}
+	length := int(binary.LittleEndian.Uint16(msg[fieldOffset : fieldOffset+2]))
+	offset := int(binary.LittleEndian.Uint32(msg[fieldOffset+4 : fieldOffset+8]))
+	if length == 0 {
+		return nil, nil
+	}
+	if offset+length > len(msg) {
+		return nil, errors.New("invalid payload")
+	}
+	return msg[offset : offset+length], nil
 }

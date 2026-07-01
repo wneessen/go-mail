@@ -55,6 +55,10 @@ const (
 	// This is used by the server to determine whether the client is eligible for local authentication.
 	ntlmsspNegotiateDomainSupplied negotiateFlag = 0x00001000
 
+	// ntlmsspNegotiateAlwaysSign indicates that authenticated communication between the client and server
+	// should be signed with a "dummy" signature.
+	ntlmsspNegotiateAlwaysSign negotiateFlag = 0x00008000
+
 	// ntlmsspNegotiateExtendedSessionSecurity indicates that the NTLM2 signing and sealing scheme
 	// should be used for protecting authenticated communications.
 	//
@@ -63,6 +67,15 @@ const (
 	//
 	// See: https://curl.se/rfc/ntlm.html#theNtlm2SessionResponse
 	ntlmsspNegotiateExtendedSessionSecurity negotiateFlag = 0x00080000
+
+	// ntlmsspNegotiateTargetTypeServer is sent by the server in the Type 2 message to indicate that
+	// the target authentication realm is a server.
+	ntlmsspNegotiateTargetTypeServer negotiateFlag = 0x00020000
+
+	// ntlmsspNegotiateTargetInfo is sent by the server in the Type 2 message to indicate that it is
+	// including a Target Information block in the message. The Target Information block is used in
+	// the calculation of the NTLMv2 response.
+	ntlmsspNegotiateTargetInfo negotiateFlag = 0x00800000
 
 	// ntlmsspNegotiateVersion indicates the OS version (purley cosmetic and for debugging purposes)
 	// We ignore this
@@ -81,12 +94,12 @@ const (
 // See: https://curl.se/rfc/ntlm.html#theType1Message
 func (n *NTLMv2Session) GenerateNegotiateMessage() (*NegotiateMessage, error) {
 	message := &NegotiateMessage{
-		signature:   []byte("NTLMSSP\x00"),
-		messageType: 1,
+		signature:   []byte(signature),
+		messageType: messageTypeNegotiate,
 		negotiateFlags: negotiateFlagset(ntlmsspNegotiateUnicode | ntlmsspNegotiateOEM |
 			ntlmsspRequestTarget | ntlmsspNegotiateNTLM | ntlmsspNegotiateDomainSupplied |
 			ntlmsspNegotiate128Bit | ntlmsspNegotiateExtendedSessionSecurity),
-		domainname:  new(Payload),
+		domainname:  createStringPayload(n.domain),
 		workstation: new(Payload),
 	}
 	n.negotiateMessage = message

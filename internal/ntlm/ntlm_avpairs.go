@@ -35,7 +35,20 @@ const (
 	// msvAVEOL indicates that this is the last AV_PAIR in the list
 	msvAVEOL avPairType = 0x0000
 
-	// msvAVTimestamp represents a FILETIME structure (64-bit) holding the server's local time
+	// msvAVNbComputerName represents the NetBIOS computer name
+	msvAVNbComputerName avPairType = 0x0001
+
+	// msvAVNbDomainName represents the NetBIOS domain name
+	msvAVNbDomainName avPairType = 0x0002
+
+	// msvAVDNSComputerName represents the DNS computer name
+	msvAVDNSComputerName avPairType = 0x0003
+
+	// msvAVDNSDomainName represents the DNS domain name
+	msvAVDNSDomainName avPairType = 0x0004
+
+	// msvAVTimestamp represents a FILETIME structure (64-bit) holding the
+	// server's local time
 	msvAVTimestamp avPairType = 0x0007
 )
 
@@ -44,7 +57,18 @@ var (
 	ErrNTLMInvalidAVPair = errors.New("invalid NTLM attribute-value pair")
 )
 
-// readAVPair reads an AVPair from the given byte slice at the given offset.
+// AppendToAVPairs creates an AVPair with the given type and value and appends it to the list.
+// It returns the created pair for convenience.
+func (p *avPairs) appendAVPair(avType avPairType, value []byte) *avPair {
+	pair := new(avPair)
+	pair.id = avType
+	pair.len = uint16(len(value))
+	pair.value = value
+	p.list = append(p.list, *pair)
+	return pair
+}
+
+// readAVPair reads an avPair from the given byte slice at the given offset.
 func readAVPair(data []byte, offset int) (*avPair, error) {
 	if len(data) < offset+4 {
 		return nil, ErrNTLMInvalidAVPair
@@ -59,7 +83,7 @@ func readAVPair(data []byte, offset int) (*avPair, error) {
 	return pair, nil
 }
 
-// readAVPairs reads AVPairs from the given byte slice.
+// readAVPairs reads avPairs from the given byte slice.
 func readAVPairs(data []byte) (*avPairs, error) {
 	pairs := new(avPairs)
 	offset := 0
@@ -84,7 +108,7 @@ func readAVPairs(data []byte) (*avPairs, error) {
 	}
 }
 
-// bytes returns the AVPairs as a byte slice.
+// bytes returns the avPairs as a byte slice.
 func (p *avPairs) bytes() []byte {
 	total := len(p.reserved)
 	for i := range p.list {
@@ -107,7 +131,7 @@ func (p *avPairs) find(avType avPairType) *avPair {
 	return nil
 }
 
-// bytes returns the AVPair as a byte slice.
+// bytes returns the avPair as a byte slice.
 func (a *avPair) bytes() []byte {
 	result := make([]byte, 4, int(a.len)+4)
 	binary.LittleEndian.PutUint16(result[0:2], uint16(a.id))
