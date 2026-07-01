@@ -44,8 +44,8 @@ var (
 	ErrNTLMInvalidAVPair = errors.New("invalid NTLM attribute-value pair")
 )
 
-// ReadAvPair reads an AVPair from the given byte slice at the given offset.
-func ReadAvPair(data []byte, offset int) (*avPair, error) {
+// readAVPair reads an AVPair from the given byte slice at the given offset.
+func readAVPair(data []byte, offset int) (*avPair, error) {
 	if len(data) < offset+4 {
 		return nil, ErrNTLMInvalidAVPair
 	}
@@ -59,13 +59,13 @@ func ReadAvPair(data []byte, offset int) (*avPair, error) {
 	return pair, nil
 }
 
-// ReadAvPairs reads AVPairs from the given byte slice.
-func ReadAvPairs(data []byte) (*avPairs, error) {
+// readAVPairs reads AVPairs from the given byte slice.
+func readAVPairs(data []byte) (*avPairs, error) {
 	pairs := new(avPairs)
 	offset := 0
 
 	for {
-		pair, err := ReadAvPair(data, offset)
+		pair, err := readAVPair(data, offset)
 		if err != nil {
 			return nil, err
 		}
@@ -84,21 +84,21 @@ func ReadAvPairs(data []byte) (*avPairs, error) {
 	}
 }
 
-// Bytes returns the AVPairs as a byte slice.
-func (p *avPairs) Bytes() []byte {
+// bytes returns the AVPairs as a byte slice.
+func (p *avPairs) bytes() []byte {
 	total := len(p.reserved)
 	for i := range p.list {
 		total += int(p.list[i].len) + 4
 	}
 	result := make([]byte, 0, total)
 	for i := range p.list {
-		result = append(result, p.list[i].Bytes()...)
+		result = append(result, p.list[i].bytes()...)
 	}
 	return append(result, p.reserved...)
 }
 
-// Find returns the AVPair with the given type, or nil if not found.
-func (p *avPairs) Find(avType avPairType) *avPair {
+// find returns the AVPair with the given type, or nil if not found.
+func (p *avPairs) find(avType avPairType) *avPair {
 	for i := range p.list {
 		if p.list[i].id == avType {
 			return &p.list[i]
@@ -107,8 +107,8 @@ func (p *avPairs) Find(avType avPairType) *avPair {
 	return nil
 }
 
-// Bytes returns the AVPair as a byte slice.
-func (a *avPair) Bytes() []byte {
+// bytes returns the AVPair as a byte slice.
+func (a *avPair) bytes() []byte {
 	result := make([]byte, 4, int(a.len)+4)
 	binary.LittleEndian.PutUint16(result[0:2], uint16(a.id))
 	binary.LittleEndian.PutUint16(result[2:4], a.len)

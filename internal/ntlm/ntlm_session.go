@@ -19,7 +19,7 @@ type NTLMv2Session struct {
 	password string
 	domain   string
 
-	negotiateFlags            negotiateFlagSet
+	negotiateFlags            negotiateFlagset
 	negotiateMessage          *NegotiateMessage
 	challengeMessage          *ChallengeMessage
 	serverChallenge           []byte
@@ -71,12 +71,12 @@ func (n *NTLMv2Session) GenerateAuthenticateMessage() *AuthenticateMessage {
 	return &AuthenticateMessage{
 		signature:                 []byte("NTLMSSP\x00"),
 		messageType:               3,
-		lmChallengeResponse:       CreateBytePayload(n.lmChallengeResponse),
-		ntChallengeResponseFields: CreateBytePayload(n.ntChallengeResponse),
-		domainname:                CreateStringPayload(n.domain),
-		username:                  CreateStringPayload(n.user),
-		workstation:               CreateStringPayload(""),
-		encryptedRandomSessionKey: CreateBytePayload(n.encryptedRandomSessionKey),
+		lmChallengeResponse:       createBytePayload(n.lmChallengeResponse),
+		ntChallengeResponseFields: createBytePayload(n.ntChallengeResponse),
+		domainname:                createStringPayload(n.domain),
+		username:                  createStringPayload(n.user),
+		workstation:               createStringPayload(""),
+		encryptedRandomSessionKey: createBytePayload(n.encryptedRandomSessionKey),
 		negotiateFlags:            n.negotiateFlags,
 	}
 }
@@ -92,7 +92,7 @@ func (n *NTLMv2Session) computeExpectedResponses(timestamp []byte, avPairs *avPa
 		timestamp,
 		n.clientChallenge,
 		make([]byte, 4),
-		avPairs.Bytes(),
+		avPairs.bytes(),
 		make([]byte, 4),
 	)
 
@@ -116,7 +116,7 @@ func (n *NTLMv2Session) computeExpectedResponses(timestamp []byte, avPairs *avPa
 	mac.Write(ntProofStr)
 	n.sessionBaseKey = mac.Sum(nil)
 
-	if avPairs.Find(msvAVTimestamp) != nil {
+	if avPairs.find(msvAVTimestamp) != nil {
 		n.lmChallengeResponse = make([]byte, 24)
 	}
 }

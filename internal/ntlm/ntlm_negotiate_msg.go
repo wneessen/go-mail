@@ -13,15 +13,15 @@ type (
 	// negotiateFlag holds the individual flags for the NTLMv2 negotiate message (Type 1 message).
 	negotiateFlag uint32
 
-	// negotiateFlagSet holds the flags for the NTLMv2 negotiate message (Type 1 message).
-	negotiateFlagSet uint32
+	// negotiateFlagset holds the flags for the NTLMv2 negotiate message (Type 1 message).
+	negotiateFlagset uint32
 )
 
 // NegotiateMessage represents a NTLMv2 negotiate message (Type 1 message).
 type NegotiateMessage struct {
 	signature      []byte
 	messageType    uint32
-	negotiateFlags negotiateFlagSet
+	negotiateFlags negotiateFlagset
 	domainname     *Payload
 	workstation    *Payload
 }
@@ -83,7 +83,7 @@ func (n *NTLMv2Session) GenerateNegotiateMessage() (*NegotiateMessage, error) {
 	message := &NegotiateMessage{
 		signature:   []byte("NTLMSSP\x00"),
 		messageType: 1,
-		negotiateFlags: negotiateFlagSet(ntlmsspNegotiateUnicode | ntlmsspNegotiateOEM |
+		negotiateFlags: negotiateFlagset(ntlmsspNegotiateUnicode | ntlmsspNegotiateOEM |
 			ntlmsspRequestTarget | ntlmsspNegotiateNTLM | ntlmsspNegotiateDomainSupplied |
 			ntlmsspNegotiate128Bit | ntlmsspNegotiateExtendedSessionSecurity),
 		domainname:  new(Payload),
@@ -94,14 +94,14 @@ func (n *NTLMv2Session) GenerateNegotiateMessage() (*NegotiateMessage, error) {
 	return message, nil
 }
 
-// ReadNegotiateFlags reads the negotiate flags from the given byte slice and returns them as
+// readNegotiateFlagset reads the negotiate flags from the given byte slice and returns them as
 // NegotiateFlags type.
-func ReadNegotiateFlags(flags []byte) negotiateFlagSet {
-	return negotiateFlagSet(binary.LittleEndian.Uint32(flags))
+func readNegotiateFlagset(flags []byte) negotiateFlagset {
+	return negotiateFlagset(binary.LittleEndian.Uint32(flags))
 }
 
-// Bytes returns the byte representation of the negotiate flags.
-func (f negotiateFlagSet) Bytes() []byte {
+// bytes returns the byte representation of the negotiate flags.
+func (f negotiateFlagset) bytes() []byte {
 	b := make([]byte, 4)
 	binary.LittleEndian.PutUint32(b, uint32(f))
 	return b
@@ -116,17 +116,17 @@ func (nm *NegotiateMessage) Bytes() []byte {
 
 	buffer.Write(nm.signature)
 	binary.Write(buffer, binary.LittleEndian, nm.messageType)
-	buffer.Write(nm.negotiateFlags.Bytes())
+	buffer.Write(nm.negotiateFlags.bytes())
 
 	payloadOffset := uint16(headerLen)
 
 	nm.domainname.offset = uint32(payloadOffset)
 	payloadOffset += nm.domainname.len
-	buffer.Write(nm.domainname.Bytes())
+	buffer.Write(nm.domainname.bytes())
 
 	nm.workstation.offset = uint32(payloadOffset)
 	payloadOffset += nm.workstation.len
-	buffer.Write(nm.workstation.Bytes())
+	buffer.Write(nm.workstation.bytes())
 
 	buffer.Write(nm.domainname.payload)
 	buffer.Write(nm.workstation.payload)

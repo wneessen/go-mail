@@ -15,7 +15,7 @@ type ChallengeMessage struct {
 	signature       []byte
 	messageType     uint32
 	targetName      *Payload
-	negotiateFlags  negotiateFlagSet
+	negotiateFlags  negotiateFlagset
 	serverChallenge []byte
 	reserved        []byte
 	targetInfo      *avPairs
@@ -54,7 +54,7 @@ func ParseChallengeMessage(body []byte) (*ChallengeMessage, error) {
 		return nil, ErrNTLMInvalidSignatureType
 	}
 
-	challenge.negotiateFlags = ReadNegotiateFlags(body[20:24])
+	challenge.negotiateFlags = readNegotiateFlagset(body[20:24])
 
 	if challenge.targetName, err = challenge.readStringPayload(12, body); err != nil {
 		return nil, err
@@ -62,11 +62,11 @@ func ParseChallengeMessage(body []byte) (*ChallengeMessage, error) {
 	challenge.serverChallenge = body[24:32]
 	challenge.reserved = body[32:40]
 
-	targetInfo, err := ReadPayload(40, body, payloadEncodingByte)
+	targetInfo, err := readPayload(40, body, payloadEncodingByte)
 	if err != nil {
 		return nil, err
 	}
-	if challenge.targetInfo, err = ReadAvPairs(targetInfo.payload); err != nil {
+	if challenge.targetInfo, err = readAVPairs(targetInfo.payload); err != nil {
 		return nil, err
 	}
 
@@ -89,5 +89,5 @@ func (c *ChallengeMessage) readStringPayload(startByte int, payload []byte) (*Pa
 	if uint32(c.negotiateFlags)&uint32(ntlmsspNegotiateUnicode) != 0 {
 		encoding = payloadEncodingUnicode
 	}
-	return ReadPayload(startByte, payload, encoding)
+	return readPayload(startByte, payload, encoding)
 }

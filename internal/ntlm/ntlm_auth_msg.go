@@ -14,7 +14,7 @@ type AuthenticateMessage struct {
 	signature   []byte
 	messageType uint32
 
-	negotiateFlags negotiateFlagSet
+	negotiateFlags negotiateFlagset
 
 	lmChallengeResponse       *Payload
 	ntChallengeResponseFields *Payload
@@ -53,13 +53,13 @@ func (a *AuthenticateMessage) Bytes() []byte {
 	binary.LittleEndian.PutUint32(msgType[:], a.messageType)
 	buf.Write(msgType[:])
 
-	buf.Write(a.lmChallengeResponse.Bytes())
-	buf.Write(a.ntChallengeResponseFields.Bytes())
-	buf.Write(a.domainname.Bytes())
-	buf.Write(a.username.Bytes())
-	buf.Write(a.workstation.Bytes())
-	buf.Write(a.encryptedRandomSessionKey.Bytes())
-	buf.Write(a.negotiateFlags.Bytes())
+	buf.Write(a.lmChallengeResponse.bytes())
+	buf.Write(a.ntChallengeResponseFields.bytes())
+	buf.Write(a.domainname.bytes())
+	buf.Write(a.username.bytes())
+	buf.Write(a.workstation.bytes())
+	buf.Write(a.encryptedRandomSessionKey.bytes())
+	buf.Write(a.negotiateFlags.bytes())
 
 	// Even if NTLMSSP_NEGOTIATE_VERSION is set, we'll send a zero version byte, due
 	// to improved privacy. The version field is purely cosmetic and only useful for

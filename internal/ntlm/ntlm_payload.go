@@ -34,8 +34,8 @@ var (
 	ErrNTLMInvalidPayload = errors.New("invalid NTLM payload")
 )
 
-// CreateBytePayload creates a Payload from the given byte slice.
-func CreateBytePayload(payload []byte) *Payload {
+// createBytePayload creates a Payload from the given byte slice.
+func createBytePayload(payload []byte) *Payload {
 	return &Payload{
 		payloadType: payloadEncodingByte,
 		len:         uint16(len(payload)),
@@ -44,8 +44,8 @@ func CreateBytePayload(payload []byte) *Payload {
 	}
 }
 
-// CreateStringPayload creates a Payload from the given string.
-func CreateStringPayload(payload string) *Payload {
+// createStringPayload creates a Payload from the given string.
+func createStringPayload(payload string) *Payload {
 	b := utf16FromString(payload)
 	return &Payload{
 		payloadType: payloadEncodingUnicode,
@@ -55,8 +55,8 @@ func CreateStringPayload(payload string) *Payload {
 	}
 }
 
-// ReadPayload reads a payload from the given byte slice starting at startByte of type payloadType.
-func ReadPayload(startByte int, payload []byte, payloadType int) (*Payload, error) {
+// readPayload reads a payload from the given byte slice starting at startByte of type payloadType.
+func readPayload(startByte int, payload []byte, payloadType int) (*Payload, error) {
 	if startByte < 0 || len(payload) < startByte+8 {
 		return nil, ErrNTLMInvalidPayload
 	}
@@ -78,8 +78,8 @@ func ReadPayload(startByte int, payload []byte, payloadType int) (*Payload, erro
 	return p, nil
 }
 
-// Bytes returns the payload as a byte slice.
-func (p *Payload) Bytes() []byte {
+// bytes returns the payload as a byte slice.
+func (p *Payload) bytes() []byte {
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint16(b[0:2], p.len)
 	binary.LittleEndian.PutUint16(b[2:4], p.maxLen)
