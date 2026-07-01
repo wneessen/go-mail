@@ -111,7 +111,7 @@ func (f NegotiateFlags) Bytes() []byte {
 func (nm *NegotiateMessage) Bytes() []byte {
 	const headerLen = 32
 
-	payloadLen := int(nm.domainname.Len) + int(nm.workstation.Len)
+	payloadLen := int(nm.domainname.len) + int(nm.workstation.len)
 	buffer := bytes.NewBuffer(make([]byte, 0, headerLen+payloadLen))
 
 	buffer.Write(nm.signature)
@@ -120,16 +120,16 @@ func (nm *NegotiateMessage) Bytes() []byte {
 
 	payloadOffset := uint16(headerLen)
 
-	nm.domainname.Offset = uint32(payloadOffset)
-	payloadOffset += nm.domainname.Len
+	nm.domainname.offset = uint32(payloadOffset)
+	payloadOffset += nm.domainname.len
 	buffer.Write(nm.domainname.Bytes())
 
-	nm.workstation.Offset = uint32(payloadOffset)
-	payloadOffset += nm.workstation.Len
+	nm.workstation.offset = uint32(payloadOffset)
+	payloadOffset += nm.workstation.len
 	buffer.Write(nm.workstation.Bytes())
 
-	buffer.Write(nm.domainname.Payload)
-	buffer.Write(nm.workstation.Payload)
+	buffer.Write(nm.domainname.payload)
+	buffer.Write(nm.workstation.payload)
 
 	return buffer.Bytes()
 }

@@ -33,17 +33,17 @@ func (a *AuthenticateMessage) Bytes() []byte {
 	// See: https://curl.se/rfc/ntlm.html#theType3Message
 	const headerLen = 8 + 4 + 6*8 + 4 + 8
 
-	payloadLen := int(a.domainname.Len) + int(a.username.Len) + int(a.workstation.Len) +
-		int(a.lmChallengeResponse.Len) + int(a.ntChallengeResponseFields.Len) +
-		int(a.encryptedRandomSessionKey.Len)
+	payloadLen := int(a.domainname.len) + int(a.username.len) + int(a.workstation.len) +
+		int(a.lmChallengeResponse.len) + int(a.ntChallengeResponseFields.len) +
+		int(a.encryptedRandomSessionKey.len)
 
 	offset := uint32(headerLen)
 	for _, p := range []*Payload{
 		a.domainname, a.username, a.workstation, a.lmChallengeResponse,
 		a.ntChallengeResponseFields, a.encryptedRandomSessionKey,
 	} {
-		p.Offset = offset
-		offset += uint32(p.Len)
+		p.offset = offset
+		offset += uint32(p.len)
 	}
 
 	buf := bytes.NewBuffer(make([]byte, 0, headerLen+payloadLen))
@@ -66,12 +66,12 @@ func (a *AuthenticateMessage) Bytes() []byte {
 	// debugging purposes on the server end.
 	buf.Write(make([]byte, 8))
 
-	buf.Write(a.domainname.Payload)
-	buf.Write(a.username.Payload)
-	buf.Write(a.workstation.Payload)
-	buf.Write(a.lmChallengeResponse.Payload)
-	buf.Write(a.ntChallengeResponseFields.Payload)
-	buf.Write(a.encryptedRandomSessionKey.Payload)
+	buf.Write(a.domainname.payload)
+	buf.Write(a.username.payload)
+	buf.Write(a.workstation.payload)
+	buf.Write(a.lmChallengeResponse.payload)
+	buf.Write(a.ntChallengeResponseFields.payload)
+	buf.Write(a.encryptedRandomSessionKey.payload)
 
 	return buf.Bytes()
 }

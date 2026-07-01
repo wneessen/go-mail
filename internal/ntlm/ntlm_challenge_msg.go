@@ -62,11 +62,11 @@ func ParseChallengeMessage(body []byte) (*ChallengeMessage, error) {
 	challenge.serverChallenge = body[24:32]
 	challenge.reserved = body[32:40]
 
-	targetInfo, err := ReadPayload(40, body, PayloadEncodingByte)
+	targetInfo, err := ReadPayload(40, body, payloadEncodingByte)
 	if err != nil {
 		return nil, err
 	}
-	if challenge.targetInfo, err = ReadAvPairs(targetInfo.Payload); err != nil {
+	if challenge.targetInfo, err = ReadAvPairs(targetInfo.payload); err != nil {
 		return nil, err
 	}
 
@@ -85,9 +85,9 @@ func ParseChallengeMessage(body []byte) (*ChallengeMessage, error) {
 // readStringPayload reads a string payload from the given body, using the negotiated encoding.
 func (c *ChallengeMessage) readStringPayload(startByte int, payload []byte) (*Payload, error) {
 	// MS-NLMP: Unicode takes precedence, OEM is only used when UNICODE is not negotiated
-	encoding := PayloadEncodingOEM
+	encoding := payloadEncodingOEM
 	if uint32(c.negotiateFlags)&uint32(NTLMSSP_NEGOTIATE_UNICODE) != 0 {
-		encoding = PayloadEncodingUnicode
+		encoding = payloadEncodingUnicode
 	}
 	return ReadPayload(startByte, payload, encoding)
 }
