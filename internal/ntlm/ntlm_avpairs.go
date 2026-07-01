@@ -32,11 +32,11 @@ type avPairs struct {
 //
 // See: https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ne-ntifs-msv1_0_avid
 const (
-	// msvAvEOL indicates that this is the last AV_PAIR in the list
-	msvAvEOL avPairType = 0x0000
+	// msvAVEOL indicates that this is the last AV_PAIR in the list
+	msvAVEOL avPairType = 0x0000
 
-	// msvAvTimestamp represents a FILETIME structure (64-bit) holding the server's local time
-	msvAvTimestamp avPairType = 0x0007
+	// msvAVTimestamp represents a FILETIME structure (64-bit) holding the server's local time
+	msvAVTimestamp avPairType = 0x0007
 )
 
 var (
@@ -77,7 +77,7 @@ func ReadAvPairs(data []byte) (*avPairs, error) {
 
 		pairs.list = append(pairs.list, *pair)
 
-		if pair.id == msvAvEOL {
+		if pair.id == msvAVEOL {
 			pairs.reserved = data[offset:]
 			return pairs, nil
 		}

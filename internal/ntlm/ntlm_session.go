@@ -116,7 +116,7 @@ func (n *NTLMv2Session) computeExpectedResponses(timestamp []byte, avPairs *avPa
 	mac.Write(ntProofStr)
 	n.sessionBaseKey = mac.Sum(nil)
 
-	if avPairs.Find(msvAvTimestamp) != nil {
+	if avPairs.Find(msvAVTimestamp) != nil {
 		n.lmChallengeResponse = make([]byte, 24)
 	}
 }
