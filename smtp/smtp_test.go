@@ -4653,7 +4653,12 @@ func (s *testNTLMv2SMTP) handleNTLMAuth(data string, conn net.Conn) {
 	}
 
 	// Create and send a server challenge
-	challengeMsg := base64.StdEncoding.EncodeToString(ntlm.CreateChallengeMessage(flags, []byte(challenge), "localhost", domain))
+	challengeMsgRaw, err := ntlm.CreateChallengeMessage(flags, []byte(challenge), "localhost", domain)
+	if err != nil {
+		_ = writeLine("535 Authentication failed (" + err.Error() + ")")
+		return
+	}
+	challengeMsg := base64.StdEncoding.EncodeToString(challengeMsgRaw)
 	_ = writeLine("334 " + challengeMsg)
 
 	// Read client response

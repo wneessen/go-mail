@@ -49,7 +49,14 @@ func (a *ntlmAuth) Start(info *ServerInfo) (proto string, toServer []byte, err e
 	//
 	// See: https://curl.se/rfc/ntlm.html#theType1Message
 	negotiate, err := a.session.GenerateNegotiateMessage()
-	return "NTLM", negotiate.Bytes(), nil
+	if err != nil {
+		return "NTLM", nil, err
+	}
+	negoBytes, err := negotiate.Bytes()
+	if err != nil {
+		return "NTLM", nil, err
+	}
+	return "NTLM", negoBytes, nil
 }
 
 // Next continues the NTLM authentication process by parsing the Type 2 message from the
@@ -80,7 +87,10 @@ func (a *ntlmAuth) Next(challengeBytes []byte, more bool) (toServer []byte, err 
 		// Generate the authentication message (Type 3 message) and return it to the server
 		//
 		// See: https://curl.se/rfc/ntlm.html#theType3Message
-		authenticate := a.session.GenerateAuthenticateMessage()
+		authenticate, err := a.session.GenerateAuthenticateMessage()
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate authentication message: %w", err)
+		}
 		return authenticate.Bytes(), nil
 	}
 	// no further authentication steps are needed, return nil

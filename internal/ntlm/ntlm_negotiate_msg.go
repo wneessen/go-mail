@@ -7,6 +7,7 @@ package ntlm
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 )
 
 type (
@@ -44,8 +45,8 @@ const (
 	ntlmsspRequestTarget negotiateFlag = 0x00000004
 
 	// ntlmsspNegotiateLMKey indicates that the Lan Manager Session Key should be used
-	// for signing and sealing authenticated communications.
-	ntlmsspNegotiateLMKey negotiateFlag = 0x00000080
+	// for signing and sealing authenticated communications. We do not use it in NTLMv2
+	// ntlmsspNegotiateLMKey negotiateFlag = 0x00000080
 
 	// ntlmsspNegotiateNTLM indicates that NTLM authentication is being used.
 	ntlmsspNegotiateNTLM negotiateFlag = 0x00000200
@@ -93,13 +94,17 @@ const (
 //
 // See: https://curl.se/rfc/ntlm.html#theType1Message
 func (n *NTLMv2Session) GenerateNegotiateMessage() (*NegotiateMessage, error) {
+	domainPayload, err := createStringPayload(n.domain)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create domain payload: %w", err)
+	}
 	message := &NegotiateMessage{
 		signature:   []byte(signature),
-		messageType: messageTypeNegotiate,
+		messageType: uint32(messageTypeNegotiate),
 		negotiateFlags: negotiateFlagset(ntlmsspNegotiateUnicode | ntlmsspNegotiateOEM |
 			ntlmsspRequestTarget | ntlmsspNegotiateNTLM | ntlmsspNegotiateDomainSupplied |
 			ntlmsspNegotiate128Bit | ntlmsspNegotiateExtendedSessionSecurity),
-		domainname:  createStringPayload(n.domain),
+		domainname:  domainPayload,
 		workstation: new(Payload),
 	}
 	n.negotiateMessage = message
@@ -121,14 +126,16 @@ func (f negotiateFlagset) bytes() []byte {
 }
 
 // Bytes returns the byte representation of the NTLMv2 negotiate message (Type 1 message).
-func (nm *NegotiateMessage) Bytes() []byte {
+func (nm *NegotiateMessage) Bytes() ([]byte, error) {
 	const headerLen = 32
 
 	payloadLen := int(nm.domainname.len) + int(nm.workstation.len)
 	buffer := bytes.NewBuffer(make([]byte, 0, headerLen+payloadLen))
 
 	buffer.Write(nm.signature)
-	binary.Write(buffer, binary.LittleEndian, nm.messageType)
+	if err := binary.Write(buffer, binary.LittleEndian, nm.messageType); err != nil {
+		return nil, fmt.Errorf("failed to write message type: %w", err)
+	}
 	buffer.Write(nm.negotiateFlags.bytes())
 
 	payloadOffset := uint16(headerLen)
@@ -138,11 +145,10 @@ func (nm *NegotiateMessage) Bytes() []byte {
 	buffer.Write(nm.domainname.bytes())
 
 	nm.workstation.offset = uint32(payloadOffset)
-	payloadOffset += nm.workstation.len
 	buffer.Write(nm.workstation.bytes())
 
 	buffer.Write(nm.domainname.payload)
 	buffer.Write(nm.workstation.payload)
 
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }

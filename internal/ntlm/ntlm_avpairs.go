@@ -56,14 +56,18 @@ const (
 var ErrNTLMInvalidAVPair = errors.New("invalid NTLM attribute-value pair")
 
 // AppendToAVPairs creates an AVPair with the given type and value and appends it to the list.
-// It returns the created pair for convenience.
-func (p *avPairs) appendAVPair(avType avPairType, value []byte) *avPair {
+func (p *avPairs) appendAVPair(avType avPairType, value []byte) error {
+	valLength, err := toUint16(len(value))
+	if err != nil {
+		return err
+	}
+
 	pair := new(avPair)
 	pair.id = avType
-	pair.len = uint16(len(value))
+	pair.len = valLength
 	pair.value = value
 	p.list = append(p.list, *pair)
-	return pair
+	return nil
 }
 
 // readAVPair reads an avPair from the given byte slice at the given offset.

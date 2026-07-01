@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -27,7 +28,7 @@ type ChallengeMessage struct {
 }
 
 const (
-	messageTypeNegotiate = iota + 1
+	messageTypeNegotiate messageType = iota + 1
 	messageTypeChallenge
 	messageTypeAuthenticate
 )
@@ -45,18 +46,30 @@ var (
 
 // CreateChallengeMessage creates an NTLM challenge message (Type 2 message) for the
 // given target name and domain
-func CreateChallengeMessage(clientFlags uint32, challenge []byte, targetName, domain string) []byte {
+func CreateChallengeMessage(clientFlags uint32, challenge []byte, targetName, domain string) ([]byte, error) {
 	const headerLen = 48
 	const versionLen = 8
 
 	target := utf16FromString(targetName)
 	targetInfo := new(avPairs)
-	targetInfo.appendAVPair(msvAVNbDomainName, utf16FromString(domain))
-	targetInfo.appendAVPair(msvAVNbComputerName, target)
-	targetInfo.appendAVPair(msvAVDNSDomainName, utf16FromString(domain))
-	targetInfo.appendAVPair(msvAVDNSComputerName, target)
-	targetInfo.appendAVPair(msvAVTimestamp, timeToWindowsFileTime(time.Now()))
-	targetInfo.appendAVPair(msvAVEOL, nil)
+	if err := targetInfo.appendAVPair(msvAVNbDomainName, utf16FromString(domain)); err != nil {
+		return nil, fmt.Errorf("failed to append netbios domain name to targetinfo: %w", err)
+	}
+	if err := targetInfo.appendAVPair(msvAVNbComputerName, target); err != nil {
+		return nil, fmt.Errorf("failed to append netbios computer name to targetinfo: %w", err)
+	}
+	if err := targetInfo.appendAVPair(msvAVDNSDomainName, utf16FromString(domain)); err != nil {
+		return nil, fmt.Errorf("failed to append dns domain name to targetinfo: %w", err)
+	}
+	if err := targetInfo.appendAVPair(msvAVDNSComputerName, target); err != nil {
+		return nil, fmt.Errorf("failed to append dns computer name to targetinfo: %w", err)
+	}
+	if err := targetInfo.appendAVPair(msvAVTimestamp, timeToWindowsFileTime(time.Now())); err != nil {
+		return nil, fmt.Errorf("failed to append timestamp to targetinfo: %w", err)
+	}
+	if err := targetInfo.appendAVPair(msvAVEOL, nil); err != nil {
+		return nil, fmt.Errorf("failed to append EOL to targetinfo: %w", err)
+	}
 	tiBytes := targetInfo.bytes() // compute once
 
 	flags := negotiateFlagset(ntlmsspNegotiateUnicode | ntlmsspNegotiateNTLM | ntlmsspRequestTarget |
@@ -71,13 +84,25 @@ func CreateChallengeMessage(clientFlags uint32, challenge []byte, targetName, do
 
 	// Signature + type
 	buffer.Write([]byte(signature))
-	binary.Write(buffer, binary.LittleEndian, uint32(messageTypeChallenge))
+	if err := binary.Write(buffer, binary.LittleEndian, uint32(messageTypeChallenge)); err != nil {
+		return nil, fmt.Errorf("failed to write message type: %w", err)
+	}
 
 	// TargetName security buffer  (len uint16, maxlen uint16, offset uint32)
 	targetOff := payloadStart
-	binary.Write(buffer, binary.LittleEndian, uint16(len(target)))
-	binary.Write(buffer, binary.LittleEndian, uint16(len(target)))
-	binary.Write(buffer, binary.LittleEndian, targetOff)
+	targetLength, err := toUint16(len(target))
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert target name length: %w", err)
+	}
+	if err := binary.Write(buffer, binary.LittleEndian, targetLength); err != nil {
+		return nil, fmt.Errorf("failed to write target name length: %w", err)
+	}
+	if err := binary.Write(buffer, binary.LittleEndian, targetLength); err != nil {
+		return nil, fmt.Errorf("failed to write target name max length: %w", err)
+	}
+	if err := binary.Write(buffer, binary.LittleEndian, targetOff); err != nil {
+		return nil, fmt.Errorf("failed to write target name offset: %w", err)
+	}
 
 	// Negotiate flags
 	buffer.Write(flags.bytes())
@@ -89,10 +114,24 @@ func CreateChallengeMessage(clientFlags uint32, challenge []byte, targetName, do
 	buffer.Write(make([]byte, 8))
 
 	// TargetInfo security buffer
-	tiOff := targetOff + uint32(len(target))
-	binary.Write(buffer, binary.LittleEndian, uint16(len(tiBytes)))
-	binary.Write(buffer, binary.LittleEndian, uint16(len(tiBytes)))
-	binary.Write(buffer, binary.LittleEndian, tiOff)
+	targetLength32, err := toUint32(len(target))
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert target name length: %w", err)
+	}
+	tiOff := targetOff + targetLength32
+	tiByteLength, err := toUint16(len(tiBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert target info length: %w", err)
+	}
+	if err := binary.Write(buffer, binary.LittleEndian, tiByteLength); err != nil {
+		return nil, fmt.Errorf("failed to write target info length: %w", err)
+	}
+	if err := binary.Write(buffer, binary.LittleEndian, tiByteLength); err != nil {
+		return nil, fmt.Errorf("failed to write target info max length: %w", err)
+	}
+	if err := binary.Write(buffer, binary.LittleEndian, tiOff); err != nil {
+		return nil, fmt.Errorf("failed to write target info offset: %w", err)
+	}
 
 	// Version (8 bytes)
 	buffer.Write(make([]byte, 8))
@@ -101,7 +140,7 @@ func CreateChallengeMessage(clientFlags uint32, challenge []byte, targetName, do
 	buffer.Write(target)
 	buffer.Write(tiBytes)
 
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 // ParseChallengeMessage parses an NTLM challenge message (Type 2 message) from the given body

@@ -12,6 +12,8 @@ import (
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/binary"
+	"fmt"
+	"math"
 	"strings"
 	"time"
 	"unicode/utf16"
@@ -60,6 +62,22 @@ func utf16FromString(payload string) []byte {
 		binary.LittleEndian.PutUint16(result[i*2:], u)
 	}
 	return result
+}
+
+// toUint16 converts an int to a uint16, returning an error if the value is out of range.
+func toUint16(n int) (uint16, error) {
+	if n < 0 || n > math.MaxUint16 {
+		return 0, fmt.Errorf("value %d out of uint16 range", n)
+	}
+	return uint16(n), nil
+}
+
+// toUint32 converts an int to a uint16, returning an error if the value is out of range.
+func toUint32(n int) (uint32, error) {
+	if n < 0 || n > math.MaxUint32 {
+		return 0, fmt.Errorf("value %d out of uint32 range", n)
+	}
+	return uint32(n), nil
 }
 
 // randomBytes returns a slice of random bytes of the given length.

@@ -7,6 +7,7 @@ package ntlm
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 )
 
 // Payload represents a NTLM payload
@@ -33,24 +34,32 @@ const (
 var ErrNTLMInvalidPayload = errors.New("invalid NTLM payload")
 
 // createBytePayload creates a Payload from the given byte slice.
-func createBytePayload(payload []byte) *Payload {
+func createBytePayload(payload []byte) (*Payload, error) {
+	payloadLength, err := toUint16(len(payload))
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert payload length: %w", err)
+	}
 	return &Payload{
 		encoding: payloadEncodingByte,
-		len:      uint16(len(payload)),
-		maxLen:   uint16(len(payload)),
+		len:      payloadLength,
+		maxLen:   payloadLength,
 		payload:  payload,
-	}
+	}, nil
 }
 
 // createStringPayload creates a Payload from the given string.
-func createStringPayload(payload string) *Payload {
-	b := utf16FromString(payload)
+func createStringPayload(payload string) (*Payload, error) {
+	utf16Payload := utf16FromString(payload)
+	payloadLength, err := toUint16(len(utf16Payload))
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert payload length: %w", err)
+	}
 	return &Payload{
 		encoding: payloadEncodingUnicode,
-		len:      uint16(len(b)),
-		maxLen:   uint16(len(b)),
-		payload:  b,
-	}
+		len:      payloadLength,
+		maxLen:   payloadLength,
+		payload:  utf16Payload,
+	}, nil
 }
 
 // readPayload reads a payload from the given byte slice starting at startByte of type payloadType.

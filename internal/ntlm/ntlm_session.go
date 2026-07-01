@@ -31,7 +31,6 @@ type NTLMv2Session struct {
 	keyExchangeKey            []byte
 	exportedSessionKey        []byte
 	encryptedRandomSessionKey []byte
-	sequenceNumber            uint32
 }
 
 // CreateClientSession returns a new NTLMv2Session.
@@ -67,18 +66,42 @@ func (n *NTLMv2Session) ProcessChallengeMessage(message *ChallengeMessage) error
 // GenerateAuthenticateMessage generates an NTLMv2 AuthenticateMessage (Type 3 message).
 //
 // See: https://curl.se/rfc/ntlm.html#theType3Message
-func (n *NTLMv2Session) GenerateAuthenticateMessage() *AuthenticateMessage {
+func (n *NTLMv2Session) GenerateAuthenticateMessage() (*AuthenticateMessage, error) {
+	lmChallangeResp, err := createBytePayload(n.lmChallengeResponse)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create LM challenge response payload: %w", err)
+	}
+	ntChallangeResp, err := createBytePayload(n.ntChallengeResponse)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create NTLM challenge response payload: %w", err)
+	}
+	encryptedRandomSessionKey, err := createBytePayload(n.encryptedRandomSessionKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create encrypted random session key payload: %w", err)
+	}
+	domainPayload, err := createStringPayload(n.domain)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create domain payload: %w", err)
+	}
+	usernamePayload, err := createStringPayload(n.user)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create username payload: %w", err)
+	}
+	workstationPayload, err := createStringPayload("")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create workstation payload: %w", err)
+	}
 	return &AuthenticateMessage{
 		signature:                 []byte("NTLMSSP\x00"),
 		messageType:               3,
-		lmChallengeResponse:       createBytePayload(n.lmChallengeResponse),
-		ntChallengeResponseFields: createBytePayload(n.ntChallengeResponse),
-		domainname:                createStringPayload(n.domain),
-		username:                  createStringPayload(n.user),
-		workstation:               createStringPayload(""),
-		encryptedRandomSessionKey: createBytePayload(n.encryptedRandomSessionKey),
+		lmChallengeResponse:       lmChallangeResp,
+		ntChallengeResponseFields: ntChallangeResp,
+		domainname:                domainPayload,
+		username:                  usernamePayload,
+		workstation:               workstationPayload,
+		encryptedRandomSessionKey: encryptedRandomSessionKey,
 		negotiateFlags:            n.negotiateFlags,
-	}
+	}, nil
 }
 
 // computeExpectedResponses computes the expected NTLMv2 challenge responses (LMv2 and NTLMv2).

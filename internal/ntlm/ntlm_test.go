@@ -58,7 +58,14 @@ func TestCreateClientSession(t *testing.T) {
 
 func TestCreateBytePayload(t *testing.T) {
 	has := []byte("testpayload")
-	payload := createBytePayload(has)
+	payload, err := createBytePayload(has)
+	if err != nil {
+		t.Fatalf("failed to create payload: %s", err)
+	}
+	payloadLength, err := toUint16(len(has))
+	if err != nil {
+		t.Fatalf("failed to convert payload length to uint16: %s", err)
+	}
 
 	if payload == nil {
 		t.Fatal("createBytePayload returned nil")
@@ -66,11 +73,11 @@ func TestCreateBytePayload(t *testing.T) {
 	if payload.encoding != payloadEncodingByte {
 		t.Errorf("expected byte payload encoding to be: %d, got: %d", payloadEncodingByte, payload.encoding)
 	}
-	if payload.maxLen != uint16(len(has)) {
-		t.Errorf("expected payload maximum length to be: %d, got: %d", uint16(len(has)), payload.maxLen)
+	if payload.maxLen != payloadLength {
+		t.Errorf("expected payload maximum length to be: %d, got: %d", payloadLength, payload.maxLen)
 	}
-	if payload.len != uint16(len(has)) {
-		t.Errorf("expected payload length to be: %d, got: %d", uint16(len(has)), payload.len)
+	if payload.len != payloadLength {
+		t.Errorf("expected payload length to be: %d, got: %d", payloadLength, payload.len)
 	}
 	if payload.offset != 0 {
 		t.Errorf("expected payload offset to be: 0, got: %d", payload.offset)
@@ -82,8 +89,15 @@ func TestCreateBytePayload(t *testing.T) {
 
 func TestCreateStringPayload(t *testing.T) {
 	has := "testpayload"
-	payload := createStringPayload(has)
 	want := utf16FromString(has)
+	payload, err := createStringPayload(has)
+	if err != nil {
+		t.Fatalf("failed to create payload: %s", err)
+	}
+	payloadLength, err := toUint16(len(want))
+	if err != nil {
+		t.Fatalf("failed to convert payload length to uint16: %s", err)
+	}
 
 	if payload == nil {
 		t.Fatal("createStringPayload returned nil")
@@ -91,11 +105,11 @@ func TestCreateStringPayload(t *testing.T) {
 	if payload.encoding != payloadEncodingUnicode {
 		t.Errorf("expected string payload encoding to be: %d, got: %d", payloadEncodingUnicode, payload.encoding)
 	}
-	if payload.maxLen != uint16(len(want)) {
-		t.Errorf("expected payload maximum length to be: %d, got: %d", uint16(len(want)), payload.maxLen)
+	if payload.maxLen != payloadLength {
+		t.Errorf("expected payload maximum length to be: %d, got: %d", payloadLength, payload.maxLen)
 	}
-	if payload.len != uint16(len(want)) {
-		t.Errorf("expected payload length to be: %d, got: %d", uint16(len(want)), payload.len)
+	if payload.len != payloadLength {
+		t.Errorf("expected payload length to be: %d, got: %d", payloadLength, payload.len)
 	}
 	if payload.offset != 0 {
 		t.Errorf("expected payload offset to be: 0, got: %d", payload.offset)
