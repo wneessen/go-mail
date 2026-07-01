@@ -15,11 +15,17 @@ import (
 	"time"
 )
 
-const challenge = "S3creT!1"
+const (
+	testChallenge = "S3creT!1"
+	testUser      = "testuser"
+	testPassword  = "Passw0rd!."
+	testHost      = "localhost"
+	testDomain    = "EXAMPLE.COM"
+)
 
 func Test_ntlmv2Hash(t *testing.T) {
-	want := []byte{23, 76, 33, 13, 99, 39, 31, 213, 150, 111, 98, 90, 105, 122, 255, 91}
-	hash := ntlmv2Hash("user", "password", "domain")
+	want := []byte{0xea, 0x13, 0x64, 0x57, 0x17, 0xa0, 0x62, 0xcf, 0xf6, 0x65, 0x74, 0x7b, 0xb4, 0x51, 0x2a, 0x43}
+	hash := ntlmv2Hash(testUser, testPassword, testDomain)
 	if !bytes.Equal(hash, want) {
 		t.Errorf("ntlmv2 hash mismatch, got: %x, want: %x", hash, want)
 	}
@@ -178,17 +184,15 @@ func TestCreateStringPayload(t *testing.T) {
 }
 
 func TestNTLMv2Session_SetUserInfo(t *testing.T) {
-	testUser, testPass, testDomain := "testuser", "passw0rd!", "DOMAIN"
-
 	t.Run("set all values", func(t *testing.T) {
 		session := NewNTLMv2Session()
 		if session == nil {
 			t.Fatal("failed to create client session. session is nil")
 		}
-		session.SetUserInfo(testUser, testPass, testDomain)
-		if session.user != testUser || session.password != testPass || session.domain != testDomain {
+		session.SetUserInfo(testUser, testPassword, testDomain)
+		if session.user != testUser || session.password != testPassword || session.domain != testDomain {
 			t.Errorf("failed to set user info, got: user=%s, password=%s, domain=%s, want: user=%s, password=%s, domain=%s",
-				session.user, session.password, session.domain, testUser, testPass, testDomain)
+				session.user, session.password, session.domain, testUser, testPassword, testDomain)
 		}
 	})
 	t.Run("username only", func(t *testing.T) {
@@ -210,9 +214,9 @@ func TestNTLMv2Session_SetUserInfo(t *testing.T) {
 		if session == nil {
 			t.Fatal("failed to create client session. session is nil")
 		}
-		session.SetUserInfo("", testPass, "")
-		if session.password != testPass {
-			t.Errorf("failed to set userinfo, got: pass=%s, want: pass=%s", session.password, testPass)
+		session.SetUserInfo("", testPassword, "")
+		if session.password != testPassword {
+			t.Errorf("failed to set userinfo, got: pass=%s, want: pass=%s", session.password, testPassword)
 		}
 		if session.user != "" || session.domain != "" {
 			t.Errorf("failed to set userinfo, got: user=%s, domain=%s, want: user=empty, domain=empty",
@@ -241,10 +245,10 @@ func TestNTLMv2Session_ParseChallengeMessage(t *testing.T) {
 		if session == nil {
 			t.Fatal("failed to create client session. session is nil")
 		}
-		session.SetUserInfo("testuser", "P4ssw0rd!", "EXAMPLE.COM")
+		session.SetUserInfo(testUser, testPassword, testDomain)
 		message, err := CreateChallengeMessage(
 			uint32(ntlmsspNegotiateUnicode|ntlmsspNegotiateAlwaysSign|ntlmsspNegotiateKeyExchange),
-			[]byte(challenge), "localhost", "EXAMPLE.COM")
+			[]byte(testChallenge), testHost, testDomain)
 		if err != nil {
 			t.Fatalf("failed to create challenge message: %s", err)
 		}
@@ -258,8 +262,9 @@ func TestNTLMv2Session_ParseChallengeMessage(t *testing.T) {
 		if session.challengeMessage == nil {
 			t.Errorf("expected challengeMessage in the session, got nil")
 		}
-		if !bytes.EqualFold(session.responseKeyNT, []byte{173, 125, 242, 145, 179, 208, 237, 150, 12, 217, 126, 105, 85, 175, 68, 162}) {
-			t.Errorf("expected responseKeyNT to be [173 125 242 145 179 208 237 150 12 217 126 105 85 175 68 162], got: %x", session.responseKeyNT)
+		want := []byte{0xea, 0x13, 0x64, 0x57, 0x17, 0xa0, 0x62, 0xcf, 0xf6, 0x65, 0x74, 0x7b, 0xb4, 0x51, 0x2a, 0x43}
+		if !bytes.EqualFold(session.responseKeyNT, want) {
+			t.Errorf("expected responseKeyNT to be: %x, got: %x", want, session.responseKeyNT)
 		}
 	})
 	t.Run("processing nil byte challenge message fails", func(t *testing.T) {
@@ -339,10 +344,10 @@ func TestNTLMv2Session_GenerateAuthenticateMessage(t *testing.T) {
 		if session == nil {
 			t.Fatal("failed to create client session. session is nil")
 		}
-		session.SetUserInfo("testuser", "P4ssw0rd!", "EXAMPLE.COM")
+		session.SetUserInfo(testUser, testPassword, testDomain)
 		message, err := CreateChallengeMessage(
 			uint32(ntlmsspNegotiateUnicode|ntlmsspNegotiateAlwaysSign|ntlmsspNegotiateKeyExchange),
-			[]byte(challenge), "localhost", "EXAMPLE.COM")
+			[]byte(testChallenge), testHost, testDomain)
 		if err != nil {
 			t.Fatalf("failed to create challenge message: %s", err)
 		}
@@ -359,8 +364,8 @@ func TestNTLMv2Session_GenerateAuthenticateMessage(t *testing.T) {
 		if session == nil {
 			t.Fatal("failed to create client session. session is nil")
 		}
-		session.SetUserInfo("testuser", "P4ssw0rd!", "EXAMPLE.COM")
-		message, err := CreateChallengeMessage(uint32(ntlmsspNegotiateUnicode), []byte(challenge), "localhost", "EXAMPLE.COM")
+		session.SetUserInfo(testUser, testPassword, testDomain)
+		message, err := CreateChallengeMessage(uint32(ntlmsspNegotiateUnicode), []byte(testChallenge), testHost, testDomain)
 		if err != nil {
 			t.Fatalf("failed to create challenge message: %s", err)
 		}
@@ -409,10 +414,10 @@ func TestNTLMv2Session_GenerateAuthenticateMessage(t *testing.T) {
 				if session == nil {
 					t.Fatal("failed to create client session. session is nil")
 				}
-				session.SetUserInfo("testuser", "P4ssw0rd!", "EXAMPLE.COM")
+				session.SetUserInfo(testUser, testPassword, testDomain)
 				message, err := CreateChallengeMessage(
 					uint32(ntlmsspNegotiateUnicode|ntlmsspNegotiateAlwaysSign|ntlmsspNegotiateKeyExchange),
-					[]byte(challenge), "localhost", "EXAMPLE.COM")
+					[]byte(testChallenge), testHost, testDomain)
 				if err != nil {
 					t.Fatalf("failed to create challenge message: %s", err)
 				}
@@ -428,16 +433,68 @@ func TestNTLMv2Session_GenerateAuthenticateMessage(t *testing.T) {
 	})
 }
 
+func TestNTLMv2Session_GenerateNegotiateMessage(t *testing.T) {
+	t.Run("generates negotiate message successfully", func(t *testing.T) {
+		session := NewNTLMv2Session()
+		if session == nil {
+			t.Fatal("failed to create client session. session is nil")
+		}
+		session.SetUserInfo(testUser, testPassword, testDomain)
+		message, err := session.GenerateNegotiateMessage()
+		if err != nil {
+			t.Errorf("failed to generate negotiate message: %s", err)
+		}
+		if message == nil {
+			t.Error("expected negotiate message, but got nil")
+		}
+	})
+	t.Run("generating negotiate message fails on invalid domain", func(t *testing.T) {
+		session := NewNTLMv2Session()
+		if session == nil {
+			t.Fatal("failed to create client session. session is nil")
+		}
+		session.SetUserInfo(testUser, testPassword, strings.Repeat("x", math.MaxInt16+1))
+		_, err := session.GenerateNegotiateMessage()
+		if err == nil {
+			t.Error("expected negotiate message generation to fail, but got nil")
+		}
+	})
+}
+
+func TestNegotiateMessage_Bytes(t *testing.T) {
+	t.Run("bytes returns the correct message bytes", func(t *testing.T) {
+		session := NewNTLMv2Session()
+		if session == nil {
+			t.Fatal("failed to create client session. session is nil")
+		}
+		session.SetUserInfo(testUser, testPassword, testDomain)
+		message, err := session.GenerateNegotiateMessage()
+		if err != nil {
+			t.Errorf("failed to generate negotiate message: %s", err)
+		}
+		if message == nil {
+			t.Error("expected negotiate message, but got nil")
+		}
+		date, err := message.Bytes()
+		if err != nil {
+			t.Errorf("failed to get message bytes: %s", err)
+		}
+		if len(date) != 54 {
+			t.Errorf("expected %d bytes, but got %d", 54, len(date))
+		}
+	})
+}
+
 func TestNTLMv2Session_computeEncryptedSessionKey(t *testing.T) {
 	t.Run("computes encrypted session key successfully", func(t *testing.T) {
 		session := NewNTLMv2Session()
 		if session == nil {
 			t.Fatal("failed to create client session. session is nil")
 		}
-		session.SetUserInfo("testuser", "P4ssw0rd!", "EXAMPLE.COM")
+		session.SetUserInfo(testUser, testPassword, testDomain)
 		message, err := CreateChallengeMessage(
 			uint32(ntlmsspNegotiateUnicode|ntlmsspNegotiateAlwaysSign|ntlmsspNegotiateKeyExchange),
-			[]byte(challenge), "localhost", "EXAMPLE.COM")
+			[]byte(testChallenge), testHost, testDomain)
 		if err != nil {
 			t.Fatalf("failed to create challenge message: %s", err)
 		}
