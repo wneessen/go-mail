@@ -15,7 +15,7 @@ type ChallengeMessage struct {
 	signature       []byte
 	messageType     uint32
 	targetName      *Payload
-	negotiateFlags  NegotiateFlags
+	negotiateFlags  negotiateFlagSet
 	serverChallenge []byte
 	reserved        []byte
 	targetInfo      *avPairs

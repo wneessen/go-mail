@@ -19,7 +19,7 @@ type NTLMv2Session struct {
 	password   string
 	userDomain string
 
-	negotiateFlags            NegotiateFlags
+	negotiateFlags            negotiateFlagSet
 	negotiateMessage          *NegotiateMessage
 	challengeMessage          *ChallengeMessage
 	serverChallenge           []byte

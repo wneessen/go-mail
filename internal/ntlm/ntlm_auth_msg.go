@@ -14,7 +14,7 @@ type AuthenticateMessage struct {
 	signature   []byte
 	messageType uint32
 
-	negotiateFlags NegotiateFlags
+	negotiateFlags negotiateFlagSet
 
 	lmChallengeResponse       *Payload
 	ntChallengeResponseFields *Payload
