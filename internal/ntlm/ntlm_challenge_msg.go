@@ -71,7 +71,7 @@ func ParseChallengeMessage(body []byte) (*ChallengeMessage, error) {
 	}
 
 	offset := 48
-	if uint32(challenge.negotiateFlags)&uint32(NTLMSSP_NEGOTIATE_VERSION) != 0 {
+	if uint32(challenge.negotiateFlags)&uint32(ntlmsspNegotiateVersion) != 0 {
 		if len(body) < offset+8 {
 			return nil, ErrNTLMInvalidChallengeMessage
 		}
@@ -86,7 +86,7 @@ func ParseChallengeMessage(body []byte) (*ChallengeMessage, error) {
 func (c *ChallengeMessage) readStringPayload(startByte int, payload []byte) (*Payload, error) {
 	// MS-NLMP: Unicode takes precedence, OEM is only used when UNICODE is not negotiated
 	encoding := payloadEncodingOEM
-	if uint32(c.negotiateFlags)&uint32(NTLMSSP_NEGOTIATE_UNICODE) != 0 {
+	if uint32(c.negotiateFlags)&uint32(ntlmsspNegotiateUnicode) != 0 {
 		encoding = payloadEncodingUnicode
 	}
 	return ReadPayload(startByte, payload, encoding)

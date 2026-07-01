@@ -123,7 +123,7 @@ func (n *NTLMv2Session) computeExpectedResponses(timestamp []byte, avPairs *avPa
 
 // computeEncryptedSessionKey computes the encrypted session key for NTLMv2 key exchange.
 func (n *NTLMv2Session) computeEncryptedSessionKey() error {
-	if uint32(n.negotiateFlags)&uint32(NTLMSSP_NEGOTIATE_KEY_EXCH) == 0 {
+	if uint32(n.negotiateFlags)&uint32(ntlmsspNegotiateKeyExchange) == 0 {
 		n.exportedSessionKey = n.keyExchangeKey
 		n.encryptedRandomSessionKey = nil
 		return nil
