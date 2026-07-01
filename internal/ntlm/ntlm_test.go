@@ -48,3 +48,117 @@ func Test_randomBytes(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateClientSession(t *testing.T) {
+	session := CreateClientSession()
+	if session == nil {
+		t.Fatal("failed to create client session. session is nil")
+	}
+}
+
+func TestCreateBytePayload(t *testing.T) {
+	has := []byte("testpayload")
+	payload := createBytePayload(has)
+
+	if payload == nil {
+		t.Fatal("createBytePayload returned nil")
+	}
+	if payload.encoding != payloadEncodingByte {
+		t.Errorf("expected byte payload encoding to be: %d, got: %d", payloadEncodingByte, payload.encoding)
+	}
+	if payload.maxLen != uint16(len(has)) {
+		t.Errorf("expected payload maximum length to be: %d, got: %d", uint16(len(has)), payload.maxLen)
+	}
+	if payload.len != uint16(len(has)) {
+		t.Errorf("expected payload length to be: %d, got: %d", uint16(len(has)), payload.len)
+	}
+	if payload.offset != 0 {
+		t.Errorf("expected payload offset to be: 0, got: %d", payload.offset)
+	}
+	if !bytes.Equal(payload.payload, has) {
+		t.Errorf("expected payload to be: %s, got: %s", has, payload.payload)
+	}
+}
+
+func TestCreateStringPayload(t *testing.T) {
+	has := "testpayload"
+	payload := createStringPayload(has)
+	want := utf16FromString(has)
+
+	if payload == nil {
+		t.Fatal("createStringPayload returned nil")
+	}
+	if payload.encoding != payloadEncodingUnicode {
+		t.Errorf("expected string payload encoding to be: %d, got: %d", payloadEncodingUnicode, payload.encoding)
+	}
+	if payload.maxLen != uint16(len(want)) {
+		t.Errorf("expected payload maximum length to be: %d, got: %d", uint16(len(want)), payload.maxLen)
+	}
+	if payload.len != uint16(len(want)) {
+		t.Errorf("expected payload length to be: %d, got: %d", uint16(len(want)), payload.len)
+	}
+	if payload.offset != 0 {
+		t.Errorf("expected payload offset to be: 0, got: %d", payload.offset)
+	}
+	if !bytes.Equal(payload.payload, want) {
+		t.Errorf("expected payload to be: %s, got: %s", want, payload.payload)
+	}
+}
+
+func TestNTLMv2Session_SetUserInfo(t *testing.T) {
+	testUser, testPass, testDomain := "testuser", "passw0rd!", "DOMAIN"
+
+	t.Run("set all values", func(t *testing.T) {
+		session := CreateClientSession()
+		if session == nil {
+			t.Fatal("failed to create client session. session is nil")
+		}
+		session.SetUserInfo(testUser, testPass, testDomain)
+		if session.user != testUser || session.password != testPass || session.domain != testDomain {
+			t.Errorf("failed to set user info, got: user=%s, password=%s, domain=%s, want: user=%s, password=%s, domain=%s",
+				session.user, session.password, session.domain, testUser, testPass, testDomain)
+		}
+	})
+	t.Run("username only", func(t *testing.T) {
+		session := CreateClientSession()
+		if session == nil {
+			t.Fatal("failed to create client session. session is nil")
+		}
+		session.SetUserInfo(testUser, "", "")
+		if session.user != testUser {
+			t.Errorf("failed to set userinfo, got: user=%s, want: user=%s", session.user, testUser)
+		}
+		if session.password != "" || session.domain != "" {
+			t.Errorf("failed to set userinfo, got: password=%s, domain=%s, want: password=empty, domain=empty",
+				session.password, session.domain)
+		}
+	})
+	t.Run("password only", func(t *testing.T) {
+		session := CreateClientSession()
+		if session == nil {
+			t.Fatal("failed to create client session. session is nil")
+		}
+		session.SetUserInfo("", testPass, "")
+		if session.password != testPass {
+			t.Errorf("failed to set userinfo, got: pass=%s, want: pass=%s", session.password, testPass)
+		}
+		if session.user != "" || session.domain != "" {
+			t.Errorf("failed to set userinfo, got: user=%s, domain=%s, want: user=empty, domain=empty",
+				session.user, session.domain)
+		}
+	})
+	t.Run("domain only", func(t *testing.T) {
+		session := CreateClientSession()
+		if session == nil {
+			t.Fatal("failed to create client session. session is nil")
+		}
+		session.SetUserInfo("", "", testDomain)
+		if session.domain != testDomain {
+			t.Errorf("failed to set userinfo, got: domain=%s, want: domain=%s", session.domain, testDomain)
+		}
+		if session.user != "" || session.password != "" {
+			t.Errorf("failed to set userinfo, got: user=%s, password=%s, want: user=empty, password=empty",
+				session.user, session.password)
+		}
+	})
+}
