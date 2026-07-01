@@ -49,6 +49,58 @@ func Test_randomBytes(t *testing.T) {
 	}
 }
 
+func Test_toUint16(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   int
+		want    uint16
+		wantErr bool
+	}{
+		{"int fits into uint16", 1, 1, false},
+		{"negative int fails", -1, 0, true},
+		{"max uint16 fits", 65535, 65535, false},
+		{"max uint16 + 1 overflows and fails", 65536, 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := toUint16(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("failed to convert int to uint16, got: %s", err)
+			}
+			if got != tt.want {
+				t.Errorf("failed to convert int to uint16, got: %d, want: %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_toUint32(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   int
+		want    uint32
+		wantErr bool
+	}{
+		{"int fits into uint32", 1, 1, false},
+		{"negative int fails", -1, 0, true},
+		{"max uint32 fits", 4294967295, 4294967295, false},
+		{"max uint32 + 1 overflows and fails", 4294967296, 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := toUint32(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("failed to convert int to uint16, got: %s", err)
+			}
+			if got != tt.want {
+				t.Errorf("failed to convert int to uint16, got: %d, want: %d", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestCreateClientSession(t *testing.T) {
 	session := CreateClientSession()
 	if session == nil {
