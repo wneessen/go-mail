@@ -221,7 +221,7 @@ func (sa *SMTPAuthType) UnmarshalString(value string) error {
 		*sa = SMTPAuthLoginNoEnc
 	case "none", "noauth", "no":
 		*sa = SMTPAuthNoAuth
-	case "ntlm", "ntlmssp":
+	case "ntlm", "ntlmv2", "ntlmssp":
 		*sa = SMTPAuthNTLM
 	case "plain":
 		*sa = SMTPAuthPlain
