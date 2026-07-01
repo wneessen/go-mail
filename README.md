@@ -46,7 +46,7 @@ Here are some highlights of go-mail's featureset:
   * [X] CRAM-MD5
   * [X] LOGIN
   * [X] PLAIN
-  * [X] NTLMv2
+  * [X] NTLM
   * [X] SCRAM-SHA-1/SCRAM-SHA-1-PLUS
   * [X] SCRAM-SHA-256/SCRAM-SHA-256-PLUS
   * [X] XOAUTH2
