@@ -228,3 +228,36 @@ func TestNTLMv2Session_SetUserInfo(t *testing.T) {
 		}
 	})
 }
+
+func TestNTLMv2Session_ProcessChallengeMessage(t *testing.T) {
+	challenge := "S3creT!1"
+	t.Run("processing challenge message succeeds", func(t *testing.T) {
+		session := CreateClientSession()
+		if session == nil {
+			t.Fatal("failed to create client session. session is nil")
+		}
+		session.SetUserInfo("testuser", "P4ssw0rd!", "EXAMPLE.COM")
+		message, err := CreateChallengeMessage(uint32(ntlmsspNegotiateUnicode|ntlmsspNegotiateAlwaysSign), []byte(challenge),
+			"localhost", "EXAMPLE.COM")
+		if err != nil {
+			t.Fatalf("failed to create challenge message: %s", err)
+		}
+		err = session.ParseChallengeMessage(message)
+		if err != nil {
+			t.Fatalf("failed to parse challenge message: %s", err)
+		}
+		t.Logf("session: %+v", session)
+	})
+	/*
+		t.Run("processing empty challenge message succeeds", func(t *testing.T) {
+			session := CreateClientSession()
+			if session == nil {
+				t.Fatal("failed to create client session. session is nil")
+			}
+			message := new(ChallengeMessage)
+			if err := session.ProcessChallengeMessage(message); err != nil {
+				t.Errorf("failed to process challenge message: %s", err)
+			}
+			})
+	*/
+}

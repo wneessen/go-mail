@@ -112,6 +112,9 @@ func readAVPairs(data []byte) (*avPairs, error) {
 
 // bytes returns the avPairs as a byte slice.
 func (p *avPairs) bytes() []byte {
+	if p == nil {
+		return nil
+	}
 	total := len(p.reserved)
 	for i := range p.list {
 		total += int(p.list[i].len) + 4
@@ -125,6 +128,9 @@ func (p *avPairs) bytes() []byte {
 
 // find returns the AVPair with the given type, or nil if not found.
 func (p *avPairs) find(avType avPairType) *avPair {
+	if p == nil {
+		return nil
+	}
 	for i := range p.list {
 		if p.list[i].id == avType {
 			return &p.list[i]

@@ -73,15 +73,11 @@ func (a *ntlmAuth) Start(info *ServerInfo) (proto string, toServer []byte, err e
 //     the "authenticate" message. Returns nil if successful or if no further steps are needed.
 func (a *ntlmAuth) Next(challengeBytes []byte, more bool) (toServer []byte, err error) {
 	if more {
-		// Parse and process the server challenge message (Type 2 message)
+		// Process the server challenge message (Type 2 message)
 		//
 		// See: https://curl.se/rfc/ntlm.html#theType2Message
-		challenge, err := ntlm.ParseChallengeMessage(challengeBytes)
-		if err != nil {
+		if err := a.session.ParseChallengeMessage(challengeBytes); err != nil {
 			return nil, fmt.Errorf("failed to parse challenge message: %w", err)
-		}
-		if err = a.session.ProcessChallengeMessage(challenge); err != nil {
-			return nil, fmt.Errorf("failed to process challenge message: %w", err)
 		}
 
 		// Generate the authentication message (Type 3 message) and return it to the server

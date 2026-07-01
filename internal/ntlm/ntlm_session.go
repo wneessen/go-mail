@@ -5,9 +5,11 @@
 package ntlm
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/md5"
 	"crypto/rc4"
+	"encoding/binary"
 	"fmt"
 	"slices"
 	"time"
@@ -19,10 +21,8 @@ type NTLMv2Session struct {
 	password string
 	domain   string
 
-	negotiateFlags            negotiateFlagset
 	negotiateMessage          *NegotiateMessage
 	challengeMessage          *ChallengeMessage
-	serverChallenge           []byte
 	clientChallenge           []byte
 	responseKeyNT             []byte
 	ntChallengeResponse       []byte
@@ -39,51 +39,114 @@ func CreateClientSession() *NTLMv2Session {
 }
 
 // SetUserInfo sets the user information for the NTLMv2Session.
-func (n *NTLMv2Session) SetUserInfo(username, password, domain string) {
-	n.user = username
-	n.password = password
-	n.domain = domain
+func (s *NTLMv2Session) SetUserInfo(username, password, domain string) {
+	s.user = username
+	s.password = password
+	s.domain = domain
 }
 
-// ProcessChallengeMessage processes the challenge message from the server.
-func (n *NTLMv2Session) ProcessChallengeMessage(message *ChallengeMessage) error {
-	// Fill session with required data
-	n.challengeMessage = message
-	n.serverChallenge = message.serverChallenge
-	n.clientChallenge = randomBytes(8)
-	n.negotiateFlags = message.negotiateFlags
-	n.responseKeyNT = ntlmv2Hash(n.user, n.password, n.domain)
-	n.keyExchangeKey = n.sessionBaseKey
+// ParseChallengeMessage parses an NTLM challenge message (Type 2 message) from
+// the given body
+//
+// See: https://curl.se/rfc/ntlm.html#theType2Message
+func (s *NTLMv2Session) ParseChallengeMessage(body []byte) error {
+	if len(body) < 48 {
+		return ErrNTLMInvalidChallengeMessage
+	}
+
+	var err error
+	challenge := new(ChallengeMessage)
+
+	// Read NTLMSSP signature
+	challenge.signature = body[0:8]
+	if !bytes.Equal(challenge.signature, []byte("NTLMSSP\x00")) {
+		return ErrNTLMInvalidSignatureMessage
+	}
+
+	// We expect a Type 2 message
+	challenge.messageType = binary.LittleEndian.Uint32(body[8:12])
+	if challenge.messageType != uint32(messageTypeChallenge) {
+		return ErrNTLMInvalidSignatureType
+	}
+
+	// Read the negotate flags
+	challenge.negotiateFlags = readNegotiateFlagset(body[20:24])
+
+	// Decide on the encoding, bases on the provided flags
+	//
+	// MS-NLMP: Unicode takes precedence, OEM is only used when UNICODE is not negotiated
+	encoding := payloadEncodingOEM
+	if uint32(challenge.negotiateFlags)&uint32(ntlmsspNegotiateUnicode) != 0 {
+		encoding = payloadEncodingUnicode
+	}
+
+	// Read the target name (we don't use it, but it could be useful for debugging purposes)
+	challenge.targetName, err = readPayload(12, body, encoding)
+	if err != nil {
+		return fmt.Errorf("failed to read body payload: %w", err)
+	}
+
+	// Read the server challenge
+	challenge.serverChallenge = body[24:32]
+
+	// 8 reserved bytes
+	challenge.reserved = body[32:40]
+
+	// Extract the target info (Attribute-Value pairs)
+	targetInfo, err := readPayload(40, body, payloadEncodingByte)
+	if err != nil {
+		return fmt.Errorf("failed to read body payload: %w", err)
+	}
+	if challenge.targetInfo, err = readAVPairs(targetInfo.payload); err != nil {
+		return fmt.Errorf("failed to read Attribute-Value pairs: %w", err)
+	}
+
+	// Read the version (we discard that information, though)
+	offset := 48
+	if uint32(challenge.negotiateFlags)&uint32(ntlmsspNegotiateVersion) != 0 {
+		if len(body) < offset+8 {
+			return ErrNTLMInvalidChallengeMessage
+		}
+		offset += 8
+	}
+
+	// Read the payload
+	challenge.payload = body[offset:]
+
+	// Fill the session with the challenge message and required data
+	s.challengeMessage = challenge
+	s.clientChallenge = randomBytes(8)
+	s.responseKeyNT = ntlmv2Hash(s.user, s.password, s.domain)
+	s.keyExchangeKey = s.sessionBaseKey
 
 	// Compute the expected response
 	timestamp := timeToWindowsFileTime(time.Now())
-	n.computeExpectedResponses(timestamp, message.targetInfo)
+	s.computeExpectedResponses(timestamp, challenge.targetInfo)
 
-	// Return the encrypted session key
-	return n.computeEncryptedSessionKey()
+	return s.computeEncryptedSessionKey()
 }
 
 // GenerateAuthenticateMessage generates an NTLMv2 AuthenticateMessage (Type 3 message).
 //
 // See: https://curl.se/rfc/ntlm.html#theType3Message
-func (n *NTLMv2Session) GenerateAuthenticateMessage() (*AuthenticateMessage, error) {
-	lmChallangeResp, err := createBytePayload(n.lmChallengeResponse)
+func (s *NTLMv2Session) GenerateAuthenticateMessage() (*AuthenticateMessage, error) {
+	lmChallangeResp, err := createBytePayload(s.lmChallengeResponse)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create LM challenge response payload: %w", err)
 	}
-	ntChallangeResp, err := createBytePayload(n.ntChallengeResponse)
+	ntChallangeResp, err := createBytePayload(s.ntChallengeResponse)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create NTLM challenge response payload: %w", err)
 	}
-	encryptedRandomSessionKey, err := createBytePayload(n.encryptedRandomSessionKey)
+	encryptedRandomSessionKey, err := createBytePayload(s.encryptedRandomSessionKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create encrypted random session key payload: %w", err)
 	}
-	domainPayload, err := createStringPayload(n.domain)
+	domainPayload, err := createStringPayload(s.domain)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create domain payload: %w", err)
 	}
-	usernamePayload, err := createStringPayload(n.user)
+	usernamePayload, err := createStringPayload(s.user)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create username payload: %w", err)
 	}
@@ -100,12 +163,12 @@ func (n *NTLMv2Session) GenerateAuthenticateMessage() (*AuthenticateMessage, err
 		username:                  usernamePayload,
 		workstation:               workstationPayload,
 		encryptedRandomSessionKey: encryptedRandomSessionKey,
-		negotiateFlags:            n.negotiateFlags,
+		negotiateFlags:            s.challengeMessage.negotiateFlags,
 	}, nil
 }
 
 // computeExpectedResponses computes the expected NTLMv2 challenge responses (LMv2 and NTLMv2).
-func (n *NTLMv2Session) computeExpectedResponses(timestamp []byte, avPairs *avPairs) {
+func (s *NTLMv2Session) computeExpectedResponses(timestamp []byte, avPairs *avPairs) {
 	// temp = RespType || HiRespType || ZeroByte(6) || Timestamp || ClientChallenge ||
 	// ZeroByte(4) || TargetInfo || ZeroByte(4)
 	//
@@ -113,7 +176,7 @@ func (n *NTLMv2Session) computeExpectedResponses(timestamp []byte, avPairs *avPa
 	temp := slices.Concat(
 		[]byte{0x01, 0x01, 0, 0, 0, 0, 0, 0},
 		timestamp,
-		n.clientChallenge,
+		s.clientChallenge,
 		make([]byte, 4),
 		avPairs.bytes(),
 		make([]byte, 4),
@@ -123,44 +186,44 @@ func (n *NTLMv2Session) computeExpectedResponses(timestamp []byte, avPairs *avPa
 	// 16-byte "NTLMv2 hash", so one keyed HMAC-MD5 instance suffices.
 	//
 	// See: https://curl.se/rfc/ntlm.html#theNtlmv2Response
-	mac := hmac.New(md5.New, n.responseKeyNT)
-	mac.Write(n.serverChallenge)
+	mac := hmac.New(md5.New, s.responseKeyNT)
+	mac.Write(s.challengeMessage.serverChallenge)
 	mac.Write(temp)
 	ntProofStr := mac.Sum(nil)
 
-	n.ntChallengeResponse = slices.Concat(ntProofStr, temp)
+	s.ntChallengeResponse = slices.Concat(ntProofStr, temp)
 
 	mac.Reset()
-	mac.Write(n.serverChallenge)
-	mac.Write(n.clientChallenge)
-	n.lmChallengeResponse = slices.Concat(mac.Sum(nil), n.clientChallenge)
+	mac.Write(s.challengeMessage.serverChallenge)
+	mac.Write(s.clientChallenge)
+	s.lmChallengeResponse = slices.Concat(mac.Sum(nil), s.clientChallenge)
 
 	mac.Reset()
 	mac.Write(ntProofStr)
-	n.sessionBaseKey = mac.Sum(nil)
+	s.sessionBaseKey = mac.Sum(nil)
 
 	if avPairs.find(msvAVTimestamp) != nil {
-		n.lmChallengeResponse = make([]byte, 24)
+		s.lmChallengeResponse = make([]byte, 24)
 	}
 }
 
 // computeEncryptedSessionKey computes the encrypted session key for NTLMv2 key exchange.
-func (n *NTLMv2Session) computeEncryptedSessionKey() error {
-	if uint32(n.negotiateFlags)&uint32(ntlmsspNegotiateKeyExchange) == 0 {
-		n.exportedSessionKey = n.keyExchangeKey
-		n.encryptedRandomSessionKey = nil
+func (s *NTLMv2Session) computeEncryptedSessionKey() error {
+	if uint32(s.challengeMessage.negotiateFlags)&uint32(ntlmsspNegotiateKeyExchange) == 0 {
+		s.exportedSessionKey = s.keyExchangeKey
+		s.encryptedRandomSessionKey = nil
 		return nil
 	}
 
-	n.exportedSessionKey = randomBytes(16)
-	cipher, err := rc4.NewCipher(n.keyExchangeKey)
+	s.exportedSessionKey = randomBytes(16)
+	cipher, err := rc4.NewCipher(s.keyExchangeKey)
 	if err != nil {
 		return fmt.Errorf("failed to create RC4 cipher: %w", err)
 	}
 
-	encrypted := make([]byte, len(n.exportedSessionKey))
-	cipher.XORKeyStream(encrypted, n.exportedSessionKey)
-	n.encryptedRandomSessionKey = encrypted
+	encrypted := make([]byte, len(s.exportedSessionKey))
+	cipher.XORKeyStream(encrypted, s.exportedSessionKey)
+	s.encryptedRandomSessionKey = encrypted
 
 	return nil
 }

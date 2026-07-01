@@ -93,8 +93,8 @@ const (
 // GenerateNegotiateMessage generates a NTLMv2 negotiation message (Type 1 message).
 //
 // See: https://curl.se/rfc/ntlm.html#theType1Message
-func (n *NTLMv2Session) GenerateNegotiateMessage() (*NegotiateMessage, error) {
-	domainPayload, err := createStringPayload(n.domain)
+func (s *NTLMv2Session) GenerateNegotiateMessage() (*NegotiateMessage, error) {
+	domainPayload, err := createStringPayload(s.domain)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create domain payload: %w", err)
 	}
@@ -107,7 +107,7 @@ func (n *NTLMv2Session) GenerateNegotiateMessage() (*NegotiateMessage, error) {
 		domainname:  domainPayload,
 		workstation: new(Payload),
 	}
-	n.negotiateMessage = message
+	s.negotiateMessage = message
 
 	return message, nil
 }
