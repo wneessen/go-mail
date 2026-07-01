@@ -249,7 +249,8 @@ func (sd *SignedData) addSignerChain(ee *x509.Certificate, pkey crypto.PrivateKe
 		// the first parent is the issuer
 		ias.IssuerName = asn1.RawValue{FullBytes: parents[0].RawSubject}
 	}
-	sd.sd.DigestAlgorithmIdentifiers = append(sd.sd.DigestAlgorithmIdentifiers,
+	sd.sd.DigestAlgorithmIdentifiers = append(
+		sd.sd.DigestAlgorithmIdentifiers,
 		pkix.AlgorithmIdentifier{Algorithm: sd.digestOid},
 	)
 	h := crypto.SHA256.New()

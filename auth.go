@@ -137,6 +137,15 @@ const (
 	// https://datatracker.ietf.org/doc/html/rfc7677
 	SMTPAuthSCRAMSHA256PLUS SMTPAuthType = "SCRAM-SHA-256-PLUS"
 
+	// SMTPAuthNTLM is the NTLMSSP authentication mechanism as used in Microsoft Exchange systems.
+	//
+	// go-mail implements the NTLMv2 authentication method only. Older versions are not supported.
+	// While there is no official RFC for this kind of authentication mechanism, we closely follow
+	// the excellent documentation of the cURL project.
+	//
+	// https://curl.se/rfc/ntlm.html
+	SMTPAuthNTLM SMTPAuthType = "NTLM"
+
 	// SMTPAuthAutoDiscover is a mechanism that dynamically discovers all authentication mechanisms
 	// supported by the SMTP server and selects the strongest available one.
 	//
@@ -186,6 +195,10 @@ var (
 	// authentication type.
 	ErrSCRAMSHA256PLUSAuthNotSupported = errors.New("server does not support SMTP AUTH type: SCRAM-SHA-256-PLUS")
 
+	// ErrNTLMAuthNotSupported is returned when the server does not support the "NTLM" SMTP
+	// authentication type.
+	ErrNTLMAuthNotSupported = errors.New("server does not support SMTP AUTH type: NTLM")
+
 	// ErrNoSupportedAuthDiscovered is returned when the SMTP Auth AutoDiscover process fails to identify
 	// any supported authentication mechanisms offered by the server.
 	ErrNoSupportedAuthDiscovered = errors.New("SMTP Auth autodiscover was not able to detect a supported " +
@@ -208,6 +221,8 @@ func (sa *SMTPAuthType) UnmarshalString(value string) error {
 		*sa = SMTPAuthLoginNoEnc
 	case "none", "noauth", "no":
 		*sa = SMTPAuthNoAuth
+	case "ntlm", "ntlmv2", "ntlmssp":
+		*sa = SMTPAuthNTLM
 	case "plain":
 		*sa = SMTPAuthPlain
 	case "plain-noenc":
