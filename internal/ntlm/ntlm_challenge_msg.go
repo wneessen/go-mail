@@ -37,11 +37,11 @@ var (
 	// ErrNTLMInvalidChallengeMessage is returned when the challenge message is invalid
 	ErrNTLMInvalidChallengeMessage = errors.New("invalid challenge message")
 
-	// ErrNTLMInvalidSignatureMessage is returned when the NTLM message signature is invalid
-	ErrNTLMInvalidSignatureMessage = errors.New("invalid NTLM message signature")
+	// ErrNTLMInvalidSignature is returned when the NTLM message signature is invalid
+	ErrNTLMInvalidSignature = errors.New("invalid NTLM signature")
 
-	// ErrNTLMInvalidSignatureType is returned when the NTLM message type is invalid
-	ErrNTLMInvalidSignatureType = errors.New("invalid NTLM message type")
+	// ErrNTLMInvalidMessageType is returned when the NTLM message type is invalid
+	ErrNTLMInvalidMessageType = errors.New("invalid NTLM message type")
 )
 
 // CreateChallengeMessage creates an NTLM challenge message (Type 2 message) for the

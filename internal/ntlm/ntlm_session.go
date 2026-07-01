@@ -59,13 +59,13 @@ func (s *NTLMv2Session) ParseChallengeMessage(body []byte) error {
 	// Read NTLMSSP signature
 	challenge.signature = body[0:8]
 	if !bytes.Equal(challenge.signature, []byte("NTLMSSP\x00")) {
-		return ErrNTLMInvalidSignatureMessage
+		return ErrNTLMInvalidSignature
 	}
 
 	// We expect a Type 2 message
 	challenge.messageType = binary.LittleEndian.Uint32(body[8:12])
 	if challenge.messageType != uint32(messageTypeChallenge) {
-		return ErrNTLMInvalidSignatureType
+		return ErrNTLMInvalidMessageType
 	}
 
 	// Read the negotate flags

@@ -6,7 +6,10 @@ package ntlm
 
 import (
 	"bytes"
+	"encoding/binary"
+	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -229,7 +232,7 @@ func TestNTLMv2Session_SetUserInfo(t *testing.T) {
 	})
 }
 
-func TestNTLMv2Session_ProcessChallengeMessage(t *testing.T) {
+func TestNTLMv2Session_ParseChallengeMessage(t *testing.T) {
 	challenge := "S3creT!1"
 	t.Run("processing challenge message succeeds", func(t *testing.T) {
 		session := CreateClientSession()
@@ -237,8 +240,9 @@ func TestNTLMv2Session_ProcessChallengeMessage(t *testing.T) {
 			t.Fatal("failed to create client session. session is nil")
 		}
 		session.SetUserInfo("testuser", "P4ssw0rd!", "EXAMPLE.COM")
-		message, err := CreateChallengeMessage(uint32(ntlmsspNegotiateUnicode|ntlmsspNegotiateAlwaysSign), []byte(challenge),
-			"localhost", "EXAMPLE.COM")
+		message, err := CreateChallengeMessage(
+			uint32(ntlmsspNegotiateUnicode|ntlmsspNegotiateAlwaysSign|ntlmsspNegotiateKeyExchange),
+			[]byte(challenge), "localhost", "EXAMPLE.COM")
 		if err != nil {
 			t.Fatalf("failed to create challenge message: %s", err)
 		}
@@ -246,18 +250,83 @@ func TestNTLMv2Session_ProcessChallengeMessage(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to parse challenge message: %s", err)
 		}
-		t.Logf("session: %+v", session)
+		if session.negotiateMessage != nil {
+			t.Errorf("didn't expect a negotiateMessage in the session, got: %+v", session.negotiateMessage)
+		}
+		if session.challengeMessage == nil {
+			t.Errorf("expected challengeMessage in the session, got nil")
+		}
+		if !bytes.EqualFold(session.responseKeyNT, []byte{173, 125, 242, 145, 179, 208, 237, 150, 12, 217, 126, 105, 85, 175, 68, 162}) {
+			t.Errorf("expected responseKeyNT to be [173 125 242 145 179 208 237 150 12 217 126 105 85 175 68 162], got: %x", session.responseKeyNT)
+		}
 	})
-	/*
-		t.Run("processing empty challenge message succeeds", func(t *testing.T) {
-			session := CreateClientSession()
-			if session == nil {
-				t.Fatal("failed to create client session. session is nil")
-			}
-			message := new(ChallengeMessage)
-			if err := session.ProcessChallengeMessage(message); err != nil {
-				t.Errorf("failed to process challenge message: %s", err)
-			}
-			})
-	*/
+	t.Run("processing nil byte challenge message fails", func(t *testing.T) {
+		session := CreateClientSession()
+		if session == nil {
+			t.Fatal("failed to create client session. session is nil")
+		}
+		if err := session.ParseChallengeMessage(nil); err == nil {
+			t.Errorf("expected error, got nil")
+		}
+	})
+	t.Run("processing message with broken signature fails", func(t *testing.T) {
+		session := CreateClientSession()
+		if session == nil {
+			t.Fatal("failed to create client session. session is nil")
+		}
+
+		buffer := bytes.NewBuffer(nil)
+		buffer.Write([]byte("INVALID"))
+		if err := binary.Write(buffer, binary.LittleEndian, uint32(messageTypeChallenge)); err != nil {
+			t.Fatalf("failed to write to buffer: %s", err)
+		}
+		buffer.Write([]byte(strings.Repeat("x", 60)))
+		err := session.ParseChallengeMessage(buffer.Bytes())
+		if err == nil {
+			t.Error("expected an error parsing an invalid message, got nil")
+		}
+		if !errors.Is(err, ErrNTLMInvalidSignature) {
+			t.Errorf("expected error %s, got %s", ErrNTLMInvalidSignature, err)
+		}
+	})
+	t.Run("processing message with wrong message type fails", func(t *testing.T) {
+		session := CreateClientSession()
+		if session == nil {
+			t.Fatal("failed to create client session. session is nil")
+		}
+
+		buffer := bytes.NewBuffer(nil)
+		buffer.Write([]byte(signature))
+		if err := binary.Write(buffer, binary.LittleEndian, uint32(messageTypeNegotiate)); err != nil {
+			t.Fatalf("failed to write to buffer: %s", err)
+		}
+		buffer.Write([]byte(strings.Repeat("x", 60)))
+		err := session.ParseChallengeMessage(buffer.Bytes())
+		if err == nil {
+			t.Error("expected an error parsing an invalid message, got nil")
+		}
+		if !errors.Is(err, ErrNTLMInvalidMessageType) {
+			t.Errorf("expected error %s, got %s", ErrNTLMInvalidMessageType, err)
+		}
+	})
+	t.Run("processing message with broken payload fails", func(t *testing.T) {
+		session := CreateClientSession()
+		if session == nil {
+			t.Fatal("failed to create client session. session is nil")
+		}
+
+		buffer := bytes.NewBuffer(nil)
+		buffer.Write([]byte(signature))
+		if err := binary.Write(buffer, binary.LittleEndian, uint32(messageTypeChallenge)); err != nil {
+			t.Fatalf("failed to write to buffer: %s", err)
+		}
+		buffer.Write([]byte(strings.Repeat("x", 60)))
+		err := session.ParseChallengeMessage(buffer.Bytes())
+		if err == nil {
+			t.Error("expected an error parsing an invalid message, got nil")
+		}
+		if !errors.Is(err, ErrNTLMInvalidPayload) {
+			t.Errorf("expected error %s, got %s", ErrNTLMInvalidPayload, err)
+		}
+	})
 }
