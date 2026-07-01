@@ -11,11 +11,11 @@ import (
 
 // Payload represents a NTLM payload
 type Payload struct {
-	payloadType int
-	len         uint16
-	maxLen      uint16
-	offset      uint32
-	payload     []byte
+	encoding int
+	len      uint16
+	maxLen   uint16
+	offset   uint32
+	payload  []byte
 }
 
 const (
@@ -37,10 +37,10 @@ var (
 // createBytePayload creates a Payload from the given byte slice.
 func createBytePayload(payload []byte) *Payload {
 	return &Payload{
-		payloadType: payloadEncodingByte,
-		len:         uint16(len(payload)),
-		maxLen:      uint16(len(payload)),
-		payload:     payload,
+		encoding: payloadEncodingByte,
+		len:      uint16(len(payload)),
+		maxLen:   uint16(len(payload)),
+		payload:  payload,
 	}
 }
 
@@ -48,10 +48,10 @@ func createBytePayload(payload []byte) *Payload {
 func createStringPayload(payload string) *Payload {
 	b := utf16FromString(payload)
 	return &Payload{
-		payloadType: payloadEncodingUnicode,
-		len:         uint16(len(b)),
-		maxLen:      uint16(len(b)),
-		payload:     b,
+		encoding: payloadEncodingUnicode,
+		len:      uint16(len(b)),
+		maxLen:   uint16(len(b)),
+		payload:  b,
 	}
 }
 
@@ -62,10 +62,10 @@ func readPayload(startByte int, payload []byte, payloadType int) (*Payload, erro
 	}
 
 	p := &Payload{
-		payloadType: payloadType,
-		len:         binary.LittleEndian.Uint16(payload[startByte : startByte+2]),
-		maxLen:      binary.LittleEndian.Uint16(payload[startByte+2 : startByte+4]),
-		offset:      binary.LittleEndian.Uint32(payload[startByte+4 : startByte+8]),
+		encoding: payloadType,
+		len:      binary.LittleEndian.Uint16(payload[startByte : startByte+2]),
+		maxLen:   binary.LittleEndian.Uint16(payload[startByte+2 : startByte+4]),
+		offset:   binary.LittleEndian.Uint32(payload[startByte+4 : startByte+8]),
 	}
 
 	if p.len > 0 {
