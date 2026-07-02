@@ -163,6 +163,9 @@ type Msg struct {
 
 	// sMIME holds a SMIME type to sign a Msg using S/MIME
 	sMIME *SMIME
+
+	// dkim holds the DKIM configuration for signing the Msg
+	dkim *DKIMConfig
 }
 
 // SendmailPath is the default system path to the sendmail binary - at least on standard Unix-like OS.
@@ -2213,19 +2216,33 @@ func (m *Msg) applyMiddlewares(msg *Msg) *Msg {
 //
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322
-func (m *Msg) WriteTo(writer io.Writer) (int64, error) {
-	mw := &msgWriter{writer: writer, charset: m.charset, encoder: m.encoder}
-	msg := m.applyMiddlewares(m)
-
-	if m.hasSMIME() {
-		if err := m.signMessage(); err != nil {
-			return 0, err
-		}
+func (m *Msg) WriteTo(w io.Writer) (int64, error) {
+	if !m.hasDKIM() {
+		return m.writeToInner(w)
+	}
+	if err := m.dkim.ValidateConfig(); err != nil {
+		return 0, err
 	}
 
-	mw.writeMsg(msg)
-	m.headerCount = 0
-	return mw.bytesWritten, mw.err
+	buffer := bytes.NewBuffer(nil)
+	if _, err := m.writeToInner(buffer); err != nil {
+		return 0, err
+	}
+
+	headers, body := splitMessage(buffer.Bytes())
+	signature, err := m.dkim.Sign(headers, body)
+	if err != nil {
+		return 0, fmt.Errorf("failed to DKIM sign message: %w", err)
+	}
+
+	var total int64
+	length, err := io.WriteString(w, signature)
+	total += int64(length)
+	if err != nil {
+		return total, err
+	}
+	n2, err := w.Write(buffer.Bytes())
+	return total + int64(n2), err
 }
 
 // WriteToSkipMiddleware writes the formatted Msg into the given io.Writer, but skips the specified
@@ -3030,6 +3047,21 @@ func (m *Msg) signMessage() error {
 	return nil
 }
 
+func (m *Msg) writeToInner(writer io.Writer) (int64, error) {
+	mw := &msgWriter{writer: writer, charset: m.charset, encoder: m.encoder}
+	msg := m.applyMiddlewares(m)
+
+	if m.hasSMIME() {
+		if err := m.signMessage(); err != nil {
+			return 0, err
+		}
+	}
+
+	mw.writeMsg(msg)
+	m.headerCount = 0
+	return mw.bytesWritten, mw.err
+}
+
 // writeFuncFromBuffer converts a byte buffer into a writeFunc, which is commonly required by go-mail.
 //
 // This function wraps a byte buffer into a write function that can be used to write the buffer's content
@@ -3056,4 +3088,12 @@ func writeFuncFromBuffer(buffer *bytes.Buffer) func(io.Writer) (int64, error) {
 func mailAddressStringWithoutName(addr mail.Address) string {
 	addr.Name = ""
 	return addr.String()
+}
+
+// splitMessage returns bytes before, and bytes after, the first blank line.
+func splitMessage(b []byte) (headers, body []byte) {
+	if i := bytes.Index(b, []byte("\r\n\r\n")); i >= 0 {
+		return b[:i+2], b[i+4:] // keep trailing CRLF on the header block
+	}
+	return b, nil
 }

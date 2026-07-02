@@ -15,6 +15,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 )
@@ -54,8 +55,8 @@ var (
 		"Content-Type", "MIME-Version"}
 )
 
-// Config holds all DKIM signing parameters.
-type Config struct {
+// DKIM holds all DKIM signing parameters.
+type DKIM struct {
 	Domain    string
 	Selector  string
 	Signer    crypto.Signer
@@ -71,21 +72,23 @@ type Config struct {
 	AUID          string
 	BodyLength    int64
 
+	Encoder io.WriteCloser
+
 	// Now is injectable for deterministic tests, we default to time.Now
 	Now func() time.Time
 }
 
 // Validate validates the DKIM configuration for required settings
-func (c *Config) Validate() error {
+func (d *DKIM) ValidateConfig() error {
 	switch {
-	case c.Domain == "":
+	case d.Domain == "":
 		return ErrDKIMNoDomain
-	case c.Selector == "":
+	case d.Selector == "":
 		return ErrDKIMNoSelector
-	case c.Signer == nil:
+	case d.Signer == nil:
 		return ErrDKIMNoSigner
 	}
-	for _, h := range c.effectiveHeaders() {
+	for _, h := range d.effectiveHeaders() {
 		if strings.EqualFold(h, "from") {
 			return nil
 		}
@@ -95,47 +98,47 @@ func (c *Config) Validate() error {
 
 // effectiveHeaders returns the list of headers to sign, defaulting to the standard set
 // if none are configured
-func (c *Config) effectiveHeaders() []string {
-	if len(c.SignedHeaders) == 0 {
+func (d *DKIM) effectiveHeaders() []string {
+	if len(d.SignedHeaders) == 0 {
 		return defaultHeader
 	}
-	return c.SignedHeaders
+	return d.SignedHeaders
 }
 
 // headerListForTag returns the list of headers to sign for a given tag, including any
 // oversign headers
-func (c *Config) headerListForTag() []string {
-	base := c.effectiveHeaders()
-	if len(c.Oversign) == 0 {
+func (d *DKIM) headerListForTag() []string {
+	base := d.effectiveHeaders()
+	if len(d.Oversign) == 0 {
 		return base
 	}
-	return append(append([]string{}, base...), c.Oversign...)
+	return append(append([]string{}, base...), d.Oversign...)
 }
 
 // now returns the current time, using the injected Now function if set, or
 // time.Now otherwise as default
-func (c *Config) now() time.Time {
-	if c.Now != nil {
-		return c.Now()
+func (d *DKIM) now() time.Time {
+	if d.Now != nil {
+		return d.Now()
 	}
 	return time.Now()
 }
 
 // Sign returns the DKIM-Signature header line for the given raw headers and body
-func Sign(config Config, rawHeaders, body []byte) (string, error) {
-	if err := config.Validate(); err != nil {
+func (d *DKIM) Sign(rawHeaders, body []byte) (string, error) {
+	if err := d.ValidateConfig(); err != nil {
 		return "", err
 	}
 
-	algo := config.Algorithm
+	algo := d.Algorithm
 	if algo == "" {
-		if _, ok := config.Signer.Public().(ed25519.PublicKey); ok {
+		if _, ok := d.Signer.Public().(ed25519.PublicKey); ok {
 			algo = SignatureAlgoED25519
 		} else {
 			algo = SignatureAlgoRSA
 		}
 	}
-	hc, bc := config.HeaderCanon, config.BodyCanon
+	hc, bc := d.HeaderCanon, d.BodyCanon
 	if hc == "" {
 		hc = CanonicalizationRelaxed
 	}
@@ -145,8 +148,8 @@ func Sign(config Config, rawHeaders, body []byte) (string, error) {
 
 	// Create the body hash (bh=)
 	cb := canonicalizeBody(body, bc)
-	if config.BodyLength > 0 && int64(len(cb)) > config.BodyLength {
-		cb = cb[:config.BodyLength]
+	if d.BodyLength > 0 && int64(len(cb)) > d.BodyLength {
+		cb = cb[:d.BodyLength]
 	}
 	bh := sha256.Sum256(cb)
 
@@ -154,47 +157,67 @@ func Sign(config Config, rawHeaders, body []byte) (string, error) {
 	tags := []string{
 		"v=1", "a=" + string(algo),
 		"c=" + string(hc) + "/" + string(bc),
-		"d=" + config.Domain, "s=" + config.Selector,
-		fmt.Sprintf("t=%d", config.now().Unix()),
-		"h=" + strings.Join(config.headerListForTag(), ":"),
+		"d=" + d.Domain, "s=" + d.Selector,
+		fmt.Sprintf("t=%d", d.now().Unix()),
+		"h=" + strings.Join(d.headerListForTag(), ":"),
 		"bh=" + base64.StdEncoding.EncodeToString(bh[:]),
 	}
-	if config.Expiration > 0 {
-		tags = append(tags, fmt.Sprintf("x=%d", config.now().Add(config.Expiration).Unix()))
+	if d.Expiration > 0 {
+		tags = append(tags, fmt.Sprintf("x=%d", d.now().Add(d.Expiration).Unix()))
 	}
-	if config.AUID != "" {
-		tags = append(tags, "i="+config.AUID)
+	if d.AUID != "" {
+		tags = append(tags, "i="+d.AUID)
 	}
-	if config.BodyLength > 0 {
-		tags = append(tags, fmt.Sprintf("l=%d", config.BodyLength))
+	if d.BodyLength > 0 {
+		tags = append(tags, fmt.Sprintf("l=%d", d.BodyLength))
 	}
 	tags = append(tags, "b=")
 	value := strings.Join(tags, "; ")
 
 	// Parse headers and assemble the input to signature (with empty b=)
 	store := parseHeaders(rawHeaders)
-	var in bytes.Buffer
-	for _, h := range config.headerListForTag() {
-		if line, ok := store.pop(h); ok {
+	in := bytes.NewBuffer(nil)
+	for _, header := range d.headerListForTag() {
+		if line, ok := store.pop(header); ok {
 			in.Write(canonicalizeHeader(line, hc))
 			in.WriteString("\r\n")
 		}
 	}
-	in.Write(canonicalizeHeader("DKIM-Signature:"+value, hc))
+
+	// Fold the tags ONCE with an empty b=. These exact bytes are reused for the
+	// wire, so the fold points can never diverge between what we sign and what
+	// we emit.
+	foldedTags := foldHeader(value) // value ends in "b="
+
+	switch hc {
+	case CanonicalizationSimple:
+		in.WriteString("DKIM-Signature: ")
+		in.WriteString(value) // unfolded, b= empty — matches the emitted line
+	case CanonicalizationRelaxed:
+		in.Write(canonicalizeHeader("DKIM-Signature:"+value, hc))
+	}
 
 	// Sign the message (Ed25519 signs the message, while RSA signs the SHA-256 digest)
-	var sig []byte
+	var signature []byte
 	var err error
-	if key, ok := config.Signer.(ed25519.PrivateKey); ok {
-		sig = ed25519.Sign(key, in.Bytes())
-	} else {
-		d := sha256.Sum256(in.Bytes())
-		sig, err = config.Signer.Sign(rand.Reader, d[:], crypto.SHA256)
+	switch key := d.Signer.(type) {
+	case ed25519.PrivateKey:
+		signature = ed25519.Sign(key, in.Bytes())
+	default:
+		digest := sha256.Sum256(in.Bytes())
+		signature, err = key.Sign(rand.Reader, digest[:], crypto.SHA256)
 	}
 	if err != nil {
 		return "", err
 	}
 
-	return "DKIM-Signature: " + foldHeader(value+base64.StdEncoding.EncodeToString(sig)) +
-		"\r\n", nil
+	sigB64 := base64.StdEncoding.EncodeToString(signature)
+	if hc == CanonicalizationSimple {
+		// Emit a single unfolded line: no byte-significant fold points for an
+		// MTA to rewrap. Must match the hash input, which also used the
+		// unfolded value.
+		return "DKIM-Signature: " + value + sigB64 + "\r\n", nil
+	}
+	// relaxed: folding is unfolded away by verifiers, so wrap for readability.
+	return "DKIM-Signature: " + appendFoldedBase64(foldedTags, sigB64) + "\r\n", nil
 }

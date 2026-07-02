@@ -60,19 +60,82 @@ func (hs *headerStore) pop(name string) (string, bool) {
 	return last, true
 }
 
-// foldHeader wraps the value on "; " boundaries; verifiers strip folding
-// whitespaces from b=, so any folding is safe
+// foldHeader wraps the value to stay within the ~78-char line limit
+// (RFC 5322 §2.1.1). Tags are broken at "; " boundaries; any single token that
+// is still too long (notably the b= base64 blob) is hard-wrapped mid-string.
+// Verifiers strip folding whitespace from tag values (and b= specifically)
+// before verifying, so folding anywhere is safe.
 func foldHeader(value string) string {
 	const limit = 76
 	var builder strings.Builder
 	length := len("DKIM-Signature: ")
-	for _, part := range strings.SplitAfter(value, "; ") {
-		if length+len(part) > limit {
+
+	// writeFolded writes s, inserting CRLF+HTAB whenever the current line would
+	// exceed limit, so even a single long token (b=...) gets wrapped.
+	writeFolded := func(s string) {
+		for len(s) > 0 {
+			room := limit - length
+			if room < 1 {
+				builder.WriteString("\r\n\t")
+				length = 1 // the tab counts as one column
+				room = limit - length
+			}
+			if len(s) <= room {
+				builder.WriteString(s)
+				length += len(s)
+				return
+			}
+			builder.WriteString(s[:room])
+			builder.WriteString("\r\n\t")
+			length = 1
+			s = s[room:]
+		}
+	}
+
+	for i, part := range strings.SplitAfter(value, "; ") {
+		// Start a new line before a tag if it won't fit and we're not already
+		// at the beginning of a folded line.
+		if i > 0 && length > 1 && length+len(part) > limit {
 			builder.WriteString("\r\n\t")
 			length = 1
 		}
-		builder.WriteString(part)
-		length += len(part)
+		writeFolded(part)
+	}
+	return builder.String()
+}
+
+// appendFoldedBase64 appends the base64 signature immediately after the
+// trailing "b=" of foldedTags, wrapping onto CRLF+HTAB continuation lines as
+// needed. foldedTags is emitted verbatim, so a simple-canon verifier — which
+// strips the b= value (including this folding) before hashing — reconstructs
+// exactly the bytes that were signed.
+func appendFoldedBase64(foldedTags, sig string) string {
+	const limit = 76
+	var builder strings.Builder
+	builder.WriteString(foldedTags)
+
+	// Column of the current (last) line. foldedTags has no "DKIM-Signature: "
+	// prefix, so account for it only when foldedTags is still on line one.
+	col := len("DKIM-Signature: ") + len(foldedTags)
+	if i := strings.LastIndex(foldedTags, "\r\n"); i >= 0 {
+		col = len(foldedTags) - (i + 2) // bytes after last CRLF (tab counts as 1)
+	}
+
+	for len(sig) > 0 {
+		room := limit - col
+		if room < 1 {
+			builder.WriteString("\r\n\t")
+			col = 1
+			room = limit - col
+		}
+		if len(sig) <= room {
+			builder.WriteString(sig)
+			return builder.String()
+		}
+		builder.WriteString(sig[:room])
+		builder.WriteString("\r\n\t")
+		col = 1
+		sig = sig[room:]
 	}
 	return builder.String()
 }
