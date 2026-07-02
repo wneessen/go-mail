@@ -2,8 +2,15 @@
 //
 // SPDX-License-Identifier: MIT
 
-// Package dkim implements
-// TODO: document this properly
+// Package dkim implements DKIM signing and verification according to RFC 6376. It provides
+// support for both simple and relaxed canonicalization algorithms as well as support for
+// RSA and ED25519 signature algorithms.
+//
+// This package only supports RSA-SHA256 and ED25519-SHA256 signature algorithms. RSA-SHA1
+// is not supported since it's deprecated and prohibited by RFC 8301.
+//
+// See: https://datatracker.ietf.org/doc/html/rfc6376
+// and: https://datatracker.ietf.org/doc/html/rfc8301#section-3.1
 package dkim
 
 import (
@@ -15,7 +22,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 	"time"
 )
@@ -43,9 +49,16 @@ const (
 )
 
 var (
-	ErrDKIMNoDomain    = errors.New("a DKIM domain must be set")
-	ErrDKIMNoSelector  = errors.New("a DKIM selector must be set")
-	ErrDKIMNoSigner    = errors.New("a DKIM crypto signer must be provided")
+	// ErrDKIMNoDomain is returned when no DKIM domain is set
+	ErrDKIMNoDomain = errors.New("a DKIM domain must be set")
+
+	// ErrDKIMNoSelector is returned when no DKIM selector is set
+	ErrDKIMNoSelector = errors.New("a DKIM selector must be set")
+
+	// ErrDKIMNoSigner is returned when no DKIM crypto signer is provided
+	ErrDKIMNoSigner = errors.New("a DKIM crypto signer must be provided")
+
+	// ErrDKIMMissingFrom is returned when the FROM header is missing
 	ErrDKIMMissingFrom = errors.New("FROM is a required DKIM header")
 )
 
@@ -62,7 +75,7 @@ type DKIM struct {
 	Signer    crypto.Signer
 	Algorithm SignatureAlgo
 
-	// We default to CanonicalizationRelaxed for both header and body canonicalization
+	// We default to CanonicalizationRelaxed for both header and body
 	HeaderCanon Canonicalization
 	BodyCanon   Canonicalization
 
@@ -71,8 +84,6 @@ type DKIM struct {
 	Expiration    time.Duration
 	AUID          string
 	BodyLength    int64
-
-	Encoder io.WriteCloser
 
 	// Now is injectable for deterministic tests, we default to time.Now
 	Now func() time.Time
@@ -197,14 +208,18 @@ func (d *DKIM) Sign(rawHeaders, body []byte) (string, error) {
 		in.Write(canonicalizeHeader("DKIM-Signature:"+value, hc))
 	}
 
-	// Sign the message (Ed25519 signs the message, while RSA signs the SHA-256 digest)
+	// Both algorithms sign the SHA-256 digest of the canonicalized headers
+	// Ed25519-SHA256 is PureEdDSA over that hash
+	//
+	// See: https://datatracker.ietf.org/doc/html/rfc6376#section-3.7
+	// and https://datatracker.ietf.org/doc/html/rfc8463#section-3
+	digest := sha256.Sum256(in.Bytes())
 	var signature []byte
 	var err error
 	switch key := d.Signer.(type) {
 	case ed25519.PrivateKey:
-		signature = ed25519.Sign(key, in.Bytes())
+		signature = ed25519.Sign(key, digest[:]) // PureEdDSA over the digest
 	default:
-		digest := sha256.Sum256(in.Bytes())
 		signature, err = key.Sign(rand.Reader, digest[:], crypto.SHA256)
 	}
 	if err != nil {

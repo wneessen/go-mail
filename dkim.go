@@ -6,6 +6,7 @@ package mail
 
 import (
 	"crypto"
+	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
@@ -48,25 +49,29 @@ func (m *Msg) hasDKIM() bool { return m.dkim != nil }
 
 // loadRSASigner decodes a PEM-encoded RSA private key into a crypto.Signer.
 // It accepts both PKCS#1 ("RSA PRIVATE KEY") and PKCS#8 ("PRIVATE KEY") blocks.
-func loadRSASigner(pemBytes []byte) (crypto.Signer, error) {
+func loadSigner(pemBytes []byte) (crypto.Signer, error) {
 	block, _ := pem.Decode(pemBytes)
 	if block == nil {
 		return nil, errors.New("no PEM data found")
 	}
 
 	switch block.Type {
-	case "RSA PRIVATE KEY": // PKCS#1
+	case "RSA PRIVATE KEY":
 		return x509.ParsePKCS1PrivateKey(block.Bytes)
-	case "PRIVATE KEY": // PKCS#8
+	case "PRIVATE KEY":
 		key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 		if err != nil {
 			return nil, err
 		}
-		rsaKey, ok := key.(*rsa.PrivateKey)
-		if !ok {
-			return nil, errors.New("PKCS#8 key is not an RSA key")
+
+		switch privKey := key.(type) {
+		case *rsa.PrivateKey:
+			return privKey, nil
+		case ed25519.PrivateKey:
+			return privKey, nil
+		default:
+			return nil, fmt.Errorf("unsupported key type %T", key)
 		}
-		return rsaKey, nil
 	default:
 		return nil, fmt.Errorf("unsupported PEM block type %q", block.Type)
 	}
