@@ -128,6 +128,9 @@ type (
 		// dialContextFunc is the DialContextFunc that is used by the Client to connect to the SMTP server.
 		dialContextFunc DialContextFunc
 
+		// dkim is the DKIM configuration for the Client.
+		dkim *DKIMConfig
+
 		// dsnRcptNotifyType represents the different types of notifications for DSN (Delivery Status Notifications)
 		// receipts.
 		dsnRcptNotifyType []string
@@ -804,6 +807,33 @@ func WithoutSMTPUTF8() Option {
 	}
 }
 
+// WithAlwaysDKIMSign instructs the Client to sign every Msg that is sent with it using DKIM.
+//
+// This option is useful if you are planning to send multiple Msgs via the same client and don't
+// want to reconfigure DKIM for each Msg.
+//
+// Note: This will always take precedence over any DKIM configuration set on the Msg itself, if
+// used on the Client. If the Msg is not sent via the Client, the Msg's DKIM configuration will
+// be used instead.
+//
+// Parameters:
+//   - config: The DKIMConfig holding all the required options needed to DKIM sign a mail.
+//
+// Returns:
+//   - An Option function that configures the Client to always sign messages using DKIM.
+func WithAlwaysDKIMSign(config *DKIMConfig) Option {
+	return func(c *Client) error {
+		if config == nil {
+			return errors.New("DKIM config must not be nil")
+		}
+		if err := config.ValidateConfig(); err != nil {
+			return err
+		}
+		c.dkim = config
+		return nil
+	}
+}
+
 // TLSPolicy returns the TLSPolicy that is currently set on the Client as a string.
 //
 // This method retrieves the current TLSPolicy configured for the Client and returns it as a string representation.
@@ -1055,6 +1085,34 @@ func (c *Client) SetSMTPAuthCustom(smtpAuth smtp.Auth) {
 //   - logAuth: Set wether or not to log SMTP authentication data for the Client.
 func (c *Client) SetLogAuthData(logAuth bool) {
 	c.logAuthData = logAuth
+}
+
+// SetAlwaysDKIMSign sets or overrides the Client to sign every Msg that is sent with it using DKIM.
+//
+// This option is useful if you are planning to send multiple Msgs via the same client and don't
+// want to reconfigure DKIM for each Msg.
+//
+// Note: This will always take precedence over any DKIM configuration set on the Msg itself, if
+// used on the Client. If the Msg is not sent via the Client, the Msg's DKIM configuration will
+// be used instead.
+//
+// Parameters:
+//   - config: The DKIMConfig holding all the required options needed to DKIM sign a mail.
+//
+// Returns:
+//   - An error if the provided DKIMConfig is invalid or nil.
+func (c *Client) SetAlwaysDKIMSign(config *DKIMConfig) error {
+	if config == nil {
+		return errors.New("DKIM config must not be nil")
+	}
+	if err := config.ValidateConfig(); err != nil {
+		return fmt.Errorf("invalid DKIM config: %w", err)
+	}
+
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.dkim = config
+	return nil
 }
 
 // DialWithContext establishes a connection to the server using the provided context.Context.
@@ -1609,6 +1667,12 @@ func (c *Client) sendSingleMsg(client *smtp.Client, message *Msg) error {
 			affectedMsg: message, errcode: errorCode(err),
 			enhancedStatusCode: enhancedStatusCode(err, escSupport),
 		}
+	}
+
+	// the Client is instructed to always DKIM sign the Msg, this will override the
+	// Msg's own DKIM configuration if set
+	if c.dkim != nil {
+		message.dkim = c.dkim
 	}
 	_, err = message.WriteTo(writer)
 	if err != nil {
