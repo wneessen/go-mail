@@ -45,11 +45,10 @@ func WithDKIM(config *DKIMConfig) MsgOption {
 	return func(m *Msg) { m.dkim = config }
 }
 
-func (m *Msg) hasDKIM() bool { return m.dkim != nil }
-
-// loadRSASigner decodes a PEM-encoded RSA private key into a crypto.Signer.
-// It accepts both PKCS#1 ("RSA PRIVATE KEY") and PKCS#8 ("PRIVATE KEY") blocks.
-func loadSigner(pemBytes []byte) (crypto.Signer, error) {
+// SignerFromPEM decodes a PEM-encoded RSA or Ed25519 private key block into a
+// crypto.Signer. It accepts both PKCS#1 ("RSA PRIVATE KEY") and PKCS#8 ("PRIVATE KEY")
+// byte slices
+func SignerFromPEM(pemBytes []byte) (crypto.Signer, error) {
 	block, _ := pem.Decode(pemBytes)
 	if block == nil {
 		return nil, errors.New("no valid PEM data found")
@@ -76,3 +75,6 @@ func loadSigner(pemBytes []byte) (crypto.Signer, error) {
 		return nil, fmt.Errorf("unsupported PEM block type %q", block.Type)
 	}
 }
+
+// hasDKIM returns true if the Msg has a DKIM config.
+func (m *Msg) hasDKIM() bool { return m.dkim != nil }
