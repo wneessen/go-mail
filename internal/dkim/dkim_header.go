@@ -6,6 +6,10 @@ package dkim
 
 import "strings"
 
+const (
+	maxLineLength = 76
+)
+
 // headerStore holds parsed DKIM headers, keyed by lowercased field name.
 type headerStore struct {
 	byName map[string][]string
@@ -61,12 +65,13 @@ func (hs *headerStore) pop(name string) (string, bool) {
 }
 
 // foldHeader wraps the value to stay within the ~78-char line limit
-// (RFC 5322 §2.1.1). Tags are broken at "; " boundaries; any single token that
+// (RFC 5322 2.1.1). Tags are broken at "; " boundaries; any single token that
 // is still too long (notably the b= base64 blob) is hard-wrapped mid-string.
 // Verifiers strip folding whitespace from tag values (and b= specifically)
 // before verifying, so folding anywhere is safe.
+//
+// See: https://www.rfc-editor.org/info/rfc5322/#section-2.1.1
 func foldHeader(value string) string {
-	const limit = 76
 	var builder strings.Builder
 	length := len("DKIM-Signature: ")
 
@@ -74,11 +79,11 @@ func foldHeader(value string) string {
 	// exceed limit, so even a single long token (b=...) gets wrapped.
 	writeFolded := func(s string) {
 		for len(s) > 0 {
-			room := limit - length
+			room := maxLineLength - length
 			if room < 1 {
-				builder.WriteString("\r\n\t")
+				builder.WriteString("\r\n ")
 				length = 1 // the tab counts as one column
-				room = limit - length
+				room = maxLineLength - length
 			}
 			if len(s) <= room {
 				builder.WriteString(s)
@@ -86,7 +91,7 @@ func foldHeader(value string) string {
 				return
 			}
 			builder.WriteString(s[:room])
-			builder.WriteString("\r\n\t")
+			builder.WriteString("\r\n ")
 			length = 1
 			s = s[room:]
 		}
@@ -95,8 +100,8 @@ func foldHeader(value string) string {
 	for i, part := range strings.SplitAfter(value, "; ") {
 		// Start a new line before a tag if it won't fit and we're not already
 		// at the beginning of a folded line.
-		if i > 0 && length > 1 && length+len(part) > limit {
-			builder.WriteString("\r\n\t")
+		if i > 0 && length > 1 && length+len(part) > maxLineLength {
+			builder.WriteString("\r\n ")
 			length = 1
 		}
 		writeFolded(part)
@@ -110,7 +115,6 @@ func foldHeader(value string) string {
 // strips the b= value (including this folding) before hashing — reconstructs
 // exactly the bytes that were signed.
 func appendFoldedBase64(foldedTags, sig string) string {
-	const limit = 76
 	var builder strings.Builder
 	builder.WriteString(foldedTags)
 
@@ -122,18 +126,18 @@ func appendFoldedBase64(foldedTags, sig string) string {
 	}
 
 	for len(sig) > 0 {
-		room := limit - col
+		room := maxLineLength - col
 		if room < 1 {
-			builder.WriteString("\r\n\t")
+			builder.WriteString("\r\n ")
 			col = 1
-			room = limit - col
+			room = maxLineLength - col
 		}
 		if len(sig) <= room {
 			builder.WriteString(sig)
 			return builder.String()
 		}
 		builder.WriteString(sig[:room])
-		builder.WriteString("\r\n\t")
+		builder.WriteString("\r\n ")
 		col = 1
 		sig = sig[room:]
 	}

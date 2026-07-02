@@ -16,20 +16,20 @@ import (
 	"github.com/wneessen/go-mail/internal/dkim"
 )
 
-// DKIMConfig represents the DKIM configuration
-type DKIMConfig = dkim.DKIM
+// DKIMSigner represents the DKIM configuration
+type DKIMSigner = dkim.Signer
 
-// Re-export the enums users need to set canonicalization.
-type DKIMCanonicalization = dkim.Canonicalization
+type Canonicalization = dkim.Canonicalization
 
 const (
-	DKIMCanonSimple  = dkim.CanonicalizationSimple
-	DKIMCanonRelaxed = dkim.CanonicalizationRelaxed
+	CanonicalizationSimple  Canonicalization = dkim.CanonicalizationSimple
+	CanonicalizationRelaxed Canonicalization = dkim.CanonicalizationRelaxed
 )
 
 // SignWithDKIM enables DKIM signing for this Msg. The signature is produced
 // over the final rendered bytes during WriteTo (after S/MIME and middlewares).
-func (m *Msg) SignWithDKIM(config *DKIMConfig) error {
+/*
+func (m *Msg) SignWithDKIM(config *dkim.Signer) error {
 	if config == nil {
 		return errors.New("dkim: config must not be nil")
 	}
@@ -39,16 +39,16 @@ func (m *Msg) SignWithDKIM(config *DKIMConfig) error {
 	m.dkim = config
 	return nil
 }
+*/
 
-// WithDKIM is the NewMsg option form; validation is deferred to WriteTo.
-func WithDKIM(config *DKIMConfig) MsgOption {
-	return func(m *Msg) { m.dkim = config }
+func NewDKIMSigner(domain, selector string, privKey crypto.Signer) *DKIMSigner {
+	return dkim.NewSigner(domain, selector, privKey)
 }
 
-// SignerFromPEM decodes a PEM-encoded RSA or Ed25519 private key block into a
+// PrivKeyFromPEM decodes a PEM-encoded RSA or Ed25519 private key block into a
 // crypto.Signer. It accepts both PKCS#1 ("RSA PRIVATE KEY") and PKCS#8 ("PRIVATE KEY")
 // byte slices
-func SignerFromPEM(pemBytes []byte) (crypto.Signer, error) {
+func PrivKeyFromPEM(pemBytes []byte) (crypto.Signer, error) {
 	block, _ := pem.Decode(pemBytes)
 	if block == nil {
 		return nil, errors.New("no valid PEM data found")
@@ -77,4 +77,6 @@ func SignerFromPEM(pemBytes []byte) (crypto.Signer, error) {
 }
 
 // hasDKIM returns true if the Msg has a DKIM config.
-func (m *Msg) hasDKIM() bool { return m.dkim != nil }
+func (m *Msg) hasDKIM() bool {
+	return m.dkim != nil
+}

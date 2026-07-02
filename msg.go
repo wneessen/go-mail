@@ -25,6 +25,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/wneessen/go-mail/internal/dkim"
 )
 
 var (
@@ -165,7 +167,7 @@ type Msg struct {
 	sMIME *SMIME
 
 	// dkim holds the DKIM configuration for signing the Msg
-	dkim *DKIMConfig
+	dkim *dkim.Signer
 }
 
 // SendmailPath is the default system path to the sendmail binary - at least on standard Unix-like OS.
@@ -337,6 +339,25 @@ func WithMiddleware(middleware Middleware) MsgOption {
 func WithPGPType(pgptype PGPType) MsgOption {
 	return func(m *Msg) {
 		m.pgptype = pgptype
+	}
+}
+
+// WithDKIM sets the DKIM signer for the Msg during its creation or initialization,
+//
+// This MsgOption function allows you to specify the DKIM signer to be used for digitally
+// signing the message header and body.
+//
+// Parameters:
+//   - signer: The dkim.Signer instance to be used for signing the message.
+//
+// Returns:
+//   - A MsgOption function that can be used to customize the Msg instance.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc6376
+func WithDKIM(signer *dkim.Signer) MsgOption {
+	return func(m *Msg) {
+		m.dkim = signer
 	}
 }
 

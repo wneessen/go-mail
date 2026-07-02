@@ -68,38 +68,130 @@ var (
 		"Content-Type", "MIME-Version"}
 )
 
-// DKIM holds all DKIM signing parameters.
-type DKIM struct {
-	Domain    string
-	Selector  string
-	Signer    crypto.Signer
-	Algorithm SignatureAlgo
+// Signer represents a DKIM signer that holds all signing parameters
+type Signer struct {
+	// Domain represents the DKIM Signing Domain Identifier (SDID). It is
+	// d single domain name that is the mandatory payload output of DKIM
+	// and that refers to the identity claiming some responsibility for
+	// the message by signing it.
+	//
+	// Domain MUST not be empty
+	//
+	// See: https://datatracker.ietf.org/doc/html/rfc6376#section-2.5
+	Domain string
 
-	// We default to CanonicalizationRelaxed for both header and body
-	HeaderCanon Canonicalization
-	BodyCanon   Canonicalization
+	// Selector represents the DKIM domain selectors
+	//
+	// To support multiple concurrent public keys per signing domain, the
+	// key namespace is subdivided using "selectors". For example,
+	// selectors might indicate the names of office locations (e.g.,
+	// "sanfrancisco", "coolumbeach", and "reykjavik"), the signing date
+	// (e.g., "january2005", "february2005", etc.), or even an individual
+	// user.
+	//
+	// Selector MUST not be empty
+	//
+	// See: https://datatracker.ietf.org/doc/html/rfc6376#section-3.1
+	Selector string
 
-	SignedHeaders []string
-	Oversign      []string
-	Expiration    time.Duration
-	AUID          string
-	BodyLength    int64
+	// Signer is the crypto.Signer used to sign the message.
+	Signer crypto.Signer
 
-	// Now is injectable for deterministic tests, we default to time.Now
-	Now func() time.Time
+	// auid represents the DKIM Agent or User Identifier (auid)
+	// See: https://datatracker.ietf.org/doc/html/rfc6376#section-2.6
+	//
+	// A single identifier that refers to the agent or user on behalf of
+	// whom the Signing Domain Identifier (SDID) has taken responsibility.
+	// The auid comprises a domain name and an optional <local-part>.  The
+	// domain name is the same as that used for the SDID or is a subdomain
+	// of it.  For DKIM processing, the domain name portion of the auid has
+	// only basic domain name semantics; any possible owner-specific
+	// semantics are outside the scope of DKIM.
+	//
+	// auid is optional and can be empty
+	auid string
+
+	// bodyCanonicalization defines the type of Canonicalization used for the
+	// mail.Msg body.
+	//
+	// We default to CanonicalizationRelaxed for the body.
+	//
+	// See: https://datatracker.ietf.org/doc/html/rfc6376#section-3.4
+	bodyCanonicalization Canonicalization
+
+	// expiration is an optional expiration time of the signature.
+	//
+	// Signatures MAY be considered invalid if the verification time at
+	// the verifier is past the expiration date. The verification
+	// time should be the time that the message was first received at
+	// the administrative domain of the verifier if that time is
+	// reliably available; otherwise, the current time should be
+	// used.
+	//
+	// See: https://www.rfc-editor.org/rfc/rfc6376.html#section-3.5
+	expiration time.Duration
+
+	// headerCanonicalization defines the type of Canonicalization used for the
+	// mail.Msg header.
+	//
+	// We default to CanonicalizationRelaxed for the header.
+	//
+	// See: https://datatracker.ietf.org/doc/html/rfc6376#section-3.4
+	headerCanonicalization Canonicalization
+
+	algorithm       SignatureAlgo
+	bodyLength      int64
+	signedHeaders   []string
+	oversignHeaders []string
+
+	// NowFunc represents a function that is used to determine the signature's
+	// time field (t=). It can be overridden for deterministic tests.
+	NowFunc func() time.Time
+}
+
+func NewSigner(domain, selector string, signer crypto.Signer) *Signer {
+	dkimSigner := &Signer{
+		Domain:   domain,
+		Selector: selector,
+		Signer:   signer,
+	}
+	return dkimSigner
+}
+
+func (s *Signer) BodyCanonicalization(mode Canonicalization) {
+	s.bodyCanonicalization = mode
+}
+
+func (s *Signer) HeaderCanonicalization(mode Canonicalization) {
+	s.headerCanonicalization = mode
+}
+
+func (s *Signer) ExpireIn(expiration time.Duration) {
+	s.expiration = expiration
+}
+
+func (s *Signer) SignHeaders(headers ...string) {
+	if len(headers) == 0 {
+		return
+	}
+	s.signedHeaders = headers
+}
+
+func (s *Signer) AUID(auid string) {
+	s.auid = auid
 }
 
 // Validate validates the DKIM configuration for required settings
-func (d *DKIM) ValidateConfig() error {
+func (s *Signer) ValidateConfig() error {
 	switch {
-	case d.Domain == "":
+	case s.Domain == "":
 		return ErrDKIMNoDomain
-	case d.Selector == "":
+	case s.Selector == "":
 		return ErrDKIMNoSelector
-	case d.Signer == nil:
+	case s.Signer == nil:
 		return ErrDKIMNoSigner
 	}
-	for _, h := range d.effectiveHeaders() {
+	for _, h := range s.effectiveHeaders() {
 		if strings.EqualFold(h, "from") {
 			return nil
 		}
@@ -109,47 +201,47 @@ func (d *DKIM) ValidateConfig() error {
 
 // effectiveHeaders returns the list of headers to sign, defaulting to the standard set
 // if none are configured
-func (d *DKIM) effectiveHeaders() []string {
-	if len(d.SignedHeaders) == 0 {
+func (s *Signer) effectiveHeaders() []string {
+	if len(s.signedHeaders) == 0 {
 		return defaultHeader
 	}
-	return d.SignedHeaders
+	return s.signedHeaders
 }
 
 // headerListForTag returns the list of headers to sign for a given tag, including any
 // oversign headers
-func (d *DKIM) headerListForTag() []string {
-	base := d.effectiveHeaders()
-	if len(d.Oversign) == 0 {
+func (s *Signer) headerListForTag() []string {
+	base := s.effectiveHeaders()
+	if len(s.oversignHeaders) == 0 {
 		return base
 	}
-	return append(append([]string{}, base...), d.Oversign...)
+	return append(append([]string{}, base...), s.oversignHeaders...)
 }
 
 // now returns the current time, using the injected Now function if set, or
 // time.Now otherwise as default
-func (d *DKIM) now() time.Time {
-	if d.Now != nil {
-		return d.Now()
+func (s *Signer) now() time.Time {
+	if s.NowFunc != nil {
+		return s.NowFunc()
 	}
 	return time.Now()
 }
 
 // Sign returns the DKIM-Signature header line for the given raw headers and body
-func (d *DKIM) Sign(rawHeaders, body []byte) (string, error) {
-	if err := d.ValidateConfig(); err != nil {
+func (s *Signer) Sign(rawHeaders, body []byte) (string, error) {
+	if err := s.ValidateConfig(); err != nil {
 		return "", err
 	}
 
-	algo := d.Algorithm
+	algo := s.algorithm
 	if algo == "" {
-		if _, ok := d.Signer.Public().(ed25519.PublicKey); ok {
+		if _, ok := s.Signer.Public().(ed25519.PublicKey); ok {
 			algo = SignatureAlgoED25519
 		} else {
 			algo = SignatureAlgoRSA
 		}
 	}
-	hc, bc := d.HeaderCanon, d.BodyCanon
+	hc, bc := s.headerCanonicalization, s.bodyCanonicalization
 	if hc == "" {
 		hc = CanonicalizationRelaxed
 	}
@@ -159,8 +251,8 @@ func (d *DKIM) Sign(rawHeaders, body []byte) (string, error) {
 
 	// Create the body hash (bh=)
 	cb := canonicalizeBody(body, bc)
-	if d.BodyLength > 0 && int64(len(cb)) > d.BodyLength {
-		cb = cb[:d.BodyLength]
+	if s.bodyLength > 0 && int64(len(cb)) > s.bodyLength {
+		cb = cb[:s.bodyLength]
 	}
 	bh := sha256.Sum256(cb)
 
@@ -168,19 +260,19 @@ func (d *DKIM) Sign(rawHeaders, body []byte) (string, error) {
 	tags := []string{
 		"v=1", "a=" + string(algo),
 		"c=" + string(hc) + "/" + string(bc),
-		"d=" + d.Domain, "s=" + d.Selector,
-		fmt.Sprintf("t=%d", d.now().Unix()),
-		"h=" + strings.Join(d.headerListForTag(), ":"),
+		"d=" + s.Domain, "s=" + s.Selector,
+		fmt.Sprintf("t=%d", s.now().Unix()),
+		"h=" + strings.Join(s.headerListForTag(), ":"),
 		"bh=" + base64.StdEncoding.EncodeToString(bh[:]),
 	}
-	if d.Expiration > 0 {
-		tags = append(tags, fmt.Sprintf("x=%d", d.now().Add(d.Expiration).Unix()))
+	if s.expiration > 0 {
+		tags = append(tags, fmt.Sprintf("x=%d", s.now().Add(s.expiration).Unix()))
 	}
-	if d.AUID != "" {
-		tags = append(tags, "i="+d.AUID)
+	if s.auid != "" {
+		tags = append(tags, "i="+s.auid)
 	}
-	if d.BodyLength > 0 {
-		tags = append(tags, fmt.Sprintf("l=%d", d.BodyLength))
+	if s.bodyLength > 0 {
+		tags = append(tags, fmt.Sprintf("l=%d", s.bodyLength))
 	}
 	tags = append(tags, "b=")
 	value := strings.Join(tags, "; ")
@@ -188,7 +280,7 @@ func (d *DKIM) Sign(rawHeaders, body []byte) (string, error) {
 	// Parse headers and assemble the input to signature (with empty b=)
 	store := parseHeaders(rawHeaders)
 	in := bytes.NewBuffer(nil)
-	for _, header := range d.headerListForTag() {
+	for _, header := range s.headerListForTag() {
 		if line, ok := store.pop(header); ok {
 			in.Write(canonicalizeHeader(line, hc))
 			in.WriteString("\r\n")
@@ -216,7 +308,7 @@ func (d *DKIM) Sign(rawHeaders, body []byte) (string, error) {
 	digest := sha256.Sum256(in.Bytes())
 	var signature []byte
 	var err error
-	switch key := d.Signer.(type) {
+	switch key := s.Signer.(type) {
 	case ed25519.PrivateKey:
 		signature = ed25519.Sign(key, digest[:]) // PureEdDSA over the digest
 	default:

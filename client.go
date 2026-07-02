@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/wneessen/go-mail/internal/dkim"
 	"github.com/wneessen/go-mail/log"
 	"github.com/wneessen/go-mail/smtp"
 )
@@ -129,7 +130,7 @@ type (
 		dialContextFunc DialContextFunc
 
 		// dkim is the DKIM configuration for the Client.
-		dkim *DKIMConfig
+		dkim *dkim.Signer
 
 		// dsnRcptNotifyType represents the different types of notifications for DSN (Delivery Status Notifications)
 		// receipts.
@@ -821,15 +822,15 @@ func WithoutSMTPUTF8() Option {
 //
 // Returns:
 //   - An Option function that configures the Client to always sign messages using DKIM.
-func WithAlwaysDKIMSign(config *DKIMConfig) Option {
+func WithAlwaysDKIMSign(signer *dkim.Signer) Option {
 	return func(c *Client) error {
-		if config == nil {
+		if signer == nil {
 			return errors.New("DKIM config must not be nil")
 		}
-		if err := config.ValidateConfig(); err != nil {
+		if err := signer.ValidateConfig(); err != nil {
 			return err
 		}
-		c.dkim = config
+		c.dkim = signer
 		return nil
 	}
 }
@@ -1101,17 +1102,17 @@ func (c *Client) SetLogAuthData(logAuth bool) {
 //
 // Returns:
 //   - An error if the provided DKIMConfig is invalid or nil.
-func (c *Client) SetAlwaysDKIMSign(config *DKIMConfig) error {
-	if config == nil {
+func (c *Client) SetAlwaysDKIMSign(signer *dkim.Signer) error {
+	if signer == nil {
 		return errors.New("DKIM config must not be nil")
 	}
-	if err := config.ValidateConfig(); err != nil {
+	if err := signer.ValidateConfig(); err != nil {
 		return fmt.Errorf("invalid DKIM config: %w", err)
 	}
 
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	c.dkim = config
+	c.dkim = signer
 	return nil
 }
 
