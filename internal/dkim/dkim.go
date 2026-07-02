@@ -18,6 +18,7 @@ import (
 	"crypto"
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
@@ -49,6 +50,12 @@ const (
 )
 
 var (
+	// defaultHeader is the default set of headers to sign
+	defaultHeader = []string{"From", "To", "Subject", "Date", "Message-ID",
+		"Content-Type", "MIME-Version"}
+)
+
+var (
 	// ErrDKIMNoDomain is returned when no DKIM domain is set
 	ErrDKIMNoDomain = errors.New("a DKIM domain must be set")
 
@@ -60,12 +67,10 @@ var (
 
 	// ErrDKIMMissingFrom is returned when the FROM header is missing
 	ErrDKIMMissingFrom = errors.New("FROM is a required DKIM header")
-)
 
-var (
-	// defaultHeader is the default set of headers to sign
-	defaultHeader = []string{"From", "To", "Subject", "Date", "Message-ID",
-		"Content-Type", "MIME-Version"}
+	// ErrDKIMUnsupportedSigner is returned when the DKIM signer type is
+	// unsupported
+	ErrDKIMUnsupportedSigner = errors.New("unsupported DKIM signer type")
 )
 
 // Signer represents a DKIM signer that holds all signing parameters
@@ -97,6 +102,10 @@ type Signer struct {
 	// Signer is the crypto.Signer used to sign the message.
 	Signer crypto.Signer
 
+	// NowFunc represents a function that is used to determine the signature's
+	// time field (t=). It can be overridden for deterministic tests.
+	NowFunc func() time.Time
+
 	// auid represents the DKIM Agent or User Identifier (auid)
 	// See: https://datatracker.ietf.org/doc/html/rfc6376#section-2.6
 	//
@@ -104,7 +113,7 @@ type Signer struct {
 	// whom the Signing Domain Identifier (SDID) has taken responsibility.
 	// The auid comprises a domain name and an optional <local-part>.  The
 	// domain name is the same as that used for the SDID or is a subdomain
-	// of it.  For DKIM processing, the domain name portion of the auid has
+	// of it. For DKIM processing, the domain name portion of the auid has
 	// only basic domain name semantics; any possible owner-specific
 	// semantics are outside the scope of DKIM.
 	//
@@ -139,16 +148,21 @@ type Signer struct {
 	// See: https://datatracker.ietf.org/doc/html/rfc6376#section-3.4
 	headerCanonicalization Canonicalization
 
-	algorithm       SignatureAlgo
-	bodyLength      int64
-	signedHeaders   []string
-	oversignHeaders []string
+	// algorithm defines the type of signature algorithm used for the DKIM signature
+	algorithm SignatureAlgo
 
-	// NowFunc represents a function that is used to determine the signature's
-	// time field (t=). It can be overridden for deterministic tests.
-	NowFunc func() time.Time
+	// bodyLength keeps track of the length of the message body
+	bodyLength int64
+
+	// signedHeaders holds the list of headers that are signed by the DKIM signature
+	signedHeaders []string
+
+	// oversignHeaders holds the list of headers that are oversigned by the DKIM signature
+	// for improved security of the signature
+	oversignHeaders []string
 }
 
+// NewSigner creates a new DKIM signer with the given domain, selector, and crypto.Signer
 func NewSigner(domain, selector string, signer crypto.Signer) *Signer {
 	dkimSigner := &Signer{
 		Domain:   domain,
@@ -158,27 +172,40 @@ func NewSigner(domain, selector string, signer crypto.Signer) *Signer {
 	return dkimSigner
 }
 
+// AUID sets the AUID (Authorized User ID) for the DKIM signature
+func (s *Signer) AUID(auid string) {
+	s.auid = auid
+}
+
+// BodyCanonicalization sets the canonicalization mode for the message body
 func (s *Signer) BodyCanonicalization(mode Canonicalization) {
 	s.bodyCanonicalization = mode
 }
 
+// ExpiresIn sets the expiration time for the DKIM signature
+func (s *Signer) ExpiresIn(expiration time.Duration) {
+	s.expiration = expiration
+}
+
+// HeaderCanonicalization sets the canonicalization mode for the message headers
 func (s *Signer) HeaderCanonicalization(mode Canonicalization) {
 	s.headerCanonicalization = mode
 }
 
-func (s *Signer) ExpireIn(expiration time.Duration) {
-	s.expiration = expiration
+// OversignHeaders sets the headers to be oversigned for the DKIM signature
+func (s *Signer) OversignHeaders(headers ...string) {
+	if len(headers) == 0 {
+		return
+	}
+	s.oversignHeaders = headers
 }
 
+// SignHeaders sets the headers to be signed for the DKIM signature
 func (s *Signer) SignHeaders(headers ...string) {
 	if len(headers) == 0 {
 		return
 	}
 	s.signedHeaders = headers
-}
-
-func (s *Signer) AUID(auid string) {
-	s.auid = auid
 }
 
 // Validate validates the DKIM configuration for required settings
@@ -191,6 +218,7 @@ func (s *Signer) ValidateConfig() error {
 	case s.Signer == nil:
 		return ErrDKIMNoSigner
 	}
+
 	for _, h := range s.effectiveHeaders() {
 		if strings.EqualFold(h, "from") {
 			return nil
@@ -233,17 +261,19 @@ func (s *Signer) Sign(rawHeaders, body []byte) (string, error) {
 		return "", err
 	}
 
-	algo := s.algorithm
-	if algo == "" {
-		if _, ok := s.Signer.Public().(ed25519.PublicKey); ok {
-			algo = SignatureAlgoED25519
-		} else {
-			algo = SignatureAlgoRSA
+	if s.algorithm == "" {
+		switch s.Signer.Public().(type) {
+		case ed25519.PublicKey:
+			s.algorithm = SignatureAlgoED25519
+		case *rsa.PublicKey:
+			s.algorithm = SignatureAlgoRSA
+		default:
+			return "", ErrDKIMUnsupportedSigner
 		}
 	}
-	hc, bc := s.headerCanonicalization, s.bodyCanonicalization
-	if hc == "" {
-		hc = CanonicalizationRelaxed
+	headerCanon, bc := s.headerCanonicalization, s.bodyCanonicalization
+	if headerCanon == "" {
+		headerCanon = CanonicalizationRelaxed
 	}
 	if bc == "" {
 		bc = CanonicalizationRelaxed
@@ -256,14 +286,16 @@ func (s *Signer) Sign(rawHeaders, body []byte) (string, error) {
 	}
 	bh := sha256.Sum256(cb)
 
-	// Assemble the header tags as signature placeholder (empty b=)
+	// Assemble the header tags as signature placeholder
 	tags := []string{
-		"v=1", "a=" + string(algo),
-		"c=" + string(hc) + "/" + string(bc),
-		"d=" + s.Domain, "s=" + s.Selector,
-		fmt.Sprintf("t=%d", s.now().Unix()),
-		"h=" + strings.Join(s.headerListForTag(), ":"),
-		"bh=" + base64.StdEncoding.EncodeToString(bh[:]),
+		"v=1", // Version is always 1
+		"c=" + string(headerCanon) + "/" + string(bc), // The canonicalization mode used for header/body
+		"d=" + s.Domain,                                  // The signing domain
+		"s=" + s.Selector,                                // The domain selector (<selector>._domainkey)
+		"a=" + string(s.algorithm),                       // The selected signing algorithm
+		fmt.Sprintf("t=%d", s.now().Unix()),              // The timestamp of the signature
+		"h=" + strings.Join(s.headerListForTag(), ":"),   // The headers to be signed (including oversigned headers)
+		"bh=" + base64.StdEncoding.EncodeToString(bh[:]), // The empty body hash
 	}
 	if s.expiration > 0 {
 		tags = append(tags, fmt.Sprintf("x=%d", s.now().Add(s.expiration).Unix()))
@@ -282,49 +314,50 @@ func (s *Signer) Sign(rawHeaders, body []byte) (string, error) {
 	in := bytes.NewBuffer(nil)
 	for _, header := range s.headerListForTag() {
 		if line, ok := store.pop(header); ok {
-			in.Write(canonicalizeHeader(line, hc))
+			in.Write(canonicalizeHeader(line, headerCanon))
 			in.WriteString("\r\n")
 		}
 	}
 
-	// Fold the tags ONCE with an empty b=. These exact bytes are reused for the
+	// Fold the tags once with an empty b=. These exact bytes are reused for the
 	// wire, so the fold points can never diverge between what we sign and what
 	// we emit.
-	foldedTags := foldHeader(value) // value ends in "b="
+	foldedTags := foldHeader(value)
 
-	switch hc {
+	switch headerCanon {
 	case CanonicalizationSimple:
 		in.WriteString("DKIM-Signature: ")
 		in.WriteString(value) // unfolded, b= empty — matches the emitted line
 	case CanonicalizationRelaxed:
-		in.Write(canonicalizeHeader("DKIM-Signature:"+value, hc))
+		in.Write(canonicalizeHeader("DKIM-Signature:"+value, headerCanon))
 	}
 
-	// Both algorithms sign the SHA-256 digest of the canonicalized headers
-	// Ed25519-SHA256 is PureEdDSA over that hash
+	// Both algorithms sign the SHA-256 hasher of the canonicalized headers
 	//
 	// See: https://datatracker.ietf.org/doc/html/rfc6376#section-3.7
 	// and https://datatracker.ietf.org/doc/html/rfc8463#section-3
-	digest := sha256.Sum256(in.Bytes())
 	var signature []byte
 	var err error
+	hasher := sha256.Sum256(in.Bytes())
 	switch key := s.Signer.(type) {
 	case ed25519.PrivateKey:
-		signature = ed25519.Sign(key, digest[:]) // PureEdDSA over the digest
+		signature = ed25519.Sign(key, hasher[:])
 	default:
-		signature, err = key.Sign(rand.Reader, digest[:], crypto.SHA256)
+		signature, err = key.Sign(rand.Reader, hasher[:], crypto.SHA256)
 	}
 	if err != nil {
 		return "", err
 	}
 
-	sigB64 := base64.StdEncoding.EncodeToString(signature)
-	if hc == CanonicalizationSimple {
-		// Emit a single unfolded line: no byte-significant fold points for an
-		// MTA to rewrap. Must match the hash input, which also used the
-		// unfolded value.
-		return "DKIM-Signature: " + value + sigB64 + "\r\n", nil
+	// Base64 encode the signature and fold it if allowed by the canonicalization mode
+	signatureB64 := base64.StdEncoding.EncodeToString(signature)
+	if headerCanon == CanonicalizationRelaxed {
+		// Relaxed canonicalization permits folding, which is our preferred output
+		// and the default
+		return "DKIM-Signature: " + appendFoldedBase64(foldedTags, signatureB64) + "\r\n", nil
 	}
-	// relaxed: folding is unfolded away by verifiers, so wrap for readability.
-	return "DKIM-Signature: " + appendFoldedBase64(foldedTags, sigB64) + "\r\n", nil
+
+	// For simple canonicalization, we emit the unfolded value directly to avoid
+	// issues with the signature validation
+	return "DKIM-Signature: " + value + signatureB64 + "\r\n", nil
 }
