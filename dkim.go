@@ -52,7 +52,7 @@ func (m *Msg) hasDKIM() bool { return m.dkim != nil }
 func loadSigner(pemBytes []byte) (crypto.Signer, error) {
 	block, _ := pem.Decode(pemBytes)
 	if block == nil {
-		return nil, errors.New("no PEM data found")
+		return nil, errors.New("no valid PEM data found")
 	}
 
 	switch block.Type {
@@ -64,11 +64,11 @@ func loadSigner(pemBytes []byte) (crypto.Signer, error) {
 			return nil, err
 		}
 
-		switch privKey := key.(type) {
+		switch key := key.(type) {
 		case *rsa.PrivateKey:
-			return privKey, nil
+			return key, nil
 		case ed25519.PrivateKey:
-			return privKey, nil
+			return key, nil
 		default:
 			return nil, fmt.Errorf("unsupported key type %T", key)
 		}
