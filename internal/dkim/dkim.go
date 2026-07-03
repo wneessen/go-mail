@@ -53,6 +53,9 @@ var (
 	// defaultHeader is the default set of headers to sign
 	defaultHeader = []string{"From", "To", "Subject", "Date", "Message-ID",
 		"Content-Type", "MIME-Version"}
+
+	// defaultCanonicalization is the default canonicalization algorithm to use
+	defaultCanonicalization = CanonicalizationRelaxed
 )
 
 var (
@@ -155,7 +158,11 @@ type Signer struct {
 	// algorithm defines the type of signature algorithm used for the DKIM signature
 	algorithm SignatureAlgo
 
-	// bodyLength keeps track of the length of the message body
+	// bodyLength specifies the length of the message body that should be signed by DKIM.
+	// It is highly discouraged to set this value as it means that only a portion of the
+	// message body would be appropriately signed, including it allows malicious actors
+	// to send phishing emails, alter content or otherwise exploit emails and still pass
+	// DKIM
 	bodyLength int64
 
 	// signedHeaders holds the list of headers that are signed by the DKIM signature
@@ -183,16 +190,37 @@ func (s *Signer) AUID(auid string) {
 
 // BodyCanonicalization sets the canonicalization mode for the message body
 func (s *Signer) BodyCanonicalization(mode Canonicalization) {
+	if mode != CanonicalizationRelaxed && mode != CanonicalizationSimple {
+		mode = defaultCanonicalization
+	}
 	s.bodyCanonicalization = mode
+}
+
+// Bodylength sets the length of the message body to be signed by DKIM (via the l= tag)
+//
+// It is highly discouraged to set this value as it means that only a portion of the
+// message body would be appropriately signed, including it allows malicious actors
+// to send phishing emails, alter content or otherwise exploit emails and still pass
+// DKIM.
+//
+// Only use this option if you are sure what you are doing
+func (s *Signer) Bodylength(length int64) {
+	s.bodyLength = length
 }
 
 // ExpiresIn sets the expiration time for the DKIM signature
 func (s *Signer) ExpiresIn(expiration time.Duration) {
+	if expiration < 0 {
+		return
+	}
 	s.expiration = expiration
 }
 
 // HeaderCanonicalization sets the canonicalization mode for the message headers
 func (s *Signer) HeaderCanonicalization(mode Canonicalization) {
+	if mode != CanonicalizationRelaxed && mode != CanonicalizationSimple {
+		mode = defaultCanonicalization
+	}
 	s.headerCanonicalization = mode
 }
 
@@ -278,8 +306,6 @@ func (s *Signer) Sign(rawHeaders, body []byte) (string, error) {
 			s.algorithm = SignatureAlgoED25519
 		case *rsa.PublicKey:
 			s.algorithm = SignatureAlgoRSA
-		default:
-			return "", ErrDKIMUnsupportedSigner
 		}
 	}
 	headerCanon, bc := s.headerCanonicalization, s.bodyCanonicalization

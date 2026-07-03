@@ -25,7 +25,7 @@ func parseHeaders(raw []byte) *headerStore {
 		if line == "" {
 			continue
 		}
-		if line[0] == ' ' || line[0] == '\t' { // continuation
+		if line[0] == ' ' || line[0] == '\t' {
 			cur.WriteString("\r\n")
 			cur.WriteString(line)
 			continue
