@@ -26,21 +26,7 @@ const (
 	CanonicalizationRelaxed Canonicalization = dkim.CanonicalizationRelaxed
 )
 
-// SignWithDKIM enables DKIM signing for this Msg. The signature is produced
-// over the final rendered bytes during WriteTo (after S/MIME and middlewares).
-/*
-func (m *Msg) SignWithDKIM(config *dkim.Signer) error {
-	if config == nil {
-		return errors.New("dkim: config must not be nil")
-	}
-	if err := config.ValidateConfig(); err != nil {
-		return err
-	}
-	m.dkim = config
-	return nil
-}
-*/
-
+// NewDKIMSigner creates a new DKIMSigner with the given domain, selector, and private key
 func NewDKIMSigner(domain, selector string, privKey crypto.Signer) *DKIMSigner {
 	return dkim.NewSigner(domain, selector, privKey)
 }

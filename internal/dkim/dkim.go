@@ -65,6 +65,10 @@ var (
 	// ErrDKIMNoSigner is returned when no DKIM crypto signer is provided
 	ErrDKIMNoSigner = errors.New("a DKIM crypto signer must be provided")
 
+	// ErrDKIMInvalidSigner is returned when the provided crypto signer is not
+	// supported by DKIM
+	ErrDKIMInvalidSigner = errors.New("the provided crypto signer is not supported by DKIM")
+
 	// ErrDKIMMissingFrom is returned when the FROM header is missing
 	ErrDKIMMissingFrom = errors.New("FROM is a required DKIM header")
 
@@ -219,11 +223,18 @@ func (s *Signer) ValidateConfig() error {
 		return ErrDKIMNoSigner
 	}
 
+	switch s.Signer.(type) {
+	case ed25519.PrivateKey, *rsa.PrivateKey:
+	default:
+		return ErrDKIMInvalidSigner
+	}
+
 	for _, h := range s.effectiveHeaders() {
 		if strings.EqualFold(h, "from") {
 			return nil
 		}
 	}
+
 	return ErrDKIMMissingFrom
 }
 
