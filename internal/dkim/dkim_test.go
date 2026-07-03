@@ -684,6 +684,7 @@ func Test_trimTrailingEmptyLines(t *testing.T) {
 		}
 	})
 }
+
 func Test_collapseWSPBytes(t *testing.T) {
 	t.Run("collapses trailing whitespace to a single space", func(t *testing.T) {
 		got := collapseWSPBytes([]byte("a  \t "))
