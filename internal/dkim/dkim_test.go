@@ -595,6 +595,113 @@ func Test_appendFoldedBase64(t *testing.T) {
 	})
 }
 
+func Test_canonicalizeHeader(t *testing.T) {
+	t.Run("relaxed header canonicalization", func(t *testing.T) {
+		want := []byte(`from:"Toni Tester" <toni.tester@example.com>`)
+		header := `From: "Toni Tester" <toni.tester@example.com>`
+		data := canonicalizeHeader(header, CanonicalizationRelaxed)
+		if !bytes.Equal(data, want) {
+			t.Errorf("expected canonicalized header to be %q, got %q", want, data)
+		}
+	})
+	t.Run("simple header canonicalization", func(t *testing.T) {
+		want := []byte(`From: "Toni Tester" <toni.tester@example.com>`)
+		header := `From: "Toni Tester" <toni.tester@example.com>`
+		data := canonicalizeHeader(header, CanonicalizationSimple)
+		if !bytes.Equal(data, want) {
+			t.Errorf("expected canonicalized header to be %q, got %q", want, data)
+		}
+	})
+	t.Run("relaxed header canonicalization without colon", func(t *testing.T) {
+		header := `From  "Toni Tester" <toni.tester@example.com>`
+		want := []byte(`From "Toni Tester" <toni.tester@example.com>`)
+		data := canonicalizeHeader(header, CanonicalizationRelaxed)
+		if !bytes.Equal(data, want) {
+			t.Errorf("expected canonicalized header to be %q, got %q", want, data)
+		}
+	})
+	t.Run("relaxed header canonicalization without colon and with trailing whitespace", func(t *testing.T) {
+		header := `From  "Toni Tester" <toni.tester@example.com> `
+		want := []byte(`From "Toni Tester" <toni.tester@example.com> `)
+		data := canonicalizeHeader(header, CanonicalizationRelaxed)
+		if !bytes.Equal(data, want) {
+			t.Errorf("expected canonicalized header to be %q, got %q", want, data)
+		}
+	})
+}
+
+func Test_canonicalizeBody(t *testing.T) {
+	t.Run("relaxed body canonicalization", func(t *testing.T) {
+		body := []byte(`This is just some body text`)
+		want := append(body, []byte("\r\n")...)
+		data := canonicalizeBody(body, CanonicalizationRelaxed)
+		if !bytes.Equal(data, want) {
+			t.Errorf("expected canonicalized body to be %q, got %q", want, data)
+		}
+	})
+	t.Run("simple body canonicalization", func(t *testing.T) {
+		body := []byte(`This is just some body text`)
+		want := append(body, []byte("\r\n")...)
+		data := canonicalizeBody(body, CanonicalizationSimple)
+		if !bytes.Equal(data, want) {
+			t.Errorf("expected canonicalized body to be %q, got %q", want, data)
+		}
+	})
+	t.Run(`simple body canonicalization on mail body end removes trailing \r\n`, func(t *testing.T) {
+		body := []byte("This is just some body text\r\n\r\n")
+		want := []byte("This is just some body text\r\n")
+		data := canonicalizeBody(body, CanonicalizationSimple)
+		if !bytes.Equal(data, want) {
+			t.Errorf("expected canonicalized body to be %q, got %q", want, data)
+		}
+	})
+	t.Run(`simple body canonicalization on empty body returns just \r\n`, func(t *testing.T) {
+		want := []byte("\r\n")
+		data := canonicalizeBody(nil, CanonicalizationSimple)
+		if !bytes.Equal(data, want) {
+			t.Errorf("expected canonicalized body to be %q, got %q", want, data)
+		}
+	})
+}
+
+func Test_trimTrailingEmptyLines(t *testing.T) {
+	t.Run("empty body collapses a single CRLF to empty", func(t *testing.T) {
+		got := trimTrailingEmptyLines([]byte("\r\n"))
+		want := []byte("")
+		if !bytes.Equal(got, want) {
+			t.Errorf("expected %q, got %q", want, got)
+		}
+		if len(got) != 0 {
+			t.Errorf("expected empty result, got %d bytes", len(got))
+		}
+	})
+
+	t.Run("all empty lines body reduces to empty", func(t *testing.T) {
+		got := trimTrailingEmptyLines([]byte("\r\n\r\n\r\n"))
+		want := []byte("")
+		if !bytes.Equal(got, want) {
+			t.Errorf("expected %q, got %q", want, got)
+		}
+	})
+}
+func Test_collapseWSPBytes(t *testing.T) {
+	t.Run("collapses trailing whitespace to a single space", func(t *testing.T) {
+		got := collapseWSPBytes([]byte("a  \t "))
+		want := []byte("a ")
+		if !bytes.Equal(got, want) {
+			t.Errorf("expected %q, got %q", want, got)
+		}
+	})
+
+	t.Run("all whitespace collapses to a single space", func(t *testing.T) {
+		got := collapseWSPBytes([]byte("   \t"))
+		want := []byte(" ")
+		if !bytes.Equal(got, want) {
+			t.Errorf("expected %q, got %q", want, got)
+		}
+	})
+}
+
 // testSigner returns a Signer for testing purposes.
 func testSigner(t *testing.T, keyData []byte) *Signer {
 	t.Helper()
