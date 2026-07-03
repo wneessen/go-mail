@@ -16,6 +16,7 @@
         devShells.default = pkgs.mkShell {
           buildInputs = [
             go-overlay.packages.${system}.govendor
+            nixpkgs.legacyPackages.${system}.dkimpy
             nixpkgs.legacyPackages.${system}.gofumpt
             nixpkgs.legacyPackages.${system}.golangci-lint
             nixpkgs.legacyPackages.${system}.reuse

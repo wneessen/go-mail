@@ -298,6 +298,24 @@ func TestNewMsg(t *testing.T) {
 				message.noDefaultUserAgent)
 		}
 	})
+	t.Run("new message with DKIM enabled", func(t *testing.T) {
+		privKey, err := PrivKeyFromPEM(testKeyEd25519)
+		if err != nil {
+			t.Fatalf("failed to parse private key: %s", err)
+		}
+		signer := NewDKIMSigner("example.com", "2026a", privKey)
+		if err := signer.ValidateConfig(); err != nil {
+			t.Errorf("failed to validate DKIM signer: %s", err)
+		}
+
+		message := NewMsg(WithDKIM(signer))
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if message.dkim == nil {
+			t.Error("NewMsg(WithDKIM(signer)) failed. Expected dkim to be set, got: nil")
+		}
+	})
 }
 
 func TestMsg_SetCharset(t *testing.T) {
@@ -7846,6 +7864,45 @@ func TestMsg_WriteTo(t *testing.T) {
 			{122, "--", false, true, true},
 		}
 		checkMessageContent(t, buffer, wants)
+	})
+	t.Run("WriteTo signs a message using DKIM", func(t *testing.T) {
+		want := "DKIM-Signature: v=1; c=relaxed/relaxed; d=example.com; s=2026a; \r\n a=ed25519-sha256; t=1767225600; \r\n h=From:To:Subject:Date:Message-ID:Content-Type:MIME-Version; \r\n bh=49fo3/jj15NoKm5fLrmLVtMTQ0TyPn74pVKyKx1gvqY=; b=cz3lNOkF/HAk97qyUsguQwJY\r\n DHrH+NVXDJdNQDG9CGUfWm1AkD53ggcU7/MEkE/mZfPiHrA8UBpk3PJyn9uaAA==\r\nDate: Thu, 01 Jan 2026 00:00:00 +0000\r\nMIME-Version: 1.0\r\nMessage-ID: <test-message-id>\r\nSubject: Testmail\r\nUser-Agent: go-mail DKIM test\r\nX-Mailer: go-mail DKIM test\r\nFrom: <valid-from@domain.tld>\r\nTo: <valid-to@domain.tld>\r\nContent-Transfer-Encoding: quoted-printable\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\nTestmail"
+		now := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+		privKey, err := PrivKeyFromPEM(testKeyEd25519)
+		if err != nil {
+			t.Fatalf("failed to parse private key: %s", err)
+		}
+		signer := NewDKIMSigner("example.com", "2026a", privKey)
+		if err := signer.ValidateConfig(); err != nil {
+			t.Errorf("failed to validate DKIM signer: %s", err)
+		}
+		signer.NowFunc = func() time.Time {
+			return now
+		}
+
+		message := testMessage(t)
+		message.SetMessageIDWithValue("test-message-id")
+		message.SetUserAgent("go-mail DKIM test")
+		message.SetDateWithValue(now)
+		message.SetDKIM(signer)
+
+		buffer := bytes.NewBuffer(nil)
+		if _, err = message.WriteTo(buffer); err != nil {
+			t.Fatalf("failed to write message to buffer: %s", err)
+		}
+		if buffer.String() != want {
+			t.Errorf("DKIM signing failed, expected: %q, got: %q", want, buffer.String())
+		}
+	})
+	t.Run("WriteTo fails to DKIM sign a message with an incomplete config", func(t *testing.T) {
+		signer := NewDKIMSigner("", "2026a", nil)
+		message := testMessage(t)
+		message.SetDKIM(signer)
+
+		buffer := bytes.NewBuffer(nil)
+		if _, err := message.WriteTo(buffer); err == nil {
+			t.Error("expected DKIM signing to fail but didn't")
+		}
 	})
 }
 

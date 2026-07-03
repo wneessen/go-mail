@@ -8,8 +8,11 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -169,6 +172,11 @@ func TestNewClient(t *testing.T) {
 		hostname := "mail.example.com"
 		netDailer := net.Dialer{}
 		tlsDailer := tls.Dialer{NetDialer: &netDailer, Config: &tls.Config{}}
+		privKey, err := PrivKeyFromPEM(testKeyRSA)
+		if err != nil {
+			t.Fatalf("failed to read private key from PEM: %s", err)
+		}
+		signer := DKIMSigner{Domain: testDomain, Selector: testSelector, Signer: privKey}
 		tests := []struct {
 			name       string
 			option     Option
@@ -757,6 +765,17 @@ func TestNewClient(t *testing.T) {
 				},
 				false, nil,
 			},
+			{
+				"WithAlwaysDKIMSign", WithAlwaysDKIMSign(&signer),
+				func(c *Client) error {
+					if c.dkim.Domain != testDomain {
+						return fmt.Errorf("failed to set DKIM signer. Want DKIM sign domain: %s, got: %s",
+							testDomain, c.dkim.Domain)
+					}
+					return nil
+				},
+				false, nil,
+			},
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
@@ -823,6 +842,34 @@ func TestNewClient(t *testing.T) {
 		if !strings.EqualFold(client.host, "/tmp/mail.sock") {
 			t.Errorf("expected host to be set to unix socket path, expected: %s, got: %s", "/tmp/mail.sock",
 				client.host)
+		}
+	})
+	t.Run("NewClient WithAlwaysDKIMSign with nil signer", func(t *testing.T) {
+		_, err := NewClient(DefaultHost, WithAlwaysDKIMSign(nil))
+		if err == nil {
+			t.Error("expected error when creating client with nil DKIM signer, got nil")
+		}
+	})
+	t.Run("NewClient WithAlwaysDKIMSign with nil key", func(t *testing.T) {
+		signer := DKIMSigner{Domain: testDomain, Selector: testSelector, Signer: nil}
+		_, err := NewClient(DefaultHost, WithAlwaysDKIMSign(&signer))
+		if err == nil {
+			t.Error("expected error when creating client with nil crypto.Signer, got nil")
+		}
+	})
+	t.Run("NewClient WithAlwaysDKIMSign with ecDSA key", func(t *testing.T) {
+		block, _ := pem.Decode(testKeyECDSAPKCS8)
+		if block == nil {
+			t.Fatalf("no vaild PEM data found")
+		}
+		privKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+		if err != nil {
+			t.Fatalf("failed to parse ecDSA key: %s", err)
+		}
+		signer := DKIMSigner{Domain: testDomain, Selector: testSelector, Signer: privKey.(*ecdsa.PrivateKey)}
+		_, err = NewClient(DefaultHost, WithAlwaysDKIMSign(&signer))
+		if err == nil {
+			t.Error("expected error when creating client with ecDSA DKIM signer, got nil")
 		}
 	})
 }
@@ -1612,6 +1659,49 @@ func TestClient_SetLogAuthData(t *testing.T) {
 		client.SetLogAuthData(false)
 		if client.logAuthData {
 			t.Errorf("failed to set logAuthData, want: false, got: %t", client.logAuthData)
+		}
+	})
+}
+
+func TestClient_SetAlwaysDKIMSign(t *testing.T) {
+	privKey, err := PrivKeyFromPEM(testKeyRSA)
+	if err != nil {
+		t.Fatalf("failed to parse test key: %s", err)
+	}
+	signer := NewDKIMSigner(testDomain, testSelector, privKey)
+
+	t.Run("SetAlwaysDKIMSign with valid signer", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err := client.SetAlwaysDKIMSign(signer); err != nil {
+			t.Fatalf("failed to set DKIM signer: %s", err)
+		}
+		if client.dkim == nil {
+			t.Error("expected DKIM signer, got nil")
+		}
+		if client.dkim.Domain != testDomain {
+			t.Errorf("expected DKIM domain: %s, got: %s", testDomain, client.dkim.Domain)
+		}
+	})
+	t.Run("SetAlwaysDKIMSign with nil signer", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err := client.SetAlwaysDKIMSign(nil); err == nil {
+			t.Error("expected error when setting nil DKIM signer, got nil")
+		}
+	})
+	t.Run("SetAlwaysDKIMSign with nil crypto.Signer", func(t *testing.T) {
+		client, err := NewClient(DefaultHost)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		invalidSigner := &DKIMSigner{Domain: testDomain, Selector: testSelector}
+		if err := client.SetAlwaysDKIMSign(invalidSigner); err == nil {
+			t.Error("expected error when setting invalid DKIM signer, got nil")
 		}
 	})
 }
@@ -3804,6 +3894,53 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 		if !strings.EqualFold(sendErr.enhancedStatusCode, "5.5.2") {
 			t.Errorf("expected enhanced status code 5.5.2, got %s", sendErr.enhancedStatusCode)
+		}
+	})
+	t.Run("DKIM signed message", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-ENHANCEDSTATUSCODES\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		privKey, err := PrivKeyFromPEM(testKeyRSA)
+		if err != nil {
+			t.Fatalf("failed to generate DKIM key: %s", err)
+		}
+		signer := NewDKIMSigner(testDomain, testSelector, privKey)
+		message := testMessage(t)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS), WithAlwaysDKIMSign(signer))
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.sendSingleMsg(client.smtpClient, message); err != nil {
+			t.Errorf("failed to deliver mail: %s", err)
 		}
 	})
 }

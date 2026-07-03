@@ -25,6 +25,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/wneessen/go-mail/internal/dkim"
 )
 
 var (
@@ -163,6 +165,9 @@ type Msg struct {
 
 	// sMIME holds a SMIME type to sign a Msg using S/MIME
 	sMIME *SMIME
+
+	// dkim holds the DKIM configuration for signing the Msg
+	dkim *dkim.Signer
 }
 
 // SendmailPath is the default system path to the sendmail binary - at least on standard Unix-like OS.
@@ -337,6 +342,25 @@ func WithPGPType(pgptype PGPType) MsgOption {
 	}
 }
 
+// WithDKIM sets the DKIM signer for the Msg during its creation or initialization,
+//
+// This MsgOption function allows you to specify the DKIM signer to be used for digitally
+// signing the message header and body.
+//
+// Parameters:
+//   - signer: The dkim.Signer instance to be used for signing the message.
+//
+// Returns:
+//   - A MsgOption function that can be used to customize the Msg instance.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc6376
+func WithDKIM(signer *dkim.Signer) MsgOption {
+	return func(m *Msg) {
+		m.dkim = signer
+	}
+}
+
 // WithNoDefaultUserAgent disables the inclusion of a default User-Agent header in the Msg during
 // its creation or initialization.
 //
@@ -433,6 +457,23 @@ func (m *Msg) SetMIMEVersion(version MIMEVersion) {
 //     or signature method used for the email message.
 func (m *Msg) SetPGPType(pgptype PGPType) {
 	m.pgptype = pgptype
+}
+
+// SetDKIM sets or overrides the currently set DKIM signer for the Msg.
+//
+// This method allows the user to assign a DKIMSigner to a Msg to be used for digitally
+// signing the message header and body.
+//
+// Parameters:
+//   - signer: The dkim.Signer instance to be used for signing the message.
+//
+// Returns:
+//   - A MsgOption function that can be used to customize the Msg instance.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc6376
+func (m *Msg) SetDKIM(signer *dkim.Signer) {
+	m.dkim = signer
 }
 
 // Encoding returns the currently set Encoding of the Msg as a string.
@@ -2213,19 +2254,33 @@ func (m *Msg) applyMiddlewares(msg *Msg) *Msg {
 //
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322
-func (m *Msg) WriteTo(writer io.Writer) (int64, error) {
-	mw := &msgWriter{writer: writer, charset: m.charset, encoder: m.encoder}
-	msg := m.applyMiddlewares(m)
-
-	if m.hasSMIME() {
-		if err := m.signMessage(); err != nil {
-			return 0, err
-		}
+func (m *Msg) WriteTo(w io.Writer) (int64, error) {
+	if !m.hasDKIM() {
+		return m.writeToInner(w)
+	}
+	if err := m.dkim.ValidateConfig(); err != nil {
+		return 0, err
 	}
 
-	mw.writeMsg(msg)
-	m.headerCount = 0
-	return mw.bytesWritten, mw.err
+	buffer := bytes.NewBuffer(nil)
+	if _, err := m.writeToInner(buffer); err != nil {
+		return 0, err
+	}
+
+	headers, body := splitMessage(buffer.Bytes())
+	signature, err := m.dkim.Sign(headers, body)
+	if err != nil {
+		return 0, fmt.Errorf("failed to DKIM sign message: %w", err)
+	}
+
+	var total int64
+	length, err := io.WriteString(w, signature)
+	total += int64(length)
+	if err != nil {
+		return total, err
+	}
+	n2, err := w.Write(buffer.Bytes())
+	return total + int64(n2), err
 }
 
 // WriteToSkipMiddleware writes the formatted Msg into the given io.Writer, but skips the specified
@@ -3030,6 +3085,21 @@ func (m *Msg) signMessage() error {
 	return nil
 }
 
+func (m *Msg) writeToInner(writer io.Writer) (int64, error) {
+	mw := &msgWriter{writer: writer, charset: m.charset, encoder: m.encoder}
+	msg := m.applyMiddlewares(m)
+
+	if m.hasSMIME() {
+		if err := m.signMessage(); err != nil {
+			return 0, err
+		}
+	}
+
+	mw.writeMsg(msg)
+	m.headerCount = 0
+	return mw.bytesWritten, mw.err
+}
+
 // writeFuncFromBuffer converts a byte buffer into a writeFunc, which is commonly required by go-mail.
 //
 // This function wraps a byte buffer into a write function that can be used to write the buffer's content
@@ -3053,7 +3123,22 @@ func writeFuncFromBuffer(buffer *bytes.Buffer) func(io.Writer) (int64, error) {
 	return writeFunc
 }
 
+// mailAddressStringWithoutName returns the string representation of a mail address without the name.
 func mailAddressStringWithoutName(addr mail.Address) string {
 	addr.Name = ""
 	return addr.String()
+}
+
+// hasDKIM returns true if the Msg has a DKIM config.
+func (m *Msg) hasDKIM() bool {
+	return m.dkim != nil
+}
+
+// splitMessage returns bytes before, and bytes after, the first blank line.
+func splitMessage(b []byte) (headers, body []byte) {
+	if i := bytes.Index(b, []byte("\r\n\r\n")); i >= 0 {
+		// keep trailing CRLF on the header block
+		return b[:i+2], b[i+4:]
+	}
+	return b, nil
 }
