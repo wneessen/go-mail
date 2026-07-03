@@ -1104,10 +1104,10 @@ func (c *Client) SetLogAuthData(logAuth bool) {
 //   - An error if the provided DKIMConfig is invalid or nil.
 func (c *Client) SetAlwaysDKIMSign(signer *dkim.Signer) error {
 	if signer == nil {
-		return errors.New("DKIM config must not be nil")
+		return errors.New("DKIM signer must not be nil")
 	}
 	if err := signer.ValidateConfig(); err != nil {
-		return fmt.Errorf("invalid DKIM config: %w", err)
+		return fmt.Errorf("invalid DKIM signer: %w", err)
 	}
 
 	c.mutex.Lock()
