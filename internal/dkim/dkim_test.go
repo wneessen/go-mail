@@ -67,6 +67,7 @@ hcSTp1LpV7OWf4eUXzgnZQ==
 -----END PRIVATE KEY-----`)
 
 	testHeaders                           = []byte("Date: Fri, 03 Jul 2026 22:02:09 +0200\r\nMIME-Version: 1.0\r\nMessage-ID: <hCwhmZssh1Pjbj0_iSP9jx@example.com>\r\nPrecedence: bulk\r\nSubject: This is a DKIM test mail\r\nUser-Agent: go-mail v0.7.3 // https://github.com/wneessen/go-mail\r\nX-Auto-Response-Suppress: All\r\nX-Mailer: go-mail v0.7.3 // https://github.com/wneessen/go-mail\r\nFrom: \"Toni Tester\" <toni.tester@example.com>\r\nTo: \"Tina Tester\" <tina.tester@example.com>\r\nContent-Type: text/plain\r\n")
+	testHeadersLineBreak                  = []byte("Date: Fri, 03 Jul 2026 22:02:09 +0200\r\nMIME-Version: 1.0\r\nMessage-ID: <hCwhmZssh1Pjbj0_iSP9jx@example.com>\r\nPrecedence: bulk\r\nSubject: This is a DKIM test mail\r\nUser-Agent: go-mail v0.7.3 //\r\n https://github.com/wneessen/go-mail\r\nX-Auto-Response-Suppress: All\r\nX-Mailer: go-mail v0.7.3 //\r\n https://github.com/wneessen/go-mail\r\nFrom: \"Toni Tester\" <toni.tester@example.com>\r\nTo: \"Tina Tester\" <tina.tester@example.com>\r\nContent-Type: text/plain\r\n")
 	testSignatureRSARelaxedRelaxed        = "DKIM-Signature: v=1; c=relaxed/relaxed; d=example.com; s=2026a; \r\n a=rsa-sha256; t=1735689600; \r\n h=From:To:Subject:Date:Message-ID:Content-Type:MIME-Version; \r\n bh=2mAkmyqm5RGR3nEPPQFq6mUlRBUWmTYQzNyx4qVNL+4=; b=FFSkJLeSbG7bB1orMrGBRCXF\r\n laP8F5sRHa7hpy5uffrW487wOmR0SzuS81nUwTmW37WNs8OCjloiVEPCeSwkHOw8vnGawdoL9x+\r\n iRh2cKuwBmc1aUx31HPGMFynmq+eZ4BogiABxdPNxLSEzoJgcr6PyJ1u7W0ZX8fPNKMJ8fPbxXK\r\n FeQbV3iLr7HQupfOVOuGC7VJG7bW1Nf+e2hmUQlbqTnPOB5hU3sgFf3vDsEb4GfWTRmaZc1xfJG\r\n eDpWe+62K9kWsoycln0Ch+pK1pEAU/+0ricmUsYVs2FDEvLr44cjqqKReA6QzMgd6Z29sb4UoOo\r\n EsMGbcLRd3h/yKVnfA==\r\n"
 	testSignatureRSASimpleRelaxed         = "DKIM-Signature: v=1; c=simple/relaxed; d=example.com; s=2026a; a=rsa-sha256; t=1735689600; h=From:To:Subject:Date:Message-ID:Content-Type:MIME-Version; bh=2mAkmyqm5RGR3nEPPQFq6mUlRBUWmTYQzNyx4qVNL+4=; b=kc+1KwdV74Phm1/ocb3FJa8rEaI6GRq3V6/qZ13qCuhJ+DaG8UEcaajNzuTYO2axAO/EVMpuNDbX/RV5TB7rp15skNFDsyvs4pKUz48vXRBAK6pg3f1l9aisJ8XbPrVmCsreoyxM7PhgJ4oykcmDPU/YjO6sXqHnabW8GTLRNVZ0GC9JX4U5HCQjPJgVWKPqlJ2I30AHQ81CFCoAa8aeSHU6QG8l3FWvOSLwSXZMwrF8l3LFzlTgetVrAGNdI93lNTMoDSiIP0UkbBMYhM5eFlTFFrO2waScKhiYuuqNYxEu4D0HVhnFk071ZTILJqj4+ujBoPlD3CWM/K40SqDANQ==\r\n"
 	testSignatureRSARelaxedSimple         = "DKIM-Signature: v=1; c=relaxed/simple; d=example.com; s=2026a; \r\n a=rsa-sha256; t=1735689600; \r\n h=From:To:Subject:Date:Message-ID:Content-Type:MIME-Version; \r\n bh=2mAkmyqm5RGR3nEPPQFq6mUlRBUWmTYQzNyx4qVNL+4=; b=QYziNCWpxrnscm5zlBcilCrN\r\n 9O35n2EFNOt5XPI1SrW5NJ5OKg9g0HuIavGkm2Ss7khGKBKrbvdFP4K5rOyFCSV+7x73GywbBrg\r\n wkdGJhaflCl3istCQSN6mXezvIjY8Cthj238Hka49Yn3++QorcaNwjSGBVB86x/zt7cxozCbr9M\r\n wFeC7My6wVGuXl2poxdmrOmb33oNdRPWNfcoH65BRoZAtzSqwJSHRwxvwjy+n6zeRxgYjrCRtLZ\r\n 54NbX8Hx9+IcE2nLYK5zODHh8/NJ06FSQDVsmxOZaNKlT7UwzKIT1kBsLI3B21qrz7PPwDEQpb5\r\n xe/zNJNLWPeKGQXLHQ==\r\n"
@@ -76,6 +77,7 @@ hcSTp1LpV7OWf4eUXzgnZQ==
 	testSignatureEd25519RelaxedSimple     = "DKIM-Signature: v=1; c=relaxed/simple; d=example.com; s=2026a; \r\n a=ed25519-sha256; t=1735689600; \r\n h=From:To:Subject:Date:Message-ID:Content-Type:MIME-Version; \r\n bh=2mAkmyqm5RGR3nEPPQFq6mUlRBUWmTYQzNyx4qVNL+4=; b=mMdQWCsbPTLmnQFDEcm/xTbS\r\n 69OLlmwJjmVa++01Up0Vw1A9UdQncaxsynWTfvyb8HdaMX3jrxWxGqlju1lgAA==\r\n"
 	testSignatureEd25519SimpleSimple      = "DKIM-Signature: v=1; c=simple/simple; d=example.com; s=2026a; a=ed25519-sha256; t=1735689600; h=From:To:Subject:Date:Message-ID:Content-Type:MIME-Version; bh=2mAkmyqm5RGR3nEPPQFq6mUlRBUWmTYQzNyx4qVNL+4=; b=wLva31jPps/gZDbz8T93iS/aW0Xf27wOBCCMf4l8zppW4f0hI3xUzlBWybjebN8LMILMYtSz2V8/4/3D1wCuDQ==\r\n"
 	testSignatureRSARelaxedRelaxedAllOpts = "DKIM-Signature: v=1; c=relaxed/relaxed; d=example.com; s=2026a; \r\n a=rsa-sha256; t=1735689600; \r\n h=From:To:Subject:Date:Message-ID:Content-Type:MIME-Version:From:Subject; \r\n bh=nXffKnoOpS7WvIq5EyR20wBzUQYoH5gEEw3eJeAKYus=; x=1735776000; \r\n i=toni.tester@example.com; l=10; b=pCZY4uSwiPIFJqQR/8rtej8sQs2LEh39hp9ex+hx\r\n 75fcFQBA7Xth4UCOUa8mh5TRCx5NaLpWWBztD+U63PXtmyV/UJxK++OFK6olQ+oyKHIhDiM0gdk\r\n 7EUgVzCXUqELDiIyZTJ+GzuKvMR6RV3twCw/WYFziygY+x2mgkAwEs/3pg32+6FMQO4SvcEca/9\r\n AFIdFdReQOxMVDcO466v+SYf79dvk3MIvR9uECIuNBPD3/JIufgdH8EqiZbbNaXLH6ykXCCHO6y\r\n 1GXzR9mtf8EX5n03JB6Az9WDl4bauuf4Orzf+xzULqYBGi8faEM1PQcMifXAgEawiSts0n9l5y1\r\n TQ==\r\n"
+	testSignatureHeaderLineBreak          = "DKIM-Signature: v=1; c=relaxed/relaxed; d=example.com; s=2026a; \r\n a=rsa-sha256; t=1735689600; \r\n h=From:To:Subject:Date:Message-ID:Content-Type:MIME-Version; \r\n bh=2mAkmyqm5RGR3nEPPQFq6mUlRBUWmTYQzNyx4qVNL+4=; b=FFSkJLeSbG7bB1orMrGBRCXF\r\n laP8F5sRHa7hpy5uffrW487wOmR0SzuS81nUwTmW37WNs8OCjloiVEPCeSwkHOw8vnGawdoL9x+\r\n iRh2cKuwBmc1aUx31HPGMFynmq+eZ4BogiABxdPNxLSEzoJgcr6PyJ1u7W0ZX8fPNKMJ8fPbxXK\r\n FeQbV3iLr7HQupfOVOuGC7VJG7bW1Nf+e2hmUQlbqTnPOB5hU3sgFf3vDsEb4GfWTRmaZc1xfJG\r\n eDpWe+62K9kWsoycln0Ch+pK1pEAU/+0ricmUsYVs2FDEvLr44cjqqKReA6QzMgd6Z29sb4UoOo\r\n EsMGbcLRd3h/yKVnfA==\r\n"
 )
 
 func TestNewSigner(t *testing.T) {
@@ -429,6 +431,19 @@ func TestSigner_Sign(t *testing.T) {
 			}
 		})
 	}
+	t.Run("Sign with line-broken headers succeeds", func(t *testing.T) {
+		signer := testSigner(t, testKeyRSA)
+		signer.NowFunc = func() time.Time {
+			return now
+		}
+		signature, err := signer.Sign(testHeadersLineBreak, mailBuffer.Bytes())
+		if err != nil {
+			t.Errorf("failed to sign message: %s", err)
+		}
+		if !strings.EqualFold(signature, testSignatureHeaderLineBreak) {
+			t.Errorf("signature mismatch: got\n%q\nwant\n%q", signature, testSignatureHeaderLineBreak)
+		}
+	})
 	t.Run("Sign with invalid crypto.Signer fails", func(t *testing.T) {
 		privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		if err != nil {
@@ -441,6 +456,141 @@ func TestSigner_Sign(t *testing.T) {
 		_, err = signer.Sign(testHeaders, mailBuffer.Bytes())
 		if err == nil {
 			t.Errorf("expected error when signing with invalid crypto.Signer, got nil")
+		}
+	})
+}
+
+func Test_writeFolded(t *testing.T) {
+	t.Run("writefold on a normal string", func(t *testing.T) {
+		has := "first string "
+		want := "hello world"
+		wantPosition := len(has) + len(want)
+
+		builder := strings.Builder{}
+		builder.WriteString(has)
+		position := writeFolded(&builder, want, len(has))
+		if position != wantPosition {
+			t.Errorf("expected new position to be at %d bytes, got %d", wantPosition, position)
+		}
+		if builder.String() != has+want {
+			t.Errorf("expected folded string %q, got %q", has+want, builder.String())
+		}
+	})
+	t.Run("writefold folds a long string", func(t *testing.T) {
+		has := "the first part is already pretty long- and concatinating it, should fold the "
+		want := "the additional text"
+		wantPosition := len(want) + 1 // the space after the line break
+
+		builder := strings.Builder{}
+		builder.WriteString(has)
+		position := writeFolded(&builder, want, len(has))
+		if position != wantPosition {
+			t.Errorf("expected new position to be at %d bytes, got %d", wantPosition, position)
+		}
+		if builder.String() != has+"\r\n "+want {
+			t.Errorf("expected folded string %q, got %q", has+"\r\n "+want, builder.String())
+		}
+	})
+	t.Run("writefold hard-wraps a token longer than a line", func(t *testing.T) {
+		has := "start here"
+		want := strings.Repeat("x", maxLineLength+20)
+
+		builder := strings.Builder{}
+		builder.WriteString(has)
+		position := writeFolded(&builder, want, len(has))
+
+		room := maxLineLength - len(has)
+		wantOutput := has + want[:room] + "\r\n " + want[room:]
+		wantPosition := 1 + len(want) - room
+
+		if position != wantPosition {
+			t.Errorf("expected new position at %d bytes, got %d", wantPosition, position)
+		}
+		if builder.String() != wantOutput {
+			t.Errorf("expected folded string %q, got %q", wantOutput, builder.String())
+		}
+	})
+	t.Run("writefold with nil data returns the current position", func(t *testing.T) {
+		builder := strings.Builder{}
+		position := writeFolded(&builder, "", 0)
+		if position != 0 {
+			t.Errorf("expected position to be 0, got %d", position)
+		}
+	})
+}
+
+func Test_appendFoldedBase64(t *testing.T) {
+	const prefix = len("DKIM-Signature: ")
+
+	t.Run("appends short base64 without folding", func(t *testing.T) {
+		foldedTags := "v=1; a=rsa-sha256; c=relaxed/relaxed; "
+		sig := "b=shortsig"
+		want := foldedTags + sig
+
+		got := appendFoldedBase64(foldedTags, sig)
+		if got != want {
+			t.Errorf("expected %q, got %q", want, got)
+		}
+	})
+	t.Run("folds base64 when the first line is full", func(t *testing.T) {
+		foldedTags := "v=1; a=rsa-sha256; "
+		col := prefix + len(foldedTags)
+		room := maxLineLength - col
+		sig := strings.Repeat("A", room+10)
+		want := foldedTags + sig[:room] + "\r\n " + sig[room:]
+
+		got := appendFoldedBase64(foldedTags, sig)
+		if got != want {
+			t.Errorf("expected %q, got %q", want, got)
+		}
+	})
+	t.Run("computes column from the last CRLF in foldedTags", func(t *testing.T) {
+		foldedTags := "v=1; a=rsa-sha256;\r\n c=relaxed/relaxed; "
+		i := strings.LastIndex(foldedTags, "\r\n")
+		col := len(foldedTags) - (i + 2)
+		room := maxLineLength - col
+		sig := strings.Repeat("B", room+5)
+		want := foldedTags + sig[:room] + "\r\n " + sig[room:]
+
+		got := appendFoldedBase64(foldedTags, sig)
+		if got != want {
+			t.Errorf("expected %q, got %q", want, got)
+		}
+	})
+	t.Run("hard wraps a long base64 across multiple lines", func(t *testing.T) {
+		foldedTags := "b="
+		col := prefix + len(foldedTags)
+		room := maxLineLength - col
+		sig := strings.Repeat("C", room+maxLineLength)
+
+		want := foldedTags + sig[:room] + "\r\n "
+		rest := sig[room:]
+		for len(rest) > maxLineLength-1 {
+			want += rest[:maxLineLength-1] + "\r\n "
+			rest = rest[maxLineLength-1:]
+		}
+		want += rest
+
+		got := appendFoldedBase64(foldedTags, sig)
+		if got != want {
+			t.Errorf("expected %q, got %q", want, got)
+		}
+	})
+	t.Run("folds immediately when foldedTags already fills the line", func(t *testing.T) {
+		lastLine := strings.Repeat("x", maxLineLength-1)
+		foldedTags := "v=1;\r\n " + lastLine
+		sig := "b=abc"
+		want := foldedTags + "\r\n " + sig
+
+		got := appendFoldedBase64(foldedTags, sig)
+		if got != want {
+			t.Errorf("expected %q, got %q", want, got)
+		}
+	})
+	t.Run("returns foldedTags unchanged for empty signature", func(t *testing.T) {
+		foldedTags := "v=1; a=rsa-sha256; b="
+		if got := appendFoldedBase64(foldedTags, ""); got != foldedTags {
+			t.Errorf("expected %q, got %q", foldedTags, got)
 		}
 	})
 }

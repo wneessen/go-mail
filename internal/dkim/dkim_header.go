@@ -64,6 +64,30 @@ func (hs *headerStore) pop(name string) (string, bool) {
 	return last, true
 }
 
+// writeFolded writes data to builder, inserting CRLF+SPACE whenever the current
+// line would exceed maxLineLength, so even a single long token (b=...) gets
+// wrapped. It returns the new current line's length
+func writeFolded(builder *strings.Builder, data string, length int) int {
+	for len(data) > 0 {
+		room := maxLineLength - length
+		if room < 1 {
+			builder.WriteString("\r\n ")
+			length = 1
+			room = maxLineLength - length
+		}
+		if len(data) <= room {
+			builder.WriteString(data)
+			length += len(data)
+			return length
+		}
+		builder.WriteString(data[:room])
+		builder.WriteString("\r\n ")
+		length = 1
+		data = data[room:]
+	}
+	return length
+}
+
 // foldHeader wraps the value to stay within the ~78-char line limit
 // (RFC 5322 2.1.1). Tags are broken at "; " boundaries; any single token that
 // is still too long (notably the b= base64 blob) is hard-wrapped mid-string.
@@ -75,28 +99,6 @@ func foldHeader(value string) string {
 	var builder strings.Builder
 	length := len("DKIM-Signature: ")
 
-	// writeFolded writes s, inserting CRLF+HTAB whenever the current line would
-	// exceed limit, so even a single long token (b=...) gets wrapped.
-	writeFolded := func(s string) {
-		for len(s) > 0 {
-			room := maxLineLength - length
-			if room < 1 {
-				builder.WriteString("\r\n ")
-				length = 1 // the tab counts as one column
-				room = maxLineLength - length
-			}
-			if len(s) <= room {
-				builder.WriteString(s)
-				length += len(s)
-				return
-			}
-			builder.WriteString(s[:room])
-			builder.WriteString("\r\n ")
-			length = 1
-			s = s[room:]
-		}
-	}
-
 	for i, part := range strings.SplitAfter(value, "; ") {
 		// Start a new line before a tag if it won't fit and we're not already
 		// at the beginning of a folded line.
@@ -104,7 +106,7 @@ func foldHeader(value string) string {
 			builder.WriteString("\r\n ")
 			length = 1
 		}
-		writeFolded(part)
+		length = writeFolded(&builder, part, length)
 	}
 	return builder.String()
 }
