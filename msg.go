@@ -459,6 +459,23 @@ func (m *Msg) SetPGPType(pgptype PGPType) {
 	m.pgptype = pgptype
 }
 
+// SetDKIM sets or overrides the currently set DKIM signer for the Msg.
+//
+// This method allows the user to assign a DKIMSigner to a Msg to be used for digitally
+// signing the message header and body.
+//
+// Parameters:
+//   - signer: The dkim.Signer instance to be used for signing the message.
+//
+// Returns:
+//   - A MsgOption function that can be used to customize the Msg instance.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc6376
+func (m *Msg) SetDKIM(signer *dkim.Signer) {
+	m.dkim = signer
+}
+
 // Encoding returns the currently set Encoding of the Msg as a string.
 //
 // This method retrieves the encoding type that is currently applied to the message. The
