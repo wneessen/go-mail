@@ -595,6 +595,7 @@ func Test_appendFoldedBase64(t *testing.T) {
 	})
 }
 
+// testSigner returns a Signer for testing purposes.
 func testSigner(t *testing.T, keyData []byte) *Signer {
 	t.Helper()
 
@@ -606,6 +607,7 @@ func testSigner(t *testing.T, keyData []byte) *Signer {
 	return signer
 }
 
+// pemToCryptoSigner converts a PEM-encoded private key to a crypto.Signer.
 func pemToCryptoSigner(t *testing.T, keyBytes []byte) crypto.Signer {
 	t.Helper()
 
