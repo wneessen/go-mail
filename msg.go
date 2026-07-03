@@ -3123,15 +3123,22 @@ func writeFuncFromBuffer(buffer *bytes.Buffer) func(io.Writer) (int64, error) {
 	return writeFunc
 }
 
+// mailAddressStringWithoutName returns the string representation of a mail address without the name.
 func mailAddressStringWithoutName(addr mail.Address) string {
 	addr.Name = ""
 	return addr.String()
 }
 
+// hasDKIM returns true if the Msg has a DKIM config.
+func (m *Msg) hasDKIM() bool {
+	return m.dkim != nil
+}
+
 // splitMessage returns bytes before, and bytes after, the first blank line.
 func splitMessage(b []byte) (headers, body []byte) {
 	if i := bytes.Index(b, []byte("\r\n\r\n")); i >= 0 {
-		return b[:i+2], b[i+4:] // keep trailing CRLF on the header block
+		// keep trailing CRLF on the header block
+		return b[:i+2], b[i+4:]
 	}
 	return b, nil
 }

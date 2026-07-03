@@ -151,10 +151,6 @@ var (
 		{"1@23456789", true},                 // Hypothetically valid, if somebody registers that TLD
 		{"1@[23456789]", false},              // While 23456789 is decimal for 1.101.236.21 it is not RFC5322 compliant
 	}
-
-	testKeyEd25519 = []byte(`-----BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VwBCIEIPEZCuuDQ2PIH1RDbMl92DIb8Vsqz2j7B26aHomVq1pU
------END PRIVATE KEY-----`)
 )
 
 //go:embed testdata/attachment.txt testdata/embed.txt
