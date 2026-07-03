@@ -51,8 +51,10 @@ const (
 
 var (
 	// defaultHeader is the default set of headers to sign
-	defaultHeader = []string{"From", "To", "Subject", "Date", "Message-ID",
-		"Content-Type", "MIME-Version"}
+	defaultHeader = []string{
+		"From", "To", "Subject", "Date", "Message-ID",
+		"Content-Type", "MIME-Version",
+	}
 
 	// defaultCanonicalization is the default canonicalization algorithm to use
 	defaultCanonicalization = CanonicalizationRelaxed

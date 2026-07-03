@@ -248,7 +248,8 @@ func TestNTLMv2Session_ParseChallengeMessage(t *testing.T) {
 		session.SetUserInfo(testUser, testPassword, testDomain)
 		message, err := CreateChallengeMessage(
 			uint32(ntlmsspNegotiateUnicode|ntlmsspNegotiateAlwaysSign|ntlmsspNegotiateKeyExchange),
-			[]byte(testChallenge), testHost, testDomain)
+			[]byte(testChallenge), testHost, testDomain,
+		)
 		if err != nil {
 			t.Fatalf("failed to create challenge message: %s", err)
 		}
@@ -347,7 +348,8 @@ func TestNTLMv2Session_GenerateAuthenticateMessage(t *testing.T) {
 		session.SetUserInfo(testUser, testPassword, testDomain)
 		message, err := CreateChallengeMessage(
 			uint32(ntlmsspNegotiateUnicode|ntlmsspNegotiateAlwaysSign|ntlmsspNegotiateKeyExchange),
-			[]byte(testChallenge), testHost, testDomain)
+			[]byte(testChallenge), testHost, testDomain,
+		)
 		if err != nil {
 			t.Fatalf("failed to create challenge message: %s", err)
 		}
@@ -425,7 +427,8 @@ func TestNTLMv2Session_GenerateAuthenticateMessage(t *testing.T) {
 				session.SetUserInfo(testUser, testPassword, testDomain)
 				message, err := CreateChallengeMessage(
 					uint32(ntlmsspNegotiateUnicode|ntlmsspNegotiateAlwaysSign|ntlmsspNegotiateKeyExchange),
-					[]byte(testChallenge), testHost, testDomain)
+					[]byte(testChallenge), testHost, testDomain,
+				)
 				if err != nil {
 					t.Fatalf("failed to create challenge message: %s", err)
 				}
@@ -502,7 +505,8 @@ func TestNTLMv2Session_computeEncryptedSessionKey(t *testing.T) {
 		session.SetUserInfo(testUser, testPassword, testDomain)
 		message, err := CreateChallengeMessage(
 			uint32(ntlmsspNegotiateUnicode|ntlmsspNegotiateAlwaysSign|ntlmsspNegotiateKeyExchange),
-			[]byte(testChallenge), testHost, testDomain)
+			[]byte(testChallenge), testHost, testDomain,
+		)
 		if err != nil {
 			t.Fatalf("failed to create challenge message: %s", err)
 		}
@@ -520,7 +524,8 @@ func TestCreateChallengeMessage(t *testing.T) {
 	t.Run("creates challenge message successfully", func(t *testing.T) {
 		_, err := CreateChallengeMessage(
 			uint32(ntlmsspNegotiateUnicode|ntlmsspNegotiateAlwaysSign|ntlmsspNegotiateKeyExchange),
-			[]byte(testChallenge), testHost, testDomain)
+			[]byte(testChallenge), testHost, testDomain,
+		)
 		if err != nil {
 			t.Fatalf("failed to create challenge message: %s", err)
 		}
@@ -529,7 +534,8 @@ func TestCreateChallengeMessage(t *testing.T) {
 		_, err := CreateChallengeMessage(
 			uint32(ntlmsspNegotiateUnicode|ntlmsspNegotiateAlwaysSign|ntlmsspNegotiateKeyExchange|
 				ntlmsspNegotiateExtendedSessionSecurity),
-			[]byte(testChallenge), testHost, testDomain)
+			[]byte(testChallenge), testHost, testDomain,
+		)
 		if err != nil {
 			t.Fatalf("failed to create challenge message: %s", err)
 		}
@@ -537,7 +543,8 @@ func TestCreateChallengeMessage(t *testing.T) {
 	t.Run("challenge message creation with overly long domain fails", func(t *testing.T) {
 		_, err := CreateChallengeMessage(
 			uint32(ntlmsspNegotiateUnicode|ntlmsspNegotiateAlwaysSign|ntlmsspNegotiateKeyExchange),
-			[]byte(testChallenge), testHost, strings.Repeat("x", math.MaxInt16+1))
+			[]byte(testChallenge), testHost, strings.Repeat("x", math.MaxInt16+1),
+		)
 		if err == nil {
 			t.Error("expected challenge message creation to fail, but got nil")
 		}
@@ -545,7 +552,8 @@ func TestCreateChallengeMessage(t *testing.T) {
 	t.Run("challenge message creation with overly long target fails", func(t *testing.T) {
 		_, err := CreateChallengeMessage(
 			uint32(ntlmsspNegotiateUnicode|ntlmsspNegotiateAlwaysSign|ntlmsspNegotiateKeyExchange),
-			[]byte(testChallenge), strings.Repeat("x", math.MaxInt16+1), testDomain)
+			[]byte(testChallenge), strings.Repeat("x", math.MaxInt16+1), testDomain,
+		)
 		if err == nil {
 			t.Error("expected challenge message creation to fail, but got nil")
 		}
