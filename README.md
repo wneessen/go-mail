@@ -18,12 +18,6 @@ SPDX-License-Identifier: MIT
 
 <p style="text-align: center"><img src="./assets/gopher2.svg" width="250" alt="go-mail logo"/></p>
 
-# go-mail - Easy to use, yet comprehensive library for sending mails with Go
-
-[badges unchanged]
-
-![go-mail logo](./assets/gopher2.svg)
-
 go-mail is a modern, feature-rich library for composing and sending mail with Go.
 It offers a simple, idiomatic interface for everyday use while providing the depth
 and flexibility needed for advanced email workflows.
