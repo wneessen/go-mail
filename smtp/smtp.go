@@ -205,14 +205,14 @@ func (c *Client) SkipSMTPUTF8(val bool) {
 }
 
 // cmd is a convenience function that sends a command and returns the response
-func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, string, error) {
+func (c *Client) cmd(expectCode int, format string, args ...any) (int, string, error) {
 	c.mutex.Lock()
 
-	var logMsg []interface{}
+	var logMsg []any
 	logMsg = args
 	logFmt := format
 	if c.authIsActive {
-		logMsg = []interface{}{"<SMTP auth data redacted>"}
+		logMsg = []any{"<SMTP auth data redacted>"}
 		logFmt = "%s"
 	}
 	c.debugLog(log.DirClientToServer, logFmt, logMsg...)
@@ -240,9 +240,9 @@ func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, s
 		code, msg, err = c.Text.ReadResponse(expectCode)
 	}
 
-	logMsg = []interface{}{code, msg}
+	logMsg = []any{code, msg}
 	if c.authIsActive && code >= 300 && code <= 400 {
-		logMsg = []interface{}{code, "<SMTP auth data redacted>"}
+		logMsg = []any{code, "<SMTP auth data redacted>"}
 	}
 	c.debugLog(log.DirServerToClient, "%d %s", logMsg...)
 
@@ -712,7 +712,7 @@ func (c *Client) GetTLSConnectionState() (*tls.ConnectionState, error) {
 
 // debugLog checks if the debug flag is set and if so logs the provided message to
 // the log.Logger interface
-func (c *Client) debugLog(d log.Direction, f string, a ...interface{}) {
+func (c *Client) debugLog(d log.Direction, f string, a ...any) {
 	if c.debug {
 		c.logger.Debugf(log.Log{Direction: d, Format: f, Messages: a})
 	}

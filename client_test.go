@@ -695,7 +695,7 @@ func TestNewClient(t *testing.T) {
 					if c.dialContextFunc == nil {
 						return errors.New("failed to set dial context func, got: nil")
 					}
-					ctxType := reflect.TypeOf(c.dialContextFunc).String()
+					ctxType := reflect.TypeFor[DialContextFunc]().String()
 					if ctxType != "mail.DialContextFunc" {
 						return fmt.Errorf("failed to set dial context func, want: %s, got: %s",
 							"mail.DialContextFunc", ctxType)
@@ -710,7 +710,7 @@ func TestNewClient(t *testing.T) {
 					if c.dialContextFunc == nil {
 						return errors.New("failed to set dial context func, got: nil")
 					}
-					ctxType := reflect.TypeOf(c.dialContextFunc).String()
+					ctxType := reflect.TypeFor[DialContextFunc]().String()
 					if ctxType != "mail.DialContextFunc" {
 						return fmt.Errorf("failed to set dial context func, want: %s, got: %s",
 							"mail.DialContextFunc", ctxType)
@@ -730,7 +730,7 @@ func TestNewClient(t *testing.T) {
 					if c.dialContextFunc == nil {
 						return errors.New("failed to set dial context func, got: nil")
 					}
-					ctxType := reflect.TypeOf(c.dialContextFunc).String()
+					ctxType := reflect.TypeFor[DialContextFunc]().String()
 					if ctxType != "mail.DialContextFunc" {
 						return fmt.Errorf("failed to set dial context func, want: %s, got: %s",
 							"mail.DialContextFunc", ctxType)
@@ -1224,8 +1224,7 @@ func TestClient_SetSSLPort(t *testing.T) {
 }
 
 func TestClient_SetDebugLog(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	PortAdder.Add(1)
 	serverPort := int(TestServerPortBase + PortAdder.Load())
 	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -1708,8 +1707,7 @@ func TestClient_SetAlwaysDKIMSign(t *testing.T) {
 
 func TestClient_Close(t *testing.T) {
 	t.Run("connect and close the Client", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -1746,8 +1744,7 @@ func TestClient_Close(t *testing.T) {
 		}
 	})
 	t.Run("connect and double close the Client", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -1787,8 +1784,7 @@ func TestClient_Close(t *testing.T) {
 		}
 	})
 	t.Run("test server will let close fail", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -1837,8 +1833,7 @@ func TestClient_Close(t *testing.T) {
 }
 
 func TestClient_DialWithContext(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	PortAdder.Add(1)
 	serverPort := int(TestServerPortBase + PortAdder.Load())
 	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2233,8 +2228,7 @@ func TestClient_DialWithContext(t *testing.T) {
 
 func TestClient_Reset(t *testing.T) {
 	t.Run("reset client", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2270,8 +2264,7 @@ func TestClient_Reset(t *testing.T) {
 		}
 	})
 	t.Run("reset should fail on disconnected client", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2305,8 +2298,7 @@ func TestClient_Reset(t *testing.T) {
 		}
 	})
 	t.Run("reset with server failure", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2350,8 +2342,7 @@ func TestClient_Reset(t *testing.T) {
 func TestClient_DialAndSendWithContext(t *testing.T) {
 	message := testMessage(t)
 	t.Run("DialAndSend", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2379,8 +2370,7 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 		}
 	})
 	t.Run("DialAndSendWithContext", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2412,8 +2402,7 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 	})
 	// https://github.com/wneessen/go-mail/commit/4641da450f5e3b3726e01b1cf03c88361cf49c8f
 	t.Run("DialAndSendWithContext with nil messages", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2444,8 +2433,7 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 		}
 	})
 	t.Run("DialAndSendWithContext fail on dial", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2473,8 +2461,7 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 		}
 	})
 	t.Run("DialAndSendWithContext fail on close", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2502,8 +2489,7 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 		}
 	})
 	t.Run("DialAndSendWithContext fail on send", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2532,8 +2518,7 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 	})
 	// https://github.com/wneessen/go-mail/issues/380
 	t.Run("concurrent sending via DialAndSendWithContext", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2554,10 +2539,8 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 		}
 
 		wg := sync.WaitGroup{}
-		for i := 0; i < 50; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+		for range 50 {
+			wg.Go(func() {
 				msg := testMessage(t)
 				msg.SetMessageIDWithValue("this.is.a.message.id")
 
@@ -2566,14 +2549,13 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 				if goroutineErr := client.DialAndSendWithContext(ctxDial, msg); goroutineErr != nil {
 					t.Errorf("failed to dial and send message: %s", goroutineErr)
 				}
-			}()
+			})
 		}
 		wg.Wait()
 	})
 	// https://github.com/wneessen/go-mail/issues/385
 	t.Run("concurrent sending via DialAndSendWithContext on receiver func", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2596,7 +2578,7 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 
 		ctxDial := context.Background()
 		wg := sync.WaitGroup{}
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			wg.Add(1)
 			msg := testMessage(t)
 			go func() {
@@ -2637,8 +2619,7 @@ func TestClient_auth(t *testing.T) {
 	tlsConfig := tls.Config{InsecureSkipVerify: true}
 	for _, tt := range tests {
 		t.Run(tt.name+" should succeed", func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 			PortAdder.Add(1)
 			serverPort := int(TestServerPortBase + PortAdder.Load())
 			featureSet := "250-AUTH " + tt.name + "\r\n250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2674,8 +2655,7 @@ func TestClient_auth(t *testing.T) {
 			}
 		})
 		t.Run(tt.name+" should fail", func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 			PortAdder.Add(1)
 			serverPort := int(TestServerPortBase + PortAdder.Load())
 			featureSet := "250-AUTH " + tt.name + "\r\n250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2705,8 +2685,7 @@ func TestClient_auth(t *testing.T) {
 			}
 		})
 		t.Run(tt.name+" should fail as unspported", func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 			PortAdder.Add(1)
 			serverPort := int(TestServerPortBase + PortAdder.Load())
 			featureSet := "250-AUTH UNKNOWN\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2736,8 +2715,7 @@ func TestClient_auth(t *testing.T) {
 		})
 	}
 	t.Run("auth is not supported at all", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2766,8 +2744,7 @@ func TestClient_auth(t *testing.T) {
 		}
 	})
 	t.Run("SCRAM-X-PLUS on non TLS connection should fail", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH SCRAM-SHA-256-PLUS\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2796,8 +2773,7 @@ func TestClient_auth(t *testing.T) {
 		}
 	})
 	t.Run("unknown auth type should fail", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH UNKNOWN\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2827,8 +2803,7 @@ func TestClient_auth(t *testing.T) {
 	})
 	// https://github.com/wneessen/go-mail/issues/428
 	t.Run("auth with custom auth type should succeed", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH CUSTOM\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2862,8 +2837,7 @@ func TestClient_auth(t *testing.T) {
 	})
 	// https://github.com/wneessen/go-mail/issues/428
 	t.Run("auth with custom auth type should fail", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH UNKNOWN\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2893,8 +2867,7 @@ func TestClient_auth(t *testing.T) {
 	})
 	// https://github.com/wneessen/go-mail/issues/428
 	t.Run("auth with custom auth type overridden by SetCustomAuth", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH CUSTOM\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2968,8 +2941,7 @@ func TestClient_authTypeAutoDiscover(t *testing.T) {
 func TestClient_Send(t *testing.T) {
 	message := testMessage(t)
 	t.Run("connect and send email", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -3009,8 +2981,7 @@ func TestClient_Send(t *testing.T) {
 	})
 	// https://github.com/wneessen/go-mail/commit/4641da450f5e3b3726e01b1cf03c88361cf49c8f
 	t.Run("connect and try to send email but message is nil", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -3065,8 +3036,7 @@ func TestClient_Send(t *testing.T) {
 		}
 	})
 	t.Run("concurrent sending on a single client connection", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -3106,7 +3076,7 @@ func TestClient_Send(t *testing.T) {
 		})
 
 		var messages []*Msg
-		for i := 0; i < 50; i++ {
+		for range 50 {
 			curMessage := testMessage(t)
 			curMessage.SetMessageIDWithValue("this.is.a.message.id")
 			messages = append(messages, curMessage)
@@ -3128,8 +3098,7 @@ func TestClient_Send(t *testing.T) {
 
 func TestClient_DialToSMTPClientWithContext(t *testing.T) {
 	t.Run("establish a new client connection", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -3204,8 +3173,7 @@ func TestClient_DialToSMTPClientWithContext(t *testing.T) {
 		}
 	})
 	t.Run("dial to Unix domain socket", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -3268,8 +3236,7 @@ func TestClient_DialToSMTPClientWithContext(t *testing.T) {
 
 func TestClient_sendSingleMsg(t *testing.T) {
 	t.Run("connect and send email", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -3310,8 +3277,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 	})
 	t.Run("server does not support 8BITMIME", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 SMTPUTF8"
@@ -3353,8 +3319,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 	})
 	t.Run("fail on invalid sender address", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -3405,8 +3370,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 	})
 	t.Run("fail with no sender address", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -3455,8 +3419,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 	})
 	t.Run("fail with no recipient addresses", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -3505,8 +3468,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 	})
 	t.Run("connect and send email with DSN", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -3548,8 +3510,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 	})
 	t.Run("connect and send email but fail on reset", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -3598,8 +3559,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 	})
 	t.Run("RSET is failing but we skip it with noRset", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -3642,8 +3602,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 	})
 	t.Run("connect and send email but with mix of valid and invalid rcpts", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -3693,8 +3652,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 	})
 	t.Run("connect and send email but fail on mail to and reset", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -3744,8 +3702,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 	})
 	t.Run("connect and send email but fail on data init", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -3794,8 +3751,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 	})
 	t.Run("connect and send email but fail on data close", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -3844,8 +3800,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 	})
 	t.Run("error code and enhanced status code support", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-ENHANCEDSTATUSCODES\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -3897,8 +3852,7 @@ func TestClient_sendSingleMsg(t *testing.T) {
 		}
 	})
 	t.Run("DKIM signed message", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-ENHANCEDSTATUSCODES\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -3994,8 +3948,7 @@ func TestNewClientNewVersionsOnly(t *testing.T) {
 }
 
 func TestClient_DialWithContextNewVersionsOnly(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	PortAdder.Add(1)
 	serverPort := int(TestServerPortBase + PortAdder.Load())
 	featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -4052,8 +4005,7 @@ func TestClient_SendWithSMTPClient(t *testing.T) {
 	message := testMessage(t)
 
 	t.Run("sending with normal client should succeed", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -4089,8 +4041,7 @@ func TestClient_SendWithSMTPClient(t *testing.T) {
 		}
 	})
 	t.Run("sending should return a send error on connection test", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -4142,8 +4093,7 @@ func TestClient_SendWithSMTPClient(t *testing.T) {
 
 func TestClient_checkConn(t *testing.T) {
 	t.Run("connection is alive", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -4182,8 +4132,7 @@ func TestClient_checkConn(t *testing.T) {
 		}
 	})
 	t.Run("connection should fail on noop", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"

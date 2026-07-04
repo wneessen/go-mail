@@ -42,7 +42,7 @@ func TestJSONDebugf(t *testing.T) {
 	msg := "foo"
 	msg2 := "bar"
 
-	l.Debugf(Log{Direction: DirServerToClient, Format: f, Messages: []interface{}{msg}})
+	l.Debugf(Log{Direction: DirServerToClient, Format: f, Messages: []any{msg}})
 	exFrom := "server"
 	exTo := "client"
 	jl, err := unmarshalLog(b.Bytes())
@@ -60,7 +60,7 @@ func TestJSONDebugf(t *testing.T) {
 	}
 
 	b.Reset()
-	l.Debugf(Log{Direction: DirClientToServer, Format: f, Messages: []interface{}{msg2}})
+	l.Debugf(Log{Direction: DirClientToServer, Format: f, Messages: []any{msg2}})
 	exFrom = "client"
 	exTo = "server"
 	jl, err = unmarshalLog(b.Bytes())
@@ -79,7 +79,7 @@ func TestJSONDebugf(t *testing.T) {
 
 	b.Reset()
 	l.level = LevelInfo
-	l.Debugf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []interface{}{"foo"}})
+	l.Debugf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []any{"foo"}})
 	if b.String() != "" {
 		t.Error("Debug message was not expected to be logged")
 	}
@@ -92,7 +92,7 @@ func TestJSONDebugf_WithDefault(t *testing.T) {
 	msg := "foo"
 	msg2 := "bar"
 
-	l.Debugf(Log{Direction: DirServerToClient, Format: f, Messages: []interface{}{msg}})
+	l.Debugf(Log{Direction: DirServerToClient, Format: f, Messages: []any{msg}})
 	exFrom := "server"
 	exTo := "client"
 	jl, err := unmarshalLog(b.Bytes())
@@ -110,7 +110,7 @@ func TestJSONDebugf_WithDefault(t *testing.T) {
 	}
 
 	b.Reset()
-	l.Debugf(Log{Direction: DirClientToServer, Format: f, Messages: []interface{}{msg2}})
+	l.Debugf(Log{Direction: DirClientToServer, Format: f, Messages: []any{msg2}})
 	exFrom = "client"
 	exTo = "server"
 	jl, err = unmarshalLog(b.Bytes())
@@ -129,7 +129,7 @@ func TestJSONDebugf_WithDefault(t *testing.T) {
 
 	b.Reset()
 	l.level = LevelInfo
-	l.Debugf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []interface{}{"foo"}})
+	l.Debugf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []any{"foo"}})
 	if b.String() != "" {
 		t.Error("Debug message was not expected to be logged")
 	}
@@ -142,7 +142,7 @@ func TestJSONInfof(t *testing.T) {
 	msg := "foo"
 	msg2 := "bar"
 
-	l.Infof(Log{Direction: DirServerToClient, Format: f, Messages: []interface{}{msg}})
+	l.Infof(Log{Direction: DirServerToClient, Format: f, Messages: []any{msg}})
 	exFrom := "server"
 	exTo := "client"
 	jl, err := unmarshalLog(b.Bytes())
@@ -160,7 +160,7 @@ func TestJSONInfof(t *testing.T) {
 	}
 
 	b.Reset()
-	l.Infof(Log{Direction: DirClientToServer, Format: f, Messages: []interface{}{msg2}})
+	l.Infof(Log{Direction: DirClientToServer, Format: f, Messages: []any{msg2}})
 	exFrom = "client"
 	exTo = "server"
 	jl, err = unmarshalLog(b.Bytes())
@@ -179,7 +179,7 @@ func TestJSONInfof(t *testing.T) {
 
 	b.Reset()
 	l.level = LevelWarn
-	l.Infof(Log{Direction: DirServerToClient, Format: "test %s", Messages: []interface{}{"foo"}})
+	l.Infof(Log{Direction: DirServerToClient, Format: "test %s", Messages: []any{"foo"}})
 	if b.String() != "" {
 		t.Error("Info message was not expected to be logged")
 	}
@@ -192,7 +192,7 @@ func TestJSONWarnf(t *testing.T) {
 	msg := "foo"
 	msg2 := "bar"
 
-	l.Warnf(Log{Direction: DirServerToClient, Format: f, Messages: []interface{}{msg}})
+	l.Warnf(Log{Direction: DirServerToClient, Format: f, Messages: []any{msg}})
 	exFrom := "server"
 	exTo := "client"
 	jl, err := unmarshalLog(b.Bytes())
@@ -210,7 +210,7 @@ func TestJSONWarnf(t *testing.T) {
 	}
 
 	b.Reset()
-	l.Warnf(Log{Direction: DirClientToServer, Format: f, Messages: []interface{}{msg2}})
+	l.Warnf(Log{Direction: DirClientToServer, Format: f, Messages: []any{msg2}})
 	exFrom = "client"
 	exTo = "server"
 	jl, err = unmarshalLog(b.Bytes())
@@ -229,7 +229,7 @@ func TestJSONWarnf(t *testing.T) {
 
 	b.Reset()
 	l.level = LevelError
-	l.Warnf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []interface{}{"foo"}})
+	l.Warnf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []any{"foo"}})
 	if b.String() != "" {
 		t.Error("Warn message was not expected to be logged")
 	}
@@ -242,7 +242,7 @@ func TestJSONErrorf(t *testing.T) {
 	msg := "foo"
 	msg2 := "bar"
 
-	l.Errorf(Log{Direction: DirServerToClient, Format: f, Messages: []interface{}{msg}})
+	l.Errorf(Log{Direction: DirServerToClient, Format: f, Messages: []any{msg}})
 	exFrom := "server"
 	exTo := "client"
 	jl, err := unmarshalLog(b.Bytes())
@@ -260,7 +260,7 @@ func TestJSONErrorf(t *testing.T) {
 	}
 
 	b.Reset()
-	l.Errorf(Log{Direction: DirClientToServer, Format: f, Messages: []interface{}{msg2}})
+	l.Errorf(Log{Direction: DirClientToServer, Format: f, Messages: []any{msg2}})
 	exFrom = "client"
 	exTo = "server"
 	jl, err = unmarshalLog(b.Bytes())
@@ -279,7 +279,7 @@ func TestJSONErrorf(t *testing.T) {
 
 	b.Reset()
 	l.level = -99
-	l.Errorf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []interface{}{"foo"}})
+	l.Errorf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []any{"foo"}})
 	if b.String() != "" {
 		t.Error("Error message was not expected to be logged")
 	}

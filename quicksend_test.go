@@ -6,7 +6,6 @@ package mail
 
 import (
 	"bytes"
-	"context"
 	"crypto/tls"
 	"fmt"
 	"strings"
@@ -73,8 +72,7 @@ func TestQuickSend(t *testing.T) {
 	sender := TestSenderValid
 	rcpts := []string{TestRcptValid}
 	t.Run("QuickSend with authentication and TLS", func(t *testing.T) {
-		ctxAuth, cancelAuth := context.WithCancel(context.Background())
-		defer cancelAuth()
+		ctxAuth := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250-STARTTLS\r\n250 SMTPUTF8"
@@ -120,8 +118,7 @@ func TestQuickSend(t *testing.T) {
 		props.BufferMutex.RUnlock()
 	})
 	t.Run("QuickSend with authentication and TLS and multiple receipients", func(t *testing.T) {
-		ctxAuth, cancelAuth := context.WithCancel(context.Background())
-		defer cancelAuth()
+		ctxAuth := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250-STARTTLS\r\n250 SMTPUTF8"
@@ -170,8 +167,7 @@ func TestQuickSend(t *testing.T) {
 		props.BufferMutex.RUnlock()
 	})
 	t.Run("QuickSend uses stronged authentication method", func(t *testing.T) {
-		ctxAuth, cancelAuth := context.WithCancel(context.Background())
-		defer cancelAuth()
+		ctxAuth := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN CRAM-MD5 SCRAM-SHA-256-PLUS SCRAM-SHA-256\r\n250-8BITMIME\r\n250-DSN\r\n250-STARTTLS\r\n250 SMTPUTF8"
@@ -213,8 +209,7 @@ func TestQuickSend(t *testing.T) {
 		}
 	})
 	t.Run("QuickSend uses stronged authentication method without TLS", func(t *testing.T) {
-		ctxAuth, cancelAuth := context.WithCancel(context.Background())
-		defer cancelAuth()
+		ctxAuth := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN CRAM-MD5 SCRAM-SHA-256-PLUS SCRAM-SHA-256\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -256,8 +251,7 @@ func TestQuickSend(t *testing.T) {
 		}
 	})
 	t.Run("QuickSend fails during DialAndSend", func(t *testing.T) {
-		ctxAuth, cancelAuth := context.WithCancel(context.Background())
-		defer cancelAuth()
+		ctxAuth := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN CRAM-MD5 SCRAM-SHA-256-PLUS SCRAM-SHA-256\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"

@@ -25,12 +25,12 @@ func TestDebugf(t *testing.T) {
 	var b bytes.Buffer
 	l := New(&b, LevelDebug)
 
-	l.Debugf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []interface{}{"foo"}})
+	l.Debugf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []any{"foo"}})
 	expected := "DEBUG: C <-- S: test foo\n"
 	if !strings.HasSuffix(b.String(), expected) {
 		t.Errorf("Expected %q, got %q", expected, b.String())
 	}
-	l.Debugf(Log{Direction: DirClientToServer, Format: "test %s", Messages: []interface{}{"foo"}})
+	l.Debugf(Log{Direction: DirClientToServer, Format: "test %s", Messages: []any{"foo"}})
 	expected = "DEBUG: C --> S: test foo\n"
 	if !strings.HasSuffix(b.String(), expected) {
 		t.Errorf("Expected %q, got %q", expected, b.String())
@@ -38,7 +38,7 @@ func TestDebugf(t *testing.T) {
 
 	b.Reset()
 	l.level = LevelInfo
-	l.Debugf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []interface{}{"foo"}})
+	l.Debugf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []any{"foo"}})
 	if b.String() != "" {
 		t.Error("Debug message was not expected to be logged")
 	}
@@ -48,12 +48,12 @@ func TestInfof(t *testing.T) {
 	var b bytes.Buffer
 	l := New(&b, LevelInfo)
 
-	l.Infof(Log{Direction: DirServerToClient, Format: "test %s", Messages: []interface{}{"foo"}})
+	l.Infof(Log{Direction: DirServerToClient, Format: "test %s", Messages: []any{"foo"}})
 	expected := " INFO: C <-- S: test foo\n"
 	if !strings.HasSuffix(b.String(), expected) {
 		t.Errorf("Expected %q, got %q", expected, b.String())
 	}
-	l.Infof(Log{Direction: DirClientToServer, Format: "test %s", Messages: []interface{}{"foo"}})
+	l.Infof(Log{Direction: DirClientToServer, Format: "test %s", Messages: []any{"foo"}})
 	expected = " INFO: C --> S: test foo\n"
 	if !strings.HasSuffix(b.String(), expected) {
 		t.Errorf("Expected %q, got %q", expected, b.String())
@@ -61,7 +61,7 @@ func TestInfof(t *testing.T) {
 
 	b.Reset()
 	l.level = LevelWarn
-	l.Infof(Log{Direction: DirServerToClient, Format: "test %s", Messages: []interface{}{"foo"}})
+	l.Infof(Log{Direction: DirServerToClient, Format: "test %s", Messages: []any{"foo"}})
 	if b.String() != "" {
 		t.Error("Info message was not expected to be logged")
 	}
@@ -71,12 +71,12 @@ func TestWarnf(t *testing.T) {
 	var b bytes.Buffer
 	l := New(&b, LevelWarn)
 
-	l.Warnf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []interface{}{"foo"}})
+	l.Warnf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []any{"foo"}})
 	expected := " WARN: C <-- S: test foo\n"
 	if !strings.HasSuffix(b.String(), expected) {
 		t.Errorf("Expected %q, got %q", expected, b.String())
 	}
-	l.Warnf(Log{Direction: DirClientToServer, Format: "test %s", Messages: []interface{}{"foo"}})
+	l.Warnf(Log{Direction: DirClientToServer, Format: "test %s", Messages: []any{"foo"}})
 	expected = " WARN: C --> S: test foo\n"
 	if !strings.HasSuffix(b.String(), expected) {
 		t.Errorf("Expected %q, got %q", expected, b.String())
@@ -84,7 +84,7 @@ func TestWarnf(t *testing.T) {
 
 	b.Reset()
 	l.level = LevelError
-	l.Warnf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []interface{}{"foo"}})
+	l.Warnf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []any{"foo"}})
 	if b.String() != "" {
 		t.Error("Warn message was not expected to be logged")
 	}
@@ -94,12 +94,12 @@ func TestErrorf(t *testing.T) {
 	var b bytes.Buffer
 	l := New(&b, LevelError)
 
-	l.Errorf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []interface{}{"foo"}})
+	l.Errorf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []any{"foo"}})
 	expected := "ERROR: C <-- S: test foo\n"
 	if !strings.HasSuffix(b.String(), expected) {
 		t.Errorf("Expected %q, got %q", expected, b.String())
 	}
-	l.Errorf(Log{Direction: DirClientToServer, Format: "test %s", Messages: []interface{}{"foo"}})
+	l.Errorf(Log{Direction: DirClientToServer, Format: "test %s", Messages: []any{"foo"}})
 	expected = "ERROR: C --> S: test foo\n"
 	if !strings.HasSuffix(b.String(), expected) {
 		t.Errorf("Expected %q, got %q", expected, b.String())
@@ -107,7 +107,7 @@ func TestErrorf(t *testing.T) {
 
 	b.Reset()
 	l.level = LevelError - 1
-	l.Errorf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []interface{}{"foo"}})
+	l.Errorf(Log{Direction: DirServerToClient, Format: "test %s", Messages: []any{"foo"}})
 	if b.String() != "" {
 		t.Error("Error message was not expected to be logged")
 	}

@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 //go:build linux || freebsd
-// +build linux freebsd
 
 package mail
 

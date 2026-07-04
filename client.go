@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -1572,12 +1573,7 @@ func (c *Client) authTypeAutoDiscover(supported string, isEnc bool) (SMTPAuthTyp
 }
 
 func sliceContains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, item)
 }
 
 // sendSingleMsg sends out a single message and returns an error if the transmission or

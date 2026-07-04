@@ -419,8 +419,7 @@ func TestPlainAuth(t *testing.T) {
 		}
 	})
 	t.Run("PLAIN authentication on test server", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -455,8 +454,7 @@ func TestPlainAuth(t *testing.T) {
 		}
 	})
 	t.Run("PLAIN authentication on test server should fail", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -579,8 +577,7 @@ func TestPlainAuth_noEnc(t *testing.T) {
 		}
 	})
 	t.Run("PLAIN-NOENC authentication on test server", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -612,8 +609,7 @@ func TestPlainAuth_noEnc(t *testing.T) {
 		}
 	})
 	t.Run("PLAIN-NOENC authentication on test server should fail", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH PLAIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -732,8 +728,7 @@ func TestLoginAuth(t *testing.T) {
 		})
 	}
 	t.Run("LOGIN authentication on test server", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -765,8 +760,7 @@ func TestLoginAuth(t *testing.T) {
 		}
 	})
 	t.Run("LOGIN authentication on test server should fail", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -882,8 +876,7 @@ func TestLoginAuth_noEnc(t *testing.T) {
 		})
 	}
 	t.Run("LOGIN-NOENC authentication on test server", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -915,8 +908,7 @@ func TestLoginAuth_noEnc(t *testing.T) {
 		}
 	})
 	t.Run("LOGIN-NOENC authentication on test server should fail", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH LOGIN\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -1055,8 +1047,7 @@ func TestXOAuth2Auth(t *testing.T) {
 		}
 	})
 	t.Run("XOAuth2 authentication on test server succeeds", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH XOAUTH2\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -1088,8 +1079,7 @@ func TestXOAuth2Auth(t *testing.T) {
 		}
 	})
 	t.Run("XOAuth2 authentication on test server fails", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH XOAUTH2\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -1135,8 +1125,7 @@ func TestScramAuth(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name+" succeeds on test server", func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 			PortAdder.Add(1)
 			serverPort := int(TestServerPortBase + PortAdder.Load())
 			featureSet := fmt.Sprintf("250-AUTH %s\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8", tt.authString)
@@ -1208,8 +1197,7 @@ func TestScramAuth(t *testing.T) {
 			}
 		})
 		t.Run(tt.name+" fails on test server", func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 			PortAdder.Add(1)
 			serverPort := int(TestServerPortBase + PortAdder.Load())
 			featureSet := fmt.Sprintf("250-AUTH %s\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8", tt.authString)
@@ -1465,8 +1453,7 @@ func TestScramAuth_handleServerFirstResponse(t *testing.T) {
 
 func TestCRAMMD5Auth(t *testing.T) {
 	t.Run("CRAM-MD5 on test server succeeds", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH CRAM-MD5\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -1493,8 +1480,7 @@ func TestCRAMMD5Auth(t *testing.T) {
 		}
 	})
 	t.Run("CRAM-MD5 on test server fails", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH CRAM-MD5\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -1525,8 +1511,7 @@ func TestCRAMMD5Auth(t *testing.T) {
 
 func TestNTLMAuth(t *testing.T) {
 	t.Run("NTLM on test server succeeds", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH GSSAPI NTLM\r\n250-8BITMIME\r\n250 DSN"
@@ -1582,8 +1567,7 @@ func TestNTLMAuth(t *testing.T) {
 
 func TestNewClient(t *testing.T) {
 	t.Run("new client via Dial succeeds", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -1615,8 +1599,7 @@ func TestNewClient(t *testing.T) {
 		}
 	})
 	t.Run("new client fails on server not available", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -1660,8 +1643,7 @@ func TestNewClient(t *testing.T) {
 
 func TestClient_hello(t *testing.T) {
 	t.Run("client fails on EHLO but not on HELO", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -1692,8 +1674,7 @@ func TestClient_hello(t *testing.T) {
 
 func TestClient_Hello(t *testing.T) {
 	t.Run("normal client EHLO", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -1723,8 +1704,7 @@ func TestClient_Hello(t *testing.T) {
 		}
 	})
 	t.Run("normal client EHLO fallback on HELO", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -1754,8 +1734,7 @@ func TestClient_Hello(t *testing.T) {
 		}
 	})
 	t.Run("client HELO/EHLO with empty name should fail", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -1781,8 +1760,7 @@ func TestClient_Hello(t *testing.T) {
 		}
 	})
 	t.Run("client HELO/EHLO with newline in name should fail", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -1808,8 +1786,7 @@ func TestClient_Hello(t *testing.T) {
 		}
 	})
 	t.Run("client double HELO/EHLO should fail", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -1864,8 +1841,7 @@ func TestClient_cmd(t *testing.T) {
 
 func TestClient_StartTLS(t *testing.T) {
 	t.Run("normal STARTTLS should succeed", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -1900,8 +1876,7 @@ func TestClient_StartTLS(t *testing.T) {
 		}
 	})
 	t.Run("STARTTLS fails on EHLO/HELO", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -1935,8 +1910,7 @@ func TestClient_StartTLS(t *testing.T) {
 		}
 	})
 	t.Run("STARTTLS fails on server not supporting STARTTLS", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -1972,8 +1946,7 @@ func TestClient_StartTLS(t *testing.T) {
 
 func TestClient_TLSConnectionState(t *testing.T) {
 	t.Run("normal TLS connection should return a state", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2013,8 +1986,7 @@ func TestClient_TLSConnectionState(t *testing.T) {
 		}
 	})
 	t.Run("no TLS state on non-TLS connection", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2049,8 +2021,7 @@ func TestClient_TLSConnectionState(t *testing.T) {
 
 func TestClient_Verify(t *testing.T) {
 	t.Run("Verify on existing user succeeds", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2084,8 +2055,7 @@ func TestClient_Verify(t *testing.T) {
 		}
 	})
 	t.Run("Verify on non-existing user fails", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2117,8 +2087,7 @@ func TestClient_Verify(t *testing.T) {
 		}
 	})
 	t.Run("Verify with newlines should fails", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2149,8 +2118,7 @@ func TestClient_Verify(t *testing.T) {
 		}
 	})
 	t.Run("Verify should fail on HELO/EHLO", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2186,8 +2154,7 @@ func TestClient_Verify(t *testing.T) {
 
 func TestClient_Auth(t *testing.T) {
 	t.Run("Auth fails on EHLO/HELO", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2216,8 +2183,7 @@ func TestClient_Auth(t *testing.T) {
 		}
 	})
 	t.Run("Auth fails on auth-start", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2249,8 +2215,7 @@ func TestClient_Auth(t *testing.T) {
 		}
 	})
 	t.Run("Auth fails on auth-start and then on quit", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2320,8 +2285,7 @@ func TestClient_Auth(t *testing.T) {
 
 func TestClient_errorRegistryHandler(t *testing.T) {
 	t.Run("quit fails on short response (simulate qq.com behaviour)", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250 STARTTLS"
@@ -2356,8 +2320,7 @@ func TestClient_errorRegistryHandler(t *testing.T) {
 		}
 	})
 	t.Run("error registry handles short response (simulate qq.com behaviour)", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250 STARTTLS"
@@ -2391,8 +2354,7 @@ func TestClient_errorRegistryHandler(t *testing.T) {
 
 func TestClient_Mail(t *testing.T) {
 	t.Run("normal from address succeeds", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250 STARTTLS"
@@ -2430,8 +2392,7 @@ func TestClient_Mail(t *testing.T) {
 		}
 	})
 	t.Run("from address with new lines fails", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250 STARTTLS"
@@ -2462,8 +2423,7 @@ func TestClient_Mail(t *testing.T) {
 		}
 	})
 	t.Run("from address fails on EHLO/HELO", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250 STARTTLS"
@@ -2496,8 +2456,7 @@ func TestClient_Mail(t *testing.T) {
 		}
 	})
 	t.Run("from address and server supports 8BITMIME", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250 STARTTLS"
@@ -2540,8 +2499,7 @@ func TestClient_Mail(t *testing.T) {
 		}
 	})
 	t.Run("from address and server supports SMTPUTF8", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-SMTPUTF8\r\n250 STARTTLS"
@@ -2584,8 +2542,7 @@ func TestClient_Mail(t *testing.T) {
 		}
 	})
 	t.Run("from address and server supports SMTPUTF8 with unicode address", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-SMTPUTF8\r\n250 STARTTLS"
@@ -2628,8 +2585,7 @@ func TestClient_Mail(t *testing.T) {
 		}
 	})
 	t.Run("from address and server supports DSN", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
@@ -2673,8 +2629,7 @@ func TestClient_Mail(t *testing.T) {
 		}
 	})
 	t.Run("from address and server supports DSN, SMTPUTF8 and 8BITMIME", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250 STARTTLS"
@@ -2718,8 +2673,7 @@ func TestClient_Mail(t *testing.T) {
 		}
 	})
 	t.Run("server announces SMTPUTF8 but MAIL FROM does not implement it fails", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-SMTPUTF8\r\n250 STARTTLS"
@@ -2756,8 +2710,7 @@ func TestClient_Mail(t *testing.T) {
 		}
 	})
 	t.Run("server announces SMTPUTF8 but MAIL FROM does not implement succeeds due to skip", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-SMTPUTF8\r\n250 STARTTLS"
@@ -2798,8 +2751,7 @@ func TestClient_Mail(t *testing.T) {
 
 func TestClient_Rcpt(t *testing.T) {
 	t.Run("normal recipient address succeeds", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250 STARTTLS"
@@ -2833,8 +2785,7 @@ func TestClient_Rcpt(t *testing.T) {
 		}
 	})
 	t.Run("recipient address with newlines fails", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250 STARTTLS"
@@ -2864,8 +2815,7 @@ func TestClient_Rcpt(t *testing.T) {
 		}
 	})
 	t.Run("recipient address with DSN", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
@@ -2914,8 +2864,7 @@ func TestClient_Rcpt(t *testing.T) {
 
 func TestClient_Data(t *testing.T) {
 	t.Run("normal mail data transmission succeeds", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
@@ -2954,8 +2903,7 @@ func TestClient_Data(t *testing.T) {
 		}
 	})
 	t.Run("mail data transmission fails on DATA command", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
@@ -2989,8 +2937,7 @@ func TestClient_Data(t *testing.T) {
 
 func TestDataCloser_ServerResponse(t *testing.T) {
 	t.Run("successful delivery returns server response", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
@@ -3035,8 +2982,7 @@ func TestDataCloser_ServerResponse(t *testing.T) {
 		}
 	})
 	t.Run("unclosed datacloser returns empty server response", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
@@ -3205,8 +3151,7 @@ func TestSendMail(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 			PortAdder.Add(1)
 			tt.props.ListenPort = int(TestServerPortBase + PortAdder.Load())
 			tt.props.FeatureSet = tt.featureSet
@@ -3259,8 +3204,7 @@ func TestSendMail(t *testing.T) {
 			"QUIT",
 			"221 2.0.0 Bye",
 		}
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH LOGIN\r\n250-DSN\r\n250 STARTTLS"
@@ -3304,7 +3248,7 @@ func TestSendMail(t *testing.T) {
 		if len(resp)-1 != len(want) {
 			t.Fatalf("expected %d lines, but got %d", len(want), len(resp))
 		}
-		for i := 0; i < len(want); i++ {
+		for i := range want {
 			if !strings.EqualFold(resp[i], want[i]) {
 				t.Errorf("expected line %d to be %q, but got %q", i, resp[i], want[i])
 			}
@@ -3345,8 +3289,7 @@ func TestSendMail(t *testing.T) {
 			"QUIT",
 			"221 2.0.0 Bye",
 		}
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-AUTH LOGIN\r\n250-DSN\r\n250 STARTTLS"
@@ -3396,7 +3339,7 @@ Goodbye.`)
 		if len(resp)-1 != len(want) {
 			t.Errorf("expected %d lines, but got %d", len(want), len(resp))
 		}
-		for i := 0; i < len(want); i++ {
+		for i := range want {
 			if !strings.EqualFold(resp[i], want[i]) {
 				t.Errorf("expected line %d to be %q, but got %q", i, resp[i], want[i])
 			}
@@ -3406,8 +3349,7 @@ Goodbye.`)
 
 func TestClient_Extension(t *testing.T) {
 	t.Run("extension check fails on EHLO/HELO", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
@@ -3442,8 +3384,7 @@ func TestClient_Extension(t *testing.T) {
 
 func TestClient_Reset(t *testing.T) {
 	t.Run("reset on functioning client connection", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
@@ -3476,8 +3417,7 @@ func TestClient_Reset(t *testing.T) {
 		}
 	})
 	t.Run("reset fails on RSET", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
@@ -3508,8 +3448,7 @@ func TestClient_Reset(t *testing.T) {
 		}
 	})
 	t.Run("reset fails on EHLO/HELO", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
@@ -3544,8 +3483,7 @@ func TestClient_Reset(t *testing.T) {
 
 func TestClient_Noop(t *testing.T) {
 	t.Run("noop on functioning client connection", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
@@ -3578,8 +3516,7 @@ func TestClient_Noop(t *testing.T) {
 		}
 	})
 	t.Run("noop fails on EHLO/HELO", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
@@ -3611,8 +3548,7 @@ func TestClient_Noop(t *testing.T) {
 		}
 	})
 	t.Run("noop fails on NOOP", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
@@ -3761,8 +3697,7 @@ func TestClient_SetDSNMailReturnOption(t *testing.T) {
 
 func TestClient_HasConnection(t *testing.T) {
 	t.Run("client has connection", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
@@ -3798,8 +3733,7 @@ func TestClient_HasConnection(t *testing.T) {
 		}
 	})
 	t.Run("client has no connection after close", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
@@ -3827,8 +3761,7 @@ func TestClient_HasConnection(t *testing.T) {
 		}
 	})
 	t.Run("client has no connection after quit", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
@@ -3859,8 +3792,7 @@ func TestClient_HasConnection(t *testing.T) {
 
 func TestClient_UpdateDeadline(t *testing.T) {
 	t.Run("update deadline on sane client succeeds", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
@@ -3901,8 +3833,7 @@ func TestClient_UpdateDeadline(t *testing.T) {
 		}
 	})
 	t.Run("update deadline on closed client should fail", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
@@ -3933,8 +3864,7 @@ func TestClient_UpdateDeadline(t *testing.T) {
 
 func TestClient_GetTLSConnectionState(t *testing.T) {
 	t.Run("get state on sane client connection", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-DSN\r\n250 STARTTLS"
@@ -3984,8 +3914,7 @@ func TestClient_GetTLSConnectionState(t *testing.T) {
 		}
 	})
 	t.Run("get state on non-tls client connection", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250 DSN"
@@ -4016,8 +3945,7 @@ func TestClient_GetTLSConnectionState(t *testing.T) {
 		}
 	})
 	t.Run("fail to get state on non-tls connection with tls flag set", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250 DSN"
@@ -4584,8 +4512,8 @@ func (s *testSCRAMSMTP) handleSCRAMAuth(conn net.Conn) {
 }
 
 func (s *testSCRAMSMTP) extractNonce(message string) string {
-	parts := strings.Split(message, ",")
-	for _, part := range parts {
+	parts := strings.SplitSeq(message, ",")
+	for part := range parts {
 		if strings.HasPrefix(part, "r=") {
 			return part[2:]
 		}

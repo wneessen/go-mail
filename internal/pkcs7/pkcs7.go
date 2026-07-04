@@ -118,7 +118,7 @@ type signerInfo struct {
 // `encoding/asn1`
 type Attribute struct {
 	Type  asn1.ObjectIdentifier
-	Value interface{}
+	Value any
 }
 
 // SignerInfoConfig are optional values to include when adding a signer
@@ -129,11 +129,11 @@ type SignerInfoConfig struct {
 
 type attributes struct {
 	types  []asn1.ObjectIdentifier
-	values []interface{}
+	values []any
 }
 
 // Add adds the attribute, maintaining insertion order
-func (as *attributes) Add(attrType asn1.ObjectIdentifier, value interface{}) {
+func (as *attributes) Add(attrType asn1.ObjectIdentifier, value any) {
 	as.types = append(as.types, attrType)
 	as.values = append(as.values, value)
 }
