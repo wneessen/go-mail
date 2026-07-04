@@ -16,6 +16,7 @@ import (
 	"fmt"
 	ht "html/template"
 	"io"
+	"mime"
 	"net"
 	"net/mail"
 	"os"
@@ -183,9 +184,9 @@ func TestNewMsg(t *testing.T) {
 			t.Errorf("default MIME version for new Msg mismatch. Expected: %s, got: %s", MIME10,
 				message.mimever)
 		}
-		if reflect.TypeOf(message.encoder).String() != "mime.WordEncoder" {
+		if reflect.TypeFor[mime.WordEncoder]().String() != "mime.WordEncoder" {
 			t.Errorf("default encoder for new Msg mismatch. Expected: %s, got: %s", "mime.WordEncoder",
-				reflect.TypeOf(message.encoder).String())
+				reflect.TypeFor[mime.WordEncoder]().String())
 		}
 		if !strings.EqualFold(message.encoder.Encode(message.charset.String(), "ab12§$/"),
 			`=?UTF-8?q?ab12=C2=A7$/?=`) {
@@ -2099,7 +2100,7 @@ func TestMsg_SetMessageID(t *testing.T) {
 		if message == nil {
 			t.Fatal("message is nil")
 		}
-		for i := 0; i < 50_000; i++ {
+		for range 50_000 {
 			message.SetMessageID()
 			mid := message.GetMessageID()
 			mids = append(mids, mid)
@@ -2298,8 +2299,7 @@ func TestMsg_IsDelivered(t *testing.T) {
 		}
 	})
 	t.Run("IsDelivered on sent message", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2338,8 +2338,7 @@ func TestMsg_IsDelivered(t *testing.T) {
 		}
 	})
 	t.Run("IsDelivered on failed message delivery (DATA close)", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -2369,8 +2368,7 @@ func TestMsg_IsDelivered(t *testing.T) {
 		}
 	})
 	t.Run("IsDelivered on failed message delivery (final RESET)", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -4037,8 +4035,7 @@ func TestMsg_GetBoundary(t *testing.T) {
 }
 
 func TestMsg_ServerResponse(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	PortAdder.Add(1)
 	serverPort := int(TestServerPortBase + PortAdder.Load())
 	featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -4695,7 +4692,7 @@ func TestMsg_SetBodyWriter(t *testing.T) {
 func TestMsg_SetBodyHTMLTemplate(t *testing.T) {
 	tplString := `<p>{{.teststring}}</p>`
 	invalidTplString := `<p>{{call $.invalid .teststring}}</p>`
-	data := map[string]interface{}{"teststring": "this is a test"}
+	data := map[string]any{"teststring": "this is a test"}
 	htmlTpl, err := ht.New("htmltpl").Parse(tplString)
 	if err != nil {
 		t.Fatalf("failed to parse HTML template: %s", err)
@@ -4767,7 +4764,7 @@ func TestMsg_SetBodyNamedHTMLTemplate(t *testing.T) {
 	invalidTplString := `{{define "testname"}}<p>{{call $.invalid .teststring}}</p>{{end}}`
 	name := "testname"
 	invalidName := "invalidname"
-	data := map[string]interface{}{"teststring": "this is a test"}
+	data := map[string]any{"teststring": "this is a test"}
 	htmlTpl, err := ht.New("htmltpl").Parse(tplString)
 	if err != nil {
 		t.Fatalf("failed to parse HTML template: %s", err)
@@ -4868,7 +4865,7 @@ func TestMsg_SetBodyNamedHTMLTemplate(t *testing.T) {
 func TestMsg_SetBodyTextTemplate(t *testing.T) {
 	tplString := `Teststring: {{.teststring}}`
 	invalidTplString := `Teststring: {{call $.invalid .teststring}}`
-	data := map[string]interface{}{"teststring": "this is a test"}
+	data := map[string]any{"teststring": "this is a test"}
 	textTpl, err := ttpl.New("texttpl").Parse(tplString)
 	if err != nil {
 		t.Fatalf("failed to parse Text template: %s", err)
@@ -4940,7 +4937,7 @@ func TestMsg_SetBodyNamedTextTemplate(t *testing.T) {
 	invalidTplString := `{{define "testname"}}Teststring: {{call $.invalid .teststring}}{{end}}`
 	name := "testname"
 	invalidName := "invalidname"
-	data := map[string]interface{}{"teststring": "this is a test"}
+	data := map[string]any{"teststring": "this is a test"}
 	textTpl, err := ttpl.New("texttpl").Parse(tplString)
 	if err != nil {
 		t.Fatalf("failed to parse Text template: %s", err)
@@ -5251,7 +5248,7 @@ func TestMsg_AddAlternativeWriter(t *testing.T) {
 func TestMsg_AddAlternativeHTMLTemplate(t *testing.T) {
 	tplString := `<p>{{.teststring}}</p>`
 	invalidTplString := `<p>{{call $.invalid .teststring}}</p>`
-	data := map[string]interface{}{"teststring": "this is a test"}
+	data := map[string]any{"teststring": "this is a test"}
 	htmlTpl, err := ht.New("htmltpl").Parse(tplString)
 	if err != nil {
 		t.Fatalf("failed to parse HTML template: %s", err)
@@ -5362,7 +5359,7 @@ func TestMsg_AddAlternativeNamedHTMLTemplate(t *testing.T) {
 	invalidTplString := `{{define "testname"}}<p>{{call $.invalid .teststring}}</p>{{end}}`
 	name := "testname"
 	invalidName := "invalidname"
-	data := map[string]interface{}{"teststring": "this is a test"}
+	data := map[string]any{"teststring": "this is a test"}
 	htmlTpl, err := ht.New("htmltpl").Parse(tplString)
 	if err != nil {
 		t.Fatalf("failed to parse HTML template: %s", err)
@@ -5502,7 +5499,7 @@ func TestMsg_AddAlternativeNamedHTMLTemplate(t *testing.T) {
 func TestMsg_AddAlternativeTextTemplate(t *testing.T) {
 	tplString := `Teststring: {{.teststring}}`
 	invalidTplString := `Teststring: {{call $.invalid .teststring}}`
-	data := map[string]interface{}{"teststring": "this is a test"}
+	data := map[string]any{"teststring": "this is a test"}
 	textTpl, err := ttpl.New("texttpl").Parse(tplString)
 	if err != nil {
 		t.Fatalf("failed to parse Text template: %s", err)
@@ -5613,7 +5610,7 @@ func TestMsg_AddAlternativeNamedTextTemplate(t *testing.T) {
 	invalidTplString := `{{define "testname"}}Teststring: {{call $.invalid .teststring}}{{end}}`
 	name := "testname"
 	invalidName := "invalidname"
-	data := map[string]interface{}{"teststring": "this is a test"}
+	data := map[string]any{"teststring": "this is a test"}
 	textTpl, err := ttpl.New("texttpl").Parse(tplString)
 	if err != nil {
 		t.Fatalf("failed to parse Text template: %s", err)
@@ -6029,7 +6026,7 @@ func TestMsg_AttachReadSeeker(t *testing.T) {
 func TestMsg_AttachHTMLTemplate(t *testing.T) {
 	tplString := `<p>{{.teststring}}</p>`
 	invalidTplString := `<p>{{call $.invalid .teststring}}</p>`
-	data := map[string]interface{}{"teststring": "this is a test"}
+	data := map[string]any{"teststring": "this is a test"}
 	htmlTpl, err := ht.New("htmltpl").Parse(tplString)
 	if err != nil {
 		t.Fatalf("failed to parse HTML template: %s", err)
@@ -6103,7 +6100,7 @@ func TestMsg_AttachNamedHTMLTemplate(t *testing.T) {
 	invalidTplString := `{{define "testname"}}<p>{{call $.invalid .teststring}}</p>{{end}}`
 	tplName := "testname"
 	invalidTplName := "invalidname"
-	data := map[string]interface{}{"teststring": "this is a test"}
+	data := map[string]any{"teststring": "this is a test"}
 	htmlTpl, err := ht.New("htmltpl").Parse(tplString)
 	if err != nil {
 		t.Fatalf("failed to parse HTML template: %s", err)
@@ -6206,7 +6203,7 @@ func TestMsg_AttachNamedHTMLTemplate(t *testing.T) {
 func TestMsg_AttachTextTemplate(t *testing.T) {
 	tplString := `Teststring: {{.teststring}}`
 	invalidTplString := `Teststring: {{call $.invalid .teststring}}`
-	data := map[string]interface{}{"teststring": "this is a test"}
+	data := map[string]any{"teststring": "this is a test"}
 	textTpl, err := ttpl.New("texttpl").Parse(tplString)
 	if err != nil {
 		t.Fatalf("failed to parse Text template: %s", err)
@@ -6280,7 +6277,7 @@ func TestMsg_AttachNamedTextTemplate(t *testing.T) {
 	invalidTplString := `{{define "testname"}}Teststring: {{call $.invalid .teststring}}{{end}}`
 	tplName := "testname"
 	invalidTplName := "invalidname"
-	data := map[string]interface{}{"teststring": "this is a test"}
+	data := map[string]any{"teststring": "this is a test"}
 	textTpl, err := ttpl.New("texttpl").Parse(tplString)
 	if err != nil {
 		t.Fatalf("failed to parse Text template: %s", err)
@@ -6775,7 +6772,7 @@ func TestMsg_EmbedReadSeeker(t *testing.T) {
 func TestMsg_EmbedHTMLTemplate(t *testing.T) {
 	tplString := `<p>{{.teststring}}</p>`
 	invalidTplString := `<p>{{call $.invalid .teststring}}</p>`
-	data := map[string]interface{}{"teststring": "this is a test"}
+	data := map[string]any{"teststring": "this is a test"}
 	htmlTpl, err := ht.New("htmltpl").Parse(tplString)
 	if err != nil {
 		t.Fatalf("failed to parse HTML template: %s", err)
@@ -6849,7 +6846,7 @@ func TestMsg_EmbedNamedHTMLTemplate(t *testing.T) {
 	invalidTplString := `{{define "testname"}}<p>{{call $.invalid .teststring}}</p>{{end}}`
 	tplName := "testname"
 	invalidTplName := "invalidname"
-	data := map[string]interface{}{"teststring": "this is a test"}
+	data := map[string]any{"teststring": "this is a test"}
 	htmlTpl, err := ht.New("htmltpl").Parse(tplString)
 	if err != nil {
 		t.Fatalf("failed to parse HTML template: %s", err)
@@ -6952,7 +6949,7 @@ func TestMsg_EmbedNamedHTMLTemplate(t *testing.T) {
 func TestMsg_EmbedTextTemplate(t *testing.T) {
 	tplString := `Teststring: {{.teststring}}`
 	invalidTplString := `Teststring: {{call $.invalid .teststring}}`
-	data := map[string]interface{}{"teststring": "this is a test"}
+	data := map[string]any{"teststring": "this is a test"}
 	textTpl, err := ttpl.New("texttpl").Parse(tplString)
 	if err != nil {
 		t.Fatalf("failed to parse Text template: %s", err)
@@ -7026,7 +7023,7 @@ func TestMsg_EmbedNamedTextTemplate(t *testing.T) {
 	invalidTplString := `{{define "testname"}}Teststring: {{call $.invalid .teststring}}{{end}}`
 	tplName := "testname"
 	invalidTplName := "invalidname"
-	data := map[string]interface{}{"teststring": "this is a test"}
+	data := map[string]any{"teststring": "this is a test"}
 	textTpl, err := ttpl.New("texttpl").Parse(tplString)
 	if err != nil {
 		t.Fatalf("failed to parse Text template: %s", err)
@@ -7425,7 +7422,7 @@ func TestMsg_WriteTo(t *testing.T) {
 		message := testMessage(t)
 		buffer := bytes.NewBuffer(nil)
 		messageBuf := bytes.NewBuffer(nil)
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			t.Run(fmt.Sprintf("write %d", i), func(t *testing.T) {
 				if _, err := message.WriteTo(buffer); err != nil {
 					t.Fatalf("failed to write message to buffer: %s", err)
@@ -8238,8 +8235,7 @@ func TestMsg_HasSendError(t *testing.T) {
 		}
 	})
 	t.Run("HasSendError on sent message", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -8278,8 +8274,7 @@ func TestMsg_HasSendError(t *testing.T) {
 		}
 	})
 	t.Run("HasSendError on failed message delivery", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -8309,8 +8304,7 @@ func TestMsg_HasSendError(t *testing.T) {
 		}
 	})
 	t.Run("HasSendError on failed message with SendError", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -8347,8 +8341,7 @@ func TestMsg_HasSendError(t *testing.T) {
 		}
 	})
 	t.Run("HasSendError with SendErrorIsTemp", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -8381,8 +8374,7 @@ func TestMsg_HasSendError(t *testing.T) {
 		}
 	})
 	t.Run("HasSendError with SendErrorIsTemp on temp error", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
@@ -8415,8 +8407,7 @@ func TestMsg_HasSendError(t *testing.T) {
 		}
 	})
 	t.Run("HasSendError with not a SendErr", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
 		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"

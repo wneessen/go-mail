@@ -563,17 +563,18 @@ func Test_appendFoldedBase64(t *testing.T) {
 		room := maxLineLength - col
 		sig := strings.Repeat("C", room+maxLineLength)
 
-		want := foldedTags + sig[:room] + "\r\n "
+		var want strings.Builder
+		want.WriteString(foldedTags + sig[:room] + "\r\n ")
 		rest := sig[room:]
 		for len(rest) > maxLineLength-1 {
-			want += rest[:maxLineLength-1] + "\r\n "
+			want.WriteString(rest[:maxLineLength-1] + "\r\n ")
 			rest = rest[maxLineLength-1:]
 		}
-		want += rest
+		want.WriteString(rest)
 
 		got := appendFoldedBase64(foldedTags, sig)
-		if got != want {
-			t.Errorf("expected %q, got %q", want, got)
+		if got != want.String() {
+			t.Errorf("expected %q, got %q", want.String(), got)
 		}
 	})
 	t.Run("folds immediately when foldedTags already fills the line", func(t *testing.T) {
