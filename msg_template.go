@@ -32,7 +32,7 @@ import (
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2045
 //   - https://datatracker.ietf.org/doc/html/rfc2046
-func (m *Msg) SetBodyTextTemplate(tpl *tt.Template, data interface{}, opts ...PartOption) error {
+func (m *Msg) SetBodyTextTemplate(tpl *tt.Template, data any, opts ...PartOption) error {
 	if tpl == nil {
 		return errors.New(errTplPointerNil)
 	}
@@ -65,7 +65,7 @@ func (m *Msg) SetBodyTextTemplate(tpl *tt.Template, data interface{}, opts ...Pa
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2045
 //   - https://datatracker.ietf.org/doc/html/rfc2046
-func (m *Msg) SetBodyNamedTextTemplate(tpl *tt.Template, name string, data interface{}, opts ...PartOption) error {
+func (m *Msg) SetBodyNamedTextTemplate(tpl *tt.Template, name string, data any, opts ...PartOption) error {
 	if tpl == nil {
 		return errors.New(errTplPointerNil)
 	}
@@ -96,7 +96,7 @@ func (m *Msg) SetBodyNamedTextTemplate(tpl *tt.Template, name string, data inter
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2045
 //   - https://datatracker.ietf.org/doc/html/rfc2046
-func (m *Msg) SetBodyHTMLTemplate(tpl *ht.Template, data interface{}, opts ...PartOption) error {
+func (m *Msg) SetBodyHTMLTemplate(tpl *ht.Template, data any, opts ...PartOption) error {
 	if tpl == nil {
 		return errors.New(errTplPointerNil)
 	}
@@ -129,7 +129,7 @@ func (m *Msg) SetBodyHTMLTemplate(tpl *ht.Template, data interface{}, opts ...Pa
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2045
 //   - https://datatracker.ietf.org/doc/html/rfc2046
-func (m *Msg) SetBodyNamedHTMLTemplate(tpl *ht.Template, name string, data interface{}, opts ...PartOption) error {
+func (m *Msg) SetBodyNamedHTMLTemplate(tpl *ht.Template, name string, data any, opts ...PartOption) error {
 	if tpl == nil {
 		return errors.New(errTplPointerNil)
 	}
@@ -159,7 +159,7 @@ func (m *Msg) SetBodyNamedHTMLTemplate(tpl *ht.Template, name string, data inter
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2045
 //   - https://datatracker.ietf.org/doc/html/rfc2046
-func (m *Msg) AddAlternativeTextTemplate(tpl *tt.Template, data interface{}, opts ...PartOption) error {
+func (m *Msg) AddAlternativeTextTemplate(tpl *tt.Template, data any, opts ...PartOption) error {
 	if tpl == nil {
 		return errors.New(errTplPointerNil)
 	}
@@ -191,7 +191,7 @@ func (m *Msg) AddAlternativeTextTemplate(tpl *tt.Template, data interface{}, opt
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2045
 //   - https://datatracker.ietf.org/doc/html/rfc2046
-func (m *Msg) AddAlternativeNamedTextTemplate(tpl *tt.Template, name string, data interface{}, opts ...PartOption) error {
+func (m *Msg) AddAlternativeNamedTextTemplate(tpl *tt.Template, name string, data any, opts ...PartOption) error {
 	if tpl == nil {
 		return errors.New(errTplPointerNil)
 	}
@@ -221,7 +221,7 @@ func (m *Msg) AddAlternativeNamedTextTemplate(tpl *tt.Template, name string, dat
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2045
 //   - https://datatracker.ietf.org/doc/html/rfc2046
-func (m *Msg) AddAlternativeHTMLTemplate(tpl *ht.Template, data interface{}, opts ...PartOption) error {
+func (m *Msg) AddAlternativeHTMLTemplate(tpl *ht.Template, data any, opts ...PartOption) error {
 	if tpl == nil {
 		return errors.New(errTplPointerNil)
 	}
@@ -253,7 +253,7 @@ func (m *Msg) AddAlternativeHTMLTemplate(tpl *ht.Template, data interface{}, opt
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2045
 //   - https://datatracker.ietf.org/doc/html/rfc2046
-func (m *Msg) AddAlternativeNamedHTMLTemplate(tpl *ht.Template, name string, data interface{}, opts ...PartOption) error {
+func (m *Msg) AddAlternativeNamedHTMLTemplate(tpl *ht.Template, name string, data any, opts ...PartOption) error {
 	if tpl == nil {
 		return errors.New(errTplPointerNil)
 	}
@@ -284,7 +284,7 @@ func (m *Msg) AddAlternativeNamedHTMLTemplate(tpl *ht.Template, name string, dat
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) AttachTextTemplate(
-	name string, tpl *tt.Template, data interface{}, opts ...FileOption,
+	name string, tpl *tt.Template, data any, opts ...FileOption,
 ) error {
 	file, err := fileFromTextTemplate(name, tpl, data)
 	if err != nil {
@@ -313,7 +313,7 @@ func (m *Msg) AttachTextTemplate(
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) AttachNamedTextTemplate(
-	fileName string, tpl *tt.Template, tplName string, data interface{}, opts ...FileOption,
+	fileName string, tpl *tt.Template, tplName string, data any, opts ...FileOption,
 ) error {
 	file, err := fileFromNamedTextTemplate(fileName, tpl, tplName, data)
 	if err != nil {
@@ -341,7 +341,7 @@ func (m *Msg) AttachNamedTextTemplate(
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) AttachHTMLTemplate(
-	name string, tpl *ht.Template, data interface{}, opts ...FileOption,
+	name string, tpl *ht.Template, data any, opts ...FileOption,
 ) error {
 	file, err := fileFromHTMLTemplate(name, tpl, data)
 	if err != nil {
@@ -370,7 +370,7 @@ func (m *Msg) AttachHTMLTemplate(
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) AttachNamedHTMLTemplate(
-	fileName string, tpl *ht.Template, tplName string, data interface{}, opts ...FileOption,
+	fileName string, tpl *ht.Template, tplName string, data any, opts ...FileOption,
 ) error {
 	file, err := fileFromNamedHTMLTemplate(fileName, tpl, tplName, data)
 	if err != nil {
@@ -398,7 +398,7 @@ func (m *Msg) AttachNamedHTMLTemplate(
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) EmbedTextTemplate(
-	name string, tpl *tt.Template, data interface{}, opts ...FileOption,
+	name string, tpl *tt.Template, data any, opts ...FileOption,
 ) error {
 	file, err := fileFromTextTemplate(name, tpl, data)
 	if err != nil {
@@ -427,7 +427,7 @@ func (m *Msg) EmbedTextTemplate(
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) EmbedNamedTextTemplate(
-	fileName string, tpl *tt.Template, tplName string, data interface{}, opts ...FileOption,
+	fileName string, tpl *tt.Template, tplName string, data any, opts ...FileOption,
 ) error {
 	file, err := fileFromNamedTextTemplate(fileName, tpl, tplName, data)
 	if err != nil {
@@ -455,7 +455,7 @@ func (m *Msg) EmbedNamedTextTemplate(
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) EmbedHTMLTemplate(
-	name string, tpl *ht.Template, data interface{}, opts ...FileOption,
+	name string, tpl *ht.Template, data any, opts ...FileOption,
 ) error {
 	file, err := fileFromHTMLTemplate(name, tpl, data)
 	if err != nil {
@@ -484,7 +484,7 @@ func (m *Msg) EmbedHTMLTemplate(
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2183
 func (m *Msg) EmbedNamedHTMLTemplate(
-	fileName string, tpl *ht.Template, tplName string, data interface{}, opts ...FileOption,
+	fileName string, tpl *ht.Template, tplName string, data any, opts ...FileOption,
 ) error {
 	file, err := fileFromNamedHTMLTemplate(fileName, tpl, tplName, data)
 	if err != nil {
@@ -511,7 +511,7 @@ func (m *Msg) EmbedNamedHTMLTemplate(
 //
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2183
-func fileFromTextTemplate(name string, tpl *tt.Template, data interface{}) (*File, error) {
+func fileFromTextTemplate(name string, tpl *tt.Template, data any) (*File, error) {
 	if tpl == nil {
 		return nil, errors.New(errTplPointerNil)
 	}
@@ -540,7 +540,7 @@ func fileFromTextTemplate(name string, tpl *tt.Template, data interface{}) (*Fil
 //
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2183
-func fileFromNamedTextTemplate(fileName string, tpl *tt.Template, tplName string, data interface{}) (*File, error) {
+func fileFromNamedTextTemplate(fileName string, tpl *tt.Template, tplName string, data any) (*File, error) {
 	if tpl == nil {
 		return nil, errors.New(errTplPointerNil)
 	}
@@ -568,7 +568,7 @@ func fileFromNamedTextTemplate(fileName string, tpl *tt.Template, tplName string
 //
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2183
-func fileFromHTMLTemplate(name string, tpl *ht.Template, data interface{}) (*File, error) {
+func fileFromHTMLTemplate(name string, tpl *ht.Template, data any) (*File, error) {
 	if tpl == nil {
 		return nil, errors.New(errTplPointerNil)
 	}
@@ -597,7 +597,7 @@ func fileFromHTMLTemplate(name string, tpl *ht.Template, data interface{}) (*Fil
 //
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2183
-func fileFromNamedHTMLTemplate(fileName string, tpl *ht.Template, tplName string, data interface{}) (*File, error) {
+func fileFromNamedHTMLTemplate(fileName string, tpl *ht.Template, tplName string, data any) (*File, error) {
 	if tpl == nil {
 		return nil, errors.New(errTplPointerNil)
 	}
