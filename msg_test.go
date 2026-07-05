@@ -4073,6 +4073,183 @@ func TestMsg_ServerResponse(t *testing.T) {
 		t.Errorf("expected %s, got: %s", exp, message.ServerResponse())
 	}
 }
+func TestMsg_SetListUnsubscribe(t *testing.T) {
+	tests := []struct {
+		name string
+		uris []string
+		want string
+	}{
+		{"single https", []string{"https://example.com/unsub?token=abc123"},
+			"<https://example.com/unsub?token=abc123>"},
+		{"single mailto", []string{"mailto:unsub@example.com?subject=unsubscribe"},
+			"<mailto:unsub@example.com?subject=unsubscribe>"},
+		{"https and mailto", []string{"https://example.com/unsub?token=abc123", "mailto:unsub@example.com"},
+			"<https://example.com/unsub?token=abc123>, <mailto:unsub@example.com>"},
+		{"already bracketed input", []string{"<https://example.com/unsub>"},
+			"<https://example.com/unsub>"},
+		{"whitespace trimmed", []string{"  https://example.com/unsub  "},
+			"<https://example.com/unsub>"},
+	}
+	t.Run("SetListUnsubscribe on new message", func(t *testing.T) {
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				message.SetListUnsubscribe(tt.uris...)
+				got := message.preformHeader[HeaderListUnsubscribe]
+				if got != tt.want {
+					t.Errorf("failed to set List-Unsubscribe. Expected: %s, got: %s", tt.want, got)
+				}
+			})
+		}
+	})
+	t.Run("SetListUnsubscribe does not set List-Unsubscribe-Post", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.SetListUnsubscribe("https://example.com/unsub")
+		if _, ok := message.preformHeader[HeaderListUnsubscribePost]; ok {
+			t.Error("SetListUnsubscribe must not set the List-Unsubscribe-Post header")
+		}
+	})
+	t.Run("SetListUnsubscribe skips empty values", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.SetListUnsubscribe("", "https://example.com/unsub", "  ")
+		want := "<https://example.com/unsub>"
+		got := message.preformHeader[HeaderListUnsubscribe]
+		if got != want {
+			t.Errorf("failed to set List-Unsubscribe. Expected: %s, got: %s", want, got)
+		}
+	})
+}
+
+func TestMsg_SetListUnsubscribePost(t *testing.T) {
+	t.Run("SetListUnsubscribePost on new message", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.SetListUnsubscribePost()
+		want := "List-Unsubscribe=One-Click"
+		got := message.preformHeader[HeaderListUnsubscribePost]
+		if got != want {
+			t.Errorf("failed to set List-Unsubscribe-Post. Expected: %s, got: %s", want, got)
+		}
+	})
+}
+
+func TestMsg_SetListUnsubscribeOneClick(t *testing.T) {
+	t.Run("SetListUnsubscribeOneClick with valid https URL", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.SetListUnsubscribeOneClick("https://example.com/unsub?token=abc123"); err != nil {
+			t.Fatalf("failed to set one-click unsubscribe: %s", err)
+		}
+		wantList := "<https://example.com/unsub?token=abc123>"
+		if got := message.preformHeader[HeaderListUnsubscribe]; got != wantList {
+			t.Errorf("failed to set List-Unsubscribe. Expected: %s, got: %s", wantList, got)
+		}
+		wantPost := "List-Unsubscribe=One-Click"
+		if got := message.preformHeader[HeaderListUnsubscribePost]; got != wantPost {
+			t.Errorf("failed to set List-Unsubscribe-Post. Expected: %s, got: %s", wantPost, got)
+		}
+	})
+	t.Run("SetListUnsubscribeOneClick puts https URL first", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.SetListUnsubscribeOneClick("https://example.com/unsub",
+			"mailto:unsub@example.com?subject=unsubscribe"); err != nil {
+			t.Fatalf("failed to set one-click unsubscribe: %s", err)
+		}
+		want := "<https://example.com/unsub>, <mailto:unsub@example.com?subject=unsubscribe>"
+		if got := message.preformHeader[HeaderListUnsubscribe]; got != want {
+			t.Errorf("failed to set List-Unsubscribe. Expected: %s, got: %s", want, got)
+		}
+	})
+	t.Run("SetListUnsubscribeOneClick fails on non-https URL", func(t *testing.T) {
+		failTests := []struct {
+			name  string
+			value string
+		}{
+			{"http scheme", "http://example.com/unsub"},
+			{"mailto scheme", "mailto:unsub@example.com"},
+			{"missing host", "https://"},
+			{"empty string", ""},
+			{"not a url", "this is not a url"},
+		}
+		for _, tt := range failTests {
+			t.Run(tt.name, func(t *testing.T) {
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				err := message.SetListUnsubscribeOneClick(tt.value)
+				if err == nil {
+					t.Errorf("SetListUnsubscribeOneClick(%q) was supposed to fail, but didn't", tt.value)
+				}
+				if !errors.Is(err, ErrNoHTTPSUnsubURL) {
+					t.Errorf("SetListUnsubscribeOneClick(%q) should return ErrNoHTTPSUnsubURL, got: %s",
+						tt.value, err)
+				}
+				if _, ok := message.preformHeader[HeaderListUnsubscribe]; ok {
+					t.Error("List-Unsubscribe must not be set when SetListUnsubscribeOneClick fails")
+				}
+				if _, ok := message.preformHeader[HeaderListUnsubscribePost]; ok {
+					t.Error("List-Unsubscribe-Post must not be set when SetListUnsubscribeOneClick fails")
+				}
+			})
+		}
+	})
+}
+
+// TestMsg_ListUnsubscribeNotEncoded ensures the List-Unsubscribe URIs are written
+// verbatim and are not RFC 2047 word-encoded, which would break the URLs.
+func TestMsg_ListUnsubscribeNotEncoded(t *testing.T) {
+	message := NewMsg()
+	if message == nil {
+		t.Fatal("message is nil")
+	}
+	if err := message.From("newsletter@example.com"); err != nil {
+		t.Fatalf("failed to set FROM address: %s", err)
+	}
+	if err := message.To("subscriber@example.com"); err != nil {
+		t.Fatalf("failed to set TO address: %s", err)
+	}
+	message.Subject("Weekly digest")
+	if err := message.SetListUnsubscribeOneClick("https://example.com/unsub?token=abc123",
+		"mailto:unsub@example.com?subject=unsubscribe"); err != nil {
+		t.Fatalf("failed to set one-click unsubscribe: %s", err)
+	}
+
+	buffer := bytes.NewBuffer(nil)
+	if _, err := message.WriteTo(buffer); err != nil {
+		t.Fatalf("failed to write message to buffer: %s", err)
+	}
+	got := buffer.String()
+
+	wantList := "List-Unsubscribe: <https://example.com/unsub?token=abc123>, " +
+		"<mailto:unsub@example.com?subject=unsubscribe>"
+	if !strings.Contains(got, wantList) {
+		t.Errorf("failed to find raw List-Unsubscribe header in message output, want: %s", wantList)
+	}
+	wantPost := "List-Unsubscribe-Post: List-Unsubscribe=One-Click"
+	if !strings.Contains(got, wantPost) {
+		t.Errorf("failed to find List-Unsubscribe-Post header in message output, want: %s", wantPost)
+	}
+	if strings.Contains(got, "=?") {
+		t.Errorf("List-Unsubscribe header appears to be RFC 2047 encoded, got: %s", got)
+	}
+}
 
 func TestMsg_SetAttachments(t *testing.T) {
 	t.Run("SetAttachments with single file", func(t *testing.T) {
