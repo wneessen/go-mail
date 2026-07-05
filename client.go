@@ -284,6 +284,10 @@ var (
 
 	// ErrClientIsNil indicates that a required smtp client is not provided.
 	ErrClientIsNil = errors.New("client is nil")
+
+	// ErrNoPreferredAuthMechanism indicates that no preferred authentication
+	// mechanism was provided.
+	ErrNoPreferredAuthMechanism = errors.New("no preferred auth mechanism provided")
 )
 
 // NewClient creates a new Client instance with the provided host and optional configuration Option functions.
@@ -840,10 +844,25 @@ func WithAlwaysDKIMSign(signer *dkim.Signer) Option {
 	}
 }
 
-func WithOpportunisticSMTPAuth(preferredMethods ...SMTPAuthType) Option {
+// WithOpportunisticSMTPAuth instructs the Client to use opportunistic SMTP authentication,
+// with the provided list of preferred authentication mechanisms.
+//
+// This option is useful if the user wants SMTP authentication to be based on a list of preferred
+// mechanisms, without needing to configure each mechanism individually.
+//
+// Parameters:
+//   - preferredMechs: The list of preferred SMTP authentication mechanisms to use.
+//
+// Returns:
+//   - An Option function that configures the Client to use opportunistic SMTP authentication
+//     with the provided mechanisms.
+func WithOpportunisticSMTPAuth(preferredMechs ...SMTPAuthType) Option {
 	return func(c *Client) error {
+		if len(preferredMechs) == 0 {
+			return ErrNoPreferredAuthMechanism
+		}
 		c.smtpAuthType = SMTPAuthOpportunistic
-		c.preferredAuthTypes = preferredMethods
+		c.preferredAuthTypes = preferredMechs
 		return nil
 	}
 }
