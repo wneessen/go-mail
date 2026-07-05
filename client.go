@@ -1483,6 +1483,7 @@ func (c *Client) auth(client *smtp.Client, isEnc bool) error {
 			if selectedAuth == "" {
 				c.smtpAuthType = SMTPAuthAutoDiscover
 			}
+			authType = selectedAuth
 		}
 		if c.smtpAuthType == SMTPAuthAutoDiscover {
 			discoveredType, err := c.authTypeAutoDiscover(smtpAuthType, isEnc)
