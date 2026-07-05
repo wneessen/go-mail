@@ -20,6 +20,7 @@ import (
 	"net/mail"
 	"os"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -771,6 +772,22 @@ func TestNewClient(t *testing.T) {
 					if c.dkim.Domain != testDomain {
 						return fmt.Errorf("failed to set DKIM signer. Want DKIM sign domain: %s, got: %s",
 							testDomain, c.dkim.Domain)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithOpportunisticSMTPAuth", WithOpportunisticSMTPAuth(SMTPAuthNTLM, SMTPAuthCramMD5),
+				func(c *Client) error {
+					if len(c.preferredAuthTypes) != 2 {
+						t.Errorf("failed to set preferred auth types, want %d, got: %d", 2,
+							len(c.preferredAuthTypes))
+					}
+					if !slices.Contains(c.preferredAuthTypes, SMTPAuthNTLM) ||
+						!slices.Contains(c.preferredAuthTypes, SMTPAuthCramMD5) {
+						t.Errorf("failed to set preferred auth types, want %s, %s, got: %#v",
+							SMTPAuthNTLM, SMTPAuthCramMD5, c.preferredAuthTypes)
 					}
 					return nil
 				},
