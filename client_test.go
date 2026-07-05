@@ -793,6 +793,10 @@ func TestNewClient(t *testing.T) {
 				},
 				false, nil,
 			},
+			{
+				"WithOpportunisticSMTPAuth with empty list", WithOpportunisticSMTPAuth(),
+				nil, true, &ErrNoPreferredAuthMechanism,
+			},
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
@@ -2909,6 +2913,41 @@ func TestClient_auth(t *testing.T) {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		client.SetSMTPAuthCustom(newTestCustomAuth())
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		if err = client.Send(message); err != nil {
+			t.Errorf("failed to send message: %s", err)
+		}
+	})
+	t.Run("auth with opportunistic SMTP auth", func(t *testing.T) {
+		ctx := t.Context()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH GSSAPI NTLM\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		message := testMessage(t)
+		prefList := []SMTPAuthType{SMTPAuthLogin, SMTPAuthPlain, SMTPAuthNTLM}
+		client, err := NewClient(DefaultHost, WithPort(serverPort),
+			WithTLSPolicy(TLSMandatory), WithTLSConfig(&tlsConfig),
+			WithOpportunisticSMTPAuth(prefList...),
+		)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
 		if err = client.DialWithContext(ctxDial); err != nil {
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
