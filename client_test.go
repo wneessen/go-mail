@@ -2941,7 +2941,8 @@ func TestClient_auth(t *testing.T) {
 
 		message := testMessage(t)
 		prefList := []SMTPAuthType{SMTPAuthLogin, SMTPAuthPlain, SMTPAuthNTLM}
-		client, err := NewClient(DefaultHost, WithPort(serverPort),
+		client, err := NewClient(
+			DefaultHost, WithPort(serverPort),
 			WithTLSPolicy(TLSMandatory), WithTLSConfig(&tlsConfig),
 			WithOpportunisticSMTPAuth(prefList...),
 		)
@@ -2976,7 +2977,8 @@ func TestClient_auth(t *testing.T) {
 
 		message := testMessage(t)
 		prefList := []SMTPAuthType{SMTPAuthLogin, SMTPAuthPlain}
-		client, err := NewClient(DefaultHost, WithPort(serverPort),
+		client, err := NewClient(
+			DefaultHost, WithPort(serverPort),
 			WithTLSPolicy(TLSMandatory), WithTLSConfig(&tlsConfig),
 			WithOpportunisticSMTPAuth(prefList...),
 		)
@@ -3011,7 +3013,8 @@ func TestClient_auth(t *testing.T) {
 
 		message := testMessage(t)
 		prefList := []SMTPAuthType{SMTPAuthLoginNoEnc, SMTPAuthPlain}
-		client, err := NewClient(DefaultHost, WithPort(serverPort),
+		client, err := NewClient(
+			DefaultHost, WithPort(serverPort),
 			WithTLSPolicy(TLSMandatory), WithTLSConfig(&tlsConfig),
 			WithOpportunisticSMTPAuth(prefList...),
 		)

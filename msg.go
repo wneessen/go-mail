@@ -19,6 +19,7 @@ import (
 	"io/fs"
 	"mime"
 	"net/mail"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -35,6 +36,11 @@ var (
 
 	// ErrNoRcptAddresses indicates that no recipient addresses have been set.
 	ErrNoRcptAddresses = errors.New("no recipient addresses set")
+
+	// ErrNoHTTPSUnsubURL is returned when one-click unsubscribe is requested
+	// without a usable HTTPS URL, which RFC 8058 requires.
+	ErrNoHTTPSUnsubURL = errors.New("one-click unsubscribe requires at least one HTTPS " +
+		"URI in List-Unsubscribe")
 )
 
 const (
@@ -63,6 +69,12 @@ const (
 	// the corresponding go-mail-middleware.
 	PGPSignature
 )
+
+// oneClickPostValue is the fixed token required by RFC 8058 for the
+// List-Unsubscribe-Post header field.
+//
+// See: https://datatracker.ietf.org/doc/html/rfc8058#section-3.2
+const oneClickPostValue = "List-Unsubscribe=One-Click"
 
 // MiddlewareType is a type wrapper for a string. It describes the type of the Middleware and needs to be
 // returned by the Middleware.Type method to satisfy the Middleware interface.
@@ -1409,6 +1421,58 @@ func (m *Msg) SetOrganization(org string) {
 func (m *Msg) SetUserAgent(userAgent string) {
 	m.SetGenHeader(HeaderUserAgent, userAgent)
 	m.SetGenHeader(HeaderXMailer, userAgent)
+}
+
+// SetListUnsubscribe sets the "List-Unsubscribe" header field (RFC 2369) of the
+// Msg to the provided list of URIs. Each URI is wrapped in angle brackets and
+// the entries are comma-separated as required by the RFC. Typical values are a
+// "mailto:" URI and/or an "https" URL.
+//
+// This only advertises an unsubscribe method; it does not enable one-click
+// functionality. For one-click support use SetListUnsubscribeOneClick()
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc2369#section-3.2
+func (m *Msg) SetListUnsubscribe(uris ...string) {
+	m.SetGenHeaderPreformatted(HeaderListUnsubscribe, formatUnsubURIs(uris))
+}
+
+// SetListUnsubscribePost sets the "List-Unsubscribe-Post" header field to the
+// fixed value "List-Unsubscribe=One-Click" as defined in RFC 8058. It should
+// only be set together with a List-Unsubscribe header that contains at least
+// an HTTPS URI.
+//
+// It is preferred to use SetListUnsubscribeOneClick(), which sets both headers
+// and validates the input.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc8058#section-3.2
+func (m *Msg) SetListUnsubscribePost() {
+	m.SetGenHeaderPreformatted(HeaderListUnsubscribePost, oneClickPostValue)
+}
+
+// SetListUnsubscribeOneClick configures RFC 8058 compliant one-click unsubscribe
+// headers for the Msg. It sets both the "List-Unsubscribe" and
+// "List-Unsubscribe-Post" header fields.
+//
+// httpsURL is the endpoint that will receive the one-click HTTP POST and must
+// use the "https" scheme. Any additionalURIs (e.g. a "mailto:" fallback) are
+// appended to the List-Unsubscribe header.
+//
+// An error is returned if the required httpsURL is not a valid https URL.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc8058
+func (m *Msg) SetListUnsubscribeOneClick(httpsURL string, additionalURIs ...string) error {
+	parsed, err := url.Parse(strings.TrimSpace(httpsURL))
+	if err != nil || parsed.Scheme != "https" || parsed.Host == "" {
+		return fmt.Errorf("failed to parse HTTPS URI %q: %w", httpsURL, ErrNoHTTPSUnsubURL)
+	}
+
+	uris := append([]string{parsed.String()}, additionalURIs...)
+	m.SetGenHeaderPreformatted(HeaderListUnsubscribe, formatUnsubURIs(uris))
+	m.SetGenHeaderPreformatted(HeaderListUnsubscribePost, oneClickPostValue)
+	return nil
 }
 
 // IsDelivered indicates whether the Msg has been delivered.
@@ -3141,4 +3205,19 @@ func splitMessage(b []byte) (headers, body []byte) {
 		return b[:i+2], b[i+4:]
 	}
 	return b, nil
+}
+
+// formatUnsubURIs wraps each URI in angle brackets and joins them with ", "
+// per the RFC 2369 header syntax.
+func formatUnsubURIs(uris []string) string {
+	parts := make([]string, 0, len(uris))
+	for _, url := range uris {
+		url = strings.TrimSpace(url)
+		if url == "" {
+			continue
+		}
+		url = strings.TrimPrefix(strings.TrimSuffix(url, ">"), "<")
+		parts = append(parts, "<"+url+">")
+	}
+	return strings.Join(parts, ", ")
 }
