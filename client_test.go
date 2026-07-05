@@ -2990,6 +2990,41 @@ func TestClient_auth(t *testing.T) {
 			t.Errorf("failed to send message: %s", err)
 		}
 	})
+	t.Run("auth with opportunistic SMTP auth on non-enc auth modes works", func(t *testing.T) {
+		ctx := t.Context()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH NTLM LOGIN PLAIN\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		message := testMessage(t)
+		prefList := []SMTPAuthType{SMTPAuthLoginNoEnc, SMTPAuthPlain}
+		client, err := NewClient(DefaultHost, WithPort(serverPort),
+			WithTLSPolicy(TLSMandatory), WithTLSConfig(&tlsConfig),
+			WithOpportunisticSMTPAuth(prefList...),
+		)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		if err = client.Send(message); err != nil {
+			t.Errorf("failed to send message: %s", err)
+		}
+	})
 }
 
 func TestClient_authTypeAutoDiscover(t *testing.T) {
@@ -3074,6 +3109,16 @@ func TestClient_authTypeSelectPreferred(t *testing.T) {
 			[]SMTPAuthType{SMTPAuthLogin, SMTPAuthSCRAMSHA1},
 			"PLAIN SCRAM-SHA-256 SCRAM-SHA-1 SCRAM-SHA-256-PLUS SCRAM-SHA-1-PLUS LOGIN",
 			SMTPAuthLogin,
+		},
+		{
+			[]SMTPAuthType{SMTPAuthLoginNoEnc, SMTPAuthSCRAMSHA1},
+			"PLAIN SCRAM-SHA-256 SCRAM-SHA-1 SCRAM-SHA-256-PLUS SCRAM-SHA-1-PLUS LOGIN",
+			SMTPAuthLoginNoEnc,
+		},
+		{
+			[]SMTPAuthType{SMTPAuthNTLM, SMTPAuthPlainNoEnc},
+			"LOGIN PLAIN SCRAM-SHA-256 SCRAM-SHA-1 SCRAM-SHA-256-PLUS SCRAM-SHA-1-PLUS LOGIN",
+			SMTPAuthPlainNoEnc,
 		},
 		{
 			[]SMTPAuthType{SMTPAuthSCRAMSHA1PLUS},
