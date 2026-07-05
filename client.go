@@ -186,6 +186,10 @@ type (
 		// port specifies the network port that is used to establish the connection with the SMTP server.
 		port int
 
+		// preferredAuthTypes specifies the preferred authentication types to use when opportunistic
+		// authentication is enabled.
+		preferredAuthTypes []SMTPAuthType
+
 		// requestDSN indicates wether we want to request DSN (Delivery Status Notifications).
 		requestDSN bool
 
@@ -836,6 +840,14 @@ func WithAlwaysDKIMSign(signer *dkim.Signer) Option {
 	}
 }
 
+func WithOpportunisticSMTPAuth(preferredMethods ...SMTPAuthType) Option {
+	return func(c *Client) error {
+		c.smtpAuthType = SMTPAuthOpportunistic
+		c.preferredAuthTypes = preferredMethods
+		return nil
+	}
+}
+
 // TLSPolicy returns the TLSPolicy that is currently set on the Client as a string.
 //
 // This method retrieves the current TLSPolicy configured for the Client and returns it as a string representation.
@@ -1466,6 +1478,13 @@ func (c *Client) auth(client *smtp.Client, isEnc bool) error {
 		}
 
 		authType := c.smtpAuthType
+		if c.smtpAuthType == SMTPAuthOpportunistic {
+			selectedAuth := c.selectPreferredAuth(smtpAuthType)
+			if selectedAuth == "" {
+				selectedAuth = SMTPAuthAutoDiscover
+			}
+			authType = selectedAuth
+		}
 		if c.smtpAuthType == SMTPAuthAutoDiscover {
 			discoveredType, err := c.authTypeAutoDiscover(smtpAuthType, isEnc)
 			if err != nil {
@@ -1565,15 +1584,39 @@ func (c *Client) authTypeAutoDiscover(supported string, isEnc bool) (SMTPAuthTyp
 	mechs := strings.Split(supported, " ")
 
 	for _, item := range preferList {
-		if sliceContains(mechs, string(item)) {
+		if slices.Contains(mechs, string(item)) {
 			return item, nil
 		}
 	}
 	return "", ErrNoSupportedAuthDiscovered
 }
 
-func sliceContains(slice []string, item string) bool {
-	return slices.Contains(slice, item)
+func (c *Client) selectPreferredAuth(supported string) SMTPAuthType {
+	mechs := strings.Split(supported, " ")
+	for _, auth := range c.preferredAuthTypes {
+		if slices.Contains(mechs, string(auth)) {
+			switch auth {
+			case SMTPAuthSCRAMSHA256PLUS:
+				return SMTPAuthSCRAMSHA256PLUS
+			case SMTPAuthSCRAMSHA256:
+				return SMTPAuthSCRAMSHA256
+			case SMTPAuthSCRAMSHA1PLUS:
+				return SMTPAuthSCRAMSHA1PLUS
+			case SMTPAuthSCRAMSHA1:
+				return SMTPAuthSCRAMSHA1
+			case SMTPAuthNTLM:
+				return SMTPAuthNTLM
+			case SMTPAuthCramMD5:
+				return SMTPAuthCramMD5
+			case SMTPAuthPlain:
+				return SMTPAuthPlain
+			case SMTPAuthLogin:
+				return SMTPAuthLogin
+			}
+		}
+	}
+
+	return ""
 }
 
 // sendSingleMsg sends out a single message and returns an error if the transmission or

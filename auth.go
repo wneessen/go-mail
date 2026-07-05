@@ -160,6 +160,8 @@ const (
 	// By automating mechanism selection, SMTPAuthAutoDiscover minimizes configuration effort while
 	// maximizing security and compatibility with a wide range of SMTP servers.
 	SMTPAuthAutoDiscover SMTPAuthType = "AUTODISCOVER"
+
+	SMTPAuthOpportunistic SMTPAuthType = "OPPORTUNISTIC"
 )
 
 // SMTP Auth related static errors
