@@ -1479,7 +1479,7 @@ func (c *Client) auth(client *smtp.Client, isEnc bool) error {
 
 		authType := c.smtpAuthType
 		if c.smtpAuthType == SMTPAuthOpportunistic {
-			selectedAuth := c.selectPreferredAuth(smtpAuthType)
+			selectedAuth := c.authTypeSelectPreferred(smtpAuthType)
 			if selectedAuth == "" {
 				c.smtpAuthType = SMTPAuthAutoDiscover
 			}
@@ -1591,7 +1591,7 @@ func (c *Client) authTypeAutoDiscover(supported string, isEnc bool) (SMTPAuthTyp
 	return "", ErrNoSupportedAuthDiscovered
 }
 
-func (c *Client) selectPreferredAuth(supported string) SMTPAuthType {
+func (c *Client) authTypeSelectPreferred(supported string) SMTPAuthType {
 	mechs := strings.Split(supported, " ")
 	for _, auth := range c.preferredAuthTypes {
 		if slices.Contains(mechs, string(auth)) {

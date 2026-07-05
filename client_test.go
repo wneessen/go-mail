@@ -2955,6 +2955,47 @@ func TestClient_authTypeAutoDiscover(t *testing.T) {
 	}
 }
 
+func TestClient_authTypeSelectPreferred(t *testing.T) {
+	tests := []struct {
+		preferred []SMTPAuthType
+		supported string
+		expect    SMTPAuthType
+	}{
+		{
+			[]SMTPAuthType{SMTPAuthSCRAMSHA256PLUS, SMTPAuthSCRAMSHA256, SMTPAuthSCRAMSHA1PLUS, SMTPAuthSCRAMSHA1},
+			"LOGIN SCRAM-SHA-256 SCRAM-SHA-1 SCRAM-SHA-256-PLUS SCRAM-SHA-1-PLUS",
+			SMTPAuthSCRAMSHA256PLUS,
+		},
+		{
+			[]SMTPAuthType{SMTPAuthLogin, SMTPAuthSCRAMSHA1},
+			"PLAIN SCRAM-SHA-256 SCRAM-SHA-1 SCRAM-SHA-256-PLUS SCRAM-SHA-1-PLUS LOGIN",
+			SMTPAuthLogin,
+		},
+		{
+			[]SMTPAuthType{SMTPAuthSCRAMSHA1PLUS},
+			"NTLM OBSCURE PLAIN SCRAM-SHA-256 SCRAM-SHA-1 SCRAM-SHA-256-PLUS SCRAM-SHA-1-PLUS LOGIN",
+			SMTPAuthSCRAMSHA1PLUS,
+		},
+		{
+			[]SMTPAuthType{SMTPAuthSCRAMSHA1PLUS},
+			"NTLM OBSCURE PLAIN",
+			"",
+		},
+	}
+	for _, tt := range tests {
+		t.Run("the preferred auth type is selected: "+string(tt.expect), func(t *testing.T) {
+			client := &Client{
+				smtpAuthType:       SMTPAuthOpportunistic,
+				preferredAuthTypes: tt.preferred,
+			}
+			authType := client.authTypeSelectPreferred(tt.supported)
+			if authType != tt.expect {
+				t.Errorf("expected auth type: %s, got: %s", tt.expect, authType)
+			}
+		})
+	}
+}
+
 func TestClient_Send(t *testing.T) {
 	message := testMessage(t)
 	t.Run("connect and send email", func(t *testing.T) {
