@@ -186,6 +186,10 @@ type (
 		// port specifies the network port that is used to establish the connection with the SMTP server.
 		port int
 
+		// preferredAuthTypes specifies the preferred authentication types to use when opportunistic
+		// authentication is enabled.
+		preferredAuthTypes []SMTPAuthType
+
 		// requestDSN indicates wether we want to request DSN (Delivery Status Notifications).
 		requestDSN bool
 
@@ -280,6 +284,10 @@ var (
 
 	// ErrClientIsNil indicates that a required smtp client is not provided.
 	ErrClientIsNil = errors.New("client is nil")
+
+	// ErrNoPreferredAuthMechanism indicates that no preferred authentication
+	// mechanism was provided.
+	ErrNoPreferredAuthMechanism = errors.New("no preferred auth mechanism provided")
 )
 
 // NewClient creates a new Client instance with the provided host and optional configuration Option functions.
@@ -832,6 +840,29 @@ func WithAlwaysDKIMSign(signer *dkim.Signer) Option {
 			return err
 		}
 		c.dkim = signer
+		return nil
+	}
+}
+
+// WithOpportunisticSMTPAuth instructs the Client to use opportunistic SMTP authentication,
+// with the provided list of preferred authentication mechanisms.
+//
+// This option is useful if the user wants SMTP authentication to be based on a list of preferred
+// mechanisms, without needing to configure each mechanism individually.
+//
+// Parameters:
+//   - preferredMechs: The list of preferred SMTP authentication mechanisms to use.
+//
+// Returns:
+//   - An Option function that configures the Client to use opportunistic SMTP authentication
+//     with the provided mechanisms.
+func WithOpportunisticSMTPAuth(preferredMechs ...SMTPAuthType) Option {
+	return func(c *Client) error {
+		if len(preferredMechs) == 0 {
+			return ErrNoPreferredAuthMechanism
+		}
+		c.smtpAuthType = SMTPAuthOpportunistic
+		c.preferredAuthTypes = preferredMechs
 		return nil
 	}
 }
@@ -1466,6 +1497,13 @@ func (c *Client) auth(client *smtp.Client, isEnc bool) error {
 		}
 
 		authType := c.smtpAuthType
+		if c.smtpAuthType == SMTPAuthOpportunistic {
+			selectedAuth := c.authTypeSelectPreferred(smtpAuthType)
+			if selectedAuth == "" {
+				c.smtpAuthType = SMTPAuthAutoDiscover
+			}
+			authType = selectedAuth
+		}
 		if c.smtpAuthType == SMTPAuthAutoDiscover {
 			discoveredType, err := c.authTypeAutoDiscover(smtpAuthType, isEnc)
 			if err != nil {
@@ -1565,15 +1603,55 @@ func (c *Client) authTypeAutoDiscover(supported string, isEnc bool) (SMTPAuthTyp
 	mechs := strings.Split(supported, " ")
 
 	for _, item := range preferList {
-		if sliceContains(mechs, string(item)) {
+		if slices.Contains(mechs, string(item)) {
 			return item, nil
 		}
 	}
 	return "", ErrNoSupportedAuthDiscovered
 }
 
-func sliceContains(slice []string, item string) bool {
-	return slices.Contains(slice, item)
+func (c *Client) authTypeSelectPreferred(supported string) SMTPAuthType {
+	mechs := strings.Split(supported, " ")
+	for _, auth := range c.preferredAuthTypes {
+		var noEnc bool
+		if strings.HasSuffix(string(auth), "-NOENC") {
+			noEnc = true
+			switch strings.TrimSuffix(string(auth), "-NOENC") {
+			case "LOGIN":
+				auth = SMTPAuthLogin
+			case "PLAIN":
+				auth = SMTPAuthPlain
+			}
+		}
+		if slices.Contains(mechs, string(auth)) {
+			switch auth {
+			case SMTPAuthSCRAMSHA256PLUS:
+				return SMTPAuthSCRAMSHA256PLUS
+			case SMTPAuthSCRAMSHA256:
+				return SMTPAuthSCRAMSHA256
+			case SMTPAuthSCRAMSHA1PLUS:
+				return SMTPAuthSCRAMSHA1PLUS
+			case SMTPAuthSCRAMSHA1:
+				return SMTPAuthSCRAMSHA1
+			case SMTPAuthNTLM:
+				return SMTPAuthNTLM
+			case SMTPAuthCramMD5:
+				return SMTPAuthCramMD5
+			case SMTPAuthPlain:
+				if !noEnc {
+					return SMTPAuthPlain
+				}
+				return SMTPAuthPlainNoEnc
+			case SMTPAuthLogin:
+				if !noEnc {
+					return SMTPAuthLogin
+				}
+				return SMTPAuthLoginNoEnc
+			}
+		}
+	}
+
+	return ""
 }
 
 // sendSingleMsg sends out a single message and returns an error if the transmission or

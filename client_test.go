@@ -20,6 +20,7 @@ import (
 	"net/mail"
 	"os"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -775,6 +776,26 @@ func TestNewClient(t *testing.T) {
 					return nil
 				},
 				false, nil,
+			},
+			{
+				"WithOpportunisticSMTPAuth", WithOpportunisticSMTPAuth(SMTPAuthNTLM, SMTPAuthCramMD5),
+				func(c *Client) error {
+					if len(c.preferredAuthTypes) != 2 {
+						t.Errorf("failed to set preferred auth types, want %d, got: %d", 2,
+							len(c.preferredAuthTypes))
+					}
+					if !slices.Contains(c.preferredAuthTypes, SMTPAuthNTLM) ||
+						!slices.Contains(c.preferredAuthTypes, SMTPAuthCramMD5) {
+						t.Errorf("failed to set preferred auth types, want %s, %s, got: %#v",
+							SMTPAuthNTLM, SMTPAuthCramMD5, c.preferredAuthTypes)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithOpportunisticSMTPAuth with empty list", WithOpportunisticSMTPAuth(),
+				nil, true, &ErrNoPreferredAuthMechanism,
 			},
 		}
 		for _, tt := range tests {
@@ -2899,6 +2920,111 @@ func TestClient_auth(t *testing.T) {
 			t.Errorf("failed to send message: %s", err)
 		}
 	})
+	t.Run("auth with opportunistic SMTP auth", func(t *testing.T) {
+		ctx := t.Context()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH GSSAPI NTLM\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		message := testMessage(t)
+		prefList := []SMTPAuthType{SMTPAuthLogin, SMTPAuthPlain, SMTPAuthNTLM}
+		client, err := NewClient(DefaultHost, WithPort(serverPort),
+			WithTLSPolicy(TLSMandatory), WithTLSConfig(&tlsConfig),
+			WithOpportunisticSMTPAuth(prefList...),
+		)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		if err = client.Send(message); err != nil {
+			t.Errorf("failed to send message: %s", err)
+		}
+	})
+	t.Run("auth with opportunistic SMTP auth falls back to autodiscover", func(t *testing.T) {
+		ctx := t.Context()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH GSSAPI NTLM\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		message := testMessage(t)
+		prefList := []SMTPAuthType{SMTPAuthLogin, SMTPAuthPlain}
+		client, err := NewClient(DefaultHost, WithPort(serverPort),
+			WithTLSPolicy(TLSMandatory), WithTLSConfig(&tlsConfig),
+			WithOpportunisticSMTPAuth(prefList...),
+		)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		if err = client.Send(message); err != nil {
+			t.Errorf("failed to send message: %s", err)
+		}
+	})
+	t.Run("auth with opportunistic SMTP auth on non-enc auth modes works", func(t *testing.T) {
+		ctx := t.Context()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH NTLM LOGIN PLAIN\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		message := testMessage(t)
+		prefList := []SMTPAuthType{SMTPAuthLoginNoEnc, SMTPAuthPlain}
+		client, err := NewClient(DefaultHost, WithPort(serverPort),
+			WithTLSPolicy(TLSMandatory), WithTLSConfig(&tlsConfig),
+			WithOpportunisticSMTPAuth(prefList...),
+		)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		if err = client.Send(message); err != nil {
+			t.Errorf("failed to send message: %s", err)
+		}
+	})
 }
 
 func TestClient_authTypeAutoDiscover(t *testing.T) {
@@ -2933,6 +3059,87 @@ func TestClient_authTypeAutoDiscover(t *testing.T) {
 			}
 			if !tt.shouldFail && authType != tt.expect {
 				t.Errorf("expected strongest auth type: %s, got: %s", tt.expect, authType)
+			}
+		})
+	}
+}
+
+func TestClient_authTypeSelectPreferred(t *testing.T) {
+	tests := []struct {
+		preferred []SMTPAuthType
+		supported string
+		expect    SMTPAuthType
+	}{
+		{
+			[]SMTPAuthType{SMTPAuthSCRAMSHA256PLUS, SMTPAuthSCRAMSHA256, SMTPAuthSCRAMSHA1PLUS, SMTPAuthSCRAMSHA1},
+			"LOGIN SCRAM-SHA-256 SCRAM-SHA-1 SCRAM-SHA-256-PLUS SCRAM-SHA-1-PLUS",
+			SMTPAuthSCRAMSHA256PLUS,
+		},
+		{
+			[]SMTPAuthType{SMTPAuthSCRAMSHA256, SMTPAuthSCRAMSHA1PLUS, SMTPAuthSCRAMSHA1},
+			"LOGIN SCRAM-SHA-256 SCRAM-SHA-1 SCRAM-SHA-256-PLUS SCRAM-SHA-1-PLUS",
+			SMTPAuthSCRAMSHA256,
+		},
+		{
+			[]SMTPAuthType{SMTPAuthSCRAMSHA1PLUS, SMTPAuthSCRAMSHA1, SMTPAuthSCRAMSHA256PLUS, SMTPAuthSCRAMSHA256},
+			"LOGIN SCRAM-SHA-256 SCRAM-SHA-1 SCRAM-SHA-256-PLUS SCRAM-SHA-1-PLUS",
+			SMTPAuthSCRAMSHA1PLUS,
+		},
+		{
+			[]SMTPAuthType{SMTPAuthSCRAMSHA1, SMTPAuthSCRAMSHA1PLUS, SMTPAuthSCRAMSHA256},
+			"LOGIN SCRAM-SHA-256 SCRAM-SHA-1 SCRAM-SHA-256-PLUS SCRAM-SHA-1-PLUS",
+			SMTPAuthSCRAMSHA1,
+		},
+		{
+			[]SMTPAuthType{SMTPAuthNTLM, SMTPAuthLogin, SMTPAuthSCRAMSHA1},
+			"PLAIN SCRAM-SHA-256 SCRAM-SHA-1 NTLM SCRAM-SHA-256-PLUS SCRAM-SHA-1-PLUS LOGIN",
+			SMTPAuthNTLM,
+		},
+		{
+			[]SMTPAuthType{SMTPAuthCramMD5, SMTPAuthNTLM, SMTPAuthLogin, SMTPAuthSCRAMSHA1},
+			"PLAIN SCRAM-SHA-256 SCRAM-SHA-1 NTLM SCRAM-SHA-256-PLUS CRAM-MD5 SCRAM-SHA-1-PLUS LOGIN",
+			SMTPAuthCramMD5,
+		},
+		{
+			[]SMTPAuthType{SMTPAuthPlain, SMTPAuthLogin, SMTPAuthSCRAMSHA1},
+			"PLAIN SCRAM-SHA-256 SCRAM-SHA-1 SCRAM-SHA-256-PLUS SCRAM-SHA-1-PLUS LOGIN",
+			SMTPAuthPlain,
+		},
+		{
+			[]SMTPAuthType{SMTPAuthLogin, SMTPAuthSCRAMSHA1},
+			"PLAIN SCRAM-SHA-256 SCRAM-SHA-1 SCRAM-SHA-256-PLUS SCRAM-SHA-1-PLUS LOGIN",
+			SMTPAuthLogin,
+		},
+		{
+			[]SMTPAuthType{SMTPAuthLoginNoEnc, SMTPAuthSCRAMSHA1},
+			"PLAIN SCRAM-SHA-256 SCRAM-SHA-1 SCRAM-SHA-256-PLUS SCRAM-SHA-1-PLUS LOGIN",
+			SMTPAuthLoginNoEnc,
+		},
+		{
+			[]SMTPAuthType{SMTPAuthNTLM, SMTPAuthPlainNoEnc},
+			"LOGIN PLAIN SCRAM-SHA-256 SCRAM-SHA-1 SCRAM-SHA-256-PLUS SCRAM-SHA-1-PLUS LOGIN",
+			SMTPAuthPlainNoEnc,
+		},
+		{
+			[]SMTPAuthType{SMTPAuthSCRAMSHA1PLUS},
+			"NTLM OBSCURE PLAIN SCRAM-SHA-256 SCRAM-SHA-1 SCRAM-SHA-256-PLUS SCRAM-SHA-1-PLUS LOGIN",
+			SMTPAuthSCRAMSHA1PLUS,
+		},
+		{
+			[]SMTPAuthType{SMTPAuthSCRAMSHA1PLUS},
+			"NTLM OBSCURE PLAIN",
+			"",
+		},
+	}
+	for _, tt := range tests {
+		t.Run("the preferred auth type is selected: "+string(tt.expect), func(t *testing.T) {
+			client := &Client{
+				smtpAuthType:       SMTPAuthOpportunistic,
+				preferredAuthTypes: tt.preferred,
+			}
+			authType := client.authTypeSelectPreferred(tt.supported)
+			if authType != tt.expect {
+				t.Errorf("expected auth type: %s, got: %s", tt.expect, authType)
 			}
 		})
 	}
