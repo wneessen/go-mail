@@ -1613,6 +1613,16 @@ func (c *Client) authTypeAutoDiscover(supported string, isEnc bool) (SMTPAuthTyp
 func (c *Client) authTypeSelectPreferred(supported string) SMTPAuthType {
 	mechs := strings.Split(supported, " ")
 	for _, auth := range c.preferredAuthTypes {
+		var noEnc bool
+		if strings.HasSuffix(string(auth), "-NOENC") {
+			noEnc = true
+			switch strings.TrimSuffix(string(auth), "-NOENC") {
+			case "LOGIN":
+				auth = SMTPAuthLogin
+			case "PLAIN":
+				auth = SMTPAuthPlain
+			}
+		}
 		if slices.Contains(mechs, string(auth)) {
 			switch auth {
 			case SMTPAuthSCRAMSHA256PLUS:
@@ -1628,9 +1638,15 @@ func (c *Client) authTypeSelectPreferred(supported string) SMTPAuthType {
 			case SMTPAuthCramMD5:
 				return SMTPAuthCramMD5
 			case SMTPAuthPlain:
-				return SMTPAuthPlain
+				if !noEnc {
+					return SMTPAuthPlain
+				}
+				return SMTPAuthPlainNoEnc
 			case SMTPAuthLogin:
-				return SMTPAuthLogin
+				if !noEnc {
+					return SMTPAuthLogin
+				}
+				return SMTPAuthLoginNoEnc
 			}
 		}
 	}
