@@ -4073,22 +4073,38 @@ func TestMsg_ServerResponse(t *testing.T) {
 		t.Errorf("expected %s, got: %s", exp, message.ServerResponse())
 	}
 }
+
 func TestMsg_SetListUnsubscribe(t *testing.T) {
 	tests := []struct {
 		name string
 		uris []string
 		want string
 	}{
-		{"single https", []string{"https://example.com/unsub?token=abc123"},
-			"<https://example.com/unsub?token=abc123>"},
-		{"single mailto", []string{"mailto:unsub@example.com?subject=unsubscribe"},
-			"<mailto:unsub@example.com?subject=unsubscribe>"},
-		{"https and mailto", []string{"https://example.com/unsub?token=abc123", "mailto:unsub@example.com"},
-			"<https://example.com/unsub?token=abc123>, <mailto:unsub@example.com>"},
-		{"already bracketed input", []string{"<https://example.com/unsub>"},
-			"<https://example.com/unsub>"},
-		{"whitespace trimmed", []string{"  https://example.com/unsub  "},
-			"<https://example.com/unsub>"},
+		{
+			"single https",
+			[]string{"https://example.com/unsub?token=abc123"},
+			"<https://example.com/unsub?token=abc123>",
+		},
+		{
+			"single mailto",
+			[]string{"mailto:unsub@example.com?subject=unsubscribe"},
+			"<mailto:unsub@example.com?subject=unsubscribe>",
+		},
+		{
+			"https and mailto",
+			[]string{"https://example.com/unsub?token=abc123", "mailto:unsub@example.com"},
+			"<https://example.com/unsub?token=abc123>, <mailto:unsub@example.com>",
+		},
+		{
+			"already bracketed input",
+			[]string{"<https://example.com/unsub>"},
+			"<https://example.com/unsub>",
+		},
+		{
+			"whitespace trimmed",
+			[]string{"  https://example.com/unsub  "},
+			"<https://example.com/unsub>",
+		},
 	}
 	t.Run("SetListUnsubscribe on new message", func(t *testing.T) {
 		for _, tt := range tests {
