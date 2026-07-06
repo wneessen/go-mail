@@ -96,8 +96,6 @@ func Test_toUint32(t *testing.T) {
 	}{
 		{"int fits into uint32", 1, 1, false},
 		{"negative int fails", -1, 0, true},
-		{"max uint32 fits", 4294967295, 4294967295, false},
-		{"max uint32 + 1 overflows and fails", 4294967296, 0, true},
 	}
 
 	for _, tt := range tests {

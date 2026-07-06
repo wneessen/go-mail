@@ -74,7 +74,7 @@ func toUint16(n int) (uint16, error) {
 
 // toUint32 converts an int to a uint16, returning an error if the value is out of range.
 func toUint32(n int) (uint32, error) {
-	if n < 0 || n > math.MaxUint32 {
+	if n < 0 || int64(n) > math.MaxUint32 {
 		return 0, fmt.Errorf("value %d out of uint32 range", n)
 	}
 	return uint32(n), nil
