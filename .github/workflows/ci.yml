@@ -185,7 +185,7 @@ jobs:
       matrix:
         include:
           - { goos: linux, goarch: amd64, pkg: "", cc: gcc }
-          - { goos: linux, goarch: 386, pkg: "", cc: gcc }
+          - { goos: linux, goarch: 386, pkg: gcc-multilib, cc: "gcc -m32" }
           - {
               goos: linux,
               goarch: arm64,
