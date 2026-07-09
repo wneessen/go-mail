@@ -178,8 +178,55 @@ jobs:
             go test -race -shuffle=on ./...
   ## https://github.com/wneessen/go-mail/issues/588
   test-crosscompile:
-    name: Cross-compile tests
+    name: Cross-compile (${{ matrix.goos }}/${{ matrix.goarch }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: linux, goarch: amd64, pkg: "", cc: gcc }
+          - {
+              goos: linux,
+              goarch: arm64,
+              pkg: gcc-aarch64-linux-gnu,
+              cc: aarch64-linux-gnu-gcc,
+            }
+          - {
+              goos: linux,
+              goarch: arm,
+              pkg: gcc-arm-linux-gnueabihf,
+              cc: arm-linux-gnueabihf-gcc,
+            }
+          - {
+              goos: linux,
+              goarch: riscv64,
+              pkg: gcc-riscv64-linux-gnu,
+              cc: riscv64-linux-gnu-gcc,
+            }
+          - {
+              goos: linux,
+              goarch: ppc64le,
+              pkg: gcc-powerpc64le-linux-gnu,
+              cc: powerpc64le-linux-gnu-gcc,
+            }
+          - {
+              goos: linux,
+              goarch: s390x,
+              pkg: gcc-s390x-linux-gnu,
+              cc: s390x-linux-gnu-gcc,
+            }
+          - {
+              goos: windows,
+              goarch: amd64,
+              pkg: gcc-mingw-w64-x86-64,
+              cc: x86_64-w64-mingw32-gcc,
+            }
+          - {
+              goos: windows,
+              goarch: 386,
+              pkg: gcc-mingw-w64-i686,
+              cc: i686-w64-mingw32-gcc,
+            }
     env:
       TEST_BASEPORT: ${{ vars.TEST_BASEPORT }}
       TEST_BASEPORT_SMTP: ${{ vars.TEST_BASEPORT_SMTP }}
@@ -194,28 +241,20 @@ jobs:
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: "1.26"
-      - name: Cross-compile tests for every platform/arch
+      - name: Install cross toolchain
+        if: matrix.pkg != ''
+        run: sudo apt-get update && sudo apt-get install -y ${{ matrix.pkg }}
+      - name: Compile tests for ${{ matrix.goos }}/${{ matrix.goarch }}
+        env:
+          CGO_ENABLED: "1"
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CC: ${{ matrix.cc }}
         run: |
           set -euo pipefail
-          # Disable cgo so pure cross-compilation works without target toolchains.
-          export CGO_ENABLED=1
-
-          pkgs=$(go list ./...)
-          fail=0
-
-          while read -r platform; do
-            os="${platform%/*}"
-            arch="${platform#*/}"
-            echo "::group::Cross-compiling tests for ${os}/${arch}"
-            for pkg in $pkgs; do
-              if ! GOOS="$os" GOARCH="$arch" go test -c -o /dev/null "$pkg"; then
-                echo "::error::test failed to compile for ${os}/${arch} (${pkg})"
-                fail=1
-              fi
-            done
-            echo "::endgroup::"
-          done < <(go tool dist list)
-          exit $fail
+          for pkg in $(go list ./...); do
+            go test -c -o /dev/null "$pkg"
+          done
   reuse:
     name: REUSE Compliance Check
     runs-on: ubuntu-latest
