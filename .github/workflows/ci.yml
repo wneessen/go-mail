@@ -176,8 +176,9 @@ jobs:
           run: |
             cd $GITHUB_WORKSPACE;
             go test -race -shuffle=on ./...
+  ## https://github.com/wneessen/go-mail/issues/588
   test-crosscompile:
-    name: Cross-compile tests (ubuntu / go 1.26)
+    name: Cross-compile tests
     runs-on: ubuntu-latest
     env:
       TEST_BASEPORT: ${{ vars.TEST_BASEPORT }}
@@ -197,7 +198,7 @@ jobs:
         run: |
           set -euo pipefail
           # Disable cgo so pure cross-compilation works without target toolchains.
-          export CGO_ENABLED=0
+          export CGO_ENABLED=1
 
           pkgs=$(go list ./...)
           fail=0
