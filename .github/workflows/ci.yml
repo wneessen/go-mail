@@ -185,6 +185,7 @@ jobs:
       matrix:
         include:
           - { goos: linux, goarch: amd64, pkg: "", cc: gcc }
+          - { goos: linux, goarch: 386, pkg: "", cc: gcc }
           - {
               goos: linux,
               goarch: arm64,
@@ -253,7 +254,7 @@ jobs:
         run: |
           set -euo pipefail
           for pkg in $(go list ./...); do
-            go test -c -o /dev/null "$pkg"
+            go test -list -shuffle=on -c -o /dev/null "$pkg"
           done
   reuse:
     name: REUSE Compliance Check
