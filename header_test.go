@@ -49,6 +49,7 @@ var (
 		want   string
 	}{
 		{"EnvelopeFrom", HeaderEnvelopeFrom, "EnvelopeFrom"},
+		{"EnvelopeTo", HeaderEnvelopeTo, "EnvelopeTo"},
 		{"From", HeaderFrom, "From"},
 		{"To", HeaderTo, "To"},
 		{"Cc", HeaderCc, "Cc"},
