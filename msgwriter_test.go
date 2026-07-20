@@ -11,6 +11,9 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"mime/multipart"
+	"net/mail"
+	"net/textproto"
 	"runtime"
 	"strings"
 	"testing"
@@ -342,32 +345,36 @@ func TestMsgWriter_addFiles(t *testing.T) {
 		name     string
 		filename string
 		expect   string
+		// extended marks a non-ASCII filename that must be emitted as an RFC 2231
+		// extended parameter (key*=charset''pct) rather than a quoted-string. In that
+		// case expect holds the charset''pct value.
+		extended bool
 	}{
-		{"normal US-ASCII filename", "test.txt", "test.txt"},
-		{"normal US-ASCII filename with space", "test file.txt", "test file.txt"},
-		{"filename with new lines", "test\r\n.txt", "test__.txt"},
-		{"filename with disallowed character:\x22", "test\x22.txt", "test_.txt"},
-		{"filename with disallowed character:\x2f", "test\x2f.txt", "test_.txt"},
-		{"filename with disallowed character:\x3a", "test\x3a.txt", "test_.txt"},
-		{"filename with disallowed character:\x3c", "test\x3c.txt", "test_.txt"},
-		{"filename with disallowed character:\x3e", "test\x3e.txt", "test_.txt"},
-		{"filename with disallowed character:\x3f", "test\x3f.txt", "test_.txt"},
-		{"filename with disallowed character:\x5c", "test\x5c.txt", "test_.txt"},
-		{"filename with disallowed character:\x7c", "test\x7c.txt", "test_.txt"},
-		{"filename with disallowed character:\x7f", "test\x7f.txt", "test_.txt"},
+		{"normal US-ASCII filename", "test.txt", "test.txt", false},
+		{"normal US-ASCII filename with space", "test file.txt", "test file.txt", false},
+		{"filename with new lines", "test\r\n.txt", "test__.txt", false},
+		{"filename with disallowed character:\x22", "test\x22.txt", "test_.txt", false},
+		{"filename with disallowed character:\x2f", "test\x2f.txt", "test_.txt", false},
+		{"filename with disallowed character:\x3a", "test\x3a.txt", "test_.txt", false},
+		{"filename with disallowed character:\x3c", "test\x3c.txt", "test_.txt", false},
+		{"filename with disallowed character:\x3e", "test\x3e.txt", "test_.txt", false},
+		{"filename with disallowed character:\x3f", "test\x3f.txt", "test_.txt", false},
+		{"filename with disallowed character:\x5c", "test\x5c.txt", "test_.txt", false},
+		{"filename with disallowed character:\x7c", "test\x7c.txt", "test_.txt", false},
+		{"filename with disallowed character:\x7f", "test\x7f.txt", "test_.txt", false},
 		{
 			"japanese characters filename", "添付ファイル.txt",
-			"=?UTF-8?q?=E6=B7=BB=E4=BB=98=E3=83=95=E3=82=A1=E3=82=A4=E3=83=AB.txt?=",
+			"utf-8''%E6%B7%BB%E4%BB%98%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB.txt", true,
 		},
 		{
 			"simplified chinese characters filename", "测试附件文件.txt",
-			"=?UTF-8?q?=E6=B5=8B=E8=AF=95=E9=99=84=E4=BB=B6=E6=96=87=E4=BB=B6.txt?=",
+			"utf-8''%E6%B5%8B%E8%AF%95%E9%99%84%E4%BB%B6%E6%96%87%E4%BB%B6.txt", true,
 		},
 		{
 			"cyrillic characters filename", "Тестовый прикрепленный файл.txt",
-			"=?UTF-8?q?=D0=A2=D0=B5=D1=81=D1=82=D0=BE=D0=B2=D1=8B=D0=B9_=D0=BF=D1=80?= " +
-				"=?UTF-8?q?=D0=B8=D0=BA=D1=80=D0=B5=D0=BF=D0=BB=D0=B5=D0=BD=D0=BD=D1=8B?= " +
-				"=?UTF-8?q?=D0=B9_=D1=84=D0=B0=D0=B9=D0=BB.txt?=",
+			"utf-8''%D0%A2%D0%B5%D1%81%D1%82%D0%BE%D0%B2%D1%8B%D0%B9%20%D0%BF%D1%80" +
+				"%D0%B8%D0%BA%D1%80%D0%B5%D0%BF%D0%BB%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9%20" +
+				"%D1%84%D0%B0%D0%B9%D0%BB.txt", true,
 		},
 	}
 	for _, tt := range tests {
@@ -381,13 +388,20 @@ func TestMsgWriter_addFiles(t *testing.T) {
 				t.Errorf("msgWriter failed to write: %s", msgwriter.err)
 			}
 
-			var ctExpect string
-			cdExpect := fmt.Sprintf(`Content-Disposition: attachment; filename="%s"`, tt.expect)
+			var ctExpect, cdExpect, ctName, cdFilename string
+			if tt.extended {
+				cdFilename = fmt.Sprintf(`filename*=%s`, tt.expect)
+				ctName = fmt.Sprintf(`name*=%s`, tt.expect)
+			} else {
+				cdFilename = fmt.Sprintf(`filename="%s"`, tt.expect)
+				ctName = fmt.Sprintf(`name="%s"`, tt.expect)
+			}
+			cdExpect = fmt.Sprintf(`Content-Disposition: attachment; %s`, cdFilename)
 			switch runtime.GOOS {
 			case "freebsd":
-				ctExpect = fmt.Sprintf(`Content-Type: application/octet-stream; name="%s"`, tt.expect)
+				ctExpect = fmt.Sprintf(`Content-Type: application/octet-stream; %s`, ctName)
 			default:
-				ctExpect = fmt.Sprintf(`Content-Type: text/plain; charset=utf-8; name="%s"`, tt.expect)
+				ctExpect = fmt.Sprintf(`Content-Type: text/plain; charset=utf-8; %s`, ctName)
 			}
 			if !strings.Contains(buffer.String(), ctExpect) {
 				t.Errorf("expected content-type: %q, got: %q", ctExpect, buffer.String())
@@ -587,6 +601,107 @@ func TestMsgWriter_addFiles(t *testing.T) {
 			t.Errorf("Content-Transfer-Encoding header not found for attachment. Mail: %s", buffer.String())
 		}
 	})
+}
+
+// TestMsgWriter_addFiles_rfc2231RoundTrip verifies that non-ASCII attachment and embed
+// filenames are emitted so that a spec-conformant reader recovers the exact filename. It
+// parses the generated message back with the standard library's mime.ParseMediaType and
+// checks both the Content-Type name and the Content-Disposition filename for the attachment
+// and the inline embed. RFC 2047 encoded-words in a parameter (the previous behaviour) do
+// not round-trip here, so this covers the whole class of parameter seams at once.
+func TestMsgWriter_addFiles_rfc2231RoundTrip(t *testing.T) {
+	tests := []struct {
+		name     string
+		filename string
+	}{
+		{"short umlaut", "Größe.pdf"},
+		{"cjk", "添付ファイル.txt"},
+		{"long with spaces", "Übersicht Jänner Geschäftszahlen 2025 Faß und eine lange Bezeichnung.pdf"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			message := NewMsg()
+			if err := message.From("from@example.com"); err != nil {
+				t.Fatalf("failed to set From: %s", err)
+			}
+			if err := message.To("to@example.com"); err != nil {
+				t.Fatalf("failed to set To: %s", err)
+			}
+			message.Subject("round-trip")
+			message.SetBodyString(TypeTextPlain, "body")
+			if err := message.AttachReader(tt.filename, bytes.NewReader([]byte("attachment"))); err != nil {
+				t.Fatalf("failed to attach reader: %s", err)
+			}
+			if err := message.EmbedReader(tt.filename, bytes.NewReader([]byte("embed"))); err != nil {
+				t.Fatalf("failed to embed reader: %s", err)
+			}
+
+			var buffer bytes.Buffer
+			if _, err := message.WriteTo(&buffer); err != nil {
+				t.Fatalf("failed to write message: %s", err)
+			}
+
+			parsed, err := mail.ReadMessage(bytes.NewReader(buffer.Bytes()))
+			if err != nil {
+				t.Fatalf("failed to parse written message: %s", err)
+			}
+
+			var attachmentSeen, embedSeen bool
+			walkMIMEParts(t, parsed.Header.Get("Content-Type"), parsed.Body, func(header textproto.MIMEHeader) {
+				disposition, cdParams, cderr := mime.ParseMediaType(header.Get("Content-Disposition"))
+				if cderr != nil {
+					return
+				}
+				filename, ok := cdParams["filename"]
+				if !ok {
+					return
+				}
+				if filename != tt.filename {
+					t.Errorf("Content-Disposition filename round-trip failed, got: %q, want: %q",
+						filename, tt.filename)
+				}
+				if _, ctParams, cterr := mime.ParseMediaType(header.Get("Content-Type")); cterr != nil {
+					t.Errorf("failed to parse Content-Type: %s", cterr)
+				} else if name := ctParams["name"]; name != tt.filename {
+					t.Errorf("Content-Type name round-trip failed, got: %q, want: %q", name, tt.filename)
+				}
+				switch disposition {
+				case "attachment":
+					attachmentSeen = true
+				case "inline":
+					embedSeen = true
+				}
+			})
+			if !attachmentSeen {
+				t.Error("attachment part with a filename parameter was not found")
+			}
+			if !embedSeen {
+				t.Error("inline embed part with a filename parameter was not found")
+			}
+		})
+	}
+}
+
+// walkMIMEParts recursively descends a MIME message body, invoking visit with the header of
+// every part (including parts nested inside multipart containers).
+func walkMIMEParts(t *testing.T, contentType string, body io.Reader, visit func(textproto.MIMEHeader)) {
+	t.Helper()
+	mediaType, params, err := mime.ParseMediaType(contentType)
+	if err != nil || !strings.HasPrefix(mediaType, "multipart/") {
+		return
+	}
+	reader := multipart.NewReader(body, params["boundary"])
+	for {
+		part, err := reader.NextPart()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatalf("failed to read MIME part: %s", err)
+		}
+		visit(part.Header)
+		walkMIMEParts(t, part.Header.Get("Content-Type"), part, visit)
+	}
 }
 
 func TestMsgWriter_writePart(t *testing.T) {
