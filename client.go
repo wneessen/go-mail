@@ -1179,16 +1179,16 @@ func (c *Client) SetAlwaysDKIMSign(signer *dkim.Signer) error {
 //   - An Option function that sets the RCPT addresses.
 //   - An error if any address is invalid.
 func (c *Client) SetRCPTs(rcpts ...string) error {
+	resRCPTs := make([]string, 0, len(rcpts))
 	for _, rcpt := range rcpts {
 		address, err := mail.ParseAddress(rcpt)
 		if err != nil {
 			return fmt.Errorf(errParseMailAddr, rcpt, err)
 		}
-		if address.Address != rcpt {
-			return fmt.Errorf("plain address expected: %s", rcpt)
-		}
+		address.Name = ""
+		resRCPTs = append(resRCPTs, "<"+address.Address+">")
 	}
-	c.rcpts = rcpts
+	c.rcpts = resRCPTs
 	return nil
 }
 
