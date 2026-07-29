@@ -1642,7 +1642,7 @@ func TestNewClient(t *testing.T) {
 }
 
 func TestClient_hello(t *testing.T) {
-	t.Run("client fails on EHLO but not on HELO", func(t *testing.T) {
+	t.Run("client fails on EHLO and on HELO", func(t *testing.T) {
 		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
@@ -1812,6 +1812,40 @@ func TestClient_Hello(t *testing.T) {
 		}
 		if err = client.Hello(TestServerAddr); err == nil {
 			t.Error("double HELO/EHLO should fail")
+		}
+	})
+	t.Run("client should skip EHLO if skipEhlo is set", func(t *testing.T) {
+		ctx := t.Context()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+					FailOnHelo: true,
+				},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		client.SkipEhlo(true)
+
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+
+		err = client.Hello(TestServerAddr)
+		if err == nil {
+			t.Error("HELO should fail")
+		}
+		if !strings.Contains(err.Error(), "EHLO skipped") {
+			t.Error("Hello error message should mention EHLO skipped")
 		}
 	})
 }

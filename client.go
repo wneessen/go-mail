@@ -200,6 +200,10 @@ type (
 		// claims to support it
 		skipUTF8 bool
 
+		// skipEhlo indicates that the Client should skip the "EHLO" command during the dial, for legacy
+		// servers that misbehave when receiving EHLO instead of HELO
+		skipEhlo bool
+
 		// smtpAuth is the authentication type that is used to authenticate the user with SMTP server. It
 		// satisfies the smtp.Auth interface.
 		//
@@ -817,6 +821,19 @@ func WithoutSMTPUTF8() Option {
 	}
 }
 
+// WithoutEhlo indicates that the Client should skip the "EHLO" command during the dial and only
+// attempt to use the "HELO" command instead.
+//
+// This option is useful for legacy servers that misbehave when receiving EHLO instead of HELO.
+// Returns:
+//   - An Option function that configures the Client to skip the "EHLO" command.
+func WithoutEhlo() Option {
+	return func(c *Client) error {
+		c.skipEhlo = true
+		return nil
+	}
+}
+
 // WithAlwaysDKIMSign instructs the Client to sign every Msg that is sent with it using DKIM.
 //
 // This option is useful if you are planning to send multiple Msgs via the same client and don't
@@ -1249,6 +1266,8 @@ func (c *Client) DialToSMTPClientWithContext(ctxDial context.Context) (*smtp.Cli
 		client.SetLogAuthData()
 	}
 	client.SkipSMTPUTF8(c.skipUTF8)
+	client.SkipEhlo(c.skipEhlo)
+
 	if err = client.Hello(c.helo); err != nil {
 		return nil, err
 	}

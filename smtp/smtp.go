@@ -104,6 +104,10 @@ type Client struct {
 	// server advertises support for SMTPUTF8.
 	skipUTF8 bool
 
+	// skipEhlo indicates that the Client should skip the "EHLO" command during the dial, for legacy
+	// servers that misbehave when receiving EHLO instead of HELO
+	skipEhlo bool
+
 	// tls indicates whether the Client is using TLS
 	tls bool
 
@@ -159,7 +163,12 @@ func (c *Client) Close() error {
 func (c *Client) hello() error {
 	if !c.didHello {
 		c.didHello = true
-		err := c.ehlo()
+		var err error
+		if !c.skipEhlo {
+			err = c.ehlo()
+		} else {
+			err = fmt.Errorf("EHLO skipped due to SkipEhlo being set to true")
+		}
 		if err != nil {
 			if heloErr := c.helo(); heloErr != nil {
 				c.helloError = fmt.Errorf("smtp: EHLO/HELO exchange failed. EHLO response: %w, HELO response: %w",
@@ -202,6 +211,14 @@ func (c *Client) SkipSMTPUTF8(val bool) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.skipUTF8 = val
+}
+
+// SkipEhlo indicates that the Client should skip the "EHLO" command during the dial, for legacy
+// servers that misbehave when receiving EHLO instead of HELO
+func (c *Client) SkipEhlo(val bool) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.skipEhlo = val
 }
 
 // cmd is a convenience function that sends a command and returns the response
