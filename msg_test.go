@@ -615,13 +615,13 @@ func TestMsg_SetHeaderPreformatted(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				//goland:noinspection GoDeprecation
 				message.SetHeaderPreformatted(tt.header, "test")
-				value, ok := message.preformHeader[tt.header]
+				values, ok := message.preformHeader[tt.header]
 				if !ok {
 					t.Fatalf("failed to set header, genHeader field for %s is not set", tt.header)
 				}
-				if value != "test" {
-					t.Errorf("failed to set header, genHeader value for %s is %s, want: %s", tt.header,
-						value, "test")
+				if len(values) != 1 || values[0] != "test" {
+					t.Errorf("failed to set header, genHeader value for %s is %v, want: %s", tt.header,
+						values, "test")
 				}
 			})
 		}
@@ -637,13 +637,13 @@ func TestMsg_SetGenHeaderPreformatted(t *testing.T) {
 		for _, tt := range genHeaderTests {
 			t.Run(tt.name, func(t *testing.T) {
 				message.SetGenHeaderPreformatted(tt.header, "test")
-				value, ok := message.preformHeader[tt.header]
+				values, ok := message.preformHeader[tt.header]
 				if !ok {
 					t.Fatalf("failed to set header, genHeader field for %s is not set", tt.header)
 				}
-				if value != "test" {
-					t.Errorf("failed to set header, genHeader value for %s is %s, want: %s", tt.header,
-						value, "test")
+				if len(values) != 1 || values[0] != "test" {
+					t.Errorf("failed to set header, genHeader value for %s is %v, want: %s", tt.header,
+						values, "test")
 				}
 			})
 		}
@@ -655,15 +655,39 @@ func TestMsg_SetGenHeaderPreformatted(t *testing.T) {
 		}
 		message.preformHeader = nil
 		message.SetGenHeaderPreformatted(HeaderSubject, "test")
-		value, ok := message.preformHeader[HeaderSubject]
+		values, ok := message.preformHeader[HeaderSubject]
 		if !ok {
 			t.Fatalf("failed to set header, genHeader field for %s is not set", HeaderSubject)
 		}
-		if value != "test" {
-			t.Errorf("failed to set header, genHeader value for %s is %s, want: %s", HeaderSubject,
-				value, "test")
+		if len(values) != 1 || values[0] != "test" {
+			t.Errorf("failed to set header, genHeader value for %s is %v, want: %s", HeaderSubject,
+				values, "test")
 		}
 	})
+}
+
+func TestMsg_AddGenHeaderPreformatted(t *testing.T) {
+	message := NewMsg()
+	if message == nil {
+		t.Fatal("message is nil")
+	}
+	message.preformHeader = nil
+	message.AddGenHeaderPreformatted(HeaderSubject, "first")
+	message.AddGenHeaderPreformatted(HeaderSubject, "second")
+
+	values := message.preformHeader[HeaderSubject]
+	if len(values) != 2 {
+		t.Fatalf("failed to add header values, got: %d, want: 2", len(values))
+	}
+	if values[0] != "first" || values[1] != "second" {
+		t.Errorf("failed to preserve header values, got: %v", values)
+	}
+
+	message.SetGenHeaderPreformatted(HeaderSubject, "replacement")
+	values = message.preformHeader[HeaderSubject]
+	if len(values) != 1 || values[0] != "replacement" {
+		t.Errorf("failed to replace header values, got: %v", values)
+	}
 }
 
 func TestMsg_SetAddrHeader(t *testing.T) {
@@ -4115,8 +4139,8 @@ func TestMsg_SetListUnsubscribe(t *testing.T) {
 				}
 				message.SetListUnsubscribe(tt.uris...)
 				got := message.preformHeader[HeaderListUnsubscribe]
-				if got != tt.want {
-					t.Errorf("failed to set List-Unsubscribe. Expected: %s, got: %s", tt.want, got)
+				if len(got) != 1 || got[0] != tt.want {
+					t.Errorf("failed to set List-Unsubscribe. Expected: %s, got: %v", tt.want, got)
 				}
 			})
 		}
@@ -4139,8 +4163,8 @@ func TestMsg_SetListUnsubscribe(t *testing.T) {
 		message.SetListUnsubscribe("", "https://example.com/unsub", "  ")
 		want := "<https://example.com/unsub>"
 		got := message.preformHeader[HeaderListUnsubscribe]
-		if got != want {
-			t.Errorf("failed to set List-Unsubscribe. Expected: %s, got: %s", want, got)
+		if len(got) != 1 || got[0] != want {
+			t.Errorf("failed to set List-Unsubscribe. Expected: %s, got: %v", want, got)
 		}
 	})
 }
@@ -4154,8 +4178,8 @@ func TestMsg_SetListUnsubscribePost(t *testing.T) {
 		message.SetListUnsubscribePost()
 		want := "List-Unsubscribe=One-Click"
 		got := message.preformHeader[HeaderListUnsubscribePost]
-		if got != want {
-			t.Errorf("failed to set List-Unsubscribe-Post. Expected: %s, got: %s", want, got)
+		if len(got) != 1 || got[0] != want {
+			t.Errorf("failed to set List-Unsubscribe-Post. Expected: %s, got: %v", want, got)
 		}
 	})
 }
@@ -4170,12 +4194,12 @@ func TestMsg_SetListUnsubscribeOneClick(t *testing.T) {
 			t.Fatalf("failed to set one-click unsubscribe: %s", err)
 		}
 		wantList := "<https://example.com/unsub?token=abc123>"
-		if got := message.preformHeader[HeaderListUnsubscribe]; got != wantList {
-			t.Errorf("failed to set List-Unsubscribe. Expected: %s, got: %s", wantList, got)
+		if got := message.preformHeader[HeaderListUnsubscribe]; len(got) != 1 || got[0] != wantList {
+			t.Errorf("failed to set List-Unsubscribe. Expected: %s, got: %v", wantList, got)
 		}
 		wantPost := "List-Unsubscribe=One-Click"
-		if got := message.preformHeader[HeaderListUnsubscribePost]; got != wantPost {
-			t.Errorf("failed to set List-Unsubscribe-Post. Expected: %s, got: %s", wantPost, got)
+		if got := message.preformHeader[HeaderListUnsubscribePost]; len(got) != 1 || got[0] != wantPost {
+			t.Errorf("failed to set List-Unsubscribe-Post. Expected: %s, got: %v", wantPost, got)
 		}
 	})
 	t.Run("SetListUnsubscribeOneClick puts https URL first", func(t *testing.T) {
@@ -4188,8 +4212,8 @@ func TestMsg_SetListUnsubscribeOneClick(t *testing.T) {
 			t.Fatalf("failed to set one-click unsubscribe: %s", err)
 		}
 		want := "<https://example.com/unsub>, <mailto:unsub@example.com?subject=unsubscribe>"
-		if got := message.preformHeader[HeaderListUnsubscribe]; got != want {
-			t.Errorf("failed to set List-Unsubscribe. Expected: %s, got: %s", want, got)
+		if got := message.preformHeader[HeaderListUnsubscribe]; len(got) != 1 || got[0] != want {
+			t.Errorf("failed to set List-Unsubscribe. Expected: %s, got: %v", want, got)
 		}
 	})
 	t.Run("SetListUnsubscribeOneClick fails on non-https URL", func(t *testing.T) {
