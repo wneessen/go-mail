@@ -350,7 +350,7 @@ func (c *Client) Mail(from string) error {
 	if err := c.hello(); err != nil {
 		return err
 	}
-	cmdStr := "MAIL FROM:<%s>"
+	cmdStr := "MAIL FROM:%s"
 
 	c.mutex.RLock()
 	if c.ext != nil {
@@ -384,10 +384,10 @@ func (c *Client) Rcpt(to string) error {
 	c.mutex.RUnlock()
 
 	if ok && c.dsnrntype != "" {
-		_, _, err := c.cmd(25, "RCPT TO:<%s> NOTIFY=%s", to, c.dsnrntype)
+		_, _, err := c.cmd(25, "RCPT TO:%s NOTIFY=%s", to, c.dsnrntype)
 		return err
 	}
-	_, _, err := c.cmd(25, "RCPT TO:<%s>", to)
+	_, _, err := c.cmd(25, "RCPT TO:%s", to)
 	return err
 }
 
