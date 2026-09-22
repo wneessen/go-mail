@@ -152,14 +152,8 @@ jobs:
         run: |
           go test -race -shuffle=on ./...
   test-fbsd:
-    name: Test on FreeBSD ${{ matrix.osver }}
+    name: Test on latest FreeBSD
     runs-on: ubuntu-latest
-    concurrency:
-      group: ci-test-freebsd-${{ matrix.osver }}
-      cancel-in-progress: true
-    strategy:
-      matrix:
-        osver: ["14.4", "14.5", "15.0"]
     env:
       TEST_BASEPORT: ${{ vars.TEST_BASEPORT }}
       TEST_BASEPORT_SMTP: ${{ vars.TEST_BASEPORT_SMTP }}
@@ -169,7 +163,6 @@ jobs:
       - name: Run go test on FreeBSD
         uses: vmactions/freebsd-vm@5a72679103d223925653750faa878a143340fbd0 # v1.5.0
         with:
-          release: "${{ matrix.osver }}"
           usesh: true
           copyback: false
           prepare: |
