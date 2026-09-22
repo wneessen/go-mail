@@ -28,7 +28,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        go: ["1.26"]
+        go: ["1.27"]
     env:
       PERFORM_ONLINE_TEST: ${{ vars.PERFORM_ONLINE_TEST }}
       PERFORM_UNIX_OPEN_WRITE_TESTS: ${{ vars.PERFORM_UNIX_OPEN_WRITE_TESTS }}
@@ -70,7 +70,7 @@ jobs:
       cancel-in-progress: true
     strategy:
       matrix:
-        go: ["1.26"]
+        go: ["1.27"]
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
@@ -125,13 +125,13 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        go: ["1.25", "1.26"]
+        go: ["1.26", "1.27"]
         include:
           - os: macos-latest
-            go: "1.25"
+            go: "1.26"
             allow_fail: true
           - os: macos-latest
-            go: "1.26"
+            go: "1.27"
             allow_fail: true
     continue-on-error: ${{ matrix.allow_fail == true }}
     env:
@@ -159,7 +159,7 @@ jobs:
       cancel-in-progress: true
     strategy:
       matrix:
-        osver: ["14.3", "14.4", "15.0"]
+        osver: ["14.4", "14.5", "15.0"]
     env:
       TEST_BASEPORT: ${{ vars.TEST_BASEPORT }}
       TEST_BASEPORT_SMTP: ${{ vars.TEST_BASEPORT_SMTP }}
@@ -241,7 +241,7 @@ jobs:
       - name: Setup go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.26"
+          go-version: "1.27"
       - name: Install cross toolchain
         if: matrix.pkg != ''
         run: sudo apt-get update && sudo apt-get install -y ${{ matrix.pkg }}
