@@ -22,7 +22,6 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 	ttpl "text/template"
@@ -7814,9 +7813,6 @@ func TestMsg_WriteTo(t *testing.T) {
 			t.Fatalf("failed to write message to buffer: %s", err)
 		}
 		fileContentType := "text/plain; charset=utf-8"
-		if runtime.GOOS == "freebsd" {
-			fileContentType = "application/octet-stream"
-		}
 		wants := []msgContentTest{
 			{0, "Date:", false, true, false},
 			{1, "MIME-Version: 1.0", true, true, false},
@@ -7917,9 +7913,6 @@ func TestMsg_WriteTo(t *testing.T) {
 			t.Fatalf("failed to write message to buffer: %s", err)
 		}
 		fileContentType := "text/plain; charset=utf-8"
-		if runtime.GOOS == "freebsd" {
-			fileContentType = "application/octet-stream"
-		}
 		wants := []msgContentTest{
 			{0, "Date:", false, true, false},
 			{1, "MIME-Version: 1.0", true, true, false},
@@ -7987,9 +7980,6 @@ func TestMsg_WriteTo(t *testing.T) {
 			t.Fatalf("failed to write message to buffer: %s", err)
 		}
 		fileContentType := "text/plain; charset=utf-8"
-		if runtime.GOOS == "freebsd" {
-			fileContentType = "application/octet-stream"
-		}
 		wants := []msgContentTest{
 			{0, "Date:", false, true, false},
 			{1, "MIME-Version: 1.0", true, true, false},

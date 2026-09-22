@@ -381,14 +381,8 @@ func TestMsgWriter_addFiles(t *testing.T) {
 				t.Errorf("msgWriter failed to write: %s", msgwriter.err)
 			}
 
-			var ctExpect string
 			cdExpect := fmt.Sprintf(`Content-Disposition: attachment; filename="%s"`, tt.expect)
-			switch runtime.GOOS {
-			case "freebsd":
-				ctExpect = fmt.Sprintf(`Content-Type: application/octet-stream; name="%s"`, tt.expect)
-			default:
-				ctExpect = fmt.Sprintf(`Content-Type: text/plain; charset=utf-8; name="%s"`, tt.expect)
-			}
+			ctExpect := fmt.Sprintf(`Content-Type: text/plain; charset=utf-8; name="%s"`, tt.expect)
 			if !strings.Contains(buffer.String(), ctExpect) {
 				t.Errorf("expected content-type: %q, got: %q", ctExpect, buffer.String())
 			}
@@ -419,15 +413,8 @@ func TestMsgWriter_addFiles(t *testing.T) {
 		if !strings.Contains(buffer.String(), `Content-Disposition: attachment; filename="attachment.txt"`) {
 			t.Errorf("Content-Disposition header not found for attachment. Mail: %s", buffer.String())
 		}
-		switch runtime.GOOS {
-		case "freebsd":
-			if !strings.Contains(buffer.String(), `Content-Type: application/octet-stream; name="attachment.txt"`) {
-				t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
-			}
-		default:
-			if !strings.Contains(buffer.String(), `Content-Type: text/plain; charset=utf-8; name="attachment.txt"`) {
-				t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
-			}
+		if !strings.Contains(buffer.String(), `Content-Type: text/plain; charset=utf-8; name="attachment.txt"`) {
+			t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
 		}
 	})
 	t.Run("message with a single file attached no extension", func(t *testing.T) {
@@ -497,15 +484,8 @@ func TestMsgWriter_addFiles(t *testing.T) {
 		if !strings.Contains(buffer.String(), `Content-Disposition: attachment; filename="attachment.txt"`) {
 			t.Errorf("Content-Disposition header not found for attachment. Mail: %s", buffer.String())
 		}
-		switch runtime.GOOS {
-		case "freebsd":
-			if !strings.Contains(buffer.String(), `Content-Type: application/octet-stream; name="attachment.txt"`) {
-				t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
-			}
-		default:
-			if !strings.Contains(buffer.String(), `Content-Type: text/plain; charset=utf-8; name="attachment.txt"`) {
-				t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
-			}
+		if !strings.Contains(buffer.String(), `Content-Type: text/plain; charset=utf-8; name="attachment.txt"`) {
+			t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
 		}
 		if !strings.Contains(buffer.String(), `Content-Transfer-Encoding: 7bit`) {
 			t.Errorf("Content-Transfer-Encoding header not found for attachment. Mail: %s", buffer.String())
@@ -533,15 +513,8 @@ func TestMsgWriter_addFiles(t *testing.T) {
 		if !strings.Contains(buffer.String(), `Content-Disposition: attachment; filename="attachment.txt"`) {
 			t.Errorf("Content-Disposition header not found for attachment. Mail: %s", buffer.String())
 		}
-		switch runtime.GOOS {
-		case "freebsd":
-			if !strings.Contains(buffer.String(), `Content-Type: application/octet-stream; name="attachment.txt"`) {
-				t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
-			}
-		default:
-			if !strings.Contains(buffer.String(), `Content-Type: text/plain; charset=utf-8; name="attachment.txt"`) {
-				t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
-			}
+		if !strings.Contains(buffer.String(), `Content-Type: text/plain; charset=utf-8; name="attachment.txt"`) {
+			t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
 		}
 		if !strings.Contains(buffer.String(), `Content-Transfer-Encoding: base64`) {
 			t.Errorf("Content-Transfer-Encoding header not found for attachment. Mail: %s", buffer.String())
@@ -573,15 +546,8 @@ func TestMsgWriter_addFiles(t *testing.T) {
 		if !strings.Contains(buffer.String(), `Content-Disposition: attachment; filename="attachment.txt"`) {
 			t.Errorf("Content-Disposition header not found for attachment. Mail: %s", buffer.String())
 		}
-		switch runtime.GOOS {
-		case "freebsd":
-			if !strings.Contains(buffer.String(), `Content-Type: application/octet-stream; name="attachment.txt"`) {
-				t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
-			}
-		default:
-			if !strings.Contains(buffer.String(), `Content-Type: text/plain; charset=utf-8; name="attachment.txt"`) {
-				t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
-			}
+		if !strings.Contains(buffer.String(), `Content-Type: text/plain; charset=utf-8; name="attachment.txt"`) {
+			t.Errorf("Content-Type header not found for attachment. Mail: %s", buffer.String())
 		}
 		if !strings.Contains(buffer.String(), `Content-Transfer-Encoding: base64`) {
 			t.Errorf("Content-Transfer-Encoding header not found for attachment. Mail: %s", buffer.String())
