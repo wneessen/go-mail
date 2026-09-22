@@ -169,6 +169,7 @@ jobs:
       - name: Run go test on FreeBSD
         uses: vmactions/freebsd-vm@5a72679103d223925653750faa878a143340fbd0 # v1.5.0
         with:
+          release: "${{ matrix.osver }}"
           usesh: true
           copyback: false
           prepare: |
