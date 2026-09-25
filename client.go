@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/mail"
 	"os"
 	"slices"
 	"strings"
@@ -234,6 +235,9 @@ type (
 		//
 		// https://datatracker.ietf.org/doc/html/rfc8314
 		useSSL bool
+
+		// rcpts is the list of addresses to send in RCPT commands, instead of those coming from GetRecipients.
+		rcpts []string
 	}
 )
 
@@ -867,6 +871,22 @@ func WithOpportunisticSMTPAuth(preferredMechs ...SMTPAuthType) Option {
 	}
 }
 
+// WithRCPTs sets the list of addresses to send in RCPT commands.
+//
+// If this is set, addresses returned from GetRecipients are not used for RCPT.
+//
+// Parameters:
+//   - rcpts: strings containing addresses passed to the server in RCPT commands.
+//
+// Returns:
+//   - An Option function that sets the RCPT addresses.
+//   - An error if any address is invalid.
+func WithRCPTs(rcpts ...string) Option {
+	return func(c *Client) error {
+		return c.SetRCPTs(rcpts...)
+	}
+}
+
 // TLSPolicy returns the TLSPolicy that is currently set on the Client as a string.
 //
 // This method retrieves the current TLSPolicy configured for the Client and returns it as a string representation.
@@ -1145,6 +1165,30 @@ func (c *Client) SetAlwaysDKIMSign(signer *dkim.Signer) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.dkim = signer
+	return nil
+}
+
+// SetRCPTs sets the list of addresses to send in RCPT commands.
+//
+// If this is set, addresses returned from GetRecipients are not used for RCPT.
+//
+// Parameters:
+//   - rcpts: strings containing addresses passed to the server in RCPT commands.
+//
+// Returns:
+//   - An Option function that sets the RCPT addresses.
+//   - An error if any address is invalid.
+func (c *Client) SetRCPTs(rcpts ...string) error {
+	resRCPTs := make([]string, 0, len(rcpts))
+	for _, rcpt := range rcpts {
+		address, err := mail.ParseAddress(rcpt)
+		if err != nil {
+			return fmt.Errorf(errParseMailAddr, rcpt, err)
+		}
+		address.Name = ""
+		resRCPTs = append(resRCPTs, "<"+address.Address+">")
+	}
+	c.rcpts = resRCPTs
 	return nil
 }
 
@@ -1687,12 +1731,16 @@ func (c *Client) sendSingleMsg(client *smtp.Client, message *Msg) error {
 			enhancedStatusCode: enhancedStatusCode(err, escSupport),
 		}
 	}
-	rcpts, err := message.GetRecipients()
-	if err != nil {
-		return &SendError{
-			Reason: ErrGetRcpts, errlist: []error{err}, isTemp: isTempError(err),
-			affectedMsg: message, errcode: errorCode(err),
-			enhancedStatusCode: enhancedStatusCode(err, escSupport),
+	rcpts := c.rcpts
+	if len(rcpts) == 0 {
+		var err error
+		rcpts, err = message.GetRecipients()
+		if err != nil {
+			return &SendError{
+				Reason: ErrGetRcpts, errlist: []error{err}, isTemp: isTempError(err),
+				affectedMsg: message, errcode: errorCode(err),
+				enhancedStatusCode: enhancedStatusCode(err, escSupport),
+			}
 		}
 	}
 
