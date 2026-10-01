@@ -1190,7 +1190,7 @@ func (c *Client) DialWithContext(ctxDial context.Context) error {
 // Returns:
 //   - A pointer to the initialized smtp.Client.
 //   - An error if the connection fails, the smtp.Client cannot be created, or any subsequent commands fail.
-func (c *Client) DialToSMTPClientWithContext(ctxDial context.Context) (*smtp.Client, error) {
+func (c *Client) DialToSMTPClientWithContext(ctxDial context.Context) (_ *smtp.Client, err error) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
@@ -1222,6 +1222,13 @@ func (c *Client) DialToSMTPClientWithContext(ctxDial context.Context) (*smtp.Cli
 	if err != nil {
 		return nil, err
 	}
+	// Every error below leaves the dialed connection unused: close it here,
+	// since the caller gets a nil client and cannot.
+	defer func() {
+		if err != nil {
+			_ = connection.Close()
+		}
+	}()
 
 	err = connection.SetDeadline(time.Now().Add(c.connTimeout))
 	if err != nil {

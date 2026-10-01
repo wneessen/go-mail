@@ -25,6 +25,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -3442,6 +3443,95 @@ func TestClient_DialToSMTPClientWithContext(t *testing.T) {
 			t.Errorf(`Hello response mismatch: got %q, expected "localhost.localdomain"`, hr)
 		}
 	})
+	t.Run("dial closes the connection on failure", func(t *testing.T) {
+		tests := []struct {
+			name  string
+			props *serverProps
+			opts  []Option
+		}{
+			{
+				name:  "fail on HELO",
+				props: &serverProps{FailOnHelo: true, FeatureSet: "250 SMTPUTF8"},
+				opts:  []Option{WithTLSPolicy(NoTLS)},
+			},
+			{
+				name:  "want STARTTLS, but server does not support it",
+				props: &serverProps{FeatureSet: "250-8BITMIME\r\n250 SMTPUTF8"},
+				opts:  []Option{WithTLSPolicy(TLSMandatory)},
+			},
+			{
+				name:  "fail on STARTTLS",
+				props: &serverProps{FailOnSTARTTLS: true, FeatureSet: "250-STARTTLS\r\n250 SMTPUTF8"},
+				opts:  []Option{WithTLSPolicy(TLSMandatory)},
+			},
+			{
+				name:  "fail on TLS handshake with untrusted certificate",
+				props: &serverProps{FeatureSet: "250-STARTTLS\r\n250 SMTPUTF8"},
+				opts:  []Option{WithTLSPolicy(TLSMandatory)},
+			},
+			{
+				name:  "server does not support SMTP AUTH",
+				props: &serverProps{FeatureSet: "250-8BITMIME\r\n250 SMTPUTF8"},
+				opts: []Option{
+					WithTLSPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlainNoEnc), WithUsername("test"),
+					WithPassword("password"),
+				},
+			},
+			{
+				name:  "server does not support the SMTP AUTH type",
+				props: &serverProps{FeatureSet: "250-AUTH LOGIN\r\n250 SMTPUTF8"},
+				opts: []Option{
+					WithTLSPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlainNoEnc), WithUsername("test"),
+					WithPassword("password"),
+				},
+			},
+			{
+				name:  "fail on AUTH and QUIT",
+				props: &serverProps{FailOnAuth: true, FailOnQuit: true, FeatureSet: "250-AUTH PLAIN\r\n250 SMTPUTF8"},
+				opts: []Option{
+					WithTLSPolicy(NoTLS), WithSMTPAuth(SMTPAuthPlainNoEnc), WithUsername("test"),
+					WithPassword("password"),
+				},
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				ctx := t.Context()
+				ctxServer, cancelServer := context.WithCancel(ctx)
+				defer cancelServer()
+				PortAdder.Add(1)
+				serverPort := int(TestServerPortBase + PortAdder.Load())
+				tt.props.ListenPort = serverPort
+				tt.props.ClientClosed = make(chan struct{}, 1)
+				go func() {
+					if err := simpleSMTPServer(ctxServer, t, tt.props); err != nil {
+						t.Errorf("failed to start test server: %s", err)
+						return
+					}
+				}()
+				time.Sleep(time.Millisecond * 30)
+				ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+				t.Cleanup(cancelDial)
+
+				client, err := NewClient(DefaultHost, append([]Option{WithPort(serverPort)}, tt.opts...)...)
+				if err != nil {
+					t.Fatalf("failed to create new client: %s", err)
+				}
+				smtpClient, err := client.DialToSMTPClientWithContext(ctxDial)
+				if err == nil {
+					t.Fatal("connection was supposed to fail, but didn't")
+				}
+				if smtpClient != nil {
+					t.Errorf("expected no SMTP client on failure, got: %v", smtpClient)
+				}
+				select {
+				case <-tt.props.ClientClosed:
+				case <-time.After(time.Second):
+					t.Errorf("connection was not closed after failed dial: %s", err)
+				}
+			})
+		}
+	})
 }
 
 func TestClient_sendSingleMsg(t *testing.T) {
@@ -4747,6 +4837,7 @@ func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "
 // serverProps represents the configuration properties for the SMTP server.
 type serverProps struct {
 	BufferMutex     sync.RWMutex
+	ClientClosed    chan struct{}
 	EchoBuffer      io.Writer
 	FailOnAuth      bool
 	FailOnDataInit  bool
@@ -4864,6 +4955,12 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 	for {
 		data, err := reader.ReadString('\n')
 		if err != nil {
+			if props.ClientClosed != nil && (errors.Is(err, io.EOF) || errors.Is(err, syscall.ECONNRESET)) {
+				select {
+				case props.ClientClosed <- struct{}{}:
+				default:
+				}
+			}
 			break
 		}
 		time.Sleep(time.Millisecond)
