@@ -614,15 +614,12 @@ func (c *Client) Quit() error {
 	_ = c.hello() // ignore error; we're quitting anyhow
 
 	_, _, err := c.cmd(221, "QUIT")
+	closeErr := c.Close()
 	if err != nil {
 		return err
 	}
-	c.mutex.Lock()
-	err = c.Text.Close()
-	c.isConnected = false
-	c.mutex.Unlock()
 
-	return err
+	return closeErr
 }
 
 // SetDebugLog enables the debug logging for incoming and outgoing SMTP messages

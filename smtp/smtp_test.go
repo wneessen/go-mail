@@ -34,6 +34,7 @@ import (
 	"math"
 	"net"
 	netmail "net/mail"
+	"net/textproto"
 	"os"
 	"strconv"
 	"strings"
@@ -2283,6 +2284,82 @@ func TestClient_Auth(t *testing.T) {
 	})
 }
 
+func TestClient_Quit(t *testing.T) {
+	closeErr := errors.New("connection close failed")
+	writeErr := errors.New("connection write failed")
+	tests := []struct {
+		name     string
+		reply    string
+		closeErr error
+		writeErr error
+		wantErr  error
+		wantCode int
+	}{
+		{name: "success", reply: "221 goodbye\r\n"},
+		{name: "rejected", reply: "500 quit failed\r\n", wantCode: 500},
+		{name: "EOF", wantErr: io.EOF},
+		{name: "write failure", writeErr: writeErr, wantErr: writeErr},
+		{name: "close failure", reply: "221 goodbye\r\n", closeErr: closeErr, wantErr: closeErr},
+		{name: "rejected and close failure", reply: "500 quit failed\r\n", closeErr: closeErr, wantCode: 500},
+		{name: "EOF and close failure", closeErr: closeErr, wantErr: io.EOF},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var wrote strings.Builder
+			conn := &quitTestConn{
+				faker: faker{ReadWriter: struct {
+					io.Reader
+					io.Writer
+				}{strings.NewReader("220 ready\r\n" + test.reply), &wrote}},
+				closeErr: test.closeErr,
+				writeErr: test.writeErr,
+			}
+			client, err := NewClient(conn, "fake.host")
+			if err != nil {
+				t.Fatalf("NewClient: %v", err)
+			}
+			client.didHello = true
+			err = client.Quit()
+			if test.wantCode != 0 {
+				var smtpErr *textproto.Error
+				if !errors.As(err, &smtpErr) || smtpErr.Code != test.wantCode {
+					t.Errorf("expected SMTP error %d, got: %v", test.wantCode, err)
+				}
+			} else if !errors.Is(err, test.wantErr) {
+				t.Errorf("expected error %v, got: %v", test.wantErr, err)
+			}
+			if conn.closeCalls != 1 {
+				t.Errorf("expected one connection close, got: %d", conn.closeCalls)
+			}
+			if client.HasConnection() {
+				t.Error("expected client to have no connection after quit")
+			}
+			if test.writeErr == nil && wrote.String() != "QUIT\r\n" {
+				t.Errorf("expected QUIT command, got: %q", wrote.String())
+			}
+		})
+	}
+}
+
+type quitTestConn struct {
+	faker
+	closeErr   error
+	writeErr   error
+	closeCalls int
+}
+
+func (c *quitTestConn) Close() error {
+	c.closeCalls++
+	return c.closeErr
+}
+
+func (c *quitTestConn) Write(p []byte) (int, error) {
+	if c.writeErr != nil {
+		return 0, c.writeErr
+	}
+	return c.ReadWriter.Write(p)
+}
+
 func TestClient_errorRegistryHandler(t *testing.T) {
 	t.Run("quit fails on short response (simulate qq.com behaviour)", func(t *testing.T) {
 		ctx := t.Context()
@@ -2308,8 +2385,10 @@ func TestClient_errorRegistryHandler(t *testing.T) {
 			t.Fatalf("failed to dial to test server: %s", err)
 		}
 		t.Cleanup(func() {
-			if err = client.Close(); err != nil {
-				t.Errorf("failed to close client: %s", err)
+			if client.HasConnection() {
+				if err = client.Close(); err != nil {
+					t.Errorf("failed to close client: %s", err)
+				}
 			}
 		})
 		if err = client.Hello("test.domain.tld"); err != nil {
@@ -2317,6 +2396,12 @@ func TestClient_errorRegistryHandler(t *testing.T) {
 		}
 		if err = client.Quit(); err == nil {
 			t.Error("expected short response error on quit, but got nothing")
+		}
+		if client.HasConnection() {
+			t.Error("expected client to have no connection after failed quit")
+		}
+		if _, err = client.conn.Write([]byte("NOOP\r\n")); !errors.Is(err, net.ErrClosed) {
+			t.Errorf("expected closed connection after failed quit, got: %v", err)
 		}
 	})
 	t.Run("error registry handles short response (simulate qq.com behaviour)", func(t *testing.T) {
