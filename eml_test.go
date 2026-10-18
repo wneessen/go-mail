@@ -1187,6 +1187,57 @@ func TestEMLToMsgFromReader(t *testing.T) {
 	})
 }
 
+func TestEMLDispositionFilenames(t *testing.T) {
+	for _, disposition := range []string{"attachment", "inline"} {
+		for _, testCase := range []struct {
+			parameter string
+			want      string
+		}{
+			{``, "generic.attachment"},
+			{`; filename="report.txt"`, "report.txt"},
+			{`; filename=report.txt`, "report.txt"},
+			{`; filename="report;v2.txt"`, "report;v2.txt"},
+			{`; filename="report\"v2.txt"`, `report"v2.txt`},
+			{`; FILENAME="report.txt"`, "report.txt"},
+			{`; filename*=utf-8''caf%C3%A9.txt`, "café.txt"},
+		} {
+			t.Run(disposition+testCase.parameter, func(t *testing.T) {
+				eml := strings.Replace(exampleMailPlainB64WithAttachment,
+					`attachment; filename="test.attachment"`, disposition+testCase.parameter, 1)
+				msg, err := EMLToMsgFromString(eml)
+				if err != nil {
+					t.Fatal(err)
+				}
+				files := msg.GetAttachments()
+				if disposition == "inline" {
+					files = msg.GetEmbeds()
+				}
+				if len(files) != 1 {
+					t.Fatalf("expected one %s file, got %d", disposition, len(files))
+				}
+				if files[0].Name != testCase.want {
+					t.Errorf("filename = %q, want %q", files[0].Name, testCase.want)
+				}
+				var body bytes.Buffer
+				if _, err := files[0].Writer(&body); err != nil {
+					t.Fatal(err)
+				}
+				if !strings.HasPrefix(body.String(), "This is a simple test text file attachment.") {
+					t.Errorf("unexpected attachment content: %q", body.String())
+				}
+			})
+		}
+	}
+}
+
+func TestEMLInvalidDispositionFilename(t *testing.T) {
+	eml := strings.Replace(exampleMailPlainB64WithAttachment,
+		`attachment; filename="test.attachment"`, `attachment; filename="unterminated`, 1)
+	if _, err := EMLToMsgFromString(eml); err == nil {
+		t.Fatal("expected an error for a malformed content disposition")
+	}
+}
+
 func TestEMLToMsgFromFile(t *testing.T) {
 	t.Run("EMLToMsgFromFile succeeds", func(t *testing.T) {
 		parsed, err := EMLToMsgFromFile("testdata/RFC5322-A1-1.eml")
