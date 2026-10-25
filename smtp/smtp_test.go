@@ -43,11 +43,12 @@ import (
 	"time"
 	"unicode/utf16"
 
+	"golang.org/x/crypto/md4"
+	"golang.org/x/text/encoding/unicode"
+
 	"github.com/wneessen/go-mail/internal/helper"
 	"github.com/wneessen/go-mail/internal/ntlm"
 	"github.com/wneessen/go-mail/log"
-	"golang.org/x/crypto/md4"
-	"golang.org/x/text/encoding/unicode"
 )
 
 const (
@@ -1703,6 +1704,45 @@ func TestClient_Hello(t *testing.T) {
 			t.Errorf(`Hello response mismatch: got %q, expected "localhost.localdomain"`, hr)
 		}
 	})
+	t.Run("EHLO with case-insensitive extensions", func(t *testing.T) {
+		ctx := t.Context()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-8bitmime\r\n250-dsn\r\n250-size 35651584\r\n250 smtputf8"
+		go func() {
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnHelo: false,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to dial to test server: %s", err)
+		}
+		if err = client.Hello(TestServerAddr); err != nil {
+			t.Errorf("failed to send HELO/EHLO to test server: %s", err)
+		}
+		if hr := client.HelloResponse(); hr != "localhost.localdomain" {
+			t.Errorf(`Hello response mismatch: got %q, expected "localhost.localdomain"`, hr)
+		}
+		if ok, _ := client.Extension("8BITMIME"); !ok {
+			t.Fatalf("Should support 8BITMIME")
+		}
+		if ok, _ := client.Extension("SMTPUTF8"); !ok {
+			t.Fatalf("Should support SMTPUTF8")
+		}
+		if err := client.Close(); err != nil {
+			t.Fatalf("failed to close client: %s", err)
+		}
+	})
 	t.Run("normal client EHLO fallback on HELO", func(t *testing.T) {
 		ctx := t.Context()
 		PortAdder.Add(1)
@@ -1844,7 +1884,7 @@ func TestClient_StartTLS(t *testing.T) {
 		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
-		featureSet := "250-STARTTLS\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		featureSet := "250-starttls\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
 			if err := simpleSMTPServer(
 				ctx, t, &serverProps{
