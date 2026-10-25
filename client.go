@@ -1182,7 +1182,7 @@ func (c *Client) DialWithContext(ctxDial context.Context) error {
 // If SSL is enabled, it uses a TLS connection. After successfully connecting, it initializes
 // an smtp.Client, sends the HELO/EHLO command, and optionally performs STARTTLS and SMTP AUTH
 // based on the Client's configuration. Debug and authentication logging are enabled if
-// configured.
+// configured. err is named so a deferred cleanup below can see it.
 //
 // Parameters:
 //   - ctxDial: The context used to control the connection timeout and cancellation.
@@ -1190,7 +1190,7 @@ func (c *Client) DialWithContext(ctxDial context.Context) error {
 // Returns:
 //   - A pointer to the initialized smtp.Client.
 //   - An error if the connection fails, the smtp.Client cannot be created, or any subsequent commands fail.
-func (c *Client) DialToSMTPClientWithContext(ctxDial context.Context) (*smtp.Client, error) {
+func (c *Client) DialToSMTPClientWithContext(ctxDial context.Context) (_ *smtp.Client, err error) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
@@ -1222,6 +1222,15 @@ func (c *Client) DialToSMTPClientWithContext(ctxDial context.Context) (*smtp.Cli
 	if err != nil {
 		return nil, err
 	}
+	
+	// If anything below fails, we return nil instead of an [*smtp.Client], so
+    // the caller never gets a handle to the [net.Conn] we just dialed. We close it
+    // here so it doesn't leak.
+	defer func() {
+		if err != nil {
+			_ = connection.Close()
+		}
+	}()
 
 	err = connection.SetDeadline(time.Now().Add(c.connTimeout))
 	if err != nil {
