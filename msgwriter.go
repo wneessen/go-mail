@@ -236,10 +236,12 @@ func (mw *msgWriter) writeGenHeader(msg *Msg) {
 // Parameters:
 //   - msg: The Msg object containing the preformatted headers to be written.
 func (mw *msgWriter) writePreformattedGenHeader(msg *Msg) {
-	for key, val := range msg.preformHeader {
-		line := fmt.Sprintf("%s: %s%s", key, val, SingleNewLine)
-		mw.writeString(line)
-		msg.headerCount += strings.Count(line, SingleNewLine)
+	for key, values := range msg.preformHeader {
+		for _, value := range values {
+			line := fmt.Sprintf("%s: %s%s", key, value, SingleNewLine)
+			mw.writeString(line)
+			msg.headerCount += strings.Count(line, SingleNewLine)
+		}
 	}
 }
 

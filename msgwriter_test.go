@@ -326,9 +326,13 @@ func TestMsgWriter_writePreformattedGenHeader(t *testing.T) {
 		}
 		message := testMessage(t)
 		message.SetGenHeaderPreformatted(HeaderContentID, "This is a content id")
+		message.AddGenHeaderPreformatted(HeaderContentID, "This is another content id")
 		msgwriter.writeMsg(message)
 		if !strings.Contains(buffer.String(), "Content-ID: This is a content id\r\n") {
 			t.Errorf("expected preformatted header, got: %s", buffer.String())
+		}
+		if !strings.Contains(buffer.String(), "Content-ID: This is another content id\r\n") {
+			t.Errorf("expected additional preformatted header, got: %s", buffer.String())
 		}
 	})
 }
