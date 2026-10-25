@@ -797,6 +797,37 @@ func TestNewClient(t *testing.T) {
 				"WithOpportunisticSMTPAuth with empty list", WithOpportunisticSMTPAuth(),
 				nil, true, &ErrNoPreferredAuthMechanism,
 			},
+			{
+				"WithRCPTs", WithRCPTs(
+					[]string{
+						"<toni.tester@example.com>",
+						`Toni Tester <toni.tester2@example.com>`,
+						`"Toni Tester" <toni.tester+extended@example.com>`,
+						"tina.tester@example.com",
+					}...),
+				func(c *Client) error {
+					if len(c.rcpts) != 4 {
+						t.Errorf("failed to set rcpts, want %d, got: %d", 4, len(c.rcpts))
+					}
+					if c.rcpts[0] != "<toni.tester@example.com>" ||
+						c.rcpts[1] != "<toni.tester2@example.com>" ||
+						c.rcpts[2] != "<toni.tester+extended@example.com>" ||
+						c.rcpts[3] != "<tina.tester@example.com>" {
+						t.Errorf("failed to set rcpts, want %#v, got: %#v", []string{
+							"<toni.tester@example.com>",
+							`<toni.tester2@example.com>`,
+							`<toni.tester+extended@example.com>`,
+							"<tina.tester@example.com>",
+						}, c.rcpts)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
+				"WithRCPTs (fails with invalid address)", WithRCPTs([]string{"<<toni.tester@example.com>>"}...),
+				nil, true, nil,
+			},
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
@@ -4107,6 +4138,53 @@ func TestClient_sendSingleMsg(t *testing.T) {
 			t.Errorf("failed to deliver mail: %s", err)
 		}
 	})
+	t.Run("Send single message with RCPTs set", func(t *testing.T) {
+		ctx := t.Context()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-ENHANCEDSTATUSCODES\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		message := testMessage(t)
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithPort(serverPort), WithTLSPolicy(NoTLS),
+			WithRCPTs(
+				[]string{
+					"<valid-to@domain.tld>",
+					`"Valid Sender (Ext)" <valid-to+ext@domain.tld>`,
+				}...,
+			),
+		)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				t.Skip("failed to connect to the test server due to timeout")
+			}
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+		if err = client.sendSingleMsg(client.smtpClient, message); err != nil {
+			t.Errorf("failed to deliver mail: %s", err)
+		}
+	})
 }
 
 func TestNewClientNewVersionsOnly(t *testing.T) {
@@ -4911,7 +4989,7 @@ func handleTestServerConnection(connection net.Conn, t *testing.T, props *server
 				to = strings.ReplaceAll(to, "NOTIFY=FAILURE,SUCCESS", "")
 			}
 			to = strings.TrimSpace(to)
-			if !strings.EqualFold(to, "<valid-to@domain.tld>") {
+			if !strings.EqualFold(to, "<valid-to@domain.tld>") && !strings.EqualFold(to, "<valid-to+ext@domain.tld>") {
 				writeLine(fmt.Sprintf("500 5.1.2 Invalid to: %s", to))
 				break
 			}
