@@ -1083,6 +1083,47 @@ func TestMsg_FromFormat(t *testing.T) {
 	})
 }
 
+func TestMsg_FormatNameWithQuotesAndBackslashes(t *testing.T) {
+	names := []string{`Robert "Bob" Smith`, `C:\Temp\Mailer`, `Tina" <tina.tester@example.com>`}
+	tests := []struct {
+		fn     string
+		header AddrHeader
+		set    func(*Msg, string, string) error
+	}{
+		{"EnvelopeFromFormat", HeaderEnvelopeFrom, (*Msg).EnvelopeFromFormat},
+		{"FromFormat", HeaderFrom, (*Msg).FromFormat},
+		{"AddToFormat", HeaderTo, (*Msg).AddToFormat},
+		{"AddCcFormat", HeaderCc, (*Msg).AddCcFormat},
+		{"AddBccFormat", HeaderBcc, (*Msg).AddBccFormat},
+		{"ReplyToFormat", HeaderReplyTo, (*Msg).ReplyToFormat},
+	}
+	for _, tt := range tests {
+		for _, name := range names {
+			t.Run(tt.fn+" "+name, func(t *testing.T) {
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				if err := tt.set(message, name, "toni.tester@example.com"); err != nil {
+					t.Fatalf("failed to exec %s: %s", tt.fn, err)
+				}
+				checkAddrHeader(t, message, tt.header, tt.fn, 0, 1, "toni.tester@example.com", name)
+			})
+		}
+	}
+	t.Run("RequestMDNAddToFormat", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.RequestMDNAddToFormat(`Robert "Bob" Smith`, "toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to exec RequestMDNAddToFormat: %s", err)
+		}
+		checkGenHeader(t, message, HeaderDispositionNotificationTo, "RequestMDNAddToFormat", 0, 1,
+			`"Robert \"Bob\" Smith" <toni.tester@example.com>`)
+	})
+}
+
 func TestMsg_To(t *testing.T) {
 	t.Run("To with valid address", func(t *testing.T) {
 		message := NewMsg()
