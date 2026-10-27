@@ -163,11 +163,9 @@ func (c *Client) Close() error {
 func (c *Client) hello() error {
 	if !c.didHello {
 		c.didHello = true
-		var err error
+		var err = fmt.Errorf("EHLO skipped due to SkipEhlo being set to true")
 		if !c.skipEhlo {
 			err = c.ehlo()
-		} else {
-			err = fmt.Errorf("EHLO skipped due to SkipEhlo being set to true")
 		}
 		if err != nil {
 			if heloErr := c.helo(); heloErr != nil {
