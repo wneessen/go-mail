@@ -304,6 +304,16 @@ func TestNewClient(t *testing.T) {
 				true, &ErrInvalidHELO,
 			},
 			{
+				"WithoutEHLO", WithoutEhlo(),
+				func(c *Client) error {
+					if !c.skipEhlo {
+						return fmt.Errorf("failed to set skipEhlo. Want skipEhlo: %t, got: %t", true, c.skipEhlo)
+					}
+					return nil
+				},
+				false, nil,
+			},
+			{
 				"WithTLSPolicy TLSMandatory", WithTLSPolicy(TLSMandatory),
 				func(c *Client) error {
 					if c.tlspolicy != TLSMandatory {
