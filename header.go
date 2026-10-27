@@ -111,6 +111,13 @@ const (
 	// envelope from address, if this has been set for the Msg.
 	HeaderEnvelopeFrom AddrHeader = "EnvelopeFrom"
 
+	// HeaderEnvelopeTo is the envelope TO header field.
+	//
+	// It is generally not included in the mail body but only used by the Client for the communication with the
+	// SMTP server. If the Msg has no "TO" address set in the mail body, the msgWriter will try to use the
+	// envelope to address, if this has been set for the Msg.
+	HeaderEnvelopeTo AddrHeader = "EnvelopeTo"
+
 	// HeaderFrom is the "From" header field.
 	HeaderFrom AddrHeader = "From"
 
@@ -231,7 +238,7 @@ func (a AddrHeader) String() string {
 // Parameters:
 //   - header: The string to check.
 func IsAddrHeader(header string) bool {
-	addrHeaderList := []string{"bcc", "cc", "envelopefrom", "from", "reply-to", "to"}
+	addrHeaderList := []string{"bcc", "cc", "envelopefrom", "from", "reply-to", "envelopeto", "to"}
 	for _, addrHeader := range addrHeaderList {
 		if addrHeader == strings.ToLower(header) {
 			return true

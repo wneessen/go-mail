@@ -117,9 +117,11 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 		msg.headerCount += mw.writeHeader(Header(HeaderFrom), from[0].String())
 	}
 
-	// Set the rest of the address headers
+	// Set the rest of the address headers (or envelope TO if they are empty)
+	toHeaderCount := 0
 	for _, to := range []AddrHeader{HeaderTo, HeaderCc, HeaderReplyTo} {
 		if addresses, ok := msg.addrHeader[to]; ok {
+			toHeaderCount++
 			var val []string
 			for _, addr := range addresses {
 				if addr == nil {
@@ -128,6 +130,18 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 				val = append(val, addr.String())
 			}
 			msg.headerCount += mw.writeHeader(Header(to), val...)
+		}
+	}
+	if toHeaderCount == 0 {
+		if to, ok := msg.addrHeader[HeaderEnvelopeTo]; ok {
+			var val []string
+			for _, addr := range to {
+				if addr == nil {
+					continue
+				}
+				val = append(val, addr.String())
+			}
+			msg.headerCount += mw.writeHeader(Header(HeaderTo), val...)
 		}
 	}
 
