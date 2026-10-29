@@ -1239,10 +1239,10 @@ func (c *Client) DialToSMTPClientWithContext(ctxDial context.Context) (_ *smtp.C
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// If anything below fails, we return nil instead of an [*smtp.Client], so
-    // the caller never gets a handle to the [net.Conn] we just dialed. We close it
-    // here so it doesn't leak.
+	// the caller never gets a handle to the [net.Conn] we just dialed. We close it
+	// here so it doesn't leak.
 	defer func() {
 		if err != nil {
 			_ = connection.Close()
@@ -1323,6 +1323,11 @@ func (c *Client) CloseWithSMTPClient(client *smtp.Client) error {
 		return nil
 	}
 	if err := client.Quit(); err != nil {
+		if client.HasConnection() {
+			if closeErr := client.Close(); closeErr != nil {
+				err = errors.Join(err, fmt.Errorf("failed to close SMTP connection after QUIT failure: %w", closeErr))
+			}
+		}
 		return fmt.Errorf("failed to close SMTP client: %w", err)
 	}
 

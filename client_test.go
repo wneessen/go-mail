@@ -2512,12 +2512,30 @@ func TestClient_DialAndSendWithContext(t *testing.T) {
 		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
 		t.Cleanup(cancelDial)
 
-		client, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS), WithPort(serverPort))
+		var connectionClosed atomic.Bool
+		dialer := &net.Dialer{}
+		client, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS), WithPort(serverPort),
+			WithDialContextFunc(func(ctx context.Context, network, address string) (net.Conn, error) {
+				connection, dialErr := dialer.DialContext(ctx, network, address)
+				if dialErr != nil {
+					return nil, dialErr
+				}
+				return closeTrackingConn{
+					Conn: connection,
+					onClose: func() {
+						connectionClosed.Store(true)
+					},
+				}, nil
+			}),
+		)
 		if err != nil {
 			t.Fatalf("failed to create new client: %s", err)
 		}
 		if err = client.DialAndSendWithContext(ctxDial, message); err == nil {
 			t.Errorf("client was supposed to fail on dial")
+		}
+		if !connectionClosed.Load() {
+			t.Error("connection was not closed after QUIT failed")
 		}
 	})
 	t.Run("DialAndSendWithContext fail on send", func(t *testing.T) {
@@ -4749,6 +4767,16 @@ func (f faker) RemoteAddr() net.Addr             { return nil }
 func (f faker) SetDeadline(time.Time) error      { return nil }
 func (f faker) SetReadDeadline(time.Time) error  { return nil }
 func (f faker) SetWriteDeadline(time.Time) error { return nil }
+
+type closeTrackingConn struct {
+	net.Conn
+	onClose func()
+}
+
+func (c closeTrackingConn) Close() error {
+	c.onClose()
+	return c.Conn.Close()
+}
 
 type testSender struct {
 	client *Client
