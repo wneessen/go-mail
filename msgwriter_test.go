@@ -397,7 +397,7 @@ func TestMsgWriter_addFiles(t *testing.T) {
 				ctName = fmt.Sprintf(`name="%s"`, tt.expect)
 			}
 			cdExpect = fmt.Sprintf(`Content-Disposition: attachment; %s`, cdFilename)
-			ctExpect := fmt.Sprintf(`Content-Type: text/plain; charset=utf-8; name="%s"`, tt.expect)
+			ctExpect = fmt.Sprintf(`Content-Type: text/plain; charset=utf-8; %s`, ctName)
 
 			if !strings.Contains(buffer.String(), ctExpect) {
 				t.Errorf("expected content-type: %q, got: %q", ctExpect, buffer.String())
