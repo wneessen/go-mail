@@ -28,7 +28,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        go: ["1.26"]
+        go: ["1.27"]
     env:
       PERFORM_ONLINE_TEST: ${{ vars.PERFORM_ONLINE_TEST }}
       PERFORM_UNIX_OPEN_WRITE_TESTS: ${{ vars.PERFORM_UNIX_OPEN_WRITE_TESTS }}
@@ -40,7 +40,7 @@ jobs:
       TEST_PASS: ${{ secrets.TEST_PASS }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: audit
       - name: Checkout Code
@@ -59,7 +59,7 @@ jobs:
           go test -race -shuffle=on --coverprofile=coverage.coverprofile --covermode=atomic ./...
       - name: Upload coverage to Codecov
         if: success()
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
   lint:
@@ -70,10 +70,10 @@ jobs:
       cancel-in-progress: true
     strategy:
       matrix:
-        go: ["1.26"]
+        go: ["1.27"]
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: audit
       - name: Setup go
@@ -95,7 +95,7 @@ jobs:
       cancel-in-progress: true
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: audit
       - name: Checkout Code
@@ -113,7 +113,7 @@ jobs:
       cancel-in-progress: true
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: audit
       - name: Run govulncheck
@@ -125,13 +125,13 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        go: ["1.25", "1.26"]
+        go: ["1.26", "1.27"]
         include:
           - os: macos-latest
-            go: "1.25"
+            go: "1.26"
             allow_fail: true
           - os: macos-latest
-            go: "1.26"
+            go: "1.27"
             allow_fail: true
     continue-on-error: ${{ matrix.allow_fail == true }}
     env:
@@ -139,7 +139,7 @@ jobs:
       TEST_BASEPORT_SMTP: ${{ vars.TEST_BASEPORT_SMTP }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: audit
       - name: Checkout Code
@@ -148,18 +148,13 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ matrix.go }}
+          check-latest: true
       - name: Run go test
         run: |
           go test -race -shuffle=on ./...
   test-fbsd:
-    name: Test on FreeBSD ${{ matrix.osver }}
+    name: Test on latest FreeBSD
     runs-on: ubuntu-latest
-    concurrency:
-      group: ci-test-freebsd-${{ matrix.osver }}
-      cancel-in-progress: true
-    strategy:
-      matrix:
-        osver: ["14.3", "14.4", "15.0"]
     env:
       TEST_BASEPORT: ${{ vars.TEST_BASEPORT }}
       TEST_BASEPORT_SMTP: ${{ vars.TEST_BASEPORT_SMTP }}
@@ -167,7 +162,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
       - name: Run go test on FreeBSD
-        uses: vmactions/freebsd-vm@5a72679103d223925653750faa878a143340fbd0 # v1.5.0
+        uses: vmactions/freebsd-vm@c46abacb49f09938ca4e1702d15d836285d694cc # v1.5.9
         with:
           usesh: true
           copyback: false
@@ -233,7 +228,7 @@ jobs:
       TEST_BASEPORT_SMTP: ${{ vars.TEST_BASEPORT_SMTP }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: audit
       - name: Checkout Code
@@ -241,7 +236,8 @@ jobs:
       - name: Setup go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.26"
+          go-version: "1.27"
+          check-latest: true
       - name: Install cross toolchain
         if: matrix.pkg != ''
         run: sudo apt-get update && sudo apt-get install -y ${{ matrix.pkg }}
@@ -264,7 +260,7 @@ jobs:
       cancel-in-progress: true
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: audit
       - name: Checkout Code

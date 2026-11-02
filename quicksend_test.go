@@ -278,7 +278,7 @@ func TestQuickSend(t *testing.T) {
 			`5.5.2 Error: fail on MAIL FROM`
 		val, verErr := helper.GetGoVersion(true)
 		if verErr != nil {
-			t.Errorf("failed to get Go version: %s", err)
+			t.Errorf("failed to get Go version: %s", verErr)
 		}
 		if (val >= 1.2511 && val <= 1.26) || val >= 1.2604 {
 			expect = `failed to dial and send message: send failed: sending SMTP MAIL FROM command: 500 ` +

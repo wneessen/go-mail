@@ -17,7 +17,9 @@ var curVersion = runtime.Version()
 // GetGoVersion returns the current Go runtime version as a float64. It fails the test if the version
 // parsing encounters an error. If wantMinorVer is true, the minor version is included in the result.
 func GetGoVersion(wantMinorVer bool) (float64, error) {
-	parts := strings.Split(curVersion[2:], ".")
+	// Strip out suffixes like -X:nodwarf5
+	versionWithoutExtension := strings.Split(curVersion[2:], "-")[0]
+	parts := strings.Split(versionWithoutExtension, ".")
 	if len(parts) < 2 {
 		return 0, fmt.Errorf("invalid Go version: %s", curVersion)
 	}

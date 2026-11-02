@@ -200,6 +200,10 @@ type (
 		// claims to support it
 		skipUTF8 bool
 
+		// skipEhlo indicates that the Client should skip the "EHLO" command during the dial, for legacy
+		// servers that misbehave when receiving EHLO instead of HELO
+		skipEhlo bool
+
 		// smtpAuth is the authentication type that is used to authenticate the user with SMTP server. It
 		// satisfies the smtp.Auth interface.
 		//
@@ -817,6 +821,19 @@ func WithoutSMTPUTF8() Option {
 	}
 }
 
+// WithoutEhlo indicates that the Client should skip the "EHLO" command during the dial and only
+// attempt to use the "HELO" command instead.
+//
+// This option is useful for legacy servers that misbehave when receiving EHLO instead of HELO.
+// Returns:
+//   - An Option function that configures the Client to skip the "EHLO" command.
+func WithoutEhlo() Option {
+	return func(c *Client) error {
+		c.skipEhlo = true
+		return nil
+	}
+}
+
 // WithAlwaysDKIMSign instructs the Client to sign every Msg that is sent with it using DKIM.
 //
 // This option is useful if you are planning to send multiple Msgs via the same client and don't
@@ -1182,7 +1199,7 @@ func (c *Client) DialWithContext(ctxDial context.Context) error {
 // If SSL is enabled, it uses a TLS connection. After successfully connecting, it initializes
 // an smtp.Client, sends the HELO/EHLO command, and optionally performs STARTTLS and SMTP AUTH
 // based on the Client's configuration. Debug and authentication logging are enabled if
-// configured.
+// configured. err is named so a deferred cleanup below can see it.
 //
 // Parameters:
 //   - ctxDial: The context used to control the connection timeout and cancellation.
@@ -1190,7 +1207,7 @@ func (c *Client) DialWithContext(ctxDial context.Context) error {
 // Returns:
 //   - A pointer to the initialized smtp.Client.
 //   - An error if the connection fails, the smtp.Client cannot be created, or any subsequent commands fail.
-func (c *Client) DialToSMTPClientWithContext(ctxDial context.Context) (*smtp.Client, error) {
+func (c *Client) DialToSMTPClientWithContext(ctxDial context.Context) (_ *smtp.Client, err error) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
@@ -1223,6 +1240,15 @@ func (c *Client) DialToSMTPClientWithContext(ctxDial context.Context) (*smtp.Cli
 		return nil, err
 	}
 
+	// If anything below fails, we return nil instead of an [*smtp.Client], so
+	// the caller never gets a handle to the [net.Conn] we just dialed. We close it
+	// here so it doesn't leak.
+	defer func() {
+		if err != nil {
+			_ = connection.Close()
+		}
+	}()
+
 	err = connection.SetDeadline(time.Now().Add(c.connTimeout))
 	if err != nil {
 		return nil, err
@@ -1249,6 +1275,8 @@ func (c *Client) DialToSMTPClientWithContext(ctxDial context.Context) (*smtp.Cli
 		client.SetLogAuthData()
 	}
 	client.SkipSMTPUTF8(c.skipUTF8)
+	client.SkipEhlo(c.skipEhlo)
+
 	if err = client.Hello(c.helo); err != nil {
 		return nil, err
 	}
@@ -1295,6 +1323,11 @@ func (c *Client) CloseWithSMTPClient(client *smtp.Client) error {
 		return nil
 	}
 	if err := client.Quit(); err != nil {
+		if client.HasConnection() {
+			if closeErr := client.Close(); closeErr != nil {
+				err = errors.Join(err, fmt.Errorf("failed to close SMTP connection after QUIT failure: %w", closeErr))
+			}
+		}
 		return fmt.Errorf("failed to close SMTP client: %w", err)
 	}
 
