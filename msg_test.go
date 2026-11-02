@@ -4195,6 +4195,12 @@ func TestMsg_SetListUnsubscribe(t *testing.T) {
 			[]string{"  https://example.com/unsub  "},
 			"<https://example.com/unsub>",
 		},
+		// https://github.com/wneessen/go-mail/security/advisories/GHSA-w8w6-94hg-2qpm
+		{
+			"reject URIs with a CRLF",
+			[]string{"https://example.com/unsub?uid=123\r\nBcc: <evil@attacker.com"},
+			"",
+		},
 	}
 	t.Run("SetListUnsubscribe on new message", func(t *testing.T) {
 		for _, tt := range tests {
@@ -4231,6 +4237,53 @@ func TestMsg_SetListUnsubscribe(t *testing.T) {
 		got := message.preformHeader[HeaderListUnsubscribe]
 		if got != want {
 			t.Errorf("failed to set List-Unsubscribe. Expected: %s, got: %s", want, got)
+		}
+	})
+	// https://github.com/wneessen/go-mail/security/advisories/GHSA-w8w6-94hg-2qpm
+	t.Run("SetListUnsubscribe must not inject CRLF", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.SetListUnsubscribe("https://example.com/unsub?uid=123\r\nBcc: <evil@attacker.com",
+			`mailto:toni.tester@example.com`, `https://example.com/unsub?uid=543`)
+		want := `<mailto:toni.tester@example.com>, <https://example.com/unsub?uid=543>`
+		got := message.preformHeader[HeaderListUnsubscribe]
+		if got != want {
+			t.Errorf("failed to set List-Unsubscribe. Expected: %s, got: %s", want, got)
+		}
+	})
+	// https://github.com/wneessen/go-mail/security/advisories/GHSA-w8w6-94hg-2qpm
+	t.Run("SetListUnsubscribe with different forbidden URI types", func(t *testing.T) {
+		tests := []struct {
+			name string
+			uri  string
+		}{
+			{"crlf injection", "https://example.com/unsub\r\nBcc: victim@example.com"},
+			{"lf injection", "https://example.com/unsub\nBcc: victim@example.com"},
+			{"lone cr", "https://example.com/unsub\rBcc: victim@example.com"},
+			{"bracket breakout", "https://example.com/unsub>\r\nX-Evil: yes\r\n<https://e.com"},
+			{"javascript scheme", "javascript:alert(1)"},
+			{"data scheme", "data:text/html,hello"},
+			{"no scheme", "example.com/unsub"},
+			{"empty", ""},
+			{"null byte", "https://example.com/unsub\x00"},
+			{"bad percent-encoding", "https://example.com/%zz"},
+			{"space in uri", "https://example.com/a b"},
+			{"mailto crlf", "mailto:u@example.com?subject=hi\r\nBcc: v@example.com"},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				message.SetListUnsubscribe(tt.uri)
+				got := message.preformHeader[HeaderListUnsubscribe]
+				if got != "" {
+					t.Errorf("forbidden URI type %q should not be accepted by SetListUnsubscribe", tt.uri)
+				}
+			})
 		}
 	})
 }
