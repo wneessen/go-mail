@@ -894,3 +894,22 @@ func TestMsgWriter_sanitizeFilename(t *testing.T) {
 		})
 	}
 }
+
+func TestMsgWriter_isTSpecial(t *testing.T) {
+	tSpecialChars := []byte{
+		'(', ')', '<', '>', '@', ',', ';', ':', '\\', '"', '/', '[', ']', '?', '=',
+	}
+	nonTSpecialChars := []byte{
+		'a', 'b', 'C', '.', '+',
+	}
+	for _, char := range tSpecialChars {
+		if !isTSpecial(char) {
+			t.Errorf("expected %q to be a TSpecial character", string(char))
+		}
+	}
+	for _, char := range nonTSpecialChars {
+		if isTSpecial(char) {
+			t.Errorf("didn't expected %q to be a TSpecial character", string(char))
+		}
+	}
+}
