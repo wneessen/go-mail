@@ -545,7 +545,7 @@ func parseMultiPartHeader(multiPartHeader string) (header string, optional map[s
 		optString := strings.TrimLeft(opt, " ")
 		optSplit := strings.SplitN(optString, "=", 2)
 		if len(optSplit) == 2 {
-			optional[optSplit[0]] = optSplit[1]
+			optional[strings.ToLower(optSplit[0])] = optSplit[1]
 		}
 	}
 	return header, optional
@@ -569,7 +569,7 @@ func parseEMLAttachmentEmbed(contentDisposition []string, multiPart *multipart.P
 	cdType, optional := parseMultiPartHeader(contentDisposition[0])
 	filename := "generic.attachment"
 	if name, ok := optional["filename"]; ok {
-		filename = name[1 : len(name)-1]
+		filename = strings.Trim(name, `"`)
 	}
 
 	var dataReader io.Reader
