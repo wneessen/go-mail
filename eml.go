@@ -566,10 +566,13 @@ func parseMultiPartHeader(multiPartHeader string) (header string, optional map[s
 //   - An error if any issues occur during the parsing of attachments or embeds; otherwise,
 //     returns nil.
 func parseEMLAttachmentEmbed(contentDisposition []string, multiPart *multipart.Part, msg *Msg) error {
-	cdType, optional := parseMultiPartHeader(contentDisposition[0])
+	cdType, optional, err := mime.ParseMediaType(contentDisposition[0])
+	if err != nil {
+		return fmt.Errorf("failed to parse content disposition: %w", err)
+	}
 	filename := "generic.attachment"
 	if name, ok := optional["filename"]; ok {
-		filename = name[1 : len(name)-1]
+		filename = name
 	}
 
 	var dataReader io.Reader
