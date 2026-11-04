@@ -1083,6 +1083,224 @@ func TestMsg_FromFormat(t *testing.T) {
 	})
 }
 
+func TestMsg_EnvelopeTo(t *testing.T) {
+	t.Run("EnvelopeTo with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.EnvelopeTo("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set EnvelopeTo: %s", err)
+		}
+		checkAddrHeader(t, message, HeaderEnvelopeTo, "EnvelopeTo", 0, 1, "toni.tester@example.com", "")
+	})
+	t.Run("EnvelopeTo with multiple valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.EnvelopeTo("toni.tester@example.com", "tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set EnvelopeTo: %s", err)
+		}
+		checkAddrHeader(t, message, HeaderEnvelopeTo, "EnvelopeTo", 0, 2, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderEnvelopeTo, "EnvelopeTo", 1, 2, "tina.tester@example.com", "")
+	})
+	t.Run("EnvelopeTo with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.EnvelopeTo("invalid"); err == nil {
+			t.Fatalf("EnvelopeTo should fail with invalid address")
+		}
+	})
+	t.Run("EnvelopeTo with empty string should fail", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.EnvelopeTo(""); err == nil {
+			t.Fatalf("EnvelopeTo should fail with invalid address")
+		}
+	})
+	t.Run("EnvelopeTo with different RFC5322 addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		for _, tt := range rfc5322Test {
+			t.Run(tt.value, func(t *testing.T) {
+				err := message.EnvelopeTo(tt.value)
+				if err != nil && tt.valid {
+					t.Errorf("EnvelopeTo on address %s should succeed, but failed with: %s", tt.value, err)
+				}
+				if err == nil && !tt.valid {
+					t.Errorf("EnvelopeTo on address %s should fail, but succeeded", tt.value)
+				}
+			})
+		}
+	})
+}
+
+func TestMsg_EnvelopeToMailAddress(t *testing.T) {
+	var addresses []*mail.Address
+	for _, address := range []string{
+		"toni.tester@example.com", `"Tina Tester" <tina.tester@example.com>`,
+		"michael.tester@example.com",
+	} {
+		addr, err := mail.ParseAddress(address)
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		addresses = append(addresses, addr)
+	}
+	t.Run("EnvelopeToMailAddress with single address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.EnvelopeToMailAddress(addresses[0])
+		checkAddrHeader(t, message, HeaderEnvelopeTo, "EnvelopeToMailAddress", 0, 1, "toni.tester@example.com", "")
+	})
+	t.Run("EnvelopeToMailAddress with multiple addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.EnvelopeToMailAddress(addresses...)
+		checkAddrHeader(t, message, HeaderEnvelopeTo, "EnvelopeToMailAddress", 0, 3, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderEnvelopeTo, "EnvelopeToMailAddress", 1, 3, "tina.tester@example.com", "Tina Tester")
+		checkAddrHeader(t, message, HeaderEnvelopeTo, "EnvelopeToMailAddress", 2, 3, "michael.tester@example.com", "")
+	})
+	t.Run("EnvelopeToMailAddress with nil address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.EnvelopeToMailAddress(nil)
+		checkAddrHeader(t, message, HeaderEnvelopeTo, "EnvelopeToMailAddress", 0, 0, "", "")
+	})
+}
+
+func TestMsg_AddEnvelopeTo(t *testing.T) {
+	t.Run("AddEnvelopeTo with valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.EnvelopeTo("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set EnvelopeTo: %s", err)
+		}
+		if err := message.AddEnvelopeTo("tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set additional EnvelopeTo: %s", err)
+		}
+		checkAddrHeader(t, message, HeaderEnvelopeTo, "AddEnvelopeTo", 0, 2, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderEnvelopeTo, "AddEnvelopeTo", 1, 2, "tina.tester@example.com", "")
+	})
+	t.Run("AddEnvelopeTo with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.EnvelopeTo("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set EnvelopeTo: %s", err)
+		}
+		if err := message.AddEnvelopeTo("invalid"); err == nil {
+			t.Errorf("AddEnvelopeTo should fail with invalid address")
+		}
+		checkAddrHeader(t, message, HeaderEnvelopeTo, "AddEnvelopeTo", 0, 1, "toni.tester@example.com", "")
+	})
+}
+
+func TestMsg_AddEnvelopeToFormat(t *testing.T) {
+	t.Run("AddEnvelopeToFormat with valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.EnvelopeTo("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set EnvelopeTo: %s", err)
+		}
+		if err := message.AddEnvelopeToFormat("Tina Tester", "tina.tester@example.com"); err != nil {
+			t.Fatalf("failed to set additional EnvelopeTo: %s", err)
+		}
+		checkAddrHeader(t, message, HeaderEnvelopeTo, "AddEnvelopeToFormat", 0, 2, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderEnvelopeTo, "AddEnvelopeToFormat", 1, 2, "tina.tester@example.com", "Tina Tester")
+	})
+	t.Run("AddEnvelopeToFormat with invalid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.EnvelopeTo("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set EnvelopeTo: %s", err)
+		}
+		if err := message.AddEnvelopeToFormat("Invalid", "invalid"); err == nil {
+			t.Errorf("AddEnvelopeToFormat should fail with invalid address")
+		}
+		checkAddrHeader(t, message, HeaderEnvelopeTo, "AddEnvelopeToFormat", 0, 1, "toni.tester@example.com", "")
+	})
+}
+
+func TestMsg_AddEnvelopeToMailAddress(t *testing.T) {
+	t.Run("AddEnvelopeToMailAddress with valid addresses", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.EnvelopeTo("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set EnvelopeTo: %s", err)
+		}
+
+		addr, err := mail.ParseAddress("tina.tester@example.com")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddEnvelopeToMailAddress(addr)
+
+		addr, err = mail.ParseAddress("michael.tester@example.com")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddEnvelopeToMailAddress(addr)
+
+		checkAddrHeader(t, message, HeaderEnvelopeTo, "AddEnvelopeToMailAddress", 0, 3, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderEnvelopeTo, "AddEnvelopeToMailAddress", 1, 3, "tina.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderEnvelopeTo, "AddEnvelopeToMailAddress", 2, 3, "michael.tester@example.com", "")
+	})
+	t.Run("AddEnvelopeToMailAddress with nil", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		if err := message.EnvelopeTo("toni.tester@example.com"); err != nil {
+			t.Fatalf("failed to set EnvelopeTo: %s", err)
+		}
+		message.AddEnvelopeToMailAddress(nil)
+		checkAddrHeader(t, message, HeaderEnvelopeTo, "AddEnvelopeToMailAddress", 0, 1, "toni.tester@example.com", "")
+	})
+	t.Run("AddEnvelopeToMailAddress with nil as initial address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		message.EnvelopeToMailAddress(nil)
+
+		addr, err := mail.ParseAddress("toni.tester@example.com")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddEnvelopeToMailAddress(addr)
+		addr, err = mail.ParseAddress("Tina Tester <tina.tester@example.com>")
+		if err != nil {
+			t.Fatalf("failed to parse test address: %s", err)
+		}
+		message.AddEnvelopeToMailAddress(addr)
+		checkAddrHeader(t, message, HeaderEnvelopeTo, "AddEnvelopeToMailAddress", 0, 2, "toni.tester@example.com", "")
+		checkAddrHeader(t, message, HeaderEnvelopeTo, "AddEnvelopeToMailAddress", 1, 2, "tina.tester@example.com", "Tina Tester")
+	})
+}
+
 func TestMsg_To(t *testing.T) {
 	t.Run("To with valid address", func(t *testing.T) {
 		message := NewMsg()

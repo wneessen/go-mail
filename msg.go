@@ -828,6 +828,108 @@ func (m *Msg) FromFormat(name, addr string) error {
 	return m.SetAddrHeader(HeaderFrom, fmt.Sprintf(`"%s" <%s>`, name, addr))
 }
 
+// EnvelopeTo sets the envelope "TO" address for the Msg.
+//
+// The HeaderEnvelopeTo address is generally not included in the mail body but only used by the
+// Client for communication with the SMTP server. If the Msg has no "TO" address set in the
+// mail body, the msgWriter will try to use the envelope "TO" addresses if they have been set for the Msg.
+// Each provided address is validated according to RFC 5322 and will return an error if the validation fails.
+//
+// Parameters:
+//   - rcpts: One or more recipient email addresses to be set as
+//     envelope "TO" addresses.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+func (m *Msg) EnvelopeTo(rcpts ...string) error {
+	return m.SetAddrHeader(HeaderEnvelopeTo, rcpts...)
+}
+
+// EnvelopeToMailAddress sets one or more "TO" addresses for the Msg using a mail.Address instance.
+//
+// The HeaderEnvelopeTo addresses are generally not included in the mail body but only used by the
+// Client for communication with the SMTP server. If the Msg has no "TO" address set in the mail
+// body, the msgWriter will try to use the envelope "TO" addresses if they have been set for the Msg.
+// Each provided name and address are validated according to RFC 5322 and will return an error if
+// the validation fails.
+//
+// Parameters:
+//   - rcpts: One or more recipient email addresses as mail.Address instances to be set as
+//     envelope "TO" addresses.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+func (m *Msg) EnvelopeToMailAddress(rcpts ...*mail.Address) {
+	m.SetAddrHeaderFromMailAddress(HeaderEnvelopeTo, rcpts...)
+}
+
+// AddEnvelopeTo adds a single "TO" address to the existing list of recipients in the envelope "TO".
+//
+// This method allows you to add a single recipient to the envelope to field
+// without replacing any previously set envelope to addresses. The
+// HeaderEnvelopeTo addresses are generally not included in the mail body but
+// only used by the Client for communication with the SMTP server. If the Msg
+// has no "TO" address set in the mail body, the msgWriter will try to use the
+// envelope "TO" addresses if they have been set for the Msg. The provided
+// address is validated according to RFC 5322 and will return an error if the
+// validation fails.
+//
+// Parameters:
+//   - rcpt: The recipient email address to add to the envelope "TO" field.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+func (m *Msg) AddEnvelopeTo(rcpt string) error {
+	return m.addAddr(HeaderEnvelopeTo, rcpt)
+}
+
+// AddToMailAddress adds a single "TO" address to the existing list of
+// recipients in envelope "TO" for the Msg.
+//
+// This method allows you to add a single recipient to the envelope "TO" field
+// without replacing any previously set envelope to addresses. The
+// HeaderEnvelopeTo addresses are generally not included in the mail body but
+// only used by the Client for communication with the SMTP server. If the Msg
+// has no "TO" address set in the mail body, the msgWriter will try to use the
+// envelope "TO" addresses if they have been set for the Msg. The provided
+// address is validated according to RFC 5322 and will return an error if the
+// validation fails.
+//
+// Parameters:
+//   - rcpt: The recipient email address as *mail.Address to add to the envelope "TO" field.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+func (m *Msg) AddEnvelopeToMailAddress(rcpt *mail.Address) {
+	addresses := append(m.addrHeader[HeaderEnvelopeTo], rcpt)
+	m.SetAddrHeaderFromMailAddress(HeaderEnvelopeTo, addresses...)
+}
+
+// AddToFormat adds a single "TO" address with the provided name and email to the existing list of recipients
+// in the envelope "TO" for the Msg.
+//
+// This method allows you to add a recipient's name and email address to the
+// envelope "TO" field without replacing any previously set envelope "TO"
+// addresses. The HeaderEnvelopeTo addresses are generally not included in the
+// mail body but only used by the Client for communication with the SMTP
+// server. If the Msg has no "TO" address set in the mail body, the msgWriter
+// will try to use the envelope "TO" addresses if they have been set for the
+// Msg. Each provided name and address are validated according to RFC 5322 and
+// will return an error if the validation fails.
+//
+// Parameters:
+//   - name: The name of the recipient to add to the envelope field.
+//   - addr: The email address of the recipient to add to the envelope "TO" field.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
+func (m *Msg) AddEnvelopeToFormat(name, addr string) error {
+	return m.addAddr(HeaderEnvelopeTo, fmt.Sprintf(`"%s" <%s>`, name, addr))
+}
+
 // To sets one or more "TO" addresses in the mail body for the Msg.
 //
 // The "TO" address specifies the primary recipient(s) of the message and is included in the mail body.
@@ -1610,10 +1712,10 @@ func (m *Msg) GetSender(useFullAddr bool) (string, error) {
 	return addr.String(), nil
 }
 
-// GetRecipients returns a list of the currently set "TO", "CC", and "BCC" addresses for the Msg.
+// GetRecipients returns a list of the currently set envelope "TO" addresses for the Msg. If no
+// envelope "TO" address is set, it will use the "TO", "CC" and "BCC" addresses from the mail body.
 //
-// This method aggregates recipients from the "TO", "CC", and "BCC" headers and returns them as a
-// slice of strings. If no recipients are found in these headers, it will return an error indicating
+// If no recipients are found in the envelope and in these headers, it will return an error indicating
 // that no recipient addresses are present.
 //
 // Returns:
@@ -1625,15 +1727,22 @@ func (m *Msg) GetSender(useFullAddr bool) (string, error) {
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) GetRecipients() ([]string, error) {
 	var rcpts []string
-	for _, addressType := range []AddrHeader{HeaderTo, HeaderCc, HeaderBcc} {
-		addresses, ok := m.addrHeader[addressType]
-		if !ok || len(addresses) == 0 {
-			continue
-		}
-		for _, r := range addresses {
-			rcpts = append(rcpts, mailAddressStringWithoutName(*r))
+
+	allAddresses, ok := m.addrHeader[HeaderEnvelopeTo]
+	if !ok || len(allAddresses) == 0 {
+		for _, addressType := range []AddrHeader{HeaderTo, HeaderCc, HeaderBcc} {
+			addresses, ok := m.addrHeader[addressType]
+			if !ok || len(addresses) == 0 {
+				continue
+			}
+			allAddresses = append(allAddresses, addresses...)
 		}
 	}
+
+	for _, r := range allAddresses {
+		rcpts = append(rcpts, mailAddressStringWithoutName(*r))
+	}
+
 	if len(rcpts) <= 0 {
 		return rcpts, ErrNoRcptAddresses
 	}
