@@ -757,7 +757,12 @@ func (m *Msg) EnvelopeFrom(from string) error {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
 func (m *Msg) EnvelopeFromFormat(name, addr string) error {
-	return m.SetAddrHeader(HeaderEnvelopeFrom, fmt.Sprintf(`"%s" <%s>`, name, addr))
+	mailAddr := mail.Address{Name: name, Address: addr}
+	if _, err := mail.ParseAddress(mailAddr.String()); err != nil {
+		return err
+	}
+	m.EnvelopeFromMailAddress(&mailAddr)
+	return nil
 }
 
 // EnvelopeFromMailAddress sets the "FROM" address in the mail body for the Msg using a mail.Address instance.
@@ -825,7 +830,12 @@ func (m *Msg) FromMailAddress(from *mail.Address) {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
 func (m *Msg) FromFormat(name, addr string) error {
-	return m.SetAddrHeader(HeaderFrom, fmt.Sprintf(`"%s" <%s>`, name, addr))
+	mailAddr := mail.Address{Name: name, Address: addr}
+	if _, err := mail.ParseAddress(mailAddr.String()); err != nil {
+		return err
+	}
+	m.FromMailAddress(&mailAddr)
+	return nil
 }
 
 // To sets one or more "TO" addresses in the mail body for the Msg.
@@ -906,9 +916,15 @@ func (m *Msg) AddToMailAddress(rcpt *mail.Address) {
 //   - addr: The email address of the recipient to add to the "TO" field.
 //
 // References:
+//
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddToFormat(name, addr string) error {
-	return m.addAddr(HeaderTo, fmt.Sprintf(`"%s" <%s>`, name, addr))
+	mailAddr := mail.Address{Name: name, Address: addr}
+	if _, err := mail.ParseAddress(mailAddr.String()); err != nil {
+		return err
+	}
+	m.AddToMailAddress(&mailAddr)
+	return nil
 }
 
 // ToIgnoreInvalid sets one or more "TO" addresses in the mail body for the Msg, ignoring any invalid addresses.
@@ -1034,7 +1050,12 @@ func (m *Msg) AddCcMailAddress(rcpt *mail.Address) {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddCcFormat(name, addr string) error {
-	return m.addAddr(HeaderCc, fmt.Sprintf(`"%s" <%s>`, name, addr))
+	mailAddr := mail.Address{Name: name, Address: addr}
+	if _, err := mail.ParseAddress(mailAddr.String()); err != nil {
+		return err
+	}
+	m.AddCcMailAddress(&mailAddr)
+	return nil
 }
 
 // CcIgnoreInvalid sets one or more "CC" (carbon copy) addresses in the mail body for the Msg, ignoring any
@@ -1161,7 +1182,12 @@ func (m *Msg) AddBccMailAddress(rcpt *mail.Address) {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddBccFormat(name, addr string) error {
-	return m.addAddr(HeaderBcc, fmt.Sprintf(`"%s" <%s>`, name, addr))
+	mailAddr := mail.Address{Name: name, Address: addr}
+	if _, err := mail.ParseAddress(mailAddr.String()); err != nil {
+		return err
+	}
+	m.AddBccMailAddress(&mailAddr)
+	return nil
 }
 
 // BccIgnoreInvalid sets one or more "BCC" (blind carbon copy) addresses in the mail body for the Msg,
@@ -1252,7 +1278,12 @@ func (m *Msg) ReplyToMailAddress(addrs ...*mail.Address) {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
 func (m *Msg) ReplyToFormat(name, addr string) error {
-	return m.ReplyTo(fmt.Sprintf(`"%s" <%s>`, name, addr))
+	mailAddr := mail.Address{Name: name, Address: addr}
+	if _, err := mail.ParseAddress(mailAddr.String()); err != nil {
+		return err
+	}
+	m.ReplyToMailAddress(&mailAddr)
+	return nil
 }
 
 // Subject sets the "Subject" header for the Msg, specifying the topic of the message.
@@ -1530,6 +1561,11 @@ func (m *Msg) RequestMDNTo(rcpts ...string) error {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc8098
 func (m *Msg) RequestMDNToFormat(name, addr string) error {
+	// TODO: Still needs a fix
+	// mailAddr := mail.Address{Name: name, Address: addr}
+	// if _, err := mail.ParseAddress(mailAddr.String()); err != nil {
+	// 	return err
+	// }
 	return m.RequestMDNTo(fmt.Sprintf(`%s <%s>`, name, addr))
 }
 
