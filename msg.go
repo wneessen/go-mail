@@ -153,7 +153,7 @@ type Msg struct {
 	// preformHeader maps Header types to their already preformatted string values.
 	//
 	// Preformatted Header values will not be affected by automatic line breaks.
-	preformHeader map[Header]string
+	preformHeader map[Header][]string
 
 	// pgptype indicates that a message has a PGPType assigned and therefore will generate
 	// different Content-Type settings in the msgWriter.
@@ -210,7 +210,7 @@ func NewMsg(opts ...MsgOption) *Msg {
 		charset:           CharsetUTF8,
 		encoding:          EncodingQP,
 		genHeader:         make(map[Header][]string),
-		preformHeader:     make(map[Header]string),
+		preformHeader:     make(map[Header][]string),
 		multiPartBoundary: make(map[MIMEType]string),
 		mimever:           MIME10,
 	}
@@ -598,9 +598,17 @@ func (m *Msg) SetHeaderPreformatted(header Header, value string) {
 //   - https://datatracker.ietf.org/doc/html/rfc2822
 func (m *Msg) SetGenHeaderPreformatted(header Header, value string) {
 	if m.preformHeader == nil {
-		m.preformHeader = make(map[Header]string)
+		m.preformHeader = make(map[Header][]string)
 	}
-	m.preformHeader[header] = value
+	m.preformHeader[header] = []string{value}
+}
+
+// AddGenHeaderPreformatted appends a preformatted value to a generic header field of the Msg.
+func (m *Msg) AddGenHeaderPreformatted(header Header, value string) {
+	if m.preformHeader == nil {
+		m.preformHeader = make(map[Header][]string)
+	}
+	m.preformHeader[header] = append(m.preformHeader[header], value)
 }
 
 // SetAddrHeader sets the specified AddrHeader for the Msg to the given values.
