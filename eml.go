@@ -16,6 +16,9 @@ import (
 	netmail "net/mail"
 	"os"
 	"strings"
+
+	"golang.org/x/text/encoding/ianaindex"
+	"golang.org/x/text/transform"
 )
 
 // EMLToMsgFromString parses a given EML string and returns a pre-filled Msg pointer.
@@ -175,7 +178,7 @@ func readEMLFromReader(reader io.Reader) (*netmail.Message, *bytes.Buffer, error
 //   - An error if parsing the headers fails; otherwise, returns nil.
 func parseEMLHeaders(mailHeader *netmail.Header, msg *Msg) error {
 	commonHeaders := []Header{
-		HeaderContentType, HeaderImportance, HeaderInReplyTo, HeaderListUnsubscribe,
+		HeaderComments, HeaderContentType, HeaderImportance, HeaderInReplyTo, HeaderListUnsubscribe,
 		HeaderListUnsubscribePost, HeaderMessageID, HeaderMIMEVersion, HeaderOrganization,
 		HeaderPrecedence, HeaderPriority, HeaderReferences, HeaderSubject, HeaderUserAgent,
 		HeaderXMailer, HeaderXMSMailPriority, HeaderXPriority,
@@ -187,28 +190,19 @@ func parseEMLHeaders(mailHeader *netmail.Header, msg *Msg) error {
 
 	// Extract address headers
 	if value := mailHeader.Get(HeaderFrom.String()); value != "" {
-		if err := msg.From(value); err != nil {
+		addresses, err := parseMIMEAddressList(value)
+		if err != nil {
 			return fmt.Errorf(`failed to parse %q header: %w`, HeaderFrom, err)
 		}
+		msg.SetAddrHeaderFromMailAddress(HeaderFrom, addresses...)
 	}
-	addrHeaders := map[AddrHeader]func(...string) error{
-		HeaderTo:  msg.To,
-		HeaderCc:  msg.Cc,
-		HeaderBcc: msg.Bcc,
-	}
-	for addrHeader, addrFunc := range addrHeaders {
+	for _, addrHeader := range []AddrHeader{HeaderTo, HeaderCc, HeaderBcc} {
 		if v := mailHeader.Get(addrHeader.String()); v != "" {
-			var addrStrings []string
-			parsedAddrs, err := netmail.ParseAddressList(v)
+			parsedAddrs, err := parseMIMEAddressList(v)
 			if err != nil {
 				return fmt.Errorf(`failed to parse address list: %w`, err)
 			}
-			for _, addr := range parsedAddrs {
-				addrStrings = append(addrStrings, addr.String())
-			}
-			// We can skip the error checking here since netmail.ParseAddressList already performed the
-			// same address checking that the msg methods do.
-			_ = addrFunc(addrStrings...)
+			msg.SetAddrHeaderFromMailAddress(addrHeader, parsedAddrs...)
 		}
 	}
 
@@ -233,11 +227,44 @@ func parseEMLHeaders(mailHeader *netmail.Header, msg *Msg) error {
 				strings.HasPrefix(value, TypeMultipartMixed.String()) {
 				continue
 			}
+			switch header {
+			case HeaderComments, HeaderOrganization, HeaderSubject, HeaderXMailer:
+				decodedValue, err := decodeMIMEHeader(value)
+				if err != nil {
+					return fmt.Errorf(`failed to decode %q header: %w`, header, err)
+				}
+				value = decodedValue
+			}
 			msg.SetGenHeader(header, value)
 		}
 	}
 
 	return nil
+}
+
+func decodeMIMEHeader(value string) (string, error) {
+	return newMIMEWordDecoder().DecodeHeader(value)
+}
+
+func parseMIMEAddressList(value string) ([]*netmail.Address, error) {
+	parser := netmail.AddressParser{WordDecoder: newMIMEWordDecoder()}
+	return parser.ParseList(value)
+}
+
+func newMIMEWordDecoder() *mime.WordDecoder {
+	return &mime.WordDecoder{
+		CharsetReader: func(label string, input io.Reader) (io.Reader, error) {
+			encoding, err := ianaindex.MIME.Encoding(label)
+			if err != nil {
+				return nil, err
+			}
+			if encoding == nil {
+				return nil, fmt.Errorf("unsupported charset %q", label)
+			}
+
+			return transform.NewReader(input, encoding.NewDecoder()), nil
+		},
+	}
 }
 
 // parseEMLBodyParts parses the body of an EML based on the different content types and encodings.
