@@ -38,6 +38,9 @@ const (
 	// HeaderContentType is the "Content-Type" header.
 	HeaderContentType Header = "Content-Type"
 
+	// HeaderComments is the "Comments" header.
+	HeaderComments Header = "Comments"
+
 	// HeaderDate represents the "Date" field.
 	// https://datatracker.ietf.org/doc/html/rfc822#section-5.1
 	HeaderDate Header = "Date"

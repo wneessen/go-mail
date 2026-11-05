@@ -6,6 +6,8 @@ package mail
 
 import (
 	"bytes"
+	"mime"
+	netmail "net/mail"
 	"strings"
 	"testing"
 )
@@ -1185,6 +1187,71 @@ func TestEMLToMsgFromReader(t *testing.T) {
 				attachments[0].Name)
 		}
 	})
+}
+
+func TestEMLToMsgFromReaderHeaderCharsets(t *testing.T) {
+	const encoded = "=?iso-8859-2?Q?Test_User_=B1?="
+	eml := "Subject: " + encoded + "\r\n" +
+		"Comments: " + encoded + "\r\n" +
+		"Organization: " + encoded + "\r\n" +
+		"X-Mailer: " + encoded + "\r\n" +
+		"From: Tęst User <sender@example.com>\r\n" +
+		"To: " + encoded + " <receiver@example.com>\r\n" +
+		"Cc: " + encoded + " <cc@example.com>\r\n" +
+		"Bcc: " + encoded + " <bcc@example.com>\r\n\r\nbody"
+
+	message, err := EMLToMsgFromString(eml)
+	if err != nil {
+		t.Fatalf("failed to parse ISO-8859-2 headers: %s", err)
+	}
+	for header, want := range map[Header]string{
+		HeaderComments:     "Test User \u0105",
+		HeaderOrganization: "Test User \u0105",
+		HeaderSubject:      "Test User \u0105",
+		HeaderXMailer:      "Test User \u0105",
+	} {
+		values := message.GetGenHeader(header)
+		if len(values) != 1 {
+			t.Errorf("%s: expected one value, got %d", header, len(values))
+			continue
+		}
+		decodedValue, err := new(mime.WordDecoder).DecodeHeader(values[0])
+		if err != nil {
+			t.Errorf("%s: failed to decode stored value: %s", header, err)
+			continue
+		}
+		if decodedValue != want {
+			t.Errorf("%s: expected decoded value %q, got %q", header, want, decodedValue)
+		}
+	}
+
+	for header, addresses := range map[string][]*netmail.Address{
+		"From": message.GetFrom(),
+		"To":   message.GetTo(),
+		"Cc":   message.GetCc(),
+		"Bcc":  message.GetBcc(),
+	} {
+		if len(addresses) != 1 {
+			t.Errorf("%s: expected one address, got %d", header, len(addresses))
+			continue
+		}
+		wantName := "Test User \u0105"
+		if header == "From" {
+			wantName = "Tęst User"
+		}
+		if addresses[0].Name != wantName {
+			t.Errorf("%s: expected decoded name %q, got %q", header, wantName, addresses[0].Name)
+		}
+	}
+
+	unknownCharset := "From: =?unknown-charset?Q?Test_User?= <sender@example.com>\r\n\r\nbody"
+	if _, err := EMLToMsgFromString(unknownCharset); err == nil {
+		t.Error("expected unsupported address charset to fail")
+	}
+	unknownSubjectCharset := "Subject: =?unknown-charset?Q?Test_Subject?=\r\n\r\nbody"
+	if _, err := EMLToMsgFromString(unknownSubjectCharset); err == nil {
+		t.Error("expected unsupported subject charset to fail")
+	}
 }
 
 func TestEMLToMsgFromFile(t *testing.T) {
