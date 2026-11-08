@@ -365,6 +365,81 @@ ICAgc2V2ZXJhbAogICAgICAgICAgICBuZXdsaW5lcwoJICAgICAgICAgICAgYW5kCgkgICAgc3Bh
 Y2VzCiAgICAgaW4KICBpdAouCgpBcyB3ZWxsIGFzIGFuIGVtb2ppOiDwn5mCCg==
 
 --45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7--`
+	exampleMailPlainB64WithAttachmentEmptyFilename = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Content-Type: multipart/mixed;
+ boundary=45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+Content-Transfer-Encoding: base64
+Content-Type: text/plain; charset=UTF-8
+
+RGVhciBDdXN0b21lciwKClRoaXMgaXMgYSB0ZXN0IG1haWwuIFBsZWFzZSBkbyBub3QgcmVwbHkg
+dG8gdGhpcy4gQWxzbyB0aGlzIGxpbmUgaXMgdmVyeSBsb25nIHNvIGl0CnNob3VsZCBiZSB3cmFw
+cGVkLgoKClRoYW5rIHlvdXIgZm9yIHlvdXIgYnVzaW5lc3MhClRoZSBnby1tYWlsIHRlYW0KCi0t
+ClRoaXMgaXMgYSBzaWduYXR1cmU=
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+Content-Disposition: attachment; filename=
+Content-Transfer-Encoding: base64
+Content-Type: application/octet-stream; name=
+
+VGhpcyBpcyBhIHNpbXBsZSB0ZXN0IHRleHQgZmlsZSBhdHRhY2htZW50LgoKSXQgCiAgaGFzCiAg
+ICAgc2V2ZXJhbAogICAgICAgICAgICBuZXdsaW5lcwoJICAgICAgICAgICAgYW5kCgkgICAgc3Bh
+Y2VzCiAgICAgaW4KICBpdAouCgpBcyB3ZWxsIGFzIGFuIGVtb2ppOiDwn5mCCg==
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7--`
+	exampleMailPlainB64WithAttachmentFilenameBrokenQuote = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Content-Type: multipart/mixed;
+ boundary=45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+Content-Transfer-Encoding: base64
+Content-Type: text/plain; charset=UTF-8
+
+RGVhciBDdXN0b21lciwKClRoaXMgaXMgYSB0ZXN0IG1haWwuIFBsZWFzZSBkbyBub3QgcmVwbHkg
+dG8gdGhpcy4gQWxzbyB0aGlzIGxpbmUgaXMgdmVyeSBsb25nIHNvIGl0CnNob3VsZCBiZSB3cmFw
+cGVkLgoKClRoYW5rIHlvdXIgZm9yIHlvdXIgYnVzaW5lc3MhClRoZSBnby1tYWlsIHRlYW0KCi0t
+ClRoaXMgaXMgYSBzaWduYXR1cmU=
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+Content-Disposition: attachment; filename="
+Content-Transfer-Encoding: base64
+Content-Type: application/octet-stream; name="
+
+VGhpcyBpcyBhIHNpbXBsZSB0ZXN0IHRleHQgZmlsZSBhdHRhY2htZW50LgoKSXQgCiAgaGFzCiAg
+ICAgc2V2ZXJhbAogICAgICAgICAgICBuZXdsaW5lcwoJICAgICAgICAgICAgYW5kCgkgICAgc3Bh
+Y2VzCiAgICAgaW4KICBpdAouCgpBcyB3ZWxsIGFzIGFuIGVtb2ppOiDwn5mCCg==
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7--`
+	exampleMailPlainB64WithAttachmentFilenameHalfQuoted = `Date: Wed, 01 Nov 2023 00:00:00 +0000
+From: "Toni Tester" <go-mail@go-mail.dev>
+To: <go-mail+test@go-mail.dev>
+Content-Type: multipart/mixed;
+ boundary=45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+Content-Transfer-Encoding: base64
+Content-Type: text/plain; charset=UTF-8
+
+RGVhciBDdXN0b21lciwKClRoaXMgaXMgYSB0ZXN0IG1haWwuIFBsZWFzZSBkbyBub3QgcmVwbHkg
+dG8gdGhpcy4gQWxzbyB0aGlzIGxpbmUgaXMgdmVyeSBsb25nIHNvIGl0CnNob3VsZCBiZSB3cmFw
+cGVkLgoKClRoYW5rIHlvdXIgZm9yIHlvdXIgYnVzaW5lc3MhClRoZSBnby1tYWlsIHRlYW0KCi0t
+ClRoaXMgaXMgYSBzaWduYXR1cmU=
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7
+Content-Disposition: attachment; filename=test.attachment"
+Content-Transfer-Encoding: base64
+Content-Type: application/octet-stream; name="test.attachment
+
+VGhpcyBpcyBhIHNpbXBsZSB0ZXN0IHRleHQgZmlsZSBhdHRhY2htZW50LgoKSXQgCiAgaGFzCiAg
+ICAgc2V2ZXJhbAogICAgICAgICAgICBuZXdsaW5lcwoJICAgICAgICAgICAgYW5kCgkgICAgc3Bh
+Y2VzCiAgICAgaW4KICBpdAouCgpBcyB3ZWxsIGFzIGFuIGVtb2ppOiDwn5mCCg==
+
+--45c75ff528359022eb03679fbe91877d75343f2e1f8193e349deffa33ff7--`
 	exampleMailPlainB64WithAttachmentNoContentType = `Date: Wed, 01 Nov 2023 00:00:00 +0000
 MIME-Version: 1.0
 Message-ID: <1305604950.683004066175.AAAAAAAAaaaaaaaaB@go-mail.dev>
@@ -1087,6 +1162,21 @@ func TestEMLToMsgFromReader(t *testing.T) {
 				shouldFail: false,
 			},
 			{
+				name:       "Base64 with Attachment with empty filename",
+				emlString:  exampleMailPlainB64WithAttachmentEmptyFilename,
+				shouldFail: false,
+			},
+			{
+				name:       "Base64 with Attachment with broken quote as filename",
+				emlString:  exampleMailPlainB64WithAttachmentFilenameBrokenQuote,
+				shouldFail: false,
+			},
+			{
+				name:       "Base64 with Attachment with broken half-quoted filename",
+				emlString:  exampleMailPlainB64WithAttachmentFilenameHalfQuoted,
+				shouldFail: false,
+			},
+			{
 				name:       "Base64 with Attachment no content types",
 				emlString:  exampleMailPlainB64WithAttachmentNoContentType,
 				shouldFail: true,
@@ -1182,6 +1272,51 @@ func TestEMLToMsgFromReader(t *testing.T) {
 		}
 		if attachments[0].Name != "test.attachment" {
 			t.Errorf("failed to parse EML string, expected attachment name 'test.attachment', got %s",
+				attachments[0].Name)
+		}
+	})
+	// https://github.com/wneessen/go-mail/security/advisories/GHSA-f82v-42xw-72cj
+	t.Run("EMLToMsgFromReader via EMLToMsgFromString with attachment that has an empty filename", func(t *testing.T) {
+		message, err := EMLToMsgFromString(exampleMailPlainB64WithAttachmentEmptyFilename)
+		if err != nil {
+			t.Fatalf("failed to parse EML string: %s", err)
+		}
+		attachments := message.GetAttachments()
+		if len(attachments) != 1 {
+			t.Fatalf("failed to parse EML string, expected 1 attachment, got %d", len(attachments))
+		}
+		if attachments[0].Name != "" {
+			t.Errorf("failed to parse EML string, expected attachment name an empty name, got %s",
+				attachments[0].Name)
+		}
+	})
+	// https://github.com/wneessen/go-mail/security/advisories/GHSA-f82v-42xw-72cj
+	t.Run("EMLToMsgFromReader via EMLToMsgFromString with attachment that has broken quoted filename", func(t *testing.T) {
+		message, err := EMLToMsgFromString(exampleMailPlainB64WithAttachmentFilenameBrokenQuote)
+		if err != nil {
+			t.Fatalf("failed to parse EML string: %s", err)
+		}
+		attachments := message.GetAttachments()
+		if len(attachments) != 1 {
+			t.Fatalf("failed to parse EML string, expected 1 attachment, got %d", len(attachments))
+		}
+		if attachments[0].Name != "" {
+			t.Errorf("failed to parse EML string, expected attachment name an empty name, got %s",
+				attachments[0].Name)
+		}
+	})
+	// https://github.com/wneessen/go-mail/security/advisories/GHSA-f82v-42xw-72cj
+	t.Run("EMLToMsgFromReader via EMLToMsgFromString with attachment that has half-quoted filename", func(t *testing.T) {
+		message, err := EMLToMsgFromString(exampleMailPlainB64WithAttachmentFilenameHalfQuoted)
+		if err != nil {
+			t.Fatalf("failed to parse EML string: %s", err)
+		}
+		attachments := message.GetAttachments()
+		if len(attachments) != 1 {
+			t.Fatalf("failed to parse EML string, expected 1 attachment, got %d", len(attachments))
+		}
+		if attachments[0].Name != "test.attachment" {
+			t.Errorf("failed to parse EML string, expected attachment name to be 'test.attachment', got %s",
 				attachments[0].Name)
 		}
 	})
