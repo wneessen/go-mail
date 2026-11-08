@@ -150,6 +150,11 @@ var (
 		{`你好@域名.顶级域名`, true},                 // We speak RFC6532
 		{"1@23456789", true},                 // Hypothetically valid, if somebody registers that TLD
 		{"1@[23456789]", false},              // While 23456789 is decimal for 1.101.236.21 it is not RFC5322 compliant
+		{`"Robert \"Bob\" Smith" <bob.smith@example.com>`, true},
+		{`"C:\\Temp\\Mailer" <mailbot@example.com>`, true},
+		{`"Christina Tina\" Miller" <tina.miller@example.com>`, true},
+		{`"Julio \"Ju\" González" <julio.gonzales@example.com>`, true},
+		{`"Ed Miller 3'rd"`, false},
 	}
 )
 
