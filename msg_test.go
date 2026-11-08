@@ -150,6 +150,11 @@ var (
 		{`你好@域名.顶级域名`, true},                 // We speak RFC6532
 		{"1@23456789", true},                 // Hypothetically valid, if somebody registers that TLD
 		{"1@[23456789]", false},              // While 23456789 is decimal for 1.101.236.21 it is not RFC5322 compliant
+		{`"Robert \"Bob\" Smith" <bob.smith@example.com>`, true},
+		{`"C:\\Temp\\Mailer" <mailbot@example.com>`, true},
+		{`"Christina Tina\" Miller" <tina.miller@example.com>`, true},
+		{`"Julio \"Ju\" González" <julio.gonzales@example.com>`, true},
+		{`"Ed Miller 3'rd"`, false},
 	}
 )
 
@@ -1079,6 +1084,72 @@ func TestMsg_FromFormat(t *testing.T) {
 		}
 		if err := message.FromFormat("", ""); err == nil {
 			t.Fatalf("FromFormat should fail with invalid address")
+		}
+	})
+}
+
+func TestMsg_AddressHeaderWithQuotesAndSlashes(t *testing.T) {
+	names := []struct {
+		name     string
+		wantName string
+		addr     string
+	}{
+		{`Robert "Bob" Smith`, `Robert "Bob" Smith`, "robert@example.com"},
+		{`C:\Temp\Mailer`, `C:\Temp\Mailer`, "sender-bot@example.com"},
+		{`Tina" <tina.tester@example.com>`, `Tina" <tina.tester@example.com>`, "tina.tester@example.com"},
+		{`Julio "Ju" González`, `=?utf-8?b?SnVsaW8gIkp1IiBHb256w6FsZXo=?=`, "ju.gonzalez@example.com"},
+		{`"Ed Miller 3'rd"`, `"Ed Miller 3'rd"`, "ed.miller@example.com"},
+	}
+	tests := []struct {
+		fn     string
+		header AddrHeader
+		set    func(*Msg, string, string) error
+	}{
+		{"EnvelopeFromFormat", HeaderEnvelopeFrom, (*Msg).EnvelopeFromFormat},
+		{"FromFormat", HeaderFrom, (*Msg).FromFormat},
+		{"AddToFormat", HeaderTo, (*Msg).AddToFormat},
+		{"AddCcFormat", HeaderCc, (*Msg).AddCcFormat},
+		{"AddBccFormat", HeaderBcc, (*Msg).AddBccFormat},
+		{"ReplyToFormat", HeaderReplyTo, (*Msg).ReplyToFormat},
+	}
+	for _, tt := range tests {
+		for _, tn := range names {
+			t.Run(tt.fn+" "+tn.name, func(t *testing.T) {
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				if err := tt.set(message, tn.name, tn.addr); err != nil {
+					t.Fatalf("failed to exec %s: %s", tt.fn, err)
+				}
+				wantAddr := mail.Address{Name: tn.name, Address: tn.addr}
+				addresses, ok := message.addrHeader[tt.header]
+				if !ok {
+					t.Fatalf("failed to exec %s, addrHeader field is not set", tt.fn)
+				}
+				if len(addresses) != 1 {
+					t.Fatalf("failed to exec %s, addrHeader is empty", tt.fn)
+				}
+				if addresses[0].String() != wantAddr.String() {
+					t.Errorf("failed to exec %s, address string does not match. want: %s, got: %s", tt.fn, wantAddr.String(),
+						addresses[0].String())
+				}
+			})
+		}
+	}
+	t.Run("RequestMDNAddToFormat", func(t *testing.T) {
+		for _, tn := range names {
+			t.Run(tn.name, func(t *testing.T) {
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				if err := message.RequestMDNAddToFormat(tn.name, tn.addr); err != nil {
+					t.Fatalf("failed to exec RequestMDNAddToFormat: %s", err)
+				}
+				wantAddr := mail.Address{Name: tn.name, Address: tn.addr}
+				checkGenHeader(t, message, HeaderDispositionNotificationTo, "RequestMDNAddToFormat", 0, 1, wantAddr.String())
+			})
 		}
 	})
 }
@@ -2488,6 +2559,26 @@ func TestMsg_RequestMDNToFormat(t *testing.T) {
 		if err := message.RequestMDNToFormat("invalid", "invalid"); err == nil {
 			t.Fatalf("RequestMDNToFormat should fail with invalid address")
 		}
+	})
+}
+
+func TestMsg_RequestMDNToMailAddr(t *testing.T) {
+	t.Run("RequestMDNToMailAddr with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		addr := mail.Address{Name: "Toni Tester", Address: "toni.tester@example.com"}
+		message.RequestMDNToMailAddr(&addr)
+		checkGenHeader(t, message, HeaderDispositionNotificationTo, "RequestMDNToMailAddr", 0, 1,
+			`"Toni Tester" <toni.tester@example.com>`)
+	})
+	t.Run("RequestMDNToMailAddr with empty genHeaders", func(t *testing.T) {
+		message := &Msg{}
+		addr := mail.Address{Name: "Toni Tester", Address: "toni.tester@example.com"}
+		message.RequestMDNToMailAddr(&addr)
+		checkGenHeader(t, message, HeaderDispositionNotificationTo, "RequestMDNToMailAddr", 0, 1,
+			`"Toni Tester" <toni.tester@example.com>`)
 	})
 }
 

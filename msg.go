@@ -757,7 +757,12 @@ func (m *Msg) EnvelopeFrom(from string) error {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
 func (m *Msg) EnvelopeFromFormat(name, addr string) error {
-	return m.SetAddrHeader(HeaderEnvelopeFrom, fmt.Sprintf(`"%s" <%s>`, name, addr))
+	mailAddr, err := mailAddrFromNameAddr(name, addr)
+	if err != nil {
+		return err
+	}
+	m.EnvelopeFromMailAddress(mailAddr)
+	return nil
 }
 
 // EnvelopeFromMailAddress sets the "FROM" address in the mail body for the Msg using a mail.Address instance.
@@ -825,7 +830,12 @@ func (m *Msg) FromMailAddress(from *mail.Address) {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
 func (m *Msg) FromFormat(name, addr string) error {
-	return m.SetAddrHeader(HeaderFrom, fmt.Sprintf(`"%s" <%s>`, name, addr))
+	mailAddr, err := mailAddrFromNameAddr(name, addr)
+	if err != nil {
+		return err
+	}
+	m.FromMailAddress(mailAddr)
+	return nil
 }
 
 // To sets one or more "TO" addresses in the mail body for the Msg.
@@ -906,9 +916,15 @@ func (m *Msg) AddToMailAddress(rcpt *mail.Address) {
 //   - addr: The email address of the recipient to add to the "TO" field.
 //
 // References:
+//
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddToFormat(name, addr string) error {
-	return m.addAddr(HeaderTo, fmt.Sprintf(`"%s" <%s>`, name, addr))
+	mailAddr, err := mailAddrFromNameAddr(name, addr)
+	if err != nil {
+		return err
+	}
+	m.AddToMailAddress(mailAddr)
+	return nil
 }
 
 // ToIgnoreInvalid sets one or more "TO" addresses in the mail body for the Msg, ignoring any invalid addresses.
@@ -1034,7 +1050,12 @@ func (m *Msg) AddCcMailAddress(rcpt *mail.Address) {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddCcFormat(name, addr string) error {
-	return m.addAddr(HeaderCc, fmt.Sprintf(`"%s" <%s>`, name, addr))
+	mailAddr, err := mailAddrFromNameAddr(name, addr)
+	if err != nil {
+		return err
+	}
+	m.AddCcMailAddress(mailAddr)
+	return nil
 }
 
 // CcIgnoreInvalid sets one or more "CC" (carbon copy) addresses in the mail body for the Msg, ignoring any
@@ -1161,7 +1182,12 @@ func (m *Msg) AddBccMailAddress(rcpt *mail.Address) {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddBccFormat(name, addr string) error {
-	return m.addAddr(HeaderBcc, fmt.Sprintf(`"%s" <%s>`, name, addr))
+	mailAddr, err := mailAddrFromNameAddr(name, addr)
+	if err != nil {
+		return err
+	}
+	m.AddBccMailAddress(mailAddr)
+	return nil
 }
 
 // BccIgnoreInvalid sets one or more "BCC" (blind carbon copy) addresses in the mail body for the Msg,
@@ -1252,7 +1278,12 @@ func (m *Msg) ReplyToMailAddress(addrs ...*mail.Address) {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
 func (m *Msg) ReplyToFormat(name, addr string) error {
-	return m.ReplyTo(fmt.Sprintf(`"%s" <%s>`, name, addr))
+	mailAddr, err := mailAddrFromNameAddr(name, addr)
+	if err != nil {
+		return err
+	}
+	m.ReplyToMailAddress(mailAddr)
+	return nil
 }
 
 // Subject sets the "Subject" header for the Msg, specifying the topic of the message.
@@ -1516,6 +1547,30 @@ func (m *Msg) RequestMDNTo(rcpts ...string) error {
 	return nil
 }
 
+// RequestMDNToMailAddr adds the "Disposition-Notification-To" header to the Msg to request a
+// Message Disposition Notification (MDN) from the receiving end, as specified in RFC 8098.
+//
+// This method allows to provide a list of recipient addresses as [*mail.Address] type to receive
+// the MDN. Since [mail.Address] types are already validated, no further syntax validation is
+// performed. If the "Disposition-Notification-To" header is already set, the provided addresses
+// will override the already set values.
+//
+// Parameters:
+//   - rcpts: One or more recipient email addresses to request the MDN from.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc8098
+func (m *Msg) RequestMDNToMailAddr(rcpts ...*mail.Address) {
+	if m.genHeader == nil {
+		m.genHeader = make(map[Header][]string)
+	}
+	var addresses []string
+	for _, address := range rcpts {
+		addresses = append(addresses, address.String())
+	}
+	m.genHeader[HeaderDispositionNotificationTo] = addresses
+}
+
 // RequestMDNToFormat adds the "Disposition-Notification-To" header to the Msg to request a Message Disposition
 // Notification (MDN) from the receiving end, as specified in RFC 8098.
 //
@@ -1530,7 +1585,12 @@ func (m *Msg) RequestMDNTo(rcpts ...string) error {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc8098
 func (m *Msg) RequestMDNToFormat(name, addr string) error {
-	return m.RequestMDNTo(fmt.Sprintf(`%s <%s>`, name, addr))
+	mailAddr, err := mailAddrFromNameAddr(name, addr)
+	if err != nil {
+		return err
+	}
+	m.RequestMDNToMailAddr(mailAddr)
+	return nil
 }
 
 // RequestMDNAddTo adds an additional recipient to the "Disposition-Notification-To" header for the Msg.
@@ -1559,6 +1619,28 @@ func (m *Msg) RequestMDNAddTo(rcpt string) error {
 	return nil
 }
 
+// RequestMDNAddToMailAddr adds an additional recipient to the "Disposition-Notification-To" header
+// for the Msg.
+//
+// This method allows to append a new recipient address as [*mail.Address] types to the existing
+// list of recipients for the MDN. Since [mail.Address] types are already validated, no further
+// validation or syntax checking is performed. If the "Disposition-Notification-To"
+// header is already set, the new recipient will be appended to the existing list.
+//
+// Parameters:
+//   - rcpt: The recipient email address to add to the "Disposition-Notification-To" header.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc8098
+func (m *Msg) RequestMDNAddToMailAddr(rcpt *mail.Address) {
+	var addresses []string
+	if current, ok := m.genHeader[HeaderDispositionNotificationTo]; ok {
+		addresses = current
+	}
+	addresses = append(addresses, rcpt.String())
+	m.genHeader[HeaderDispositionNotificationTo] = addresses
+}
+
 // RequestMDNAddToFormat adds an additional formatted recipient to the "Disposition-Notification-To"
 // header for the Msg.
 //
@@ -1574,7 +1656,12 @@ func (m *Msg) RequestMDNAddTo(rcpt string) error {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc8098
 func (m *Msg) RequestMDNAddToFormat(name, addr string) error {
-	return m.RequestMDNAddTo(fmt.Sprintf(`"%s" <%s>`, name, addr))
+	mailAddr, err := mailAddrFromNameAddr(name, addr)
+	if err != nil {
+		return err
+	}
+	m.RequestMDNAddToMailAddr(mailAddr)
+	return nil
 }
 
 // GetSender returns the currently set envelope "FROM" address for the Msg. If no envelope
@@ -3220,4 +3307,15 @@ func formatUnsubURIs(uris []string) string {
 		parts = append(parts, "<"+url+">")
 	}
 	return strings.Join(parts, ", ")
+}
+
+// mailAddrFromNameAddr returns a [mail.Address] pointer based on the given name and address.
+// It tries to parse the mail address string that would be output to validate that the
+// provided data is valid. An error is returned if the provided data does not parse correctly.
+func mailAddrFromNameAddr(name, addr string) (*mail.Address, error) {
+	mailAddr := mail.Address{Name: name, Address: addr}
+	if _, err := mail.ParseAddress(mailAddr.String()); err != nil {
+		return nil, fmt.Errorf("failed to parse mail address: %w", err)
+	}
+	return &mailAddr, nil
 }
