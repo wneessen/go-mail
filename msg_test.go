@@ -2557,6 +2557,26 @@ func TestMsg_RequestMDNToFormat(t *testing.T) {
 	})
 }
 
+func TestMsg_RequestMDNToMailAddr(t *testing.T) {
+	t.Run("RequestMDNToMailAddr with valid address", func(t *testing.T) {
+		message := NewMsg()
+		if message == nil {
+			t.Fatal("message is nil")
+		}
+		addr := mail.Address{Name: "Toni Tester", Address: "toni.tester@example.com"}
+		message.RequestMDNToMailAddr(&addr)
+		checkGenHeader(t, message, HeaderDispositionNotificationTo, "RequestMDNToMailAddr", 0, 1,
+			`"Toni Tester" <toni.tester@example.com>`)
+	})
+	t.Run("RequestMDNToMailAddr with empty genHeaders", func(t *testing.T) {
+		message := &Msg{}
+		addr := mail.Address{Name: "Toni Tester", Address: "toni.tester@example.com"}
+		message.RequestMDNToMailAddr(&addr)
+		checkGenHeader(t, message, HeaderDispositionNotificationTo, "RequestMDNToMailAddr", 0, 1,
+			`"Toni Tester" <toni.tester@example.com>`)
+	})
+}
+
 func TestMsg_RequestMDNAddTo(t *testing.T) {
 	t.Run("RequestMDNAddTo with valid address", func(t *testing.T) {
 		message := NewMsg()
