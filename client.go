@@ -906,7 +906,11 @@ func (c *Client) ServerAddr() string {
 	if c.useUnixSocket {
 		return c.host
 	}
-	return net.JoinHostPort(c.host, strconv.Itoa(c.port))
+	host := c.host
+	if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") {
+		host = host[1 : len(host)-1]
+	}
+	return net.JoinHostPort(host, strconv.Itoa(c.port))
 }
 
 // SetTLSPolicy sets or overrides the TLSPolicy currently configured on the Client with the given TLSPolicy.
@@ -1857,7 +1861,11 @@ func (c *Client) checkConn(client *smtp.Client) error {
 // Returns:
 //   - A string representing the server address in the format "host:fallbackPort".
 func (c *Client) serverFallbackAddr() string {
-	return net.JoinHostPort(c.host, strconv.Itoa(c.fallbackPort))
+	host := c.host
+	if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") {
+		host = host[1 : len(host)-1]
+	}
+	return net.JoinHostPort(host, strconv.Itoa(c.fallbackPort))
 }
 
 // setDefaultHelo sets the HELO/EHLO hostname to the local machine's hostname.
