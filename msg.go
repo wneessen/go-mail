@@ -1547,6 +1547,30 @@ func (m *Msg) RequestMDNTo(rcpts ...string) error {
 	return nil
 }
 
+// RequestMDNToMailAddr adds the "Disposition-Notification-To" header to the Msg to request a
+// Message Disposition Notification (MDN) from the receiving end, as specified in RFC 8098.
+//
+// This method allows to provide a list of recipient addresses as [*mail.Address] type to receive
+// the MDN. Since [mail.Address] types are already validated, no further syntax validation is
+// performed. If the "Disposition-Notification-To" header is already set, the provided addresses
+// will override the already set values.
+//
+// Parameters:
+//   - rcpts: One or more recipient email addresses to request the MDN from.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc8098
+func (m *Msg) RequestMDNToMailAddr(rcpts ...*mail.Address) {
+	if m.genHeader == nil {
+		m.genHeader = make(map[Header][]string)
+	}
+	var addresses []string
+	for _, address := range rcpts {
+		addresses = append(addresses, address.String())
+	}
+	m.genHeader[HeaderDispositionNotificationTo] = addresses
+}
+
 // RequestMDNToFormat adds the "Disposition-Notification-To" header to the Msg to request a Message Disposition
 // Notification (MDN) from the receiving end, as specified in RFC 8098.
 //
@@ -1561,12 +1585,12 @@ func (m *Msg) RequestMDNTo(rcpts ...string) error {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc8098
 func (m *Msg) RequestMDNToFormat(name, addr string) error {
-	// TODO: Still needs a fix
-	// mailAddr := mail.Address{Name: name, Address: addr}
-	// if _, err := mail.ParseAddress(mailAddr.String()); err != nil {
-	// 	return err
-	// }
-	return m.RequestMDNTo(fmt.Sprintf(`%s <%s>`, name, addr))
+	mailAddr, err := mailAddrFromNameAddr(name, addr)
+	if err != nil {
+		return err
+	}
+	m.RequestMDNToMailAddr(mailAddr)
+	return nil
 }
 
 // RequestMDNAddTo adds an additional recipient to the "Disposition-Notification-To" header for the Msg.
@@ -1595,6 +1619,29 @@ func (m *Msg) RequestMDNAddTo(rcpt string) error {
 	return nil
 }
 
+// RequestMDNAddToMailAddr adds an additional recipient to the "Disposition-Notification-To" header
+// for the Msg.
+//
+// This method allows to append a new recipient address as [*mail.Address] types to the existing
+// list of recipients for the MDN. Since [mail.Address] types are already validated, no further
+// validation or syntax checking is performed. If the "Disposition-Notification-To"
+// header is already set, the new recipient will be appended to the existing list.
+//
+// Parameters:
+//   - rcpt: The recipient email address to add to the "Disposition-Notification-To" header.
+//
+// References:
+//   - https://datatracker.ietf.org/doc/html/rfc8098
+func (m *Msg) RequestMDNAddToMailAddr(rcpt *mail.Address) error {
+	var addresses []string
+	if current, ok := m.genHeader[HeaderDispositionNotificationTo]; ok {
+		addresses = current
+	}
+	addresses = append(addresses, rcpt.String())
+	m.genHeader[HeaderDispositionNotificationTo] = addresses
+	return nil
+}
+
 // RequestMDNAddToFormat adds an additional formatted recipient to the "Disposition-Notification-To"
 // header for the Msg.
 //
@@ -1610,7 +1657,12 @@ func (m *Msg) RequestMDNAddTo(rcpt string) error {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc8098
 func (m *Msg) RequestMDNAddToFormat(name, addr string) error {
-	return m.RequestMDNAddTo(fmt.Sprintf(`"%s" <%s>`, name, addr))
+	mailAddr, err := mailAddrFromNameAddr(name, addr)
+	if err != nil {
+		return err
+	}
+	m.RequestMDNAddToMailAddr(mailAddr)
+	return nil
 }
 
 // GetSender returns the currently set envelope "FROM" address for the Msg. If no envelope
@@ -3258,6 +3310,9 @@ func formatUnsubURIs(uris []string) string {
 	return strings.Join(parts, ", ")
 }
 
+// mailAddrFromNameAddr returns a [mail.Address] pointer based on the given name and address.
+// It tries to parse the mail address string that would be output to validate that the
+// provided data is valid. An error is returned if the provided data does not parse correctly.
 func mailAddrFromNameAddr(name, addr string) (*mail.Address, error) {
 	mailAddr := mail.Address{Name: name, Address: addr}
 	if _, err := mail.ParseAddress(mailAddr.String()); err != nil {

@@ -1132,18 +1132,21 @@ func TestMsg_AddressHeaderWithQuotesAndSlashes(t *testing.T) {
 			})
 		}
 	}
-	// TODO: Still needs a proper function
-	// t.Run("RequestMDNAddToFormat", func(t *testing.T) {
-	// 	message := NewMsg()
-	// 	if message == nil {
-	// 		t.Fatal("message is nil")
-	// 	}
-	// 	if err := message.RequestMDNAddToFormat(`Robert "Bob" Smith`, "toni.tester@example.com"); err != nil {
-	// 		t.Fatalf("failed to exec RequestMDNAddToFormat: %s", err)
-	// 	}
-	// 	checkGenHeader(t, message, HeaderDispositionNotificationTo, "RequestMDNAddToFormat", 0, 1,
-	// 		`"Robert \"Bob\" Smith" <toni.tester@example.com>`)
-	// })
+	t.Run("RequestMDNAddToFormat", func(t *testing.T) {
+		for _, tn := range names {
+			t.Run(tn.name, func(t *testing.T) {
+				message := NewMsg()
+				if message == nil {
+					t.Fatal("message is nil")
+				}
+				if err := message.RequestMDNAddToFormat(tn.name, tn.addr); err != nil {
+					t.Fatalf("failed to exec RequestMDNAddToFormat: %s", err)
+				}
+				wantAddr := mail.Address{Name: tn.name, Address: tn.addr}
+				checkGenHeader(t, message, HeaderDispositionNotificationTo, "RequestMDNAddToFormat", 0, 1, wantAddr.String())
+			})
+		}
+	})
 }
 
 func TestMsg_To(t *testing.T) {
