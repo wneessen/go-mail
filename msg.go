@@ -757,11 +757,11 @@ func (m *Msg) EnvelopeFrom(from string) error {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.4
 func (m *Msg) EnvelopeFromFormat(name, addr string) error {
-	mailAddr := mail.Address{Name: name, Address: addr}
-	if _, err := mail.ParseAddress(mailAddr.String()); err != nil {
+	mailAddr, err := mailAddrFromNameAddr(name, addr)
+	if err != nil {
 		return err
 	}
-	m.EnvelopeFromMailAddress(&mailAddr)
+	m.EnvelopeFromMailAddress(mailAddr)
 	return nil
 }
 
@@ -830,11 +830,11 @@ func (m *Msg) FromMailAddress(from *mail.Address) {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
 func (m *Msg) FromFormat(name, addr string) error {
-	mailAddr := mail.Address{Name: name, Address: addr}
-	if _, err := mail.ParseAddress(mailAddr.String()); err != nil {
+	mailAddr, err := mailAddrFromNameAddr(name, addr)
+	if err != nil {
 		return err
 	}
-	m.FromMailAddress(&mailAddr)
+	m.FromMailAddress(mailAddr)
 	return nil
 }
 
@@ -919,11 +919,11 @@ func (m *Msg) AddToMailAddress(rcpt *mail.Address) {
 //
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddToFormat(name, addr string) error {
-	mailAddr := mail.Address{Name: name, Address: addr}
-	if _, err := mail.ParseAddress(mailAddr.String()); err != nil {
+	mailAddr, err := mailAddrFromNameAddr(name, addr)
+	if err != nil {
 		return err
 	}
-	m.AddToMailAddress(&mailAddr)
+	m.AddToMailAddress(mailAddr)
 	return nil
 }
 
@@ -1050,11 +1050,11 @@ func (m *Msg) AddCcMailAddress(rcpt *mail.Address) {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddCcFormat(name, addr string) error {
-	mailAddr := mail.Address{Name: name, Address: addr}
-	if _, err := mail.ParseAddress(mailAddr.String()); err != nil {
+	mailAddr, err := mailAddrFromNameAddr(name, addr)
+	if err != nil {
 		return err
 	}
-	m.AddCcMailAddress(&mailAddr)
+	m.AddCcMailAddress(mailAddr)
 	return nil
 }
 
@@ -1182,11 +1182,11 @@ func (m *Msg) AddBccMailAddress(rcpt *mail.Address) {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.3
 func (m *Msg) AddBccFormat(name, addr string) error {
-	mailAddr := mail.Address{Name: name, Address: addr}
-	if _, err := mail.ParseAddress(mailAddr.String()); err != nil {
+	mailAddr, err := mailAddrFromNameAddr(name, addr)
+	if err != nil {
 		return err
 	}
-	m.AddBccMailAddress(&mailAddr)
+	m.AddBccMailAddress(mailAddr)
 	return nil
 }
 
@@ -1278,11 +1278,11 @@ func (m *Msg) ReplyToMailAddress(addrs ...*mail.Address) {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc5322#section-3.6.2
 func (m *Msg) ReplyToFormat(name, addr string) error {
-	mailAddr := mail.Address{Name: name, Address: addr}
-	if _, err := mail.ParseAddress(mailAddr.String()); err != nil {
+	mailAddr, err := mailAddrFromNameAddr(name, addr)
+	if err != nil {
 		return err
 	}
-	m.ReplyToMailAddress(&mailAddr)
+	m.ReplyToMailAddress(mailAddr)
 	return nil
 }
 
@@ -3256,4 +3256,12 @@ func formatUnsubURIs(uris []string) string {
 		parts = append(parts, "<"+url+">")
 	}
 	return strings.Join(parts, ", ")
+}
+
+func mailAddrFromNameAddr(name, addr string) (*mail.Address, error) {
+	mailAddr := mail.Address{Name: name, Address: addr}
+	if _, err := mail.ParseAddress(mailAddr.String()); err != nil {
+		return nil, fmt.Errorf("failed to parse mail address: %w", err)
+	}
+	return &mailAddr, nil
 }
