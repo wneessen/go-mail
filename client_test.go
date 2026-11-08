@@ -1001,6 +1001,77 @@ func TestClient_ServerAddr(t *testing.T) {
 	})
 }
 
+func TestClient_DialWithContext_ServerAddresses(t *testing.T) {
+	tests := []struct {
+		name      string
+		host      string
+		network   string
+		addresses []string
+	}{
+		{"hostname", "smtp.example.org", "tcp", []string{"smtp.example.org:587", "smtp.example.org:25"}},
+		{"IPv4", "127.0.0.1", "tcp", []string{"127.0.0.1:587", "127.0.0.1:25"}},
+		{"IPv6 loopback", "::1", "tcp", []string{"[::1]:587", "[::1]:25"}},
+		{"bracketed IPv6 loopback", "[::1]", "tcp", []string{"[::1]:587", "[::1]:25"}},
+		{"IPv6", "2001:db8::25", "tcp", []string{"[2001:db8::25]:587", "[2001:db8::25]:25"}},
+		{"bracketed IPv6", "[2001:db8::25]", "tcp", []string{"[2001:db8::25]:587", "[2001:db8::25]:25"}},
+		{"IPv6 zone", "fe80::1%eth0", "tcp", []string{"[fe80::1%eth0]:587", "[fe80::1%eth0]:25"}},
+		{"bracketed IPv6 zone", "[fe80::1%eth0]", "tcp", []string{"[fe80::1%eth0]:587", "[fe80::1%eth0]:25"}},
+		{"IPv4-mapped IPv6", "::ffff:192.0.2.1", "tcp", []string{"[::ffff:192.0.2.1]:587", "[::ffff:192.0.2.1]:25"}},
+		{"bracketed IPv4-mapped IPv6", "[::ffff:192.0.2.1]", "tcp", []string{"[::ffff:192.0.2.1]:587", "[::ffff:192.0.2.1]:25"}},
+		{"Unix socket", "unix:///tmp/go-mail.sock", "unix", []string{"/tmp/go-mail.sock"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var addresses []string
+			fake := faker{ReadWriter: struct {
+				io.Reader
+				io.Writer
+			}{
+				strings.NewReader("220 Ready\r\n250 OK\r\n221 Bye\r\n"),
+				io.Discard,
+			}}
+			client, err := NewClient(tt.host, WithTLSPortPolicy(TLSOpportunistic),
+				WithDialContextFunc(func(_ context.Context, network, address string) (net.Conn, error) {
+					addresses = append(addresses, address)
+					if network != tt.network {
+						t.Errorf("dial network mismatch: want %q, got %q", tt.network, network)
+					}
+					if network == "tcp" {
+						if _, _, err := net.SplitHostPort(address); err != nil {
+							return nil, err
+						}
+						if len(addresses) == 1 {
+							return nil, errors.New("primary port unavailable")
+						}
+					}
+					return fake, nil
+				}))
+			if err != nil {
+				t.Fatalf("failed to create new client: %s", err)
+			}
+			if got := client.ServerAddr(); got != tt.addresses[0] {
+				t.Errorf("server address mismatch: want %q, got %q", tt.addresses[0], got)
+			}
+			err = client.DialWithContext(t.Context())
+			if tt.network == "tcp" && client.host != tt.host {
+				t.Errorf("client host mismatch: want %q, got %q", tt.host, client.host)
+			}
+			if client.tlsconfig.ServerName != tt.host {
+				t.Errorf("TLS server name mismatch: want %q, got %q", tt.host, client.tlsconfig.ServerName)
+			}
+			if !slices.Equal(addresses, tt.addresses) {
+				t.Errorf("dial addresses mismatch: want %q, got %q", tt.addresses, addresses)
+			}
+			if err != nil {
+				t.Fatalf("failed to dial: %s", err)
+			}
+			if err = client.Close(); err != nil {
+				t.Errorf("failed to close client: %s", err)
+			}
+		})
+	}
+}
+
 func TestClient_SetTLSPolicy(t *testing.T) {
 	t.Run("SetTLSPolicy TLSMandatory", func(t *testing.T) {
 		client, err := NewClient(DefaultHost)
