@@ -1465,7 +1465,19 @@ func (m *Msg) SetUserAgent(userAgent string) {
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc2369#section-3.2
 func (m *Msg) SetListUnsubscribe(uris ...string) {
-	m.SetGenHeaderPreformatted(HeaderListUnsubscribe, formatUnsubURIs(uris))
+	valid := make([]string, 0, len(uris))
+	for _, uri := range uris {
+		uri = strings.TrimSpace(uri)
+		uri = strings.TrimPrefix(strings.TrimSuffix(uri, ">"), "<")
+		if !isValidListUnsubscribeURI(uri) {
+			continue
+		}
+		valid = append(valid, uri)
+	}
+
+	if len(valid) > 0 {
+		m.SetGenHeaderPreformatted(HeaderListUnsubscribe, formatUnsubURIs(valid))
+	}
 }
 
 // SetListUnsubscribePost sets the "List-Unsubscribe-Post" header field to the
@@ -3318,4 +3330,40 @@ func mailAddrFromNameAddr(name, addr string) (*mail.Address, error) {
 		return nil, fmt.Errorf("failed to parse mail address: %w", err)
 	}
 	return &mailAddr, nil
+}
+
+// isValidListUnsubscribeURI checks if a provided raw string is a valid
+// URL for a List-Unsubscribe URI
+func isValidListUnsubscribeURI(raw string) bool {
+	if raw == "" {
+		return false
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return false
+	}
+	if !u.IsAbs() {
+		return false
+	}
+	if u.String() != raw {
+		return false
+	}
+	switch u.Scheme {
+	case "https":
+		if u.Host == "" {
+			return false
+		}
+	case "mailto", "http":
+	default:
+		return false
+	}
+	for _, s := range []string{u.Opaque, u.Path, u.Fragment, u.Host} {
+		if strings.ContainsFunc(s, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
+			return false
+		}
+	}
+	if q, err := url.QueryUnescape(u.RawQuery); err == nil && strings.ContainsAny(q, "\r\n\x00") {
+		return false
+	}
+	return true
 }
