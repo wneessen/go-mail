@@ -1632,14 +1632,13 @@ func (m *Msg) RequestMDNAddTo(rcpt string) error {
 //
 // References:
 //   - https://datatracker.ietf.org/doc/html/rfc8098
-func (m *Msg) RequestMDNAddToMailAddr(rcpt *mail.Address) error {
+func (m *Msg) RequestMDNAddToMailAddr(rcpt *mail.Address) {
 	var addresses []string
 	if current, ok := m.genHeader[HeaderDispositionNotificationTo]; ok {
 		addresses = current
 	}
 	addresses = append(addresses, rcpt.String())
 	m.genHeader[HeaderDispositionNotificationTo] = addresses
-	return nil
 }
 
 // RequestMDNAddToFormat adds an additional formatted recipient to the "Disposition-Notification-To"
