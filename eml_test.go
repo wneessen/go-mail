@@ -1399,3 +1399,57 @@ func TestToAndFromEMLMultipart(t *testing.T) {
 		}
 	})
 }
+
+func TestEMLToMsgMultipartRoundTrip(t *testing.T) {
+	header := "From: <a@example.com>\r\nTo: <b@example.com>\r\nSubject: Report\r\nMIME-Version: 1.0\r\n"
+	tests := []struct {
+		name        string
+		eml         string
+		parts       int
+		attachments int
+	}{
+		{
+			"mixed with nested alternative",
+			header + "Content-Type: multipart/mixed; boundary=\"000000000000aaa\"\r\n\r\n" +
+				"--000000000000aaa\r\nContent-Type: multipart/alternative; boundary=\"000000000000bbb\"\r\n\r\n" +
+				"--000000000000bbb\r\nContent-Type: text/plain; charset=\"UTF-8\"\r\n\r\nSee attached.\r\n" +
+				"--000000000000bbb\r\nContent-Type: text/html; charset=\"UTF-8\"\r\n\r\n<p>See attached.</p>\r\n" +
+				"--000000000000bbb--\r\n" +
+				"--000000000000aaa\r\nContent-Type: application/pdf; name=\"report.pdf\"\r\n" +
+				"Content-Disposition: attachment; filename=\"report.pdf\"\r\nContent-Transfer-Encoding: base64\r\n\r\n" +
+				"JVBERi0xLjQK\r\n--000000000000aaa--\r\n",
+			2, 1,
+		},
+		{
+			"signed",
+			header + "Content-Type: multipart/signed; protocol=\"application/pkcs7-signature\"; micalg=sha-256; boundary=\"SSS\"\r\n\r\n" +
+				"--SSS\r\nContent-Type: text/plain; charset=\"UTF-8\"\r\n\r\nSigned text.\r\n" +
+				"--SSS\r\nContent-Type: application/pkcs7-signature; name=\"smime.p7s\"\r\n" +
+				"Content-Disposition: attachment; filename=\"smime.p7s\"\r\nContent-Transfer-Encoding: base64\r\n\r\n" +
+				"MIAGCSqGSIb3DQEHAqCAMIACAQEx\r\n--SSS--\r\n",
+			1, 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msg, err := EMLToMsgFromReader(strings.NewReader(tt.eml))
+			if err != nil {
+				t.Fatalf("failed to parse EML: %s", err)
+			}
+			var buf bytes.Buffer
+			if _, err = msg.WriteTo(&buf); err != nil {
+				t.Fatalf("failed to write message: %s", err)
+			}
+			reparsed, err := EMLToMsgFromReader(&buf)
+			if err != nil {
+				t.Fatalf("failed to parse written message: %s", err)
+			}
+			if len(reparsed.GetParts()) != tt.parts {
+				t.Errorf("want %d body parts after round trip, got %d", tt.parts, len(reparsed.GetParts()))
+			}
+			if len(reparsed.GetAttachments()) != tt.attachments {
+				t.Errorf("want %d attachments after round trip, got %d", tt.attachments, len(reparsed.GetAttachments()))
+			}
+		})
+	}
+}

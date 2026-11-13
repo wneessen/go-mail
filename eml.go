@@ -271,7 +271,14 @@ func parseEMLBodyParts(parsedMsg *netmail.Message, bodybuf *bytes.Buffer, msg *M
 		msg.SetCharset(Charset(value))
 	}
 	if value, ok := params["boundary"]; ok {
-		msg.SetBoundary(value)
+		// The writer keeps one boundary per nesting level for these types. Any other
+		// multipart type (signed, report, ...) keeps its header, so it needs the original.
+		switch subtype := MIMEType(strings.TrimPrefix(strings.ToLower(mediatype), "multipart/")); subtype {
+		case MIMEMixed, MIMERelated, MIMEAlternative:
+			msg.multiPartBoundary[subtype] = value
+		default:
+			msg.SetBoundary(value)
+		}
 	}
 
 	switch {
@@ -388,6 +395,7 @@ ReadNextPart:
 				if err := parseEMLBodyParts(relatedPart, relatedBuf, msg); err != nil {
 					return fmt.Errorf("failed to parse related multipart body: %w", err)
 				}
+				goto ReadNextPart
 			}
 		}
 
