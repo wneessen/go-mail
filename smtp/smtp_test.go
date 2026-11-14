@@ -993,6 +993,7 @@ func TestXOAuth2Auth(t *testing.T) {
 		})
 
 		auth := XOAuth2Auth("user", "token")
+		client.tls = true
 		if err = client.Auth(auth); err != nil {
 			t.Errorf("failed to authenticate to faker server: %s", err)
 		}
@@ -1033,6 +1034,7 @@ func TestXOAuth2Auth(t *testing.T) {
 		})
 
 		auth := XOAuth2Auth("user", "token")
+		client.tls = true
 		if err = client.Auth(auth); err == nil {
 			t.Errorf("expected authentication to fail")
 		}
