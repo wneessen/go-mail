@@ -17,7 +17,14 @@ func XOAuth2Auth(username, token string) Auth {
 	return &xoauth2Auth{username, token}
 }
 
-func (a *xoauth2Auth) Start(_ *ServerInfo) (string, []byte, error) {
+func (a *xoauth2Auth) Start(server *ServerInfo) (string, []byte, error) {
+	// TLS is enforced following RFC 6750 and RFC 7628. Google (developer of
+	// the protocol) requires TLS for XOAUTH2. Since it's basically a subtype
+	// of a OAUTH2 Bearer token, it should be treated like such secret and
+	// transmission via non secure connections should be rejected.
+	if !server.TLS {
+		return "", nil, ErrUnencrypted
+	}
 	return "XOAUTH2", []byte("user=" + a.username + "\x01" + "auth=Bearer " + a.token + "\x01\x01"), nil
 }
 
