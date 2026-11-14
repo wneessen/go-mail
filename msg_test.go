@@ -7577,7 +7577,7 @@ func TestMsg_Reset(t *testing.T) {
 	message.Subject("This is the subject")
 	message.SetBodyString(TypeTextPlain, "This is the body")
 	message.AddAlternativeString(TypeTextPlain, "This is the alternative string")
-	message.SetListUnsubscribeOneClick("https://example.com/unsub?id=123")
+	_ = message.SetListUnsubscribeOneClick("https://example.com/unsub?id=123")
 	message.EmbedFile("testdata/embed.txt")
 	message.AttachFile("testdata/attach.txt")
 
