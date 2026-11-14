@@ -1122,6 +1122,38 @@ func TestXOAuth2Auth(t *testing.T) {
 			t.Errorf("expected authentication to fail")
 		}
 	})
+	t.Run("XOAuth2 authentication on non-tls server fails", func(t *testing.T) {
+		ctx := t.Context()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH XOAUTH2\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(
+				ctx, t, &serverProps{
+					FailOnAuth: true,
+					FeatureSet: featureSet,
+					ListenPort: serverPort,
+				},
+			); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		auth := XOAuth2Auth("user", "token")
+		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		if err != nil {
+			t.Fatalf("failed to connect to test server: %s", err)
+		}
+		err = client.Auth(auth)
+		if err == nil {
+			t.Error("expected non-TLS XOAUTH2 to fail")
+		}
+		if !errors.Is(err, ErrUnencrypted) {
+			t.Errorf("expected error to be: %q, got: %q", ErrUnencrypted, err)
+		}
+	})
 }
 
 func TestScramAuth(t *testing.T) {
