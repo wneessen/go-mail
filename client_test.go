@@ -2893,6 +2893,36 @@ func TestClient_auth(t *testing.T) {
 			t.Fatalf("client should have failed to connect")
 		}
 	})
+	t.Run("XOAUTH2 on non TLS connection should fail", func(t *testing.T) {
+		ctx := t.Context()
+		PortAdder.Add(1)
+		serverPort := int(TestServerPortBase + PortAdder.Load())
+		featureSet := "250-AUTH XOAUTH2\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
+		go func() {
+			if err := simpleSMTPServer(ctx, t, &serverProps{
+				FeatureSet: featureSet,
+				ListenPort: serverPort,
+			}); err != nil {
+				t.Errorf("failed to start test server: %s", err)
+				return
+			}
+		}()
+		time.Sleep(time.Millisecond * 30)
+
+		ctxDial, cancelDial := context.WithTimeout(ctx, time.Millisecond*500)
+		t.Cleanup(cancelDial)
+
+		client, err := NewClient(DefaultHost, WithTLSPolicy(NoTLS), WithPort(serverPort),
+			WithSMTPAuth(SMTPAuthXOAUTH2), WithUsername("test"),
+			WithPassword("password"),
+		)
+		if err != nil {
+			t.Fatalf("failed to create new client: %s", err)
+		}
+		if err = client.DialWithContext(ctxDial); err == nil {
+			t.Fatalf("client should have failed to connect")
+		}
+	})
 	t.Run("unknown auth type should fail", func(t *testing.T) {
 		ctx := t.Context()
 		PortAdder.Add(1)
@@ -4730,91 +4760,6 @@ func TestClient_onlinetests(t *testing.T) {
 					t.Errorf("failed to close client connection: %s", err)
 				}
 			})
-		}
-	})
-}
-
-func TestClient_XOAuth2OnFaker(t *testing.T) {
-	t.Run("Success", func(t *testing.T) {
-		server := []string{
-			"220 Fake server ready ESMTP",
-			"250-fake.server",
-			"250-AUTH LOGIN XOAUTH2",
-			"250 8BITMIME",
-			"235 2.7.0 Accepted",
-			"221 OK",
-		}
-		var wrote strings.Builder
-		var fake faker
-		fake.ReadWriter = struct {
-			io.Reader
-			io.Writer
-		}{
-			strings.NewReader(strings.Join(server, "\r\n")),
-			&wrote,
-		}
-		c, err := NewClient("fake.host",
-			WithDialContextFunc(getFakeDialFunc(fake)),
-			WithTLSPortPolicy(NoTLS),
-			WithSMTPAuth(SMTPAuthXOAUTH2),
-			WithUsername("user"),
-			WithPassword("token"))
-		if err != nil {
-			t.Fatalf("unable to create new client: %v", err)
-		}
-		if err = c.DialWithContext(context.Background()); err != nil {
-			var netErr net.Error
-			if errors.As(err, &netErr) && netErr.Timeout() {
-				t.Skip("failed to connect to the test server due to timeout")
-			}
-			t.Fatalf("unexpected dial error: %v", err)
-		}
-		if err = c.Close(); err != nil {
-			t.Fatalf("disconnect from test server failed: %v", err)
-		}
-		if !strings.Contains(wrote.String(), "AUTH XOAUTH2 dXNlcj11c2VyAWF1dGg9QmVhcmVyIHRva2VuAQE=\r\n") {
-			t.Fatalf("got %q; want AUTH XOAUTH2 dXNlcj11c2VyAWF1dGg9QmVhcmVyIHRva2VuAQE=\r\n", wrote.String())
-		}
-	})
-	t.Run("Unsupported", func(t *testing.T) {
-		server := []string{
-			"220 Fake server ready ESMTP",
-			"250-fake.server",
-			"250-AUTH LOGIN PLAIN",
-			"250 8BITMIME",
-			"221 OK",
-		}
-		var wrote strings.Builder
-		var fake faker
-		fake.ReadWriter = struct {
-			io.Reader
-			io.Writer
-		}{
-			strings.NewReader(strings.Join(server, "\r\n")),
-			&wrote,
-		}
-		c, err := NewClient("fake.host",
-			WithDialContextFunc(getFakeDialFunc(fake)),
-			WithTLSPortPolicy(TLSOpportunistic),
-			WithSMTPAuth(SMTPAuthXOAUTH2))
-		if err != nil {
-			t.Fatalf("unable to create new client: %v", err)
-		}
-		if err = c.DialWithContext(context.Background()); err == nil {
-			t.Fatal("expected dial error got nil")
-		}
-		if !errors.Is(err, ErrXOauth2AuthNotSupported) {
-			t.Fatalf("expected %v; got %v", ErrXOauth2AuthNotSupported, err)
-		}
-		if err = c.Close(); err != nil {
-			t.Fatalf("disconnect from test server failed: %v", err)
-		}
-		client := strings.Split(wrote.String(), "\r\n")
-		if len(client) != 2 {
-			t.Fatalf("unexpected number of client requests got %d; want 2", len(client))
-		}
-		if !strings.HasPrefix(client[0], "EHLO") {
-			t.Fatalf("expected EHLO, got %q", client[0])
 		}
 	})
 }

@@ -1054,12 +1054,13 @@ func TestXOAuth2Auth(t *testing.T) {
 		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
-		featureSet := "250-AUTH XOAUTH2\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		featureSet := "250-AUTH XOAUTH2\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
 			if err := simpleSMTPServer(
 				ctx, t, &serverProps{
-					FeatureSet: featureSet,
-					ListenPort: serverPort,
+					FeatureSet:  featureSet,
+					ListenPort:  serverPort,
+					SSLListener: true,
 				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
@@ -1069,7 +1070,12 @@ func TestXOAuth2Auth(t *testing.T) {
 		time.Sleep(time.Millisecond * 30)
 
 		auth := XOAuth2Auth("user", "token")
-		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		tlsConfig := getTLSConfig(t)
+		conn, err := tls.Dial("tcp", fmt.Sprintf("%s:%d", TestServerAddr, serverPort), tlsConfig)
+		if err != nil {
+			t.Fatalf("failed to dial TLS server: %v", err)
+		}
+		client, err := NewClient(conn, TestServerAddr)
 		if err != nil {
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
@@ -1086,13 +1092,14 @@ func TestXOAuth2Auth(t *testing.T) {
 		ctx := t.Context()
 		PortAdder.Add(1)
 		serverPort := int(TestServerPortBase + PortAdder.Load())
-		featureSet := "250-AUTH XOAUTH2\r\n250-8BITMIME\r\n250-DSN\r\n250 SMTPUTF8"
+		featureSet := "250-AUTH XOAUTH2\r\n250-8BITMIME\r\n250-STARTTLS\r\n250-DSN\r\n250 SMTPUTF8"
 		go func() {
 			if err := simpleSMTPServer(
 				ctx, t, &serverProps{
-					FailOnAuth: true,
-					FeatureSet: featureSet,
-					ListenPort: serverPort,
+					FailOnAuth:  true,
+					FeatureSet:  featureSet,
+					ListenPort:  serverPort,
+					SSLListener: true,
 				},
 			); err != nil {
 				t.Errorf("failed to start test server: %s", err)
@@ -1102,7 +1109,12 @@ func TestXOAuth2Auth(t *testing.T) {
 		time.Sleep(time.Millisecond * 30)
 
 		auth := XOAuth2Auth("user", "token")
-		client, err := Dial(fmt.Sprintf("%s:%d", TestServerAddr, serverPort))
+		tlsConfig := getTLSConfig(t)
+		conn, err := tls.Dial("tcp", fmt.Sprintf("%s:%d", TestServerAddr, serverPort), tlsConfig)
+		if err != nil {
+			t.Fatalf("failed to dial TLS server: %v", err)
+		}
+		client, err := NewClient(conn, TestServerAddr)
 		if err != nil {
 			t.Fatalf("failed to connect to test server: %s", err)
 		}
