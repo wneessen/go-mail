@@ -7577,6 +7577,7 @@ func TestMsg_Reset(t *testing.T) {
 	message.Subject("This is the subject")
 	message.SetBodyString(TypeTextPlain, "This is the body")
 	message.AddAlternativeString(TypeTextPlain, "This is the alternative string")
+	message.SetListUnsubscribeOneClick("https://example.com/unsub?id=123")
 	message.EmbedFile("testdata/embed.txt")
 	message.AttachFile("testdata/attach.txt")
 
@@ -7589,6 +7590,14 @@ func TestMsg_Reset(t *testing.T) {
 	}
 	if len(message.GetGenHeader(HeaderSubject)) != 0 {
 		t.Errorf("expected message Subject to be empty, got: %+v", message.GetGenHeader(HeaderSubject))
+	}
+	if len(message.preformHeader[HeaderListUnsubscribe]) != 0 {
+		t.Errorf("expected message List-Unsubscribe header to be empty, got: %+v",
+			message.preformHeader[HeaderListUnsubscribe])
+	}
+	if len(message.preformHeader[HeaderListUnsubscribePost]) != 0 {
+		t.Errorf("expected message List-Unsubscribe-Post header to be empty, got: %+v",
+			message.preformHeader[HeaderListUnsubscribePost])
 	}
 	if len(message.GetAttachments()) != 0 {
 		t.Errorf("expected message Attachments to be empty, got: %d", len(message.GetAttachments()))
