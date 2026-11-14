@@ -22,9 +22,7 @@ func (a *xoauth2Auth) Start(server *ServerInfo) (string, []byte, error) {
 	// the protocol) requires TLS for XOAUTH2. Since it's basically a subtype
 	// of a OAUTH2 Bearer token, it should be treated like such secret and
 	// transmission via non secure connections should be rejected.
-	//
-	// We follow the same logic as for PLAIN and LOGIN auth.
-	if !server.TLS && !isLocalhost(server.Name) {
+	if !server.TLS {
 		return "", nil, ErrUnencrypted
 	}
 	return "XOAUTH2", []byte("user=" + a.username + "\x01" + "auth=Bearer " + a.token + "\x01\x01"), nil
