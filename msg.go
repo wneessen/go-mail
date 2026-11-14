@@ -2381,6 +2381,7 @@ func (m *Msg) Reset() {
 	m.attachments = nil
 	m.embeds = nil
 	m.genHeader = make(map[Header][]string)
+	m.preformHeader = make(map[Header]string)
 	m.parts = nil
 }
 
