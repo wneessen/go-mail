@@ -5,7 +5,7 @@
 package mail
 
 import (
-	"bytes"
+	"bufio"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 )
 
 const (
@@ -517,7 +518,6 @@ func (mw *msgWriter) writeHeader(key Header, values ...string) int {
 func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encoding Encoding) {
 	var writer io.Writer
 	var encodedWriter io.WriteCloser
-	var n int64
 	var err error
 	if mw.depth == 0 {
 		writer = mw.writer
@@ -528,53 +528,60 @@ func (mw *msgWriter) writeBody(writeFunc func(io.Writer) (int64, error), encodin
 	if writer == nil {
 		return
 	}
-	writeBuffer := bytes.Buffer{}
+	// Count the encoded bytes while they go to the writer. Write errors of the
+	// writer are kept and reported as io.Copy errors, as before.
+	counter := countingWriter{writer: writer}
+	writeBuffer := bodyBufferPool.Get().(*bufio.Writer)
+	writeBuffer.Reset(&counter)
+	defer func() {
+		writeBuffer.Reset(nil)
+		bodyBufferPool.Put(writeBuffer)
+	}()
 	lineBreaker := base64LineBreaker{}
-	lineBreaker.out = &writeBuffer
+	lineBreaker.out = writeBuffer
 
 	switch encoding {
 	case EncodingQP:
-		encodedWriter = quotedprintable.NewWriter(&writeBuffer)
+		encodedWriter = quotedprintable.NewWriter(writeBuffer)
 	case EncodingB64:
 		encodedWriter = base64.NewEncoder(base64.StdEncoding, &lineBreaker)
 	case NoEncoding:
-		_, err = writeFunc(&writeBuffer)
-		if err != nil {
+		_, err = writeFunc(writeBuffer)
+		if err != nil && counter.err == nil {
 			mw.err = fmt.Errorf("bodyWriter function: %w", err)
 		}
-		n, err = io.Copy(writer, &writeBuffer)
-		if err != nil && mw.err == nil {
-			mw.err = fmt.Errorf("bodyWriter io.Copy: %w", err)
-		}
-		if mw.depth == 0 {
-			mw.bytesWritten += n
-		}
+		mw.finishBody(writeBuffer, &counter)
 		return
 	default:
 		encodedWriter = quotedprintable.NewWriter(writer)
 	}
 
 	_, err = writeFunc(encodedWriter)
-	if err != nil {
+	if err != nil && counter.err == nil {
 		mw.err = fmt.Errorf("bodyWriter function: %w", err)
 	}
 	err = encodedWriter.Close()
-	if err != nil && mw.err == nil {
+	if err != nil && mw.err == nil && counter.err == nil {
 		mw.err = fmt.Errorf("bodyWriter close encoded writer: %w", err)
 	}
 	err = lineBreaker.Close()
-	if err != nil && mw.err == nil {
+	if err != nil && mw.err == nil && counter.err == nil {
 		mw.err = fmt.Errorf("bodyWriter close linebreaker: %w", err)
 	}
-	n, err = io.Copy(writer, &writeBuffer)
-	if err != nil && mw.err == nil {
-		mw.err = fmt.Errorf("bodyWriter io.Copy: %w", err)
+	mw.finishBody(writeBuffer, &counter)
+}
+
+// finishBody flushes the body to the writer and adds the written bytes.
+func (mw *msgWriter) finishBody(writeBuffer *bufio.Writer, counter *countingWriter) {
+	_ = writeBuffer.Flush()
+	if counter.err != nil && mw.err == nil {
+		mw.err = fmt.Errorf("bodyWriter io.Copy: %w", counter.err)
 	}
 
 	// Since the part writer uses the WriteTo() method, we don't need to add the
 	// bytes twice
 	if mw.depth == 0 {
-		mw.bytesWritten += n
+		mw.bytesWritten += counter.n
 	}
 }
 
@@ -656,4 +663,29 @@ func isTSpecial(c byte) bool {
 		return true
 	}
 	return false
+}
+
+// bodyBufferPool holds the buffers that writeBody uses between the encoder and
+// the writer. A large buffer keeps the number of writes small.
+var bodyBufferPool = sync.Pool{
+	New: func() any { return bufio.NewWriterSize(nil, 32*1024) },
+}
+
+// countingWriter counts the bytes written to writer and keeps its first error.
+type countingWriter struct {
+	writer io.Writer
+	n      int64
+	err    error
+}
+
+func (c *countingWriter) Write(p []byte) (int, error) {
+	if c.err != nil {
+		return 0, c.err
+	}
+	n, err := c.writer.Write(p)
+	c.n += int64(n)
+	if err != nil {
+		c.err = err
+	}
+	return n, err
 }
