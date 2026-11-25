@@ -177,7 +177,14 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 		mw.writeString(DoubleNewLine)
 	}
 
-	for _, part := range msg.parts {
+	parts := msg.parts
+	if msg.hasAlt() {
+		parts = append([]*Part(nil), msg.parts...)
+		sort.SliceStable(parts, func(i, j int) bool {
+			return alternativePartOrder(parts[i].contentType) < alternativePartOrder(parts[j].contentType)
+		})
+	}
+	for _, part := range parts {
 		if !part.isDeleted && !part.smime {
 			mw.writePart(part, msg.charset)
 		}
@@ -206,6 +213,20 @@ func (mw *msgWriter) writeMsg(msg *Msg) {
 			}
 		}
 		mw.stopMP()
+	}
+}
+
+// alternativePartOrder returns the multipart/alternative ordering weight for a part.
+// RFC 2046 orders alternatives by increasing faithfulness, so HTML content is written
+// after plain text for clients to select it as the richer representation.
+func alternativePartOrder(contentType ContentType) int {
+	switch contentType {
+	case TypeTextPlain:
+		return 0
+	case TypeTextHTML:
+		return 2
+	default:
+		return 1
 	}
 }
 

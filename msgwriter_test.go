@@ -243,6 +243,25 @@ func TestMsgWriter_writeMsg(t *testing.T) {
 			t.Errorf("expected end boundary, got: %s", buffer.String())
 		}
 	})
+	t.Run("msgWriter orders plain text before HTML in multipart alternative", func(t *testing.T) {
+		buffer := bytes.NewBuffer(nil)
+		msgwriter.writer = buffer
+		message := testMessage(t, WithBoundary("testboundary"))
+		message.SetBodyString(TypeTextHTML, "<html><body><h1>Testmail</h1></body></html>")
+		message.AddAlternativeString(TypeTextPlain, "Testmail")
+		msgwriter.writeMsg(message)
+		if msgwriter.err != nil {
+			t.Errorf("msgWriter failed to write: %s", msgwriter.err)
+		}
+		plainIndex := strings.Index(buffer.String(), "Content-Type: text/plain")
+		htmlIndex := strings.Index(buffer.String(), "Content-Type: text/html")
+		if plainIndex == -1 || htmlIndex == -1 {
+			t.Fatalf("expected plain text and HTML parts, got: %s", buffer.String())
+		}
+		if plainIndex > htmlIndex {
+			t.Errorf("expected plain text part before HTML part, got: %s", buffer.String())
+		}
+	})
 	t.Run("msgWriter writes a application/pgp-encrypted message", func(t *testing.T) {
 		buffer := bytes.NewBuffer(nil)
 		msgwriter.writer = buffer
