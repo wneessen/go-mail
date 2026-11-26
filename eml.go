@@ -212,6 +212,14 @@ func parseEMLHeaders(mailHeader *netmail.Header, msg *Msg) error {
 		}
 	}
 
+	if v := mailHeader.Get(HeaderReplyTo.String()); v != "" {
+		parsedAddrs, err := netmail.ParseAddressList(v)
+		if err != nil {
+			return fmt.Errorf(`failed to parse address list: %w`, err)
+		}
+		msg.ReplyToMailAddress(parsedAddrs...)
+	}
+
 	// Extract date from message
 	date, err := mailHeader.Date()
 	if err != nil {
