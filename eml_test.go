@@ -1373,6 +1373,37 @@ func TestEMLToMsgFromFile(t *testing.T) {
 	})
 }
 
+func TestEMLToMsgReplyTo(t *testing.T) {
+	eml := `From: John Doe <jdoe@machine.example>
+To: Mary Smith <mary@example.net>
+Reply-To: Mailing List <list@example.com>
+Subject: Reply-To header
+Date: Fri, 21 Nov 1997 09:55:06 -0600
+
+This is a message with a Reply-To header.`
+
+	parsed, err := EMLToMsgFromString(eml)
+	if err != nil {
+		t.Fatalf("failed to parse EML string: %s", err)
+	}
+
+	replyTo := parsed.GetReplyTo()
+	if len(replyTo) != 1 {
+		t.Fatalf("want 1 Reply-To address, got %d", len(replyTo))
+	}
+	if replyTo[0].Address != "list@example.com" || replyTo[0].Name != "Mailing List" {
+		t.Errorf("unexpected Reply-To address: %v", replyTo[0])
+	}
+
+	var buf bytes.Buffer
+	if _, err = parsed.WriteTo(&buf); err != nil {
+		t.Fatalf("failed to write parsed message: %s", err)
+	}
+	if !strings.Contains(buf.String(), `Reply-To: "Mailing List" <list@example.com>`) {
+		t.Errorf("Reply-To header was not written back: %s", buf.String())
+	}
+}
+
 func TestToAndFromEMLMultipart(t *testing.T) {
 	t.Run("TestToAndFromEMLMultipart succeeds", func(t *testing.T) {
 		msg := NewMsg()
